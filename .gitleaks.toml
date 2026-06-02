@@ -1,0 +1,16 @@
+title = "ExternalBrain gitleaks config"
+
+# Inherit gitleaks' built-in rule set, then allowlist a small number of
+# values that scanners flag but are provably NOT secrets:
+#   - a documentation example (admin:pw) in a troubleshooting snippet
+#   - a deliberately fake bearer token used by verify-lockdown.sh to prove
+#     the MCP server REJECTS bogus tokens (it must be a non-secret string)
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known-safe documentation placeholders and the deliberate fake test token"
+regexes = [
+  '''admin:pw''',
+  '''bp_not_a_real_token_xxxxxxxxxxxxx''',
+]

@@ -1,0 +1,135 @@
+name: e2e (deployed dev brain)
+
+# Issue #234 — Option A: run the auth-free subset of the Playwright suite
+# against the deployed dev brain after every push to `main`. Catches
+# regressions on public surfaces (health probes, password-reset flow,
+# negative-path security posture) without needing a docker-compose stack
+# inside CI.
+#
+# Why not on every PR push: the deployed brain is shared infrastructure;
+# every test run hits a live server. Running on `main` only means the
+# gate fires once per release-promotion (develop -> main), which matches
+# the ~weekly release cadence today.
+#
+# What this does NOT cover (intentionally):
+#   - Specs that need ALLOW_DEV_AUTH=true (admin dashboard, oracle UI,
+#     skills, autoskill, sessions) — those will land in Option B (full
+#     docker-compose stack) as a follow-up.
+#   - Seeded-fixture-dependent specs (skills.spec.ts, sessions.spec.ts,
+#     autoskill.spec.ts) — covered by #236's seed + Option B.
+#   - Visual baselines (visual.spec.ts) — gated on PWUPDATE/RUN_VISUAL,
+#     see #235.
+#
+# Cost: ~3-4 minutes per run (pnpm install + playwright install + 14
+# auth-free tests). GitHub-hosted runner — no self-hosted budget.
+
+on:
+  push:
+    branches: [main]
+  # Per-PR opt-in: add the `e2e-please` label to a PR against develop
+  # or main to exercise the deployed dev brain's surfaces. The job
+  # short-circuits when the label is absent, so the synchronize/opened
+  # events don't burn e2e budget on every push. No untrusted PR-author
+  # content reaches any run: block — the label check happens in the
+  # `if:` expression layer, and the existing E2E_BASE_URL stays
+  # env-bound (workflow-injection hardening preserved).
+  pull_request:
+    branches: [develop, main]
+    types: [opened, synchronize, reopened, labeled]
+  # Operator-triggered runs when debugging the gate or after a hand-deploy.
+  # The dispatched input is bound to an env var with explicit defaulting
+  # so the run: step doesn't interpolate ${{ ... }} directly into the
+  # shell (workflow-injection hardening per
+  # https://github.blog/security/vulnerability-research/how-to-catch-github-actions-workflow-injections-before-attackers-do/).
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: "Base URL to test against (default https://brain-dev.example.com)"
+        required: false
+        default: "https://brain-dev.example.com"
+
+concurrency:
+  group: e2e-deployed-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: deployed-brain smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Gate: always run on push/workflow_dispatch; on PRs run only when
+    # the `e2e-please` label is present. github.event.pull_request is
+    # absent for non-PR events so the `contains(...)` short-circuits to
+    # false there, but the outer `||` makes the gate true anyway.
+    if: >-
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.labels.*.name, 'e2e-please')
+
+    env:
+      # Dispatch input (if any) is bound to this env var here, NOT
+      # interpolated into a shell command later. `run:` steps reference
+      # ${E2E_BASE_URL} from the shell, which the runner exposes as a
+      # plain env variable — no expression evaluation, no injection
+      # surface.
+      E2E_BASE_URL: ${{ github.event.inputs.target_url || 'https://brain-dev.example.com' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install workspace deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Install playwright browser (chromium only)
+        run: pnpm --filter @brain/web exec playwright install --with-deps chromium
+
+      - name: Pre-flight — target reachable?
+        # Fail fast if the deployed brain is down so the report doesn't
+        # show 14 noisy connection refusals. ${E2E_BASE_URL} is the
+        # env-bound URL (see job env block above) — safe to use in
+        # shell, no GitHub-expression interpolation here.
+        run: |
+          set -e
+          echo "Probing ${E2E_BASE_URL}/api/healthz ..."
+          for i in 1 2 3 4 5; do
+            if curl -sSf --max-time 10 "${E2E_BASE_URL}/api/healthz" >/dev/null; then
+              echo "OK"
+              exit 0
+            fi
+            echo "attempt $i failed; retrying in 5s"
+            sleep 5
+          done
+          echo "::error::${E2E_BASE_URL} not reachable after 5 attempts; aborting e2e gate"
+          exit 1
+
+      - name: Run auth-free e2e subset
+        working-directory: apps/web
+        # `--grep-invert "positive path"` skips the security spec's
+        # ALLOW_DEV_AUTH-dependent half. The negative-path tests
+        # (verify 401 / 403 on protected admin endpoints) are the
+        # *real* security gate and run fine without a logged-in user.
+        run: |
+          npx playwright test \
+            e2e/healthz.spec.ts \
+            e2e/password-reset.spec.ts \
+            e2e/security.spec.ts \
+            --grep-invert "positive path"
+
+      - name: Upload playwright-report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: apps/web/playwright-report/
+          retention-days: 14

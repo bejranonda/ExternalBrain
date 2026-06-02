@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+#
+# Pre-commit hook — typecheck + fast unit tests before every commit.
+#
+# Enable once per clone:
+#   git config core.hooksPath .githooks
+#
+# To skip for a specific commit (RARE — only for doc-only changes):
+#   git commit --no-verify -m "…"
+#
+# The hook is intentionally fast (~15s on cache-warm). If it gets slow, split
+# out a `pre-push` with the heavier checks.
+#
+set -euo pipefail
+
+# Skip if only docs / markdown / env examples changed.
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+if [ -z "$STAGED" ]; then
+  exit 0
+fi
+
+NON_DOC=0
+while IFS= read -r f; do
+  case "$f" in
+    *.md|*.mdx|docs/*|.env.example|.env.pilot.example|*.txt|LICENSE|.github/*)
+      ;;
+    *)
+      NON_DOC=1
+      ;;
+  esac
+done <<< "$STAGED"
+
+if [ "$NON_DOC" = "0" ]; then
+  printf '\033[36m[pre-commit]\033[0m Doc-only change — skipping typecheck + tests.\n'
+  exit 0
+fi
+
+printf '\033[36m[pre-commit]\033[0m Running typecheck + unit tests…\n'
+DATABASE_URL="${DATABASE_URL:-postgresql://ci:ci@localhost:5432/ci}" NODE_ENV=test \
+  pnpm turbo run typecheck >/dev/null 2>&1 \
+  || { printf '\033[31m[pre-commit]\033[0m Typecheck FAILED. Fix before committing.\n'; exit 1; }
+
+DATABASE_URL="${DATABASE_URL:-postgresql://ci:ci@localhost:5432/ci}" NODE_ENV=test \
+  pnpm --filter @brain/core test >/dev/null 2>&1 \
+  || { printf '\033[31m[pre-commit]\033[0m Unit tests FAILED. Fix before committing.\n'; exit 1; }
+
+# If the commit touches KRA / embedding code, nudge the author to re-run the
+# benchmark. We don't run it automatically — it needs a live stack — but we
+# don't let the change slip by silently either.
+TOUCHES_RETRIEVAL=0
+for f in $STAGED; do
+  case "$f" in
+    packages/core/src/kra.ts|packages/core/src/embedding.ts|packages/core/scripts/retrieval-benchmark.ts)
+      TOUCHES_RETRIEVAL=1
+      ;;
+  esac
+done
+if [ "$TOUCHES_RETRIEVAL" = "1" ]; then
+  printf '\033[33m[pre-commit]\033[0m Retrieval code changed — re-run the benchmark:\n'
+  printf '    docker compose ... --profile bootstrap run --rm bootstrap \\\n'
+  printf '      "cd /repo && /repo/packages/db/node_modules/.bin/tsx packages/core/scripts/retrieval-benchmark.ts"\n'
+  printf '  Update docs/VALIDATION.md with the fresh numbers in THIS PR.\n'
+fi
+
+printf '\033[32m[pre-commit]\033[0m OK\n'

@@ -1,0 +1,253 @@
+# Brain Platform — test-server MVP stack.
+#
+# Bring up:
+#   cp .env.example .env      # fill in OPENAI_API_KEY and/or ANTHROPIC_API_KEY
+#   ./scripts/deploy.sh       # orchestrates build → migrate → up
+#
+# Or, hand-crank:
+#   docker compose -f deploy/docker-compose.yml --env-file .env up -d --build
+#   docker compose -f deploy/docker-compose.yml --env-file .env exec web pnpm --filter @brain/db prisma migrate deploy
+
+services:
+  # Per-service log retention pattern (#56 gap 1):
+  #   - `logging:` block bounds the in-container log buffer to 50 MB total
+  #     (10 MB × 5 files) so a runaway log doesn't fill the host disk.
+  #   - `scripts/save-deploy-logs.sh` runs BEFORE any reload / deploy and
+  #     snapshots the live logs to `./logs/snapshots/<timestamp>/<service>.log`,
+  #     so a force-recreate (which Docker's logging driver alone cannot
+  #     survive) doesn't lose the preceding evidence.
+  # The snapshot script is invoked by reload.sh + deploy.sh + deploy-prod.sh.
+
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-brain}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-brain}
+      POSTGRES_DB: ${POSTGRES_DB:-brain}
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - brain_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-brain}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: web
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      NODE_ENV: production
+      DEV_USER_ID: ${DEV_USER_ID:-}
+      # Auth-hardening (2026-04-23): unconfigured deployments must EITHER
+      # set AUTH_GITHUB_* + AUTH_SECRET for OAuth, OR set ALLOW_DEV_AUTH=true
+      # for a local/VPN-only demo. The dev-compose default is "true" so the
+      # stack boots usable after `./scripts/deploy.sh`; docker-compose.prod.yml
+      # leaves it false and requires OAuth envs instead.
+      ALLOW_DEV_AUTH: ${ALLOW_DEV_AUTH:-true}
+      ALLOW_DEV_AUTH_IN_PRODUCTION: ${ALLOW_DEV_AUTH_IN_PRODUCTION:-true}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      REGISTRATION_REQUIRES_VOUCHER: ${REGISTRATION_REQUIRES_VOUCHER:-true}
+      AUTH_URL: ${AUTH_URL:-}
+      # Public hostnames consumed by the installer / skill / wizard
+      # endpoints (apps/web/lib/brain/skill-template.ts::publicUrlsFromEnv).
+      # Without these the generated installer hard-codes
+      # http://localhost:3100/mcp, which is wrong on any deployment a
+      # remote client would talk to. Default-empty so a localhost-only
+      # `pnpm turbo run dev` still works; set BOTH on any TLS-fronted
+      # deploy so the generated `claude mcp add` URL is the public HTTPS one.
+      BRAIN_PUBLIC_HOSTNAME: ${BRAIN_PUBLIC_HOSTNAME:-}
+      BRAIN_MCP_PUBLIC_HOSTNAME: ${BRAIN_MCP_PUBLIC_HOSTNAME:-}
+      # Required on non-localhost deployments (any URL except 127.0.0.1 /
+      # localhost) or NextAuth refuses the host header with "There was a
+      # problem with the server configuration." Kept default-on because
+      # auth.ts also sets trustHost: true; the env var belt-and-braces
+      # matches what NextAuth looks for at module load.
+      AUTH_TRUST_HOST: ${AUTH_TRUST_HOST:-true}
+      AUTH_SECRET: ${AUTH_SECRET:-}
+      AUTH_GITHUB_ID: ${AUTH_GITHUB_ID:-}
+      AUTH_GITHUB_SECRET: ${AUTH_GITHUB_SECRET:-}
+      # Credentials-mode admin login (phase-1 pilot default). See
+      # docs/SECURITY.md §"Credentials mode". Generate the hash via
+      # `pnpm hash-admin-password '<plaintext>'`.
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-}
+      # Legacy singular — kept here to preserve backward-compat with
+      # existing .env files. The web service reads ADMIN_EMAILS first
+      # and falls back to ADMIN_EMAIL with a one-time deprecation warning
+      # (#39). Remove this line once all operator .envs are migrated.
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
+      ORACLE_MODEL: ${ORACLE_MODEL:-claude-sonnet-4-6}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      GOOGLE_GEMINI_API_KEY: ${GOOGLE_GEMINI_API_KEY:-}
+      # Operator kill-switch (#56 gap 3) — flip to "false" to take Oracle
+      # offline without blocking the rest of the app. Read at request time.
+      ORACLE_ENABLED: ${ORACLE_ENABLED:-true}
+      RATE_LIMIT_ORACLE_PER_DAY: ${RATE_LIMIT_ORACLE_PER_DAY:-100}
+      RATE_LIMIT_KEA_PER_HOUR: ${RATE_LIMIT_KEA_PER_HOUR:-60}
+      RATE_LIMIT_MCP_PER_MINUTE: ${RATE_LIMIT_MCP_PER_MINUTE:-200}
+      MAX_ORACLE_COST_USD_PER_DAY: ${MAX_ORACLE_COST_USD_PER_DAY:-10}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      REDIS_URL: ${REDIS_URL:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+    ports:
+      - "${WEB_HOST_PORT:-3000}:3000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  mcp-server:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: mcp-server
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      MCP_TRANSPORT: http
+      MCP_SERVER_HTTP_PORT: 3100
+      # Operator kill-switch (#56 gap 3) — flip to "false" to take MCP
+      # offline without losing /health. Read at request time.
+      MCP_ENABLED: ${MCP_ENABLED:-true}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
+      ORACLE_MODEL: ${ORACLE_MODEL:-claude-sonnet-4-6}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      GOOGLE_GEMINI_API_KEY: ${GOOGLE_GEMINI_API_KEY:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Needed for the no-auth GET / landing page introduced in #9 — the
+      # JSON response includes deep links to the webapp's /docs + /welcome
+      # so a developer pasting the MCP hostname in a browser has somewhere
+      # to go. Empty default → those fields render as null (graceful).
+      BRAIN_PUBLIC_HOSTNAME: ${BRAIN_PUBLIC_HOSTNAME:-}
+    ports:
+      - "${MCP_HOST_PORT:-3100}:3100"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  worker:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: worker
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      NODE_ENV: production
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
+      ORACLE_MODEL: ${ORACLE_MODEL:-claude-sonnet-4-6}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      GOOGLE_GEMINI_API_KEY: ${GOOGLE_GEMINI_API_KEY:-}
+      PG_BOSS_SCHEMA: ${PG_BOSS_SCHEMA:-pgboss}
+      KEA_ENABLED: ${KEA_ENABLED:-true}
+      # KEA_MODEL routes to a provider in packages/core/src/kea.ts:
+      #   qwen*/glm* → DashScope (needs DASHSCOPE_API_KEY)
+      #   claude*    → Anthropic   (needs ANTHROPIC_API_KEY)
+      #   anything else → OpenAI   (needs OPENAI_API_KEY)
+      # Default is qwen3-coder for cost reasons; falls back to claude-haiku-4-5
+      # if the operator hasn't minted a DashScope key. The worker previously
+      # didn't pass this var through, silently ignoring .env overrides.
+      KEA_MODEL: ${KEA_MODEL:-qwen3-coder}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      AUTOSKILL_ENABLED: ${AUTOSKILL_ENABLED:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Optional TLS terminator — opt-in via the `tls` profile. Used when the
+  # dev stack should be reachable at a public hostname over HTTPS (e.g.
+  # brain-dev.example.com). Pulls a Let's Encrypt cert on first request;
+  # requires DNS to already resolve the hostname to this host's public IP.
+  # See deploy/Caddyfile.dev for the routing rules.
+  caddy:
+    profiles: ["tls"]
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - web
+      - mcp-server
+    environment:
+      BRAIN_PUBLIC_HOSTNAME: ${BRAIN_PUBLIC_HOSTNAME:?BRAIN_PUBLIC_HOSTNAME must be set when the tls profile is enabled}
+      BRAIN_MCP_PUBLIC_HOSTNAME: ${BRAIN_MCP_PUBLIC_HOSTNAME:?BRAIN_MCP_PUBLIC_HOSTNAME must be set when the tls profile is enabled — exposing MCP behind TLS prevents Bearer-token leakage on the public internet}
+      CADDY_EMAIL: ${CADDY_EMAIL:-}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - caddy_logs:/var/log/caddy
+
+  # One-shot bootstrap container: runs migrations + FTS index.
+  # Invoked by scripts/deploy.sh; do not depend on it in long-running services.
+  bootstrap:
+    profiles: ["bootstrap"]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: base
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      GOOGLE_GEMINI_API_KEY: ${GOOGLE_GEMINI_API_KEY:-}
+    working_dir: /repo
+    entrypoint: ["/bin/sh", "-c"]
+    # The scripts/deploy.sh orchestrator invokes individual subcommands via
+    # `docker compose run --rm bootstrap '<cmd>'`.
+
+volumes:
+  brain_db:
+  caddy_data:
+  caddy_config:
+  caddy_logs:

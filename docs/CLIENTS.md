@@ -1,0 +1,271 @@
+# Wiring an MCP client to your Brain
+
+> **For new tokens:** the `/settings/tokens` mint screen now generates per-client install snippets automatically — pick your client and OS, copy the command, done. The snippets in this doc are the manual-paste fallback and the canonical reference for snippet shapes; you should not need them unless the wizard is unavailable or you prefer to audit the raw config.
+
+Brain exposes **9 MCP tools + 4 resources** over Streamable HTTP. To connect, you need:
+
+1. A **bearer token** minted at `https://<your-brain>/settings/tokens`.
+2. Claude Code (or another MCP client) configured to use it.
+3. *(Recommended)* The Brain **skill**, which teaches your client *when and how* to use the tools — not just that they exist.
+
+This page covers all three on **macOS, Linux, Windows native (PowerShell), and WSL/Git Bash**.
+
+---
+
+## TL;DR — one-line install (recommended)
+
+After you mint a token at `/settings/tokens`, the webapp shows a copy-paste command pre-filled with your bearer. The plain-text equivalents are below; substitute `<your-brain>` (e.g. `brain.example.com`) and your minted `bp_…` token.
+
+### macOS / Linux / WSL / Git Bash
+
+```bash
+curl -fsSL https://<your-brain>/api/onboard.sh | bash -s 'bp_…'
+```
+
+### Windows (PowerShell 5.1+ or 7+)
+
+```powershell
+iwr https://<your-brain>/api/onboard.ps1 -UseBasicParsing | iex
+Install-Brain -Token 'bp_…'
+```
+
+The installer:
+
+1. Calls `claude mcp add brain --scope user --transport http <mcp-url> --header "Authorization: Bearer <token>"` — this writes to **`~/.claude.json`** (the canonical Claude Code config), NOT `~/.claude/mcp.json` (a common trap path; Claude Code does not read it).
+2. Downloads the Brain SKILL.md to `~/.claude/skills/brain/SKILL.md` (POSIX) or `%USERPROFILE%\.claude\skills\brain\SKILL.md` (Windows).
+3. Verifies via `claude mcp list | grep brain` and reports.
+
+After install, **restart Claude Code** so it picks up the new MCP entry and the skill.
+
+### Audit-first variant (security-aware operators)
+
+Don't pipe untrusted scripts to `bash` / `iex`. Same effect, with inspection:
+
+```bash
+# POSIX
+curl -fsSL https://<your-brain>/api/onboard.sh -o /tmp/brain-install.sh
+less /tmp/brain-install.sh
+bash /tmp/brain-install.sh 'bp_…'
+```
+
+```powershell
+# PowerShell
+iwr https://<your-brain>/api/onboard.ps1 -OutFile $env:TEMP\brain-install.ps1
+notepad $env:TEMP\brain-install.ps1
+. $env:TEMP\brain-install.ps1 ; Install-Brain -Token 'bp_…'
+```
+
+---
+
+## Manual: step by step (every OS)
+
+### 1. Mint a token
+
+`https://<your-brain>/settings/tokens` → **Create token**. Copy the `bp_…` value once — the webapp stores only its SHA-256 hash and cannot show it again.
+
+### 2. Register the MCP server with Claude Code
+
+Same command on every OS — **always use the `claude mcp add` CLI**, never edit `mcp.json` files by hand:
+
+```bash
+claude mcp add brain \
+  --scope user \
+  --transport http \
+  https://<your-brain>/mcp \
+  --header "Authorization: Bearer bp_…"
+```
+
+| Scope | When to use |
+|---|---|
+| `user` | One Brain across every project on this machine. Default and recommended. |
+| `project` | Only this repo. Writes `<repo>/.claude.json` and commits-able if the team shares a Brain. |
+| `local` | Just for this Claude Code session, not persisted. Useful for ad-hoc testing. |
+
+Verify:
+
+```bash
+claude mcp list | grep brain
+# brain: https://<your-brain>/mcp (HTTP) - ✓ Connected
+```
+
+### 3. Install the skill
+
+The skill is what makes Brain *idiomatic* — without it, Claude treats the 9 tools as an undifferentiated registry and discovers usage patterns by trial. Drop it once per machine:
+
+#### macOS / Linux / WSL / Git Bash
+
+```bash
+mkdir -p ~/.claude/skills/brain
+curl -fsSL https://<your-brain>/api/skills/brain -o ~/.claude/skills/brain/SKILL.md
+```
+
+#### Windows (PowerShell)
+
+```powershell
+$dir = "$env:USERPROFILE\.claude\skills\brain"
+New-Item -ItemType Directory -Force -Path $dir | Out-Null
+Invoke-WebRequest "https://<your-brain>/api/skills/brain" `
+  -OutFile "$dir\SKILL.md" -UseBasicParsing
+```
+
+#### Project-scoped (commit alongside your repo)
+
+If your team shares a Brain instance, commit the skill so every clone of the repo gets it:
+
+```
+<repo>/.claude/skills/brain/SKILL.md
+```
+
+A teammate cloning the repo gets the skill automatically — no install step. Commit `.claude/skills/brain/` but **never commit `~/.claude.json`** (it contains your personal token). Add it to `.gitignore` if you've checked the wrong file in.
+
+### 4. Restart Claude Code
+
+Skills are loaded at session start. Claude Code in another terminal won't see the change until the next `claude` invocation.
+
+---
+
+## Other MCP clients
+
+### Cursor
+
+Cursor's MCP support is stdio-only as of writing. Wrap the HTTP transport with the [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) shim:
+
+```json
+{
+  "mcpServers": {
+    "brain": {
+      "command": "npx",
+      "args": [
+        "-y", "mcp-remote",
+        "https://<your-brain>/mcp",
+        "--header", "Authorization:Bearer bp_…"
+      ]
+    }
+  }
+}
+```
+
+Cursor reads `~/.cursor/mcp.json` (user-scope) or `<repo>/.cursor/mcp.json` (project-scope). A native HTTP transport is on Cursor's roadmap.
+
+### Windsurf
+
+Same pattern as Cursor: stdio-only, wrap with `mcp-remote`. Config at `~/.codeium/windsurf/mcp_config.json`.
+
+### Claude Desktop
+
+Edit `claude_desktop_config.json`:
+
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+
+Same `mcp-remote` wrapper as Cursor, then **restart Claude Desktop fully** (quit from menu bar / system tray, not just close the window).
+
+### Generic MCP / custom agent
+
+Streamable HTTP, JSON-RPC 2.0:
+
+```bash
+curl -X POST https://<your-brain>/mcp \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -H "Authorization: Bearer bp_…" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"my-agent","version":"0.1"}}}'
+```
+
+After `initialize` returns, persist the `Mcp-Session-Id` response header and send it on every subsequent request as a `Mcp-Session-Id:` request header.
+
+---
+
+## Sanity-check from any shell
+
+Confirm the deploy is alive (no token needed):
+
+```bash
+curl -s https://<your-brain>/mcp/health 2>/dev/null \
+  || curl -s https://<your-brain>:3100/health  # dev profile, plain HTTP
+```
+
+Confirm your token works (single round-trip via `tools/list` requires session state — the easiest token validation is **inside Claude Code** after install, not in a single curl):
+
+```bash
+# This will return 200 with serverInfo even unauthenticated (spec-permitted),
+# so it confirms reachability but NOT token validity.
+curl -X POST https://<your-brain>/mcp \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"sanity","version":"0.1"}}}'
+
+# Real validation: install via the recipe above, then run:
+claude mcp list | grep brain   # → "✓ Connected" if token is good
+```
+
+---
+
+## Common traps (from real onboarding incidents)
+
+| Symptom | Trap | Fix |
+|---|---|---|
+| Edited `~/.claude/mcp.json` (or `%USERPROFILE%\.claude\mcp.json`); nothing happens | **Wrong path.** Claude Code reads `~/.claude.json` (no subdir). The `mcp.json` filename inside `.claude/` is ignored. | Use `claude mcp add`, not manual edits. Verify with `claude mcp list`. |
+| `https://...:3100/mcp` → SSL error | Port 3100 on most deploys is plain HTTP, not TLS. | Use the standard-port HTTPS URL (`https://<host>/mcp`) if Caddy/nginx fronts it; otherwise use `http://<host>:3100/mcp`. |
+| `claude mcp add` returns "command not found" | Claude Code is not installed (or its binary isn't on PATH). | Install Claude Code first: <https://docs.claude.com/en/docs/claude-code> |
+| 401 even with a fresh token | Bearer typo — `Authorization: bearer` (lowercase b) or `Authorization: Token` instead of `Authorization: Bearer` | Use `claude mcp add ... --header "Authorization: Bearer bp_…"` exactly. |
+| Tools appear but every call returns 401 | Token was revoked between mint and use, OR rotated and the grace period expired. | Mint a new token; re-run the install. |
+| Session works in one terminal but not another | Claude Code wrote to project scope (`<repo>/.claude.json`), and the second terminal is in a different repo. | Re-add with `--scope user` for cross-project availability. |
+| Skill appears but Claude doesn't use it | Claude Code hasn't restarted since the skill was dropped. | Restart Claude Code. |
+| Token works but `brain_*` tools missing from palette | Claude Code restarted, but didn't reload MCP registry. | Try `/mcp` inside Claude Code, or restart again. |
+
+---
+
+## Token rotation
+
+Brain supports **24-hour grace-period rotation**: when you click "Rotate" in `/settings/tokens`, the old token keeps working for 24 h while you push the new value to clients. After 24 h the old token is auto-revoked.
+
+Recommended workflow:
+
+1. Click **Rotate** in the webapp. The new bearer is shown once.
+2. Run the install one-liner again (with the new token) on every machine that needs it. Each machine's Claude Code config picks up the new value.
+3. Verify with `claude mcp list` on each machine before the 24-h window ends.
+
+If you miss the window, no harm done — just mint a fresh token and re-run the installer.
+
+---
+
+## Per-machine, not per-user
+
+We strongly recommend **one token per machine**, not one shared across laptops + desktop + CI runner:
+
+- A leaked token can be revoked without disrupting your other machines.
+- Audit logs (`MCPToken.lastUsedAt` + nginx access log) tell you which machine made which call.
+- If a machine is decommissioned, just revoke its token; no other workflow changes.
+
+Each user's `/settings/tokens` page lists every token they've minted with name + last-used timestamp + status (active / rotated / revoked). Name them clearly: `Personal MacBook`, `Office Linux`, `CI runner`, etc.
+
+---
+
+## Provider key scoping (Gemini + DashScope + Z.ai)
+
+The Brain Platform uses two independent provider paths:
+
+- **Chat models** (Oracle, KEA) route through the Anthropic SDK, pointed at any Anthropic-compatible gateway via `ANTHROPIC_BASE_URL`. Uses `ANTHROPIC_API_KEY`.
+- **Embeddings** route through the OpenAI SDK, pointed at any OpenAI-compatible gateway via `EMBEDDING_BASE_URL`. Key resolution chain: `EMBEDDING_API_KEY → GOOGLE_GEMINI_API_KEY → OPENAI_API_KEY → ANTHROPIC_API_KEY`.
+
+Three tested combinations live in `deploy/DEPLOY.md` §"Provider ecology cheat-sheets". Current recommendation for a free-tier demo: Gemini (embeddings) + Z.ai GLM (chat).
+
+**Three gotchas:**
+
+1. **Z.ai has no embedding endpoint.** `paas/v4` and `anthropic` subdomains serve chat completions only.
+2. **DashScope issues multiple token kinds.** A Claude-Code-integration token (`coding-intl.dashscope.aliyuncs.com`) is chat-only and 401s against `/embeddings`. For embeddings you need a general-purpose `sk-…` key from the 百炼 Model Studio console.
+3. **Gemini honors `dimensions`** — `gemini-embedding-001` defaults to 3072 dim but accepts the `dimensions: 1536` request param. If you swap to a provider that ignores it, retrieval breaks silently at pgvector insert.
+
+See `deploy/DEPLOY.md` §7 for the full cheat-sheets and troubleshooting table.
+
+---
+
+## Security notes
+
+- Tokens are stored as **SHA-256 hashes** server-side. We never see the raw token after create.
+- HTTP transport is stateless on the wire: each request carries its own Bearer. Revocation is immediate (the `MCPToken.revokedAt` check happens on every call).
+- Per-IP rate limits (configured at the reverse proxy) apply to every MCP endpoint.
+- **Do not expose the MCP HTTP port directly to the public internet** without TLS in front. Use Caddy / nginx + Let's Encrypt, or Cloudflare Tunnel. Token model assumes transport is trusted; a sniffer on the wire can replay a captured Bearer.
+- The skill itself is non-secret — it's a documentation file. The MCP token in your Claude Code config is the only secret on your machine; protect it like any other credential.

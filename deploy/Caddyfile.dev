@@ -1,0 +1,85 @@
+# Caddy reverse proxy — dev test-server stack (deploy/docker-compose.yml).
+#
+# Used when the operator opts in to TLS via the `tls` Compose profile:
+#
+#   COMPOSE_PROFILES=tls ./scripts/deploy.sh
+#   # or:
+#   docker compose -f deploy/docker-compose.yml --env-file .env --profile tls up -d caddy
+#
+# Required env (in .env / .env.local):
+#   BRAIN_PUBLIC_HOSTNAME=brain-dev.example.com
+#   BRAIN_MCP_PUBLIC_HOSTNAME=mcp.brain-dev.example.com
+#   CADDY_EMAIL=ops@example.com
+#
+# Both hostnames are required. The MCP block is what authenticates remote
+# clients (Claude Code on another host) — sending the Bearer token over
+# plain HTTP across the public internet leaks the token to anyone on the
+# path, so MCP-over-HTTPS is mandatory once the dev Brain is reachable
+# beyond a localhost/VPN. The dev :3100 host port is still bound by
+# `deploy/docker-compose.yml` for direct-IP smoke tests, but production
+# clients must use the HTTPS hostname.
+
+{
+	email {$CADDY_EMAIL}
+}
+
+# Webapp.
+{$BRAIN_PUBLIC_HOSTNAME} {
+	encode gzip zstd
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		-Server
+	}
+
+	reverse_proxy web:3000 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	log {
+		output file /var/log/caddy/web-access.log {
+			roll_size 100mb
+			roll_keep 7
+		}
+		format json
+		level WARN
+	}
+}
+
+# MCP HTTP transport on a separate hostname.
+# Streamable-HTTP keeps the response open for the whole session, so the
+# transport timeouts must be generous; otherwise long-running tool calls
+# get cut off by the proxy.
+{$BRAIN_MCP_PUBLIC_HOSTNAME} {
+	encode gzip zstd
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+
+	reverse_proxy mcp-server:3100 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+		transport http {
+			read_timeout 300s
+			write_timeout 300s
+		}
+	}
+
+	log {
+		output file /var/log/caddy/mcp-access.log {
+			roll_size 100mb
+			roll_keep 7
+		}
+		format json
+		level WARN
+	}
+}

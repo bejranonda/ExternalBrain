@@ -1,0 +1,175 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Audit O4 (#103): restrict GITHUB_TOKEN to the minimum scope CI needs.
+# Without this, jobs run at the repo's default scope (often
+# `contents: write`), which a compromised action could exfiltrate or
+# misuse. CI here only reads code; explicit `contents: read` makes that
+# the contract.
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: typecheck · test · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # #233 — give the verify job a real pgvector service so DB-gated
+    # tests stop silent-skipping. Before this, the IDOR regression net
+    # (cross-user-isolation.test.ts) was gated on `await reachable()`
+    # which failed without a real DB and tripped describe.skip — green
+    # CI hid that 5 IDOR tests never ran. With a real pgvector here,
+    # both DB-gated test files (cross-user-isolation, session-lifecycle,
+    # kea-audit-writes, kea-cross-extract, installer-templates-reconcile)
+    # execute against the actual schema.
+    #
+    # Cost: ~15s for postgres boot + migrate-deploy. Buys: regression
+    # coverage for closed CVE-class IDOR cluster (#106).
+    services:
+      db:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: brain
+          POSTGRES_PASSWORD: brain
+          POSTGRES_DB: brain
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U brain"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://brain:brain@localhost:5432/brain
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate
+        # `exec` prefix is load-bearing on pnpm 9: `pnpm --filter @brain/db prisma ...`
+        # looks for a "prisma" package.json script, doesn't find one, and silently
+        # no-ops — leaving src/generated/client/ empty and breaking every typecheck
+        # that imports Prisma types. Same reason scripts/deploy*.sh use `exec`.
+        run: pnpm --filter @brain/db exec prisma generate
+
+      # #233 — apply migrations against the real DB before tests run so
+      # DB-gated test files have the schema they need.
+      - name: Migrate test DB
+        env:
+          PGPASSWORD: brain
+        run: |
+          psql -h localhost -U brain -d brain -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+          pnpm --filter @brain/db exec prisma migrate deploy
+
+      - name: Typecheck
+        run: pnpm turbo run typecheck
+
+      # Broadened from `--filter @brain/core test` to `turbo run test` so any
+      # new package that adds a `test` script is automatically covered (#37).
+      # #233: DB-gated tests now execute (no more silent skip).
+      - name: Test
+        run: pnpm turbo run test
+
+      # Broadened from per-package `--filter` invocations to `turbo run build`,
+      # which builds all six packages (was only web/mcp-server/worker before).
+      # Catches build regressions in @brain/core, @brain/db, @brain/types
+      # that previously slipped through (#37).
+      - name: Build
+        run: pnpm turbo run build
+
+  # Fresh-DB migrate-deploy gate (#37). Boots an empty pgvector instance and
+  # runs the entire migration set front-to-back, plus the FTS GIN index DDL
+  # that scripts/deploy-prod.sh applies. Catches migration-ordering bugs
+  # (#36) that pass every existing CI gate because unit tests run against a
+  # Prisma-generated client and per-PR migrations apply cleanly in isolation
+  # against an already-migrated DB — they only surface when deploy-prod.sh
+  # spins up an empty Postgres on day-zero, which this job reproduces.
+  fresh-deploy:
+    name: fresh-DB migrate · FTS
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      db:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: brain
+          POSTGRES_PASSWORD: brain
+          POSTGRES_DB: brain
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U brain"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://brain:brain@localhost:5432/brain
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Enable pgvector
+        # Mirrors `scripts/deploy-prod.sh` — the migration referencing
+        # `vector(1536)` will fail unless the extension exists first.
+        run: psql "$DATABASE_URL" -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+
+      - name: Apply migrations on fresh DB
+        # The actual class-of-#36 catcher: runs the full migration history
+        # front-to-back against an empty database, exactly like day-zero
+        # production does. Migration ordering bugs (like #36's #20-vs-#17
+        # divergence) surface here even though they pass per-PR isolation.
+        run: pnpm --filter @brain/db exec prisma migrate deploy
+
+      - name: Apply FTS GIN indexes
+        # Mirrors `scripts/deploy-prod.sh §3` — applies the session full-text
+        # search index that `deploy-prod.sh` runs after migrate.
+        run: psql "$DATABASE_URL" -f packages/db/sql/session-fts-index.sql
+
+      # The migrate + FTS path is the broad net for migration-ordering and
+      # schema bugs; seed/data-shape coverage is intentionally out of scope
+      # for this job.

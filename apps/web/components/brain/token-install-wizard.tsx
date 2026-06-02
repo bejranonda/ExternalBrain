@@ -1,0 +1,582 @@
+"use client";
+
+import { useState } from "react";
+import {
+  claudeCodeCli,
+  claudeDesktop,
+  cursor,
+  windsurf,
+  geminiCli,
+  rawMcpServersJson,
+  restApiCurl,
+} from "@brain/core/install-snippets";
+import type { TargetOS } from "@brain/core/install-snippets";
+
+// ─── types ────────────────────────────────────────────────────────────────────
+
+type ClientId =
+  | "claudeCodeCli"
+  | "claudeDesktop"
+  | "cursor"
+  | "windsurf"
+  | "geminiCli"
+  | "rawMcpServersJson"
+  | "restApiCurl";
+
+interface ClientOption {
+  id: ClientId;
+  label: string;
+  needsOs: boolean;
+}
+
+const CLIENT_OPTIONS: ClientOption[] = [
+  { id: "claudeCodeCli", label: "Claude Code (CLI)", needsOs: true },
+  { id: "claudeDesktop", label: "Claude Desktop", needsOs: true },
+  { id: "cursor", label: "Cursor", needsOs: false },
+  { id: "windsurf", label: "Windsurf", needsOs: false },
+  { id: "geminiCli", label: "Gemini CLI", needsOs: false },
+  {
+    id: "rawMcpServersJson",
+    label: "Other MCP-aware client (raw JSON)",
+    needsOs: false,
+  },
+  { id: "restApiCurl", label: "Non-MCP tool (REST + cURL)", needsOs: false },
+];
+
+const OS_OPTIONS: { id: TargetOS; label: string }[] = [
+  { id: "darwin", label: "macOS" },
+  { id: "linux", label: "Linux" },
+  { id: "win32", label: "Windows" },
+];
+
+// ─── props ────────────────────────────────────────────────────────────────────
+
+export interface TokenInstallWizardProps {
+  /** The newly minted / rotated raw bearer token (shown once). */
+  rawToken: string;
+  /** The token's row id — used for the Test connection call. */
+  tokenId: string;
+  /** Public MCP endpoint URL (e.g. https://brain.example.com/mcp). */
+  mcpUrl: string;
+  /** Public webapp URL (e.g. https://brain.example.com). */
+  webUrl: string;
+  /** Optional: the old token's scheduled revoke time shown for rotate flows. */
+  oldTokenScheduledRevokeAt?: string | null;
+  /** Called when the user dismisses the wizard. */
+  onClose: () => void;
+}
+
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+/** Detect the likely OS from the browser user-agent. Defaults to linux. */
+function detectOs(): TargetOS {
+  if (typeof navigator === "undefined") return "linux";
+  const ua = navigator.userAgent;
+  if (/Mac/.test(ua)) return "darwin";
+  if (/Win/.test(ua)) return "win32";
+  return "linux";
+}
+
+const snippetFns: Record<
+  ClientId,
+  (
+    token: string,
+    mcpUrl: string,
+    webUrl: string,
+    os: TargetOS,
+  ) => ReturnType<typeof claudeCodeCli>
+> = {
+  claudeCodeCli,
+  claudeDesktop,
+  cursor,
+  windsurf,
+  geminiCli,
+  rawMcpServersJson,
+  restApiCurl,
+};
+
+// ─── component ────────────────────────────────────────────────────────────────
+
+export function TokenInstallWizard({
+  rawToken,
+  tokenId,
+  mcpUrl,
+  webUrl,
+  oldTokenScheduledRevokeAt,
+  onClose,
+}: TokenInstallWizardProps) {
+  const [selectedClient, setSelectedClient] = useState<ClientId>("claudeCodeCli");
+  const [selectedOs, setSelectedOs] = useState<TargetOS>(detectOs);
+  const [copiedSnippet, setCopiedSnippet] = useState(false);
+  const [copiedPath, setCopiedPath] = useState(false);
+  const [copiedToken, setCopiedToken] = useState(false);
+  // When the Clipboard API is unavailable (insecure context, browser
+  // without permission, etc.) we surface a manual-select hint instead of
+  // silently doing nothing. Keyed by which field the user just tried.
+  const [copyFailed, setCopyFailed] = useState<null | "token" | "snippet" | "path">(null);
+  const [testStatus, setTestStatus] = useState<
+    | null
+    | { loading: true }
+    | { loading: false; ok: true }
+    | { loading: false; ok: false; reason: string; detail?: string }
+  >(null);
+
+  const clientOption = CLIENT_OPTIONS.find((c) => c.id === selectedClient)!;
+  const snippet = snippetFns[selectedClient](rawToken, mcpUrl, webUrl, selectedOs);
+  const snippetBody = snippet.lines.join("\n");
+
+  const configPathForOs = snippet.configPath
+    ? snippet.configPath[selectedOs]
+    : null;
+
+  /**
+   * Best-effort copy that degrades gracefully on insecure contexts.
+   * Tries the modern Clipboard API first; on failure surfaces a hint so
+   * the user knows to select manually rather than wondering why nothing
+   * happened. The previous code silently swallowed the rejection.
+   */
+  const tryCopy = async (text: string, kind: "token" | "snippet" | "path"): Promise<boolean> => {
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        setCopyFailed(null);
+        return true;
+      }
+    } catch {
+      /* fall through to fallback */
+    }
+    setCopyFailed(kind);
+    return false;
+  };
+
+  const copySnippet = async () => {
+    if (await tryCopy(snippetBody, "snippet")) {
+      setCopiedSnippet(true);
+      window.setTimeout(() => setCopiedSnippet(false), 1500);
+    }
+  };
+
+  const copyToken = async () => {
+    if (await tryCopy(rawToken, "token")) {
+      setCopiedToken(true);
+      window.setTimeout(() => setCopiedToken(false), 1500);
+    }
+  };
+
+  const copyPath = async (path: string) => {
+    if (await tryCopy(path, "path")) {
+      setCopiedPath(true);
+      window.setTimeout(() => setCopiedPath(false), 1500);
+    }
+  };
+
+  const testConnection = async () => {
+    setTestStatus({ loading: true });
+    try {
+      const res = await fetch("/api/tokens/test", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ tokenId }),
+      });
+      const data = (await res.json()) as {
+        ok: boolean;
+        status?: string;
+        reason?: string;
+        expiresAt?: string;
+        scheduledRevokeAt?: string;
+      };
+      if (!res.ok) {
+        setTestStatus({
+          loading: false,
+          ok: false,
+          reason: data.reason ?? `HTTP ${res.status}`,
+        });
+        return;
+      }
+      if (data.ok) {
+        setTestStatus({ loading: false, ok: true });
+      } else {
+        let detail: string | undefined;
+        if (data.reason === "expired" && data.expiresAt) {
+          detail = `expired at ${new Date(data.expiresAt).toLocaleString()}`;
+        } else if (data.reason === "scheduled-revoke" && data.scheduledRevokeAt) {
+          detail = `scheduled revoke at ${new Date(data.scheduledRevokeAt).toLocaleString()}`;
+        }
+        const failState: { loading: false; ok: false; reason: string; detail?: string } = {
+          loading: false,
+          ok: false,
+          reason: data.reason ?? "unknown",
+        };
+        if (detail !== undefined) failState.detail = detail;
+        setTestStatus(failState);
+      }
+    } catch (e) {
+      setTestStatus({
+        loading: false,
+        ok: false,
+        reason: e instanceof Error ? e.message : "request failed",
+      });
+    }
+  };
+
+  return (
+    <div
+      className="panel"
+      style={{
+        padding: "14px 16px",
+        marginBottom: 24,
+        borderLeft: "3px solid var(--accent)",
+        background: "var(--bg-elev-1)",
+      }}
+    >
+      {/* ── Header ── */}
+      <div
+        className="row"
+        style={{ marginBottom: 10, alignItems: "center" }}
+      >
+        <div
+          className="mono"
+          style={{ fontSize: 11, color: "var(--ink-4)", letterSpacing: "0.06em" }}
+        >
+          COPY NOW — THIS IS SHOWN ONCE
+        </div>
+        <div className="grow" />
+        <button
+          type="button"
+          className="btn btn-ghost"
+          style={{ fontSize: 12, height: 22 }}
+          onClick={onClose}
+          aria-label="Dismiss wizard"
+        >
+          Dismiss
+        </button>
+      </div>
+
+      <h3
+        style={{
+          fontSize: 14,
+          fontWeight: 500,
+          margin: "0 0 12px",
+          letterSpacing: "-0.01em",
+        }}
+      >
+        Install in your client
+      </h3>
+
+      {/* ── Raw token warning ── */}
+      <div
+        style={{
+          padding: "8px 10px",
+          marginBottom: 14,
+          background: "var(--bg)",
+          border: "1px solid var(--line)",
+          borderRadius: 4,
+          position: "relative",
+        }}
+      >
+        <div
+          style={{ display: "flex", alignItems: "center", marginBottom: 4 }}
+        >
+          <div
+            className="mono"
+            style={{ fontSize: 11, color: "var(--ink-4)", flex: 1 }}
+          >
+            YOUR TOKEN — SAVE IT NOW, IT CANNOT BE RETRIEVED LATER
+          </div>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            style={{ fontSize: 11, height: 20, padding: "0 6px", marginLeft: 6 }}
+            onClick={() => void copyToken()}
+            aria-label="Copy raw token"
+          >
+            {copiedToken ? "Copied" : "Copy"}
+          </button>
+        </div>
+        <code
+          style={{
+            display: "block",
+            fontSize: 13,
+            fontFamily: "var(--font-mono)",
+            wordBreak: "break-all",
+            color: "var(--ink)",
+            userSelect: "all",
+          }}
+        >
+          {rawToken}
+        </code>
+        {copyFailed === "token" && (
+          <div
+            style={{
+              marginTop: 6,
+              fontSize: 12,
+              color: "var(--warn, #f5a623)",
+              lineHeight: 1.45,
+            }}
+          >
+            Clipboard unavailable in this context — triple-click the token above to
+            select it, then ⌘/Ctrl+C.
+          </div>
+        )}
+      </div>
+
+      {/* ── Grace-period note (rotation only) ── */}
+      {oldTokenScheduledRevokeAt && (
+        <div
+          style={{
+            fontSize: 13,
+            color: "var(--ink-3)",
+            marginBottom: 14,
+            lineHeight: 1.5,
+          }}
+        >
+          Old token auto-revokes at:{" "}
+          <strong>
+            {new Date(oldTokenScheduledRevokeAt).toLocaleString()}
+          </strong>
+          . Both tokens authenticate until then — update your clients at your
+          own pace.
+        </div>
+      )}
+
+      {/* ── Step 1: client picker ── */}
+      <div
+        className="mono"
+        style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 8 }}
+      >
+        STEP 1 — CHOOSE YOUR CLIENT
+      </div>
+      <div
+        style={{
+          fontSize: 12,
+          color: "var(--ink-3)",
+          marginBottom: 8,
+          lineHeight: 1.5,
+        }}
+      >
+        Pick the AI tool you actually use. Not sure?{" "}
+        <strong style={{ color: "var(--ink-2)" }}>Claude Code (CLI)</strong> is
+        the most common starting point.
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 5,
+          marginBottom: 14,
+        }}
+      >
+        {CLIENT_OPTIONS.map((opt) => (
+          <label
+            key={opt.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 13,
+              cursor: "pointer",
+              color: "var(--ink)",
+            }}
+          >
+            <input
+              type="radio"
+              name="client"
+              value={opt.id}
+              checked={selectedClient === opt.id}
+              onChange={() => setSelectedClient(opt.id)}
+            />
+            {opt.label}
+          </label>
+        ))}
+      </div>
+
+      {/* ── Step 2: OS picker (only when relevant) ── */}
+      {clientOption.needsOs && (
+        <>
+          <div
+            className="mono"
+            style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 8 }}
+          >
+            STEP 2 — CHOOSE YOUR OS
+          </div>
+          <div
+            style={{
+              display: "flex",
+              gap: 16,
+              marginBottom: 14,
+            }}
+          >
+            {OS_OPTIONS.map((opt) => (
+              <label
+                key={opt.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  color: "var(--ink)",
+                }}
+              >
+                <input
+                  type="radio"
+                  name="os"
+                  value={opt.id}
+                  checked={selectedOs === opt.id}
+                  onChange={() => setSelectedOs(opt.id)}
+                />
+                {opt.label}
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ── Step 3: rendered snippet ── */}
+      <div
+        className="mono"
+        style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 8 }}
+      >
+        {clientOption.needsOs ? "STEP 3" : "STEP 2"} — COPY THE SNIPPET
+      </div>
+
+      {/* Config path */}
+      {configPathForOs && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 6,
+          }}
+        >
+          <span
+            style={{ fontSize: 13, color: "var(--ink-3)" }}
+          >
+            Config path:
+          </span>
+          <code
+            style={{
+              fontSize: 13,
+              fontFamily: "var(--font-mono)",
+              color: "var(--ink-2)",
+              cursor: "pointer",
+              textDecoration: "underline dotted",
+            }}
+            title="Click to copy path"
+            onClick={() => void copyPath(configPathForOs)}
+          >
+            {configPathForOs}
+          </code>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            style={{ fontSize: 11, height: 20, padding: "0 6px" }}
+            onClick={() => void copyPath(configPathForOs)}
+          >
+            {copiedPath ? "Copied" : "Copy path"}
+          </button>
+        </div>
+      )}
+
+      {/* Snippet body */}
+      <div style={{ position: "relative" }}>
+        <pre
+          style={{
+            margin: "0 0 8px",
+            padding: "10px 12px",
+            background: "var(--bg)",
+            border: "1px solid var(--line)",
+            borderRadius: 4,
+            fontSize: 13,
+            fontFamily: "var(--font-mono)",
+            overflowX: "auto",
+            lineHeight: 1.55,
+            color: "var(--ink)",
+            whiteSpace: "pre",
+            userSelect: "all",
+          }}
+        >
+          {snippetBody}
+        </pre>
+        {copyFailed === "snippet" && (
+          <div
+            style={{
+              marginTop: -2,
+              marginBottom: 8,
+              fontSize: 12,
+              color: "var(--warn, #f5a623)",
+              lineHeight: 1.45,
+            }}
+          >
+            Clipboard unavailable — click anywhere in the snippet to select all, then ⌘/Ctrl+C.
+          </div>
+        )}
+      </div>
+
+      {/* Note */}
+      {snippet.note && (
+        <div
+          style={{
+            fontSize: 13,
+            color: "var(--ink-3)",
+            marginBottom: 10,
+            lineHeight: 1.5,
+          }}
+        >
+          {snippet.note}
+        </div>
+      )}
+
+      {/* Action buttons */}
+      <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          style={{ fontSize: 13 }}
+          onClick={() => void copySnippet()}
+        >
+          {copiedSnippet ? "Copied" : "Copy"}
+        </button>
+
+        <button
+          type="button"
+          className="btn btn-ghost"
+          style={{ fontSize: 13 }}
+          onClick={() => void testConnection()}
+          disabled={testStatus !== null && "loading" in testStatus && testStatus.loading}
+        >
+          {testStatus !== null && "loading" in testStatus && testStatus.loading
+            ? "Testing…"
+            : "Test connection"}
+        </button>
+      </div>
+
+      {/* Test result */}
+      {testStatus !== null && !("loading" in testStatus && testStatus.loading) && (
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: 13,
+            color:
+              "ok" in testStatus && testStatus.ok
+                ? "var(--good, #22c55e)"
+                : "var(--bad, #ff6b6b)",
+          }}
+        >
+          {"ok" in testStatus && testStatus.ok ? (
+            <>&#10003; Token is active</>
+          ) : (
+            <>
+              &#10007;{" "}
+              {"reason" in testStatus ? testStatus.reason : "error"}
+              {"detail" in testStatus && testStatus.detail
+                ? ` — ${testStatus.detail}`
+                : ""}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

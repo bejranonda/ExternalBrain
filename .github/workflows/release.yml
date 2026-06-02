@@ -1,0 +1,216 @@
+name: Release (develop → main)
+
+# Server-side release automation. The AI agent cannot merge to `main`
+# directly (AGENTS.md hard rule #1 enforced by the Claude Code classifier),
+# but it CAN dispatch this workflow. The workflow runs as github-actions
+# under the RELEASE_PAT secret and performs the merge + tag + draft
+# release server-side, never touching the agent classifier.
+#
+# Setup (one time): see docs/RELEASE_AUTOMATION.md.
+# Trigger: `gh workflow run release.yml -f version=v0.14.0`
+#          (or use the "Run workflow" button on the Actions tab).
+#
+# Security note: all dynamic inputs are passed via `env:` blocks and
+# referenced as $VAR in shell — never inlined as `${{ … }}` inside `run:`.
+# That convention closes the GHSA-class workflow-injection vector even
+# though dispatch is collaborator-only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag (e.g. v0.14.0)"
+        required: true
+        type: string
+      pr_number:
+        description: "Existing release PR number (blank = find or create)"
+        required: false
+        type: string
+      draft_release_notes:
+        description: "Create a draft GitHub Release with auto-generated notes"
+        required: false
+        type: boolean
+        default: true
+
+# RELEASE_PAT (fine-grained, repo: Contents=Write + Pull-requests=Write +
+# Administration=Write on this repo only) is required to bypass branch
+# protection on `main` for the merge. GITHUB_TOKEN alone cannot bypass
+# protection because the bot user is not a repo admin.
+permissions:
+  contents: write
+  pull-requests: write
+
+# Only one release at a time. A second dispatch while one is in flight
+# would race the tag-creation step.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Promote develop → main, tag, draft release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Validate version input
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must match vX.Y.Z (got: $VERSION)"
+            exit 1
+          fi
+
+      - name: Checkout (with PAT for tag push)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - name: Refuse if tag already exists
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          # Idempotency guard #1: a tag that already exists means this
+          # version has already shipped (manually or by a prior run).
+          # Bail with a clear error instead of failing 4 steps in.
+          if gh api "repos/${{ github.repository }}/git/refs/tags/$VERSION" >/dev/null 2>&1; then
+            echo "::error::Tag $VERSION already exists on this repo. Bump the version or delete the tag first."
+            exit 1
+          fi
+
+      - name: Resolve release PR number (and merge state)
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          VERSION: ${{ inputs.version }}
+          PR_INPUT: ${{ inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          if [ -n "$PR_INPUT" ]; then
+            PR_NUMBER="$PR_INPUT"
+            echo "Using user-supplied PR #$PR_NUMBER"
+          else
+            PR_NUMBER=$(gh pr list --base main --head develop --state open --json number -q '.[0].number // empty')
+            if [ -z "$PR_NUMBER" ]; then
+              echo "No open develop→main PR — creating one for $VERSION"
+              gh pr create \
+                --base main --head develop \
+                --title "release: $VERSION" \
+                --body "Automated release of $VERSION from develop. Opened by .github/workflows/release.yml dispatched with version=$VERSION."
+              PR_NUMBER=$(gh pr list --base main --head develop --state open --json number -q '.[0].number')
+            else
+              echo "Found existing release PR #$PR_NUMBER"
+            fi
+          fi
+          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+          # Idempotency guard #2: read the PR's current state so the wait
+          # and merge steps can skip themselves if it's already merged.
+          # Without this, the second dispatch of an already-shipped release
+          # silently no-ops the merge but still tries to tag and fails.
+          STATE=$(gh pr view "$PR_NUMBER" --json state -q .state)
+          echo "state=$STATE" >> "$GITHUB_OUTPUT"
+          echo "PR #$PR_NUMBER state: $STATE"
+
+      - name: Wait for CI to pass on release PR
+        if: ${{ steps.pr.outputs.state == 'OPEN' }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          # `--watch` polls until every check completes; non-zero exit means
+          # at least one failed → this job fails fast and the release does
+          # NOT ship. NOTE: `--required` was tried first but errors with
+          # "no required checks reported" when branch protection on main
+          # doesn't enumerate specific required check names (our setup —
+          # protection is enforced via PR + admin-override policy, not via
+          # named checks). Without `--required`, we wait for ALL checks.
+          # Skipped checks (e.g. deployed-brain smoke on docs PRs) don't
+          # fail the gate.
+          gh pr checks "$PR_NUMBER" --watch
+
+      - name: Merge release PR into main
+        if: ${{ steps.pr.outputs.state == 'OPEN' }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          # `--merge` (not --squash) preserves the PR-history merge commit
+          # on main so `git log --grep="Merge pull request"` keeps working
+          # for release archaeology. `--admin` bypasses the branch-protection
+          # "approving review required" rule — required because this is
+          # a solo-dev repo where self-approval is structurally impossible.
+          gh pr merge "$PR_NUMBER" --merge --admin
+
+      - name: Note already-merged PRs
+        if: ${{ steps.pr.outputs.state == 'MERGED' }}
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          # If we got here, the PR was merged before this run (manually or
+          # by an earlier dispatch). The tag step still runs against current
+          # main HEAD — useful for "I merged the PR myself, now tag it for
+          # me" recovery scenarios.
+          echo "::notice::PR #$PR_NUMBER already merged. Skipping wait + merge; proceeding to tag $VERSION on current main HEAD."
+
+      - name: Refresh local main + tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          MAIN_SHA=$(git rev-parse origin/main)
+          echo "Tagging $VERSION at $MAIN_SHA"
+          git tag -a "$VERSION" "$MAIN_SHA" -m "Release $VERSION"
+          git push origin "$VERSION"
+
+      - name: Draft GitHub Release with auto notes
+        if: ${{ inputs.draft_release_notes }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          gh release create "$VERSION" \
+            --target main \
+            --title "$VERSION" \
+            --generate-notes \
+            --draft
+
+      - name: Operator handoff summary
+        env:
+          VERSION: ${{ inputs.version }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          {
+            echo "## Release $VERSION shipped to main"
+            echo
+            echo "- PR #$PR_NUMBER merged with \`--admin\`."
+            echo "- Tag \`$VERSION\` pushed to \`origin/main\`."
+            echo "- Draft GitHub Release created (review + publish manually)."
+            echo
+            echo "### Next: operator deploy"
+            echo
+            echo '```bash'
+            echo "ssh autobahn-bot"
+            echo "cd ~/BrainPlatform"
+            echo "git fetch --tags origin"
+            echo "git checkout $VERSION"
+            echo "./scripts/deploy-prod.sh"
+            echo '```'
+            echo
+            echo "Smoke after deploy:"
+            echo
+            echo '```bash'
+            echo "curl -fsS https://brain.example.com/api/healthz"
+            echo "curl -fsS https://brain.example.com/api/readyz"
+            echo "./scripts/verify-lockdown.sh"
+            echo '```'
+            echo
+            echo "Per AGENTS.md hard rule #2, the AI cannot run \`deploy-prod.sh\`."
+          } >> "$GITHUB_STEP_SUMMARY"

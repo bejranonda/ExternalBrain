@@ -1,0 +1,94 @@
+# Caddy reverse proxy — automatic HTTPS via Let's Encrypt.
+#
+# Consumed by deploy/docker-compose.prod.yml. The actual hostnames are
+# set via environment variables expanded at container start time:
+#
+#   BRAIN_PUBLIC_HOSTNAME=brain.example.com      — webapp
+#   BRAIN_MCP_PUBLIC_HOSTNAME=mcp.brain.example  — MCP HTTP endpoint
+#   CADDY_EMAIL=ops@example.com                  — ACME registration
+#
+# The two hostnames can be the same host if you prefer — Caddy will
+# still handle TLS termination for both. Point DNS A records at the
+# VM's public IP first; Caddy will pull certs on first request.
+
+{
+	email {$CADDY_EMAIL}
+	# `rate_limit` is provided by github.com/mholt/caddy-ratelimit, baked
+	# into the image at build time (see Caddyfile.Dockerfile). The plugin
+	# requires explicit ordering vs other handlers.
+	order rate_limit before reverse_proxy
+}
+
+# Webapp: HTTPS on :443, HTTP redirects automatically.
+{$BRAIN_PUBLIC_HOSTNAME} {
+	# Rate-limit at the edge. Per-IP, in-Caddy; cheap and stops flood
+	# attacks before they hit the Next.js proxy. Audit C14 (#110): this
+	# directive previously used the wrong syntax + a plugin not in the
+	# stock image; both are now fixed.
+	@api path /api/*
+	rate_limit @api {
+		zone api_per_ip {
+			key {http.request.remote_host}
+			events 10
+			window 1s
+		}
+	}
+
+	encode gzip zstd
+
+	# Security headers. HSTS stays off the preload list until the
+	# operator is comfortable with the 2-year commitment — they can
+	# add `preload` to the value once sure.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		-Server
+	}
+
+	reverse_proxy web:3000 {
+		# Pass the real client IP to the rate-limit proxy + logger.
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	# Log 4xx/5xx only — the happy path is too verbose for an audit trail.
+	log {
+		output file /var/log/caddy/web-access.log {
+			roll_size 100mb
+			roll_keep 7
+		}
+		format json
+		level WARN
+	}
+}
+
+# MCP HTTP: same treatment on a (possibly) different hostname.
+{$BRAIN_MCP_PUBLIC_HOSTNAME} {
+	encode gzip zstd
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+	reverse_proxy mcp-server:3100 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+		# MCP streams can be long-lived — let Caddy hold the connection.
+		transport http {
+			read_timeout 300s
+			write_timeout 300s
+		}
+	}
+	log {
+		output file /var/log/caddy/mcp-access.log {
+			roll_size 100mb
+			roll_keep 7
+		}
+		format json
+		level WARN
+	}
+}

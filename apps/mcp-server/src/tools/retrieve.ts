@@ -1,0 +1,71 @@
+import { z } from "zod";
+import { kra, formatter } from "@brain/core";
+import type { ToolDef } from "./index.js";
+
+const inputShape = z.object({
+  prompt: z.string().min(1),
+  context: z
+    .object({
+      sessionId: z.string().optional(),
+      projectId: z.string().optional(),
+      framework: z.string().optional(),
+      language: z.string().optional(),
+      sessionMode: z
+        .enum(["building", "debugging", "refactoring", "exploring"])
+        .optional(),
+    })
+    .default({}),
+  maxItems: z.number().int().min(1).max(20).default(10),
+});
+
+export const retrieveKnowledge: ToolDef = {
+  name: "brain_retrieve_knowledge",
+  description:
+    "Retrieve knowledge relevant to a coding task. Call BEFORE generating code to ensure consistency with the user's preferences and past successful patterns. Returns typed knowledge items and a pre-formatted injection string ready for a user-message block.",
+  inputSchema: {
+    type: "object",
+    required: ["prompt"],
+    properties: {
+      prompt: { type: "string" },
+      context: {
+        type: "object",
+        properties: {
+          sessionId: { type: "string" },
+          projectId: { type: "string" },
+          framework: {
+            type: "string",
+            examples: ["react", "nextjs", "vue", "django"],
+          },
+          language: {
+            type: "string",
+            examples: ["typescript", "python", "rust"],
+          },
+          sessionMode: {
+            type: "string",
+            enum: ["building", "debugging", "refactoring", "exploring"],
+          },
+        },
+      },
+      maxItems: { type: "integer", default: 10, maximum: 20 },
+    },
+  },
+  handler: async (raw, auth) => {
+    const input = inputShape.parse(raw);
+    const bundle = await kra.retrieve(
+      input.prompt,
+      {
+        sessionId: input.context.sessionId ?? "",
+        userId: auth.userId,
+        projectId: input.context.projectId,
+        framework: input.context.framework,
+        language: input.context.language,
+        sessionMode: input.context.sessionMode,
+      },
+      input.maxItems,
+    );
+    return {
+      bundle,
+      injection: formatter.formatForInjection(bundle),
+    };
+  },
+};

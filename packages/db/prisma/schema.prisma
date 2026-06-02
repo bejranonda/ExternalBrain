@@ -1,0 +1,626 @@
+// Brain Platform — Prisma schema
+// Reference: docs/BLUEPRINT.md §5 (Knowledge model), §8 (Multi-tenancy)
+// Extended from research/knowledge/15-implementation-stubs.md §8
+
+generator client {
+  provider        = "prisma-client-js"
+  // driverAdapters: required by Prisma 7 — datasource.url moves out of
+  // schema, runtime client takes a node-postgres adapter instance.
+  previewFeatures = ["postgresqlExtensions", "driverAdapters"]
+  // `native` covers the host that runs `prisma generate`; `linux-musl-openssl-3.0.x`
+  // covers Alpine node:20 images. Both targets keep the engine binary local to the
+  // package so standalone Next builds can bundle it.
+  // Ensure binaries for every Prisma-supported target we might ship on:
+  //   native  — host running `prisma generate` (dev + CI)
+  //   debian-openssl-3.0.x — node:20-slim with openssl (our deploy image)
+  //   linux-musl-openssl-3.0.x — node:20-alpine (alternate deploy image)
+  binaryTargets   = ["native", "debian-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
+  // Generate into a repo-local directory, not `node_modules/.prisma/client`.
+  // pnpm hardlinks files from its content-addressable store into the nested
+  // `.pnpm/...` paths; Prisma's generator silently no-ops when it can't
+  // overwrite those stubs (classic pnpm + Prisma Docker gotcha). Writing to
+  // a location we own bypasses the store entirely.
+  output          = "../src/generated/client"
+}
+
+// Prisma 7+: datasource.url moved to prisma.config.ts at the package root.
+// Runtime connection comes from the @prisma/adapter-pg adapter constructed
+// in ../src/index.ts. Migrations read the URL from prisma.config.ts.
+datasource db {
+  provider   = "postgresql"
+  extensions = [vector]
+}
+
+// ============================================================
+// TENANCY
+// ============================================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  image     String?
+  // Authorization role. `admin` unlocks /api/admin/*; `user` is the default.
+  // Promote via SQL: `UPDATE "User" SET role='admin' WHERE email=...;`
+  role      String   @default("user")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teams          TeamMembership[]
+  knowledge      Knowledge[]
+  sessions       Session[]
+  skills         Skill[]
+  peerCards      PeerCard[]
+  mcpTokens      MCPToken[]
+  autoskillProps AutoskillProposal[]
+  feedback       Feedback[]
+  publishedCommunitySkills CommunitySkill[] @relation("Publisher")
+  voucherRedemption VoucherRedemption?
+  organizations       OrganizationMember[]
+  credential          UserCredential?
+  passwordResetTokens PasswordResetToken[]
+}
+
+// Per-user bcrypt password — opt-in for invite-based sign-up.
+// Admin auth is still env-based (ADMIN_USERNAME + ADMIN_PASSWORD_HASH).
+// A row here is created by POST /api/invites/signup and can be changed
+// via POST /api/me/password.
+model UserCredential {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  passwordHash String   // bcrypt cost 12
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// One-shot, 1-hour tokens for the self-service forgot-password flow.
+// Created by POST /api/auth/forgot-password; consumed by POST /api/auth/reset-password.
+// usedAt is set on consumption — the token is permanently invalidated after that.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique // 32 random bytes base64url
+  createdAt DateTime  @default(now())
+  expiresAt DateTime  // 1 hour from creation
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members   OrganizationMember[]
+  invites   OrganizationInvite[]
+  projects  Project[]
+  teams     Team[]
+  mcpTokens MCPToken[]
+}
+
+model OrganizationMember {
+  id       String   @id @default(cuid())
+  orgId    String
+  userId   String
+  role     String   @default("member") // owner | admin | member
+  joinedAt DateTime @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([userId])
+}
+
+model OrganizationInvite {
+  id          String    @id @default(cuid())
+  orgId       String
+  email       String    // lowercased email of invitee
+  role        String    @default("member") // role they'll get on accept
+  invitedById String    // userId of inviter
+  token       String    @unique // random base64url; sent in invite link
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime  // 7-day default
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([email])
+}
+
+model Team {
+  id             String   @id @default(cuid())
+  name           String
+  ownerId        String
+  organizationId String?
+  createdAt      DateTime @default(now())
+
+  members      TeamMembership[]
+  skills       Skill[]
+  knowledge    Knowledge[]
+  mcpTokens    MCPToken[]
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+}
+
+model TeamMembership {
+  id      String   @id @default(cuid())
+  userId  String
+  teamId  String
+  role    String   @default("member") // owner | admin | editor | member
+  joinedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+}
+
+model Project {
+  id             String   @id @default(cuid())
+  ownerUserId    String?
+  ownerTeamId    String?
+  organizationId String
+  name           String
+  slug           String
+  framework      String?
+  language       String?
+  createdAt      DateTime @default(now())
+
+  sessions     Session[]
+  knowledge    Knowledge[]
+  peerCards    PeerCard[]
+  mcpTokens    MCPToken[]
+  // Audit C10 (#109): the column is NOT NULL but a prior migration left
+  // the FK as `SetNull`, which makes Organization deletes silently abort
+  // with a NOT-NULL violation (Restrict-by-accident). Use Restrict
+  // explicitly so the failure mode is loud and the operator-side
+  // GDPR/erase flow is the single sanctioned path that purges projects.
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, slug])
+}
+
+// ============================================================
+// KNOWLEDGE — atomic rules, 5 types, scope-aware
+// ============================================================
+
+model Knowledge {
+  id                String    @id @default(cuid())
+  type              String    // reflex | recipe | heuristic | principle | anti_principle
+  scope             String    @default("user") // global | user | project | session_context | team | community
+
+  ownerUserId       String?
+  ownerTeamId       String?
+  ownerProjectId    String?
+
+  triggerText       String    @db.Text
+  ruleText          String    @db.Text
+  rationale         String?   @db.Text
+  symbolicWhen      String?
+  symbolicThen      String?
+  instead           String?   // anti-principles
+
+  embedding         Unsupported("vector(1536)")?
+  framework         String?
+  language          String?
+  tags              String[]
+
+  confidence        Float     @default(0.7)
+  successCount      Int       @default(0)
+  failureCount      Int       @default(0)
+  usageCount        Int       @default(0)
+  decayScore        Float     @default(1.0)
+
+  createdAt         DateTime  @default(now())
+  confirmedAt       DateTime?
+  lastUsedAt        DateTime?
+  deletedAt         DateTime?
+
+  extractedBy       String    @default("kea") // kea | user | imported | promoted
+  sourceSessionIds  String[]  @default([])
+  parentKnowledgeId String?
+
+  // Phase 4: visibility-based listing control (distinct from `scope`)
+  // "private" — only ownerUserId sees it; ignores project
+  // "project" — default; visible inside ownerProjectId
+  // "org"     — visible across all projects in the ownerProjectId's org
+  visibility        String    @default("project")
+  // For org-level rows: the project where this rule was originally created.
+  // For project-level rows: NULL.
+  // Preserved on fork chains so the full lineage is traceable.
+  originProjectId   String?
+
+  user    User?    @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  team    Team?    @relation(fields: [ownerTeamId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [ownerProjectId], references: [id], onDelete: SetNull)
+
+  outgoingEdges GraphEdge[] @relation("EdgeSourceKnowledge")
+  incomingEdges GraphEdge[] @relation("EdgeTargetKnowledge")
+  applications  SessionKnowledgeApplication[]
+
+  @@index([ownerUserId, type, scope])
+  @@index([ownerUserId, confidence])
+  @@index([parentKnowledgeId])
+  // Audit DB5 (#103): hot-path indexes. The listings endpoint
+  // (`apps/web/app/api/knowledge/route.ts`) and the org-visibility
+  // queries filter on (ownerUserId, ownerProjectId, deletedAt) — the
+  // existing (ownerUserId, type, scope) index doesn't cover them.
+  @@index([ownerUserId, ownerProjectId, deletedAt])
+}
+
+// ============================================================
+// SKILLS — markdown-first, Obsidian/Hermes-style
+// ============================================================
+
+model Skill {
+  id          String   @id @default(cuid())
+  skillId     String   // stable slug
+  title       String
+  content     String   @db.Text // full markdown incl frontmatter
+  frontmatter Json
+
+  ownerUserId String?
+  ownerTeamId String?
+  scope       String   @default("user")
+  stage       String   @default("notes") // inbox | notes | knowledge | wisdom
+  kind        String   @default("output") // output | internal
+
+  tags         String[] @default([])
+  dependencies String[] @default([]) // skill_id references
+
+  embedding    Unsupported("vector(1536)")?
+  confidence   Float    @default(0.7)
+  mastery      Int      @default(1)
+  successCount Int      @default(0)
+  failureCount Int      @default(0)
+  usageCount   Int      @default(0)
+
+  version       Int     @default(1)
+  parentSkillId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  team Team? @relation(fields: [ownerTeamId], references: [id], onDelete: Cascade)
+
+  @@unique([skillId, ownerUserId])
+  @@unique([skillId, ownerTeamId])
+  @@index([scope, stage])
+}
+
+// ============================================================
+// SESSIONS — reported by external MCP clients
+// ============================================================
+
+model Session {
+  id              String    @id @default(cuid())
+  userId          String
+  projectId       String?
+  teamId          String?
+  // Issue #166: which MCP token authenticated the call that started this
+  // session. Nullable because webapp-initiated sessions go through
+  // NextAuth cookies (no token row). Lets the Connection status card
+  // show per-token session/event counts instead of a user-wide aggregate.
+  // SetNull on token deletion: historical session records stay; their
+  // tokenId becomes orphaned. Backfill not required — old rows leave
+  // tokenId NULL and continue to be counted in the user-wide aggregate.
+  tokenId         String?
+  parentSessionId String?   // compactions / Hermes-style chains
+  clientType      String    // claude_code | cursor | windsurf | autobahn | custom | webapp
+  startedAt       DateTime  @default(now())
+  endedAt         DateTime?
+  outcome         String?   // success | partial | failed
+  sqs             Float?
+  metadata        Json?
+
+  events             SessionEvent[]
+  applications       SessionKnowledgeApplication[]
+  autoskillProposals AutoskillProposal[]
+
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  token   MCPToken? @relation(fields: [tokenId], references: [id], onDelete: SetNull)
+
+  @@index([userId, startedAt])
+  @@index([parentSessionId])
+  // Audit DB5 (#103): hot-path index for project-scoped session
+  // queries (oracle.ts:160 and dashboard.ts queries with sw filter).
+  @@index([userId, projectId, startedAt])
+  // Issue #166: hot-path index for per-token session counts in the
+  // Connection status endpoint (groups by tokenId for active tokens).
+  @@index([tokenId, startedAt])
+}
+
+model SessionEvent {
+  id        String   @id @default(cuid())
+  sessionId String
+  eventType String
+  payload   Json
+  timestamp DateTime @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, timestamp])
+  @@index([eventType])
+}
+
+model SessionKnowledgeApplication {
+  id          String   @id @default(cuid())
+  sessionId   String
+  knowledgeId String
+  role        String   // injected | retrieved_but_not_used | extracted_from
+  createdAt   DateTime @default(now())
+
+  session   Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  // Audit C11 (#109): knowledgeId was a bare String — orphan rows
+  // accumulated after Knowledge.deletedAt or hard-delete, silently
+  // skewing the KRA outcome bumper and §10.2 effectiveness math.
+  // Cascade is the right semantic: an application record outliving its
+  // knowledge has no meaning.
+  knowledge Knowledge @relation(fields: [knowledgeId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, knowledgeId, role])
+  @@index([knowledgeId])
+}
+
+// ============================================================
+// GRAPH — Obsidian-style links between skills/knowledge
+// ============================================================
+
+model GraphEdge {
+  id       String  @id @default(cuid())
+  sourceId String
+  targetId String
+  relation String  // depends_on | prerequisite_for | related_to | deepens | specializes | contradicts | supersedes
+  scope    String  @default("user")
+  weight   Float   @default(1.0)
+  createdBy String // userId | "kea" | "autoskill"
+  evidence  String[] @default([])
+  createdAt DateTime @default(now())
+
+  sourceKnowledge Knowledge? @relation("EdgeSourceKnowledge", fields: [sourceId], references: [id], onDelete: Cascade, map: "edge_source_knowledge_fk")
+  targetKnowledge Knowledge? @relation("EdgeTargetKnowledge", fields: [targetId], references: [id], onDelete: Cascade, map: "edge_target_knowledge_fk")
+
+  @@unique([sourceId, targetId, relation])
+  @@index([sourceId])
+  @@index([targetId])
+}
+
+// ============================================================
+// PEER CARDS — Honcho-style hard-override facts
+// ============================================================
+
+model PeerCard {
+  id             String   @id @default(cuid())
+  ownerUserId    String
+  ownerProjectId String?
+  facts          String[] @default([])
+  updatedAt      DateTime @updatedAt
+
+  user    User     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [ownerProjectId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerUserId, ownerProjectId])
+}
+
+// ============================================================
+// AUTOSKILL — post-session proposals awaiting user approval
+// ============================================================
+
+model AutoskillProposal {
+  id         String   @id @default(cuid())
+  userId     String
+  sessionId  String
+  target     String   // skill | rules | knowledge | internal_skill
+  targetId   String?
+  confidence String   // high | medium
+  diff       String   @db.Text
+  patch      Json
+  reasoning  String   @db.Text
+  status     String   @default("pending") // pending | applied | rejected | superseded
+  createdAt  DateTime @default(now())
+  resolvedAt DateTime?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([sessionId])
+}
+
+// ============================================================
+// FEEDBACK
+// ============================================================
+
+model Feedback {
+  id           String   @id @default(cuid())
+  userId       String
+  sessionId    String?
+  knowledgeId  String?
+  skillId      String?
+  rating       String   // up | down | neutral
+  comment      String?  @db.Text
+  feedbackType String   @default("session") // session | knowledge | skill | oracle
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+// ============================================================
+// MCP AUTH
+// ============================================================
+
+model MCPToken {
+  id                 String    @id @default(cuid())
+  userId             String
+  teamId             String?
+  organizationId     String?
+  projectId          String?
+  name               String
+  tokenHash          String    @unique
+  scope              String    // personal | team
+  expiresAt          DateTime?
+  createdAt          DateTime  @default(now())
+  lastUsedAt         DateTime?
+  revokedAt          DateTime?
+  scheduledRevokeAt  DateTime?
+  rotatedFromId      String?   @unique  // back-pointer: this token replaced the one with this id
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team         Team?         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  // Audit C12 (#109): a token bound to org/project must be REVOKED
+  // when its scope is deleted, not silently unscoped. Previous SetNull
+  // dropped the column to NULL, then the §12.21 fallback ("any project
+  // the user has access to") widened the token's authority — the
+  // opposite of revocation. Cascade is correct: the token disappears
+  // with its scope.
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // Back-relation for Session.tokenId (issue #166).
+  sessions     Session[]
+
+  @@index([userId])
+}
+
+// ============================================================
+// COMMUNITY
+// ============================================================
+
+model CommunitySkill {
+  id                String   @id @default(cuid())
+  skillId           String   @unique
+  publishedByUserId String
+  publishedAt       DateTime @default(now())
+  downloadCount     Int      @default(0)
+  successRate       Float?
+  averageRating     Float?
+  reportCount       Int      @default(0)
+  moderationStatus  String   @default("pending") // pending | approved | flagged | removed
+
+  publisher User @relation("Publisher", fields: [publishedByUserId], references: [id], onDelete: Cascade)
+
+  @@index([moderationStatus])
+}
+
+model SkillImport {
+  id                String    @id @default(cuid())
+  userId            String
+  communitySkillId  String
+  importedAt        DateTime  @default(now())
+  removedAt         DateTime?
+
+  @@index([userId])
+  @@unique([userId, communitySkillId])
+}
+
+// ============================================================
+// EVALUATION
+// ============================================================
+
+// ============================================================
+// ORACLE COST LEDGER — per-user daily spend for cap enforcement
+// ============================================================
+
+model OracleCostLedger {
+  id            String   @id @default(cuid())
+  userId        String
+  day           DateTime @db.Date    // UTC midnight of the billing day
+  tokensInput   Int      @default(0)
+  tokensOutput  Int      @default(0)
+  costUsd       Decimal  @db.Decimal(10, 6) @default(0)
+  callCount     Int      @default(0)
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userId, day])
+  @@index([day])
+}
+
+model KnowledgeHealthSnapshot {
+  id                 String   @id @default(cuid())
+  snapshotAt         DateTime @default(now())
+  tenantScope        String   // user:<id> | team:<id> | global
+  usedInLast30Days   Int
+  totalActive        Int
+  averageConfidence  Float
+  contradictionCount Int
+  medianAgeDays      Float
+
+  @@index([tenantScope, snapshotAt])
+}
+
+// ============================================================
+// AUDIT LOG — append-only record of mutating admin + user actions
+// ============================================================
+// Populated by the admin endpoints and by any code path that calls
+// `writeAudit()` from `@brain/core`. Retention is 2 years by default;
+// see `evolution.pruneAuditLog()` (Phase 3+).
+//
+// Deliberately never UPDATED — the insert is the only write. If a fact
+// turns out to be wrong, the correction is a new row, not an overwrite.
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  actorUserId    String?  // null for system-initiated events (seeds, crons)
+  action         String   // e.g. "knowledge.patch" | "admin.gdpr_erase" | "token.revoke"
+  targetType     String?  // "knowledge" | "user" | "token" | "session" | …
+  targetId       String?
+  payload        Json?    // request body / diff / reason (redacted)
+  ip             String?
+  userAgent      String?
+  organizationId String?  // org context when available (Phase 3c)
+  projectId      String?  // project context when available (Phase 3c)
+  createdAt      DateTime @default(now())
+
+  @@index([actorUserId, createdAt])
+  @@index([action, createdAt])
+  @@index([targetType, targetId])
+  @@index([organizationId])
+  @@index([projectId])
+  @@index([organizationId, createdAt])
+}
+
+// Voucher codes gate new-user registration. See `auth.ts::signIn` and
+// `lib/brain/vouchers.ts`. An admin issues codes via the admin UI; a new
+// signup's cookie-stored voucher is validated atomically against this table.
+model VoucherCode {
+  id                String   @id @default(cuid())
+  code              String   @unique
+  kind              String   // "personal" | "organization"
+  organizationLabel String?  // display label for org codes; null for personal
+  maxUses           Int      @default(1)
+  usedCount         Int      @default(0)
+  expiresAt         DateTime?
+  disabled          Boolean  @default(false)
+  note              String?  // free-form admin note (e.g. "Q2 pilot cohort")
+  createdByUserId   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  redemptions       VoucherRedemption[]
+
+  @@index([disabled, expiresAt])
+  @@index([kind])
+}
+
+model VoucherRedemption {
+  id          String   @id @default(cuid())
+  voucherId   String
+  voucher     VoucherCode @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  userId      String   @unique // one redemption per user — prevents double-claiming
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  redeemedAt  DateTime @default(now())
+
+  @@index([voucherId, redeemedAt])
+}

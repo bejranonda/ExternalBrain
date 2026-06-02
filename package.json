@@ -1,0 +1,37 @@
+{
+  "name": "brain-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Persistent, queryable, evolving knowledge layer for AI-assisted coding. MCP server + webapp.",
+  "license": "MIT",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "db:migrate": "pnpm --filter @brain/db prisma migrate dev",
+    "db:generate": "pnpm --filter @brain/db prisma generate",
+    "db:studio": "pnpm --filter @brain/db prisma studio",
+    "hash-admin-password": "pnpm --filter @brain/worker exec tsx ../../scripts/hash-admin-password.ts"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0",
+    "typescript": "^6.0.0",
+    "@types/node": "^22.0.0",
+    "prettier": "^3.3.0",
+    "eslint": "^10.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss": "^8.5.10",
+      "vite": "^7.0.0"
+    }
+  }
+}

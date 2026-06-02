@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Brain Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Noto+Sans+Thai:wght@400;500;600;700&family=Noto+Serif+Thai:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="components/icons.jsx"></script>
+  <script type="text/babel" src="components/i18n.jsx"></script>
+  <script type="text/babel" src="components/data.jsx"></script>
+  <script type="text/babel" src="components/shell.jsx"></script>
+  <script type="text/babel" src="components/dashboard.jsx"></script>
+  <script type="text/babel" src="components/oracle.jsx"></script>
+  <script type="text/babel" src="components/skills.jsx"></script>
+  <script type="text/babel" src="components/graph.jsx"></script>
+
+  <script>
+    window.TWEAKS = /*EDITMODE-BEGIN*/{
+      "theme": "light",
+      "accent": "violet",
+      "density": "spacious",
+      "language": "en"
+    }/*EDITMODE-END*/;
+  </script>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const ACCENTS = {
+      lime:   { c: "#D8FF3E", ink: "#0A0A0B" },
+      violet: { c: "#C5A8FF", ink: "#0A0A0B" },
+      coral:  { c: "#FF9571", ink: "#0A0A0B" },
+      blue:   { c: "#7EC8FF", ink: "#0A0A0B" },
+    };
+
+    function applyTheme({ theme, accent, language }) {
+      document.documentElement.setAttribute("data-theme", theme);
+      document.documentElement.setAttribute("lang", language || "en");
+      window.LANG = language || "en";
+      const a = ACCENTS[accent] || ACCENTS.lime;
+      document.documentElement.style.setProperty("--accent", a.c);
+      document.documentElement.style.setProperty("--accent-ink", a.ink);
+      document.documentElement.style.setProperty("--accent-soft", a.c + "24");
+      document.documentElement.style.setProperty("--accent-wash", a.c + "10");
+    }
+
+    function Tweaks({ open, state, setState }) {
+      if (!open) return null;
+      const persist = (patch) => {
+        const next = { ...state, ...patch };
+        setState(next);
+        applyTheme(next);
+        window.parent.postMessage({ type: '__edit_mode_set_keys', edits: patch }, '*');
+      };
+      return (
+        <div className="tweaks">
+          <div className="tweaks-h">
+            <Icon name="settings" size={12} />
+            <span className="tweaks-h-title">{window.t("tweaks.title")}</span>
+            <span className="tweaks-h-tag mono">brain · v0.1</span>
+          </div>
+          <div className="tweaks-body">
+            <div className="tweak-row">
+              <span className="tweak-label">{window.t("tweaks.language")}</span>
+              <div className="tweak-seg">
+                <button className={state.language === "en" ? "on" : ""} onClick={() => persist({ language: "en" })}>EN</button>
+                <button className={state.language === "th" ? "on" : ""} onClick={() => persist({ language: "th" })}>ไทย</button>
+                <button className={state.language === "de" ? "on" : ""} onClick={() => persist({ language: "de" })}>DE</button>
+              </div>
+            </div>
+            <div className="tweak-row">
+              <span className="tweak-label">{window.t("tweaks.theme")}</span>
+              <div className="tweak-seg">
+                <button className={state.theme === "dark" ? "on" : ""} onClick={() => persist({ theme: "dark" })}>{window.t("tweaks.dark")}</button>
+                <button className={state.theme === "light" ? "on" : ""} onClick={() => persist({ theme: "light" })}>{window.t("tweaks.light")}</button>
+              </div>
+            </div>
+            <div className="tweak-row">
+              <span className="tweak-label">{window.t("tweaks.accent")}</span>
+              <div className="tweak-swatches">
+                {Object.entries(ACCENTS).map(([k, v]) => (
+                  <button key={k}
+                    className={`tweak-swatch ${state.accent === k ? "on" : ""}`}
+                    style={{ background: v.c }}
+                    onClick={() => persist({ accent: k })}
+                    title={k} />
+                ))}
+              </div>
+            </div>
+            <div className="tweak-row">
+              <span className="tweak-label">{window.t("tweaks.density")}</span>
+              <div className="tweak-seg">
+                <button className={state.density === "spacious" ? "on" : ""} onClick={() => persist({ density: "spacious" })}>{window.t("tweaks.spacious")}</button>
+                <button className={state.density === "balanced" ? "on" : ""} onClick={() => persist({ density: "balanced" })}>{window.t("tweaks.balanced")}</button>
+                <button className={state.density === "dense" ? "on" : ""} onClick={() => persist({ density: "dense" })}>{window.t("tweaks.dense")}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [route, setRoute] = useState(() => localStorage.getItem("bp_route") || "dashboard");
+      const [cmd, setCmd] = useState(false);
+      const [tweakState, setTweakState] = useState(window.TWEAKS);
+      const [tweakOpen, setTweakOpen] = useState(false);
+
+      useEffect(() => { localStorage.setItem("bp_route", route); }, [route]);
+      useEffect(() => { applyTheme(tweakState); }, []);
+
+      useEffect(() => {
+        const onKey = (e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+            e.preventDefault(); setCmd(c => !c); return;
+          }
+          if (e.key === "Escape") setCmd(false);
+          if (!e.metaKey && !e.ctrlKey && !e.altKey) {
+            const map = { "1":"dashboard", "2":"oracle", "3":"skills", "4":"graph", "5":"autoskill", "6":"sessions" };
+            const tag = document.activeElement?.tagName;
+            if (tag !== "INPUT" && tag !== "TEXTAREA" && map[e.key]) setRoute(map[e.key]);
+          }
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+      }, []);
+
+      useEffect(() => {
+        const onMsg = (e) => {
+          const d = e.data;
+          if (!d || !d.type) return;
+          if (d.type === "__activate_edit_mode") setTweakOpen(true);
+          if (d.type === "__deactivate_edit_mode") setTweakOpen(false);
+        };
+        window.addEventListener("message", onMsg);
+        window.parent.postMessage({ type: "__edit_mode_available" }, "*");
+        return () => window.removeEventListener("message", onMsg);
+      }, []);
+
+      const counts = {
+        skills: window.BRAIN_DATA.knowledge.length,
+        proposals: window.BRAIN_DATA.proposals.length,
+      };
+
+      const screens = {
+        dashboard: <Dashboard />,
+        oracle: <Oracle />,
+        skills: <Skills />,
+        graph: <Graph />,
+        autoskill: <Autoskill />,
+        sessions: <Sessions />,
+      };
+
+      return (
+        <>
+          <div className="app" data-screen-label={route} key={tweakState.language}>
+            <Rail route={route} setRoute={setRoute} counts={counts} />
+            <div className="main">
+              <Topbar route={route} onCmd={() => setCmd(true)} />
+              <div className="content">{screens[route]}</div>
+            </div>
+          </div>
+          <BottomNav route={route} setRoute={setRoute} counts={counts} />
+          <CmdK open={cmd} onClose={() => setCmd(false)} go={setRoute} />
+          <Tweaks open={tweakOpen} state={tweakState} setState={setTweakState} />
+        </>
+      );
+    }
+
+    setTimeout(() => {
+      ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    }, 80);
+  </script>
+</body>
+</html>
