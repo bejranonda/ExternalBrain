@@ -24,8 +24,6 @@ name: e2e (deployed dev brain)
 # auth-free tests). GitHub-hosted runner — no self-hosted budget.
 
 on:
-  push:
-    branches: [main]
   # Per-PR opt-in: add the `e2e-please` label to a PR against develop
   # or main to exercise the deployed dev brain's surfaces. The job
   # short-circuits when the label is absent, so the synchronize/opened
