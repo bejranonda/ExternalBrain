@@ -152,6 +152,7 @@ docs/          Documentation
 
 | Doc | What it covers |
 |---|---|
+| [EVIDENCE](./docs/EVIDENCE.md) | **Does it actually help?** — the capture→retrieve loop demonstrated on a real instance |
 | [QUICKSTART](./docs/QUICKSTART.md) | Zero to a running instance |
 | [HOW_IT_WORKS](./docs/HOW_IT_WORKS.md) | End-to-end mental model with examples |
 | [ARCHITECTURE](./docs/ARCHITECTURE.md) | System design, layers, data flow |
