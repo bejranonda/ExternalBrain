@@ -117,7 +117,10 @@ services:
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
     ports:
-      - "${WEB_HOST_PORT:-3000}:3000"
+      # Loopback by default — public access is via Caddy (TLS, :443), not the
+      # plain-HTTP host port. Override WEB_HOST_BIND only if you front it
+      # another way; never serve plain HTTP on 0.0.0.0 in production.
+      - "${WEB_HOST_BIND:-127.0.0.1}:${WEB_HOST_PORT:-3000}:3000"
     logging:
       driver: json-file
       options:
@@ -156,7 +159,10 @@ services:
       # to go. Empty default → those fields render as null (graceful).
       BRAIN_PUBLIC_HOSTNAME: ${BRAIN_PUBLIC_HOSTNAME:-}
     ports:
-      - "${MCP_HOST_PORT:-3100}:3100"
+      # Loopback by default — MCP must be reached over TLS via Caddy, never
+      # plain HTTP on a public interface (a misrouted client would send its
+      # Bearer token in cleartext). Override MCP_HOST_BIND only behind a proxy.
+      - "${MCP_HOST_BIND:-127.0.0.1}:${MCP_HOST_PORT:-3100}:3100"
     logging:
       driver: json-file
       options:
