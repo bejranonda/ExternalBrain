@@ -280,7 +280,24 @@ else
   printf '  - Voucher gate only applies in OAUTH/CREDENTIALS+OAUTH mode (current: %s)\n' "$MODE"
 fi
 
-# -------- 6. Summary -----------------------------------------------------------
+# -------- 6. Public port exposure (advisory) ----------------------------------
+# Lesson (2026-06): db/web/mcp host ports were once published on 0.0.0.0,
+# exposing Postgres + plain-HTTP MCP to the internet (flagged by CERT-Bund/BSI).
+# These should bind 127.0.0.1; public traffic goes through Caddy/TLS (:443).
+if command -v ss >/dev/null 2>&1; then
+  hd "6. Public port exposure"
+  EXPOSED=$(ss -tlnH 2>/dev/null | awk '{print $4}' \
+    | grep -E '^(0\.0\.0\.0|\[::\]):(5432|3000|3100)$' || true)
+  if [ -n "$EXPOSED" ]; then
+    fail "DB/web/MCP port(s) bound to a PUBLIC interface (should be 127.0.0.1):"
+    printf '%s\n' "$EXPOSED" | sed 's/^/        /'
+    warn "Set POSTGRES_HOST_BIND / WEB_HOST_BIND / MCP_HOST_BIND=127.0.0.1, recreate, re-check. Public access belongs behind Caddy/TLS."
+  else
+    pass "no Postgres/web/MCP host port bound to a public interface"
+  fi
+fi
+
+# -------- 7. Summary -----------------------------------------------------------
 hd "Result"
 if [ "$FAILED" = "0" ]; then
   if [ "$MODE" = "DEV_SHIM" ]; then

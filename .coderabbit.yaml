@@ -1,0 +1,14 @@
+# CodeRabbit configuration — https://docs.coderabbit.ai/reference/configuration
+# By default CodeRabbit only auto-reviews PRs into the default branch. This repo
+# also takes PRs into `develop`, so review both. Contributor forks PR into the
+# branch they target; either is covered here.
+language: en
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - "main"
+      - "develop"
