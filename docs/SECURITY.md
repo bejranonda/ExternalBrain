@@ -155,6 +155,35 @@ Future items (tracked in KNOWN_ISSUES): per-user role change UI, GDPR erase UI (
 
 ---
 
+## Self-hosting hardening — before you expose an instance to the internet
+
+External Brain ships secure-by-default, but a public deployment must still get
+these right. Every item below has bitten a real deployment, so the repo carries
+the lesson:
+
+1. **Never bind the data/app ports to a public interface.** `deploy/docker-compose.yml`
+   binds Postgres (`5432`), web (`3000`), and MCP (`3100`) to `127.0.0.1` by
+   default. Public traffic goes through Caddy over TLS (`:443`), never the
+   plain-HTTP host ports. If you override `POSTGRES_HOST_BIND` / `WEB_HOST_BIND`
+   / `MCP_HOST_BIND`, never use `0.0.0.0`. *(An earlier default published
+   Postgres on `0.0.0.0:5432` with the default password; CERT-Bund/BSI flagged
+   the open DB.)*
+2. **Change the default database password.** `POSTGRES_PASSWORD` defaults to
+   `brain` for local dev — set a strong value before any non-local deploy, and
+   a strong `AUTH_SECRET` (`openssl rand -base64 32`).
+3. **TLS for everything public.** Deploy with `./scripts/deploy-prod.sh` (Caddy
+   + auto-TLS). An MCP Bearer token sent over plain HTTP travels in cleartext.
+4. **Enable a host firewall** allowing only SSH + 80/443. Note: Docker-published
+   ports bypass `ufw` (Docker inserts its rules ahead of it), so **correct port
+   binding (item 1) is the real control** — the firewall is defense-in-depth.
+5. **Verify after every deploy.** `./scripts/verify-lockdown.sh` audits auth
+   posture and **fails if `5432`/`3000`/`3100` are bound to a public interface**.
+   Spot-check too: `ss -tlnp | grep -E ':5432|:3000|:3100'` should show
+   `127.0.0.1` only.
+6. **Rotate exposed secrets at the provider** and never commit `.env`.
+
+---
+
 ## The one command every deploy should run
 
 `scripts/verify-lockdown.sh` runs the full network-level audit against a live stack. It reads the auth mode from `.env` and expects different behaviour for each:
