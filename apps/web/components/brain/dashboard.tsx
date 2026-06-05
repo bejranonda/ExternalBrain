@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon, type IconName } from "./icons";
 import { useT } from "@/lib/brain/i18n";
 import type { Route } from "@/lib/brain/routes";
@@ -1025,10 +1025,13 @@ export function Dashboard({
  * re-expand on every page load.
  */
 function ShowEverythingFold({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("brain-home-expanded") === "1";
-  });
+  // Start closed (matches SSR), then restore the persisted state AFTER mount.
+  // Reading localStorage during render diverges from the server's output and
+  // triggers a hydration mismatch (React #418) once the value is "1".
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (window.localStorage.getItem("brain-home-expanded") === "1") setOpen(true);
+  }, []);
   return (
     <div style={{ marginTop: 24 }}>
       <button
