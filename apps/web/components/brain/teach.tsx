@@ -114,14 +114,19 @@ export function TeachModal({ open, onClose, onTaught, prefillTrigger }: Props) {
   // knowledge type is the hardest decision in this form, and the examples
   // make the taxonomy concrete. We remember the dismissal in localStorage
   // so returning users get the compact accordion. (UX-newcomer-pass-5)
-  const [examplesOpen, setExamplesOpen] = useState(() => {
-    if (typeof window === "undefined") return false;
+  // Start collapsed (matches SSR), then expand for first-time users AFTER mount.
+  // Reading localStorage during render diverges from the server output and
+  // triggers a hydration mismatch (React #418).
+  const [examplesOpen, setExamplesOpen] = useState(false);
+  useEffect(() => {
     try {
-      return window.localStorage.getItem("brain.teach.examplesSeen") !== "1";
+      if (window.localStorage.getItem("brain.teach.examplesSeen") !== "1") {
+        setExamplesOpen(true);
+      }
     } catch {
-      return false;
+      /* localStorage unavailable — leave collapsed */
     }
-  });
+  }, []);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
