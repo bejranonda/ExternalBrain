@@ -61,6 +61,12 @@ ENV NODE_ENV=production
 # doesn't include the generated client path. The stub is never hit at
 # runtime — the final containers don't set this env var.
 ENV SKIP_DB_INIT=1
+# App version, surfaced in the web UI (rail footer). Fed by the `APP_VERSION`
+# compose build-arg (deploy scripts pass `git describe --tags`); defaults to
+# "dev" for a plain local build. NEXT_PUBLIC_* is inlined into the bundle at
+# build time, so it must be set here in the builder, not the runtime stage.
+ARG APP_VERSION=dev
+ENV NEXT_PUBLIC_APP_VERSION=$APP_VERSION
 # Only the webapp needs compilation — worker and mcp-server run from `src/`
 # via `tsx` at runtime (see their Dockerfile stages below), so their `tsc`
 # build step would only produce throw-away artifacts. Skipping it also

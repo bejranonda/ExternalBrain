@@ -50,6 +50,8 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile
       target: web
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
     restart: unless-stopped
     depends_on:
       db:

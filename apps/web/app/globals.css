@@ -318,6 +318,18 @@ button:focus-visible, input:focus-visible, [role="button"]:focus-visible {
 }
 .rail-user-meta { line-height: 1.1; font-size: 12px; text-align: left; }
 .rail-user-tenant { color: var(--ink-3); font-size: 10px; font-family: var(--font-mono); }
+.rail-version {
+  display: block;
+  margin-top: 8px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-4);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  transition: color 0.12s ease;
+}
+.rail-version:hover { color: var(--ink-2); }
 
 /* ─── Phase R: rail collapsed-state rules ────────────────────────────────
    When the rail is at rest (56px wide), hide labels/kbd/counts/section

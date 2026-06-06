@@ -71,6 +71,11 @@ fi
 export DOCKER_BUILDKIT=1
 export COMPOSE_DOCKER_CLI_BUILD=1
 export BUILDX_NO_DEFAULT_ATTESTATIONS=1
+# Stamp the build with the current git version so the web UI can show it
+# (rail footer). `git describe` yields e.g. "v1.1.0" on a tag or
+# "v1.1.0-3-gabc1234" a few commits later; "dev" if git is unavailable.
+export APP_VERSION="${APP_VERSION:-$(git -C "$REPO_ROOT" describe --tags --always --dirty 2>/dev/null || echo dev)}"
+log "Build version: $APP_VERSION"
 # #56 gap 1 — snapshot live logs before any rebuild that could force-recreate
 # containers. No-op on a fresh deploy (no running containers).
 "$REPO_ROOT/scripts/save-deploy-logs.sh" || warn "log snapshot failed; continuing"

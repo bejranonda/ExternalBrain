@@ -6,6 +6,7 @@ import { Icon, type IconName } from "./icons";
 import { useT } from "@/lib/brain/i18n";
 import type { Route } from "@/lib/brain/routes";
 import { OrgProjectSwitcher } from "./org-project-switcher";
+import { APP_VERSION, RELEASES_URL } from "@/lib/brain/version";
 
 /**
  * Lightweight viewer-name accessor for the rail footer. Mirrors the fetch in
@@ -222,6 +223,18 @@ export function Rail({ route, setRoute, counts, onUser }: NavProps) {
           </div>
           <Icon name="chevD" size={12} />
         </button>
+        {/* Version label — the build's git-describe value (or "dev" locally).
+            Quiet by default: dim mono, collapses to just the number on the
+            icon-rail, expands on hover. Links to the release notes. */}
+        <a
+          className="rail-version"
+          href={RELEASES_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`Brain Platform ${APP_VERSION} — view release notes`}
+        >
+          {APP_VERSION === "dev" ? "dev" : `v${APP_VERSION.replace(/^v/, "")}`}
+        </a>
       </div>
     </nav>
   );
