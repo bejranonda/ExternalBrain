@@ -802,11 +802,20 @@ export function Dashboard({
   const proposalsH = useAutoskillProposals(scope);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  // Mount-gate the empty-state branch. The /api/dashboard fetch is same-origin
+  // and can resolve before React commits hydration; if it returns an empty
+  // project, `isEmpty` flips true and the client's first committed render (the
+  // EmptyBrainCallout branch) diverges from the server HTML (the loading
+  // branch) → React #418. Gating on `mounted` forces the first client render
+  // to match SSR; the empty branch only appears via a post-hydration update.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   // Empty-Brain mode: a fresh user has nothing meaningful to summarize, so
   // every "0 / 0 / 0" tile reads as "this app is broken". Replace the
   // dashboard body with the EmptyBrainCallout hero and keep only the
   // Connection card so they can see whether their token is wired up.
-  const isEmpty = s.activeKnowledge === 0 && loadState !== "loading";
+  const isEmpty = mounted && s.activeKnowledge === 0 && loadState !== "loading";
 
   return (
     <div className="scroll" style={{ height: "100%", padding: "20px 24px 40px" }}>
