@@ -79,12 +79,16 @@ export function useGraph(scope: ProjectScopeKey = "project"): State & { refresh(
  */
 function layout(nodes: GraphNodeView[], edges: GraphEdgeView[]): LaidOutNode[] {
   if (nodes.length === 0) return [];
+  // Ring radii are capped at 0.40 so that x = 0.5 ± r stays within [0.10, 0.90]
+  // (and y within [0.20, 0.80]). The previous outer ring (0.75) pushed nodes
+  // past the [0,1] viewBox and into the corner gutters, where the floating
+  // search / legend / zoom panels (z-index 2, opaque) silently occluded them.
   const typeRings: Record<GraphNodeView["type"], number> = {
-    principle: 0.15,
-    heuristic: 0.3,
-    recipe: 0.45,
-    reflex: 0.6,
-    anti: 0.75,
+    principle: 0.08,
+    heuristic: 0.16,
+    recipe: 0.24,
+    reflex: 0.32,
+    anti: 0.4,
   };
   const byType = new Map<string, GraphNodeView[]>();
   for (const n of nodes) {
