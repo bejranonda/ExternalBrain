@@ -39,8 +39,8 @@ COMPOSE="docker compose -f deploy/docker-compose.yml --env-file .env"
 # need the values in the shell, not just in the container. Without this
 # the audit chains with BASE_URL=http://localhost:3000 and reports
 # false-FAIL on any host where the web service binds to a different
-# port (like the prod host which binds to :3200). `set -a` matches the
-# pattern used by deploy.sh / deploy-prod.sh / backup-restore.sh.
+# port (like the server host which binds to :3200). `set -a` matches the
+# pattern used by deploy.sh / backup-restore.sh.
 if [ -f .env ]; then
   set -a
   # shellcheck disable=SC1091

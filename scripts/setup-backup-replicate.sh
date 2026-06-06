@@ -13,7 +13,7 @@
 # After running it, activate replication by setting COMPOSE_PROFILES to
 # include "backup-replicate" and re-deploying:
 #
-#   COMPOSE_PROFILES=tls,backup-replicate ./scripts/deploy-prod.sh
+#   COMPOSE_PROFILES=edge,backup-replicate ./scripts/deploy.sh
 #
 # See docs/RUNBOOK.md §"Off-host backup replication" for full details.
 
@@ -175,13 +175,12 @@ echo "     BACKUP_INTERVAL=\"3600\"   # seconds between syncs (default)"
 echo ""
 echo "2. Activate the backup-replicate profile in your next deploy:"
 echo ""
-echo "     COMPOSE_PROFILES=tls,backup-replicate ./scripts/deploy-prod.sh"
+echo "     COMPOSE_PROFILES=edge,backup-replicate ./scripts/deploy.sh"
 echo ""
 echo "3. Verify it's working after the first sync interval:"
 echo ""
-echo "     docker compose -f deploy/docker-compose.yml \\"
-echo "       -f deploy/docker-compose.prod.yml --env-file .env \\"
-echo "       --profile backup-replicate \\"
+echo "     docker compose -f deploy/docker-compose.yml --env-file .env \\"
+echo "       --profile edge --profile backup-replicate \\"
 echo "       logs -f backup-replicate"
 echo ""
 echo "   You should see lines like:"

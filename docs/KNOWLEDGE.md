@@ -548,7 +548,7 @@ The full per-iteration log lives in PRs #254 / #255 / #256 commit messages; the 
 
 ### 12.25 Deterministic test fixture — `prisma db seed` (2026-05-17)
 
-The platform ships a single canonical fixture used by both local dev iteration and the playwright e2e suite. Wired via `packages/db/prisma.config.ts#migrations.seed` (Prisma 7 location, not the deprecated `package.json#prisma.seed`); invoked by `scripts/deploy.sh` via `pnpm --filter @brain/db exec prisma db seed`, gated on `SEED_ON_DEPLOY=true` (default true on dev, hard-set to false in `scripts/deploy-prod.sh`).
+The platform ships a single canonical fixture used by both local dev iteration and the playwright e2e suite. Wired via `packages/db/prisma.config.ts#migrations.seed` (Prisma 7 location, not the deprecated `package.json#prisma.seed`) and run with `pnpm --filter @brain/db exec prisma db seed`. The server `scripts/deploy.sh` hard-sets `SEED_ON_DEPLOY=false` so the live server never seeds fixture data; local dev / e2e run the seed command directly (or via a `SEED_ON_DEPLOY=true` env when wrapping a local bring-up).
 
 The fixture is **load-bearing** — playwright specs assert on the counts directly:
 
@@ -566,7 +566,7 @@ Idempotency: all writes are `upsert` with deterministic ids prefixed `seed_`. A 
 
 Embeddings are populated by the worker's `embeddings.backfill` job (every 10 min) — the seed itself leaves them NULL. Tests that need semantic retrieval should wait for the backfill OR run `pnpm --filter @brain/worker backfill:embeddings` manually after seeding.
 
-**Why never on prod:** the seed creates an admin user (Alex). Running it on prod would create a privileged account that bypasses the voucher gate. `scripts/deploy-prod.sh` exports `SEED_ON_DEPLOY=false` explicitly — the audit-friendly form of "we definitely don't want fixture data on prod."
+**Why never on the server:** the seed creates an admin user (Alex). Running it on the live server would create a privileged account that bypasses the voucher gate. `scripts/deploy.sh` exports `SEED_ON_DEPLOY=false` explicitly — the audit-friendly form of "we definitely don't want fixture data on the server."
 
 ### 12.26 Oracle SSE frame schema — encoder + parser pair (2026-05-17)
 

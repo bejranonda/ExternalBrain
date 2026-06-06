@@ -10,7 +10,7 @@
 # plugin into the image at build time via xcaddy.
 #
 # Build: docker build -f deploy/Caddyfile.Dockerfile -t brain/caddy:2 .
-# Used by: deploy/docker-compose.prod.yml (build: ... target).
+# Used by: the `caddy` service (edge profile) in deploy/docker-compose.yml.
 #
 # Plugin pin: a specific tag is preferred to a moveable ref so a future
 # upstream change can't break our config silently. Update by bumping the

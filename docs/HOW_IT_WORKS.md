@@ -15,8 +15,8 @@ Brain Platform is a persistent knowledge layer that sits between AI coding tools
 A Brain is a single self-contained stack of four services: `web` (Next.js,
 port 3000), `mcp-server` (TypeScript MCP, port 3100), `worker` (pg-boss
 background jobs), and `db` (Postgres + pgvector). Caddy handles TLS via Let's
-Encrypt HTTP-01. Bring it up with `./scripts/deploy.sh` (local/dev) or
-`./scripts/deploy-prod.sh` (public VM with TLS).
+Encrypt HTTP-01. Bring it up with `docker compose -f deploy/docker-compose.yml
+up` (bare local) or `./scripts/deploy.sh` (server with TLS, the `edge` profile).
 
 Each instance is independent — its tokens and knowledge live in its own
 Postgres and don't cross to any other instance.
@@ -54,7 +54,7 @@ Key env vars to set before first deploy:
 Then:
 
 ```bash
-./scripts/deploy-prod.sh
+./scripts/deploy.sh
 ```
 
 What this orchestrates:
@@ -443,7 +443,7 @@ Here is one realistic scenario start-to-finish, using the Acme team and fictiona
 
 ---
 
-**Day 1 — Setup.** The operator (alex@acme.com) deploys to the prod host VPS. He sets `BRAIN_PUBLIC_HOSTNAME=brain.acme.com`, `ADMIN_USERNAME=admin`, runs `pnpm hash-admin-password 'acme-pilot-2026'`, pastes the hash into `.env`, and runs `./scripts/deploy-prod.sh`. Seven minutes later, `curl https://brain.acme.com/api/healthz` returns `{"ok":true}`. He invites bob@acme.com and charlie@acme.com from `/settings/org`.
+**Day 1 — Setup.** The operator (alex@acme.com) deploys to the server VPS. He sets `BRAIN_PUBLIC_HOSTNAME=brain.acme.com`, `ADMIN_USERNAME=admin`, runs `pnpm hash-admin-password 'acme-pilot-2026'`, pastes the hash into `.env`, and runs `./scripts/deploy.sh`. Seven minutes later, `curl https://brain.acme.com/api/healthz` returns `{"ok":true}`. He invites bob@acme.com and charlie@acme.com from `/settings/org`.
 
 ---
 

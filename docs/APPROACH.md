@@ -2,7 +2,7 @@
 
 How we think about this product, why we made the architectural choices we did, and how we decide when we're stuck.
 
-> **Process counterpart:** how we *ship* the decisions made here lives in [docs/CONTRIBUTING.md](./CONTRIBUTING.md) — the three workflows (Feature → develop, Bug → develop, Hotfix → main + back-merge to develop) make sure half-finished thinking doesn't reach prod and that emergencies don't drag in unfinished work.
+> **Process counterpart:** how we *ship* the decisions made here lives in [docs/CONTRIBUTING.md](./CONTRIBUTING.md) — a single-branch flow (`feature/bugfix/docs` branch → PR → `main` → deploy) on one self-hosted server. The earlier two-host / `develop`→`main` promotion model (documented in §5n below as history) was collapsed on 2026-06-06; `main` is now the only long-lived branch.
 
 ---
 

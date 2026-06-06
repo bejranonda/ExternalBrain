@@ -62,7 +62,7 @@ Admins listed in `ADMIN_EMAILS` bypass the voucher gate for their own first sign
 ### Production guards
 
 - `refuseDevShimInProduction()` refuses the dev shim when `NODE_ENV=production` unless `ALLOW_DEV_AUTH_IN_PRODUCTION=true`.
-- `deploy/docker-compose.prod.yml` does not set `ALLOW_DEV_AUTH` — forces OAuth mode.
+- `scripts/deploy.sh` refuses the deploy if `ALLOW_DEV_AUTH=true`, forcing real auth (OAuth or credentials) on the server.
 - NextAuth's `/api/auth/*` route is exempt from the in-process rate limiter (`proxy.ts`) so the OAuth callback can't 429 on a cold deploy.
 
 ---
@@ -171,8 +171,8 @@ the lesson:
 2. **Change the default database password.** `POSTGRES_PASSWORD` defaults to
    `brain` for local dev — set a strong value before any non-local deploy, and
    a strong `AUTH_SECRET` (`openssl rand -base64 32`).
-3. **TLS for everything public.** Deploy with `./scripts/deploy-prod.sh` (Caddy
-   + auto-TLS). An MCP Bearer token sent over plain HTTP travels in cleartext.
+3. **TLS for everything public.** Deploy with `./scripts/deploy.sh` (Caddy
+   + auto-TLS via the `edge` profile). An MCP Bearer token sent over plain HTTP travels in cleartext.
 4. **Enable a host firewall** allowing only SSH + 80/443. Note: Docker-published
    ports bypass `ufw` (Docker inserts its rules ahead of it), so **correct port
    binding (item 1) is the real control** — the firewall is defense-in-depth.
@@ -199,9 +199,9 @@ BASE_URL=https://brain.example.com MCP_URL=https://mcp.brain.example.com \
 
 Exit codes: `0` locked correctly / `1` LEAK — fix before release / `2` stack unreachable.
 
-Both `scripts/deploy.sh` and `scripts/deploy-prod.sh` now run it automatically at the end. `deploy-prod.sh` **refuses** the deploy if the audit fails. `deploy.sh` warns but proceeds (dev usage is allowed to be in dev-shim mode).
+`scripts/deploy.sh` runs it automatically at the end and **refuses** the deploy if the audit fails. (A bare local `docker compose up` doesn't run it; run `verify-lockdown.sh` yourself if you expose a local stack.)
 
-The script also enforces the one-way combination rule that caused the original VM leak: `ALLOW_DEV_AUTH=true` together with OAuth envs is a configuration error, and `deploy-prod.sh` dies on that combination before bringing anything up.
+The deploy script also enforces the one-way combination rule that caused the original VM leak: `ALLOW_DEV_AUTH=true` together with OAuth envs is a configuration error, and `deploy.sh` dies on that combination before bringing anything up.
 
 ### Credentials mode (phase-1 pilot default, 2026-04-24)
 

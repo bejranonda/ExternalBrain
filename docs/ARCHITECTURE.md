@@ -30,12 +30,11 @@ instance. Clients choose which Brain they talk to by pointing their MCP config
 at its URL — a token issued by one instance only authenticates against that
 instance.
 
-**Optional dev/prod split.** If you want a staging environment, run two
-instances on two hosts from the same code — a `develop`-tracking dev box and a
-`main`-tracking prod box, promoted via `develop → main` PRs. They share code,
-not data. TLS is per-origin via Caddy (Let's Encrypt HTTP-01); set `CADDY_EMAIL`
-and your public hostnames in `.env`. (This is how the original author runs it;
-a single instance is all a fork needs.)
+**Optional staging.** If you want a staging environment, run a second instance
+on another host from the same `main` code — they share code, not data. TLS is
+per-origin via Caddy (Let's Encrypt HTTP-01); set `CADDY_EMAIL` and your public
+hostnames in `.env`. (The original author runs a single instance on one host
+from `main`; a single instance is all a fork needs.)
 
 ### Token model
 
@@ -47,7 +46,7 @@ a single instance is all a fork needs.)
 
 ### Operating an instance
 
-- **Deploy scripts:** `./scripts/deploy.sh` for local/dev (optionally with the `tls` profile); `./scripts/deploy-prod.sh` for a public VM with Caddy + auto-TLS. Both auto-run `scripts/verify-lockdown.sh` + `scripts/nav-smoke.sh` and refuse to report success on a lockdown failure.
+- **Deploy:** `docker compose -f deploy/docker-compose.yml up` for a bare local stack; `./scripts/deploy.sh` for a server with Caddy + auto-TLS (the `edge` profile). The server deploy auto-runs `scripts/verify-lockdown.sh` + `scripts/smoke.sh` and refuses to report success on a lockdown failure.
 - **TLS:** Caddy on the origin handles certs via Let's Encrypt HTTP-01; set `CADDY_EMAIL` and your public hostname(s) in `.env`. See [`docs/DEPLOY_CHECKLIST.md`](./DEPLOY_CHECKLIST.md) and [`deploy/PRODUCTION.md`](../deploy/PRODUCTION.md).
 - **Branch protection:** enable required-PR + status checks on `main` before a second contributor joins.
 - **Feedback freshness:** a session's MCP calls become signal within ~seconds (MCP write) → minutes (extraction job) → next-session impact (retrieval). No nightly batch.

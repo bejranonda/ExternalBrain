@@ -67,7 +67,6 @@ Invariant violations are bugs, not features. Fix the violation; do not loosen th
 | Integration | `packages/core/__tests__/integration` | session-to-knowledge, outcome-feedback-loop, retrieveScored round-trip |
 | Benchmark | `packages/core/__tests__/benchmarks` | retrieval NDCG@5, KEA quality |
 | E2E | `apps/web/e2e` | 24 specs (161 tests) covering every surface + tokens + onboarding + tweaks + i18n + a11y + responsive + streaming — run with `pnpm --filter @brain/web e2e` (dev stack must be up). |
-| E2E (deployed-brain canary) | `.github/workflows/e2e-deployed.yml` (#234 Option A) | Auth-free subset (healthz, password-reset, security negative-path) runs against `https://brain-dev.example.com` on every push to `main`. Catches public-surface regressions at release-promotion time without needing a docker-compose stack in CI. |
 | E2E fixture | `packages/db/prisma/seed.ts` (#236) | Deterministic seed produces 1 admin user (Alex) + 1 org + 1 project + 6 sessions + 16 knowledge rows + 4 autoskill proposals. Idempotent via upsert; safe to re-run. Wired in `prisma.config.ts#migrations.seed` (Prisma 7 location — NOT `package.json#prisma.seed`, which silently no-op's in v7). Counts are load-bearing — `skills.spec.ts` asserts ≥16, `sessions.spec.ts` asserts ≥6, `autoskill.spec.ts` asserts 4. |
 | Visual regression | `apps/web/e2e/visual.spec.ts` (#235, scaffold) | 24 baselines: 6 surfaces × 2 viewports × 2 themes. Inert by default; gated on `PWUPDATE=1` (regenerate) or `RUN_VISUAL=1` (diff) so it doesn't flake every dev's `pnpm e2e`. Baseline PNGs land once Phase 2 (`data-volatile` masking attrs) and the e2e CI Option B (in-stack runner) are ready. |
 
@@ -117,12 +116,13 @@ The nav-smoke list is intentionally hard-coded (not route-discovered) so a new s
 - **No `--no-verify`.** Fix the hook failure, don't bypass it.
 
 **Branch model.** Standard GitHub flow: branch from `main` (`feature/<slug>`,
-`bugfix/<slug>`, `docs/<slug>`), open a PR, merge after green CI. Never push
-directly to a protected branch. How you deploy your fork is your choice — a
-single Docker Compose stack via `./scripts/deploy.sh` (local/dev) or
-`./scripts/deploy-prod.sh` (public VM with TLS); both auto-run
-`scripts/verify-lockdown.sh` + `scripts/nav-smoke.sh`. Contributor-facing rules
-in [`docs/CONTRIBUTING.md`](./CONTRIBUTING.md).
+`bugfix/<slug>`, `docs/<slug>`), open a PR, merge after green CI. `main` is the
+only long-lived branch — no `develop`, no promotion flow. Never push directly to
+a protected branch. Deploy a single Docker Compose stack: `docker compose -f
+deploy/docker-compose.yml up` for local, or `./scripts/deploy.sh` for the server
+(TLS via the `edge` profile); the server deploy auto-runs
+`scripts/verify-lockdown.sh` + `scripts/smoke.sh`. Contributor-facing rules in
+[`docs/CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ---
 
@@ -135,8 +135,7 @@ Every PR must:
 3. Pass `pnpm turbo run lint typecheck test`.
 4. Note any invariant it touches in the description.
 5. Include a "Risk" section for anything beyond a trivial change: what could regress, how to roll back.
-6. **Honest test plans.** The PR's "Test plan" / "Validated" section is a contract, not a wish-list. Checks the author actually performed get ✅ with specifics ("CI passed typecheck/test/build/fresh-DB migrate"; "ran the modal on the dev brain and confirmed the new placeholder renders"). Checks a reviewer should perform get ⬜ unchecked with a clear "(reviewer to verify)" or "(agent could not run locally)" note. Never write a list of unchecked boxes labelled as if they were performed — see `AGENTS.md` *PR descriptions: honest test plans* for the full rule and the failure mode it exists to prevent.
-7. **`e2e-please` label for UI/auth/public-surface PRs.** Adding the label triggers `.github/workflows/e2e-deployed.yml` against the deployed dev brain as a PR status check. Default PR cadence is unchanged (job short-circuits when the label is absent), but any PR whose value depends on rendered behavior should opt in. Skip the label for pure refactors, doc-only edits, or work fully covered by unit tests. See `APPROACH.md §5ah` for the rationale.
+6. **Honest test plans.** The PR's "Test plan" / "Validated" section is a contract, not a wish-list. Checks the author actually performed get ✅ with specifics ("CI passed typecheck/test/build/fresh-DB migrate"; "ran the modal locally and confirmed the new placeholder renders"). Checks a reviewer should perform get ⬜ unchecked with a clear "(reviewer to verify)" or "(agent could not run locally)" note. Never write a list of unchecked boxes labelled as if they were performed — see `AGENTS.md` *PR descriptions: honest test plans* for the full rule and the failure mode it exists to prevent.
 
 Reviewer checklist:
 - [ ] Invariants from `KNOWLEDGE.md §5` preserved.
@@ -381,7 +380,7 @@ If you suspect a token may have been seen by someone unintended, use `POST /api/
 
 **BuildKit cache mounts (2026-04-24, measured)**
 - The `next build` step gets two `RUN --mount=type=cache,…,sharing=locked` mounts: `/repo/apps/web/.next/cache` (webpack module graph) and `/repo/node_modules/.cache` (swc + next-babel intermediates). `pnpm install` similarly mounts `/pnpm/store`, with `PNPM_STORE_DIR=/pnpm/store` exported in the base stage so pnpm actually places its content store there. `sharing=locked` prevents races between parallel stage builds hitting the same cache dir.
-- `scripts/deploy.sh` + `scripts/deploy-prod.sh` export `DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 BUILDX_NO_DEFAULT_ATTESTATIONS=1` immediately before `$COMPOSE build`. Without the first two, the cache-mount syntax is silently ignored on older engines; without the third, buildx attaches a provenance + SBOM manifest list that adds ~20–30 s per stage and doubles image-unpack time.
+- `scripts/deploy.sh` exports `DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 BUILDX_NO_DEFAULT_ATTESTATIONS=1` immediately before `$COMPOSE build`. Without the first two, the cache-mount syntax is silently ignored on older engines; without the third, buildx attaches a provenance + SBOM manifest list that adds ~20–30 s per stage and doubles image-unpack time.
 - Measured warm-warm incremental rebuild of the `web` stage = **2 min 29 s** (webpack compile 40 s). Warm Docker + cold `.next/cache` = 3 min 9 s (webpack 112 s). First-ever build on a pruned machine still costs 20–30 min; the mount prevents recurrence, not first occurrence. Don't downgrade the claim — measure before re-tuning. `deploy/DEPLOY.md §"Build speed"` has the canonical numbers.
 - If webpack suddenly takes 100+ s on what should be a warm build, suspect a wiped BuildKit builder: `docker buildx inspect default` and look for `Status: stopped` or a different builder name.
 - **Never** add `cache: true` or `inline-cache` flags blindly; they interact badly with `sharing=locked`. Test with `docker compose build --progress=plain` and confirm both `RUN --mount=type=cache,...` lines appear verbatim in the output.

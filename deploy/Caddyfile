@@ -1,6 +1,7 @@
 # Caddy reverse proxy — automatic HTTPS via Let's Encrypt.
 #
-# Consumed by deploy/docker-compose.prod.yml. The actual hostnames are
+# Consumed by the `caddy` service (edge profile) in deploy/docker-compose.yml.
+# The actual hostnames are
 # set via environment variables expanded at container start time:
 #
 #   BRAIN_PUBLIC_HOSTNAME=brain.example.com      — webapp
