@@ -66,30 +66,30 @@ MAX_ORACLE_COST_USD_PER_DAY="10.00"
 git clone <repo> brain && cd brain
 cp .env.example .env
 $EDITOR .env                                     # fill in values from the checklist
-./scripts/deploy-prod.sh                         # ~2-3 min on a fresh VM
+./scripts/deploy.sh                              # ~2-3 min on a fresh VM
 ```
 
-`deploy-prod.sh` is idempotent. Safe to re-run after `git pull`. Tail logs with:
+`deploy.sh` is idempotent. Safe to re-run after `git pull` / `git checkout <tag>`. Tail logs with:
 
 ```bash
-docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.prod.yml --env-file .env logs -f
+docker compose -f deploy/docker-compose.yml --env-file .env logs -f
 ```
 
-## What `deploy-prod.sh` does differently from `deploy.sh`
+## How the server deploy differs from a bare local `up`
 
-| Concern | dev (`deploy.sh`) | prod (`deploy-prod.sh`) |
+`scripts/deploy.sh` runs the single Compose file with `--profile edge` (Caddy, Redis, nightly backup) and adds the server-grade preflight + post-deploy checks. A bare local `docker compose -f deploy/docker-compose.yml up` brings up only the core stack with dev-friendly defaults.
+
+| Concern | Local `up` | Server (`./scripts/deploy.sh`, `--profile edge`) |
 |---|---|---|
 | TLS | none (HTTP on :3000) | Caddy sidecar, auto Let's Encrypt on :443 |
-| Host ports | 3000/3100/5432 bound | Only 80/443 bound (Caddy); Postgres internal only |
-| Auth | dev-shim works without config | Fails closed unless `AUTH_*` set or `ALLOW_DEV_AUTH_IN_PRODUCTION=true` |
-| `NODE_ENV` | development | production (disables dev warnings, opts into Next prod optimizations) |
-| Seed | always runs | skipped when `SKIP_SEED=true` |
-| Health checks | `/mcp/health` only | `/api/healthz`, `/api/readyz`, `/mcp/health` all wired into compose `healthcheck:` |
-| Container restart | `unless-stopped` | `unless-stopped` (same, but matters more here) |
+| Host ports | 3000/3100/5432 bound (loopback) | Caddy fronts :80/:443; app ports stay loopback-only |
+| Auth | dev-shim works without config | Fails closed: deploy refuses `ALLOW_DEV_AUTH=true` and requires `AUTH_*` |
+| Seed | run `prisma db seed` manually | never seeds (`SEED_ON_DEPLOY=false`) |
+| Health checks | — | `/api/healthz` + `/health` wired into compose `healthcheck:`; cert-wait + lockdown + smoke |
 
 ## Backups
 
-The `backup` service in `docker-compose.prod.yml` runs `pg_dump` nightly at 03:00 UTC and writes compressed archives into the `brain_backups` Docker volume mounted at `/backups` inside the container. Retention: 7 daily, 4 weekly, 6 monthly copies.
+The `backup` service (edge profile) runs `pg_dump` nightly at 03:00 UTC and writes compressed archives into the `brain_backups` Docker volume mounted at `/backups` inside the container. Retention: 7 daily, 4 weekly, 6 monthly copies.
 
 ### Where backups live
 
@@ -99,7 +99,7 @@ On the host the volume lives under Docker's managed storage (typically `/var/lib
 
 ```bash
 # One-shot copy of a single file via docker cp (container must be running)
-docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.prod.yml exec backup \
+docker compose -f deploy/docker-compose.yml --profile edge exec backup \
   sh -c 'ls /backups/brain/'
 docker cp "$(docker compose ps -q backup)":/backups/brain/<file.sql.gz> ./local-backup.sql.gz
 
@@ -159,7 +159,7 @@ What HAS shipped as of 2026-04-23:
 - Admin surface at `/admin/{vouchers,users,audit}` gated by `requireAdmin()`.
 - Voucher-gated registration (atomic `SELECT … FOR UPDATE` claim, per-IP brute-force rate-limit).
 - Secure-by-default auth — an unconfigured deployment serves 503, not the first User row.
-- `scripts/verify-lockdown.sh` runs at the end of every deploy; `deploy-prod.sh` refuses the deploy on a lockdown failure.
+- `scripts/verify-lockdown.sh` runs at the end of every deploy; `deploy.sh` refuses the deploy on a lockdown failure.
 - `scripts/nav-smoke.sh` verifies every nav surface 2xx/3xx.
 
 Deploy behind Cloudflare or a similar DDoS-absorbing CDN if the VM gets significant public traffic — Caddy handles legitimate load fine, but a single VM can't out-absorb a botnet.

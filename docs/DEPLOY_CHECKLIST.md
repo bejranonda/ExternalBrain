@@ -151,7 +151,7 @@ comm -23 \
 
 | Key | Needed when | Safe to omit when |
 |---|---|---|
-| `BRAIN_PUBLIC_HOSTNAME` / `BRAIN_MCP_PUBLIC_HOSTNAME` | Running `scripts/deploy-prod.sh` (Caddy + DNS + TLS) | Local / VPN-only deploy via `scripts/deploy.sh` |
+| `BRAIN_PUBLIC_HOSTNAME` / `BRAIN_MCP_PUBLIC_HOSTNAME` | Server deploy via `scripts/deploy.sh` (Caddy + DNS + TLS, `--profile edge`) | Bare local `docker compose up` (no TLS) |
 | `CADDY_EMAIL` | Caddy is in front of the stack (ACME HTTP-01 registration) | No reverse proxy; direct port exposure |
 | `AUTH_TRUST_HOST` | **Any** reverse proxy in front of the webapp (NextAuth needs to trust the forwarded host header) | Direct exposure of port 3000 |
 | `REDIS_URL` | Multi-replica deploy OR you want per-cluster rate-limit instead of per-replica | Single replica — in-memory rate limit is correct |
@@ -168,7 +168,7 @@ comm -23 \
 ## C. Deploy
 
 ```bash
-./scripts/deploy-prod.sh
+./scripts/deploy.sh
 ```
 
 This script:
@@ -231,9 +231,9 @@ Non-zero = incident. Both run automatically at the end of `reload.sh` and both d
 Refer to [README "Which script to run when"](../README.md#which-script-to-run-when). Short version:
 
 - Code change → `./scripts/reload.sh web` (or `worker`, `mcp-server`)
-- Schema change → `./scripts/deploy-prod.sh`
+- Schema change → `./scripts/deploy.sh`
 - Env change → `./scripts/reload.sh web` (force-recreate is what picks up env)
-- Unsure → `./scripts/deploy-prod.sh` (idempotent, always safe, slower)
+- Unsure → `./scripts/deploy.sh` (idempotent, always safe, slower)
 
 ### Backups
 
@@ -286,7 +286,7 @@ When all ten boxes are checked, send the invites.
 
 | Symptom | Fix |
 |---|---|
-| `HTTPS not yet reachable` after `deploy-prod.sh` | DNS not propagated, or port 80 blocked. `dig +short <host>` + `nc -vz <ip> 80` |
+| `HTTPS not yet reachable` after `deploy.sh` | DNS not propagated, or port 80 blocked. `dig +short <host>` + `nc -vz <ip> 80` |
 | `There was a problem with the server configuration` on sign-in | `AUTH_SECRET` empty, `AUTH_URL` mismatched, or `AUTH_TRUST_HOST` unset. Diagnostic: `docker compose exec web env \| grep ^AUTH_` |
 | Sign-out redirects to `/undefined` | Old code. `git pull && ./scripts/reload.sh web` — fixed in d5cfb5c. |
 | `voucher_rate_limited` on legitimate sign-in | Someone's been mistyping voucher codes from the same IP. 10/hr per IP; either wait an hour or ask for a fresh code (admin bypasses via `ADMIN_EMAILS`). |

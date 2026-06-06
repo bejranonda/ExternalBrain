@@ -41,8 +41,8 @@ Day-two operations each have a smaller command:
 
 | Situation | Command | Why |
 |---|---|---|
-| **First deploy** (local or VM) | `./scripts/deploy.sh` | Build + migrate + backfill + up. Idempotent — safe to re-run. |
-| **Public VM with TLS** | `./scripts/deploy-prod.sh` | Adds a Caddy sidecar + ACME cert; refuses the deploy on a lockdown-audit failure. |
+| **Local dev** | `docker compose -f deploy/docker-compose.yml --env-file .env up -d --build` | Core stack only (db · web · mcp-server · worker) with dev-friendly defaults; the `edge` services (TLS/Redis/backup) stay off. |
+| **Server deploy (TLS)** | `./scripts/deploy.sh` | Build + migrate + backfill + up with the `edge` profile (Caddy + ACME cert, Redis, nightly backup); refuses the deploy on a lockdown-audit failure. Idempotent. |
 | **Edited TypeScript** | `./scripts/reload.sh web` (or `worker`, `mcp-server`) | Rebuilds + force-recreates only the named service(s). Skips DB wait/migrations. |
 | **Edited Prisma schema** | `./scripts/deploy.sh` | Runs `prisma migrate deploy`. Add the migration SQL under `packages/db/prisma/migrations/` first. |
 | **Edited `.env` only** | `./scripts/reload.sh web` (+ others as needed) | `--force-recreate` is what picks up new env values. |

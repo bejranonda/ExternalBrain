@@ -46,7 +46,7 @@ Re-running `./scripts/deploy.sh` is safe: Prisma skips applied migrations, the s
   - `AUTH_URL="https://brain-dev.example.com"` — see the warning in `.env.example`; NextAuth uses this to build the post-sign-in redirect, and `trustHost: true` does NOT override an explicit `AUTH_URL`.
 
 ```bash
-docker compose -f deploy/docker-compose.yml --env-file .env --profile tls up -d caddy
+docker compose -f deploy/docker-compose.yml --env-file .env --profile edge up -d caddy
 ```
 
 Caddy pulls Let's Encrypt certs for both hostnames on first request (logs `certificate obtained successfully` per identifier) and reverse-proxies to the `web` and `mcp-server` containers. The MCP container's `:3100` host port stays bound for direct-IP smoke tests; **production clients (Claude Code on another host, etc.) must use the HTTPS hostname** — sending a Bearer token over plain HTTP across the public internet leaks it to anyone on the path. Wiring it via `mcp.brain-dev.example.com/mcp` keeps the token inside TLS end-to-end.
@@ -64,7 +64,7 @@ Caddy pulls Let's Encrypt certs for both hostnames on first request (logs `certi
 The cache mounts shave 40 s off a warm-warm rebuild and 64% off the webpack step itself; their biggest contribution is actually on a server that *has* been rebooted or pruned — they prevent the 30 min cold path from recurring. Two mitigations ship in the repo:
 
 1. **BuildKit cache mounts** in `deploy/Dockerfile` for the pnpm store (`/pnpm/store`), webpack's module cache (`/repo/apps/web/.next/cache`), and the swc/next-babel intermediates (`/repo/node_modules/.cache`). These persist across `docker system prune --filter=until=<ttl>` as long as the BuildKit builder isn't wiped with it. An incremental rebuild after a code change in `packages/core` or `apps/web` recompiles only the changed webpack modules.
-2. **`BUILDX_NO_DEFAULT_ATTESTATIONS=1`** set by both `scripts/deploy.sh` and `scripts/deploy-prod.sh` — skips the SBOM + provenance manifest list that buildx attaches by default. Verified present/absent: the commit that landed the flag removed ~20–30 s per stage of `exporting attestation manifest` + `exporting manifest list` work (visible in the original 32-min deploy log but gone from subsequent runs). If your compliance regime requires SBOMs on images, unset this variable before running the deploy script.
+2. **`BUILDX_NO_DEFAULT_ATTESTATIONS=1`** set by `scripts/deploy.sh` — skips the SBOM + provenance manifest list that buildx attaches by default. Verified present/absent: the commit that landed the flag removed ~20–30 s per stage of `exporting attestation manifest` + `exporting manifest list` work (visible in the original 32-min deploy log but gone from subsequent runs). If your compliance regime requires SBOMs on images, unset this variable before running the deploy script.
 
 Cache mounts are BuildKit-only. The deploy scripts force `DOCKER_BUILDKIT=1` + `COMPOSE_DOCKER_CLI_BUILD=1`; a manual `docker compose build` inherits the same defaults on Docker 23+. If you're on an older Docker, `export DOCKER_BUILDKIT=1` before the build command.
 
