@@ -127,12 +127,15 @@ export default function ProjectsPage() {
   const onDelete = async (p: OrgProject) => {
     if (!window.confirm(`Delete project "${p.name}"? This cannot be undone.`)) return;
     try {
+      // Parse a 409 body at most once — re-reading the same Response throws a
+      // stream-already-read error and masks the server's real message.
+      let errorBody: { error?: string; message?: string } | null = null;
       let res = await fetch(`/api/projects/${p.id}`, { method: "DELETE" });
       // If the project still holds skills/sessions, offer a one-step cascade
       // delete (the only way to remove sessions — there's no separate UI).
       if (res.status === 409) {
-        const body = (await res.json()) as { error?: string };
-        if (body.error === "project_not_empty") {
+        errorBody = (await res.json()) as { error?: string; message?: string };
+        if (errorBody.error === "project_not_empty") {
           if (
             !window.confirm(
               `"${p.name}" still has skills and/or sessions. Permanently delete the project AND all of its data? This cannot be undone.`,
@@ -140,10 +143,12 @@ export default function ProjectsPage() {
           )
             return;
           res = await fetch(`/api/projects/${p.id}?withData=true`, { method: "DELETE" });
+          errorBody = null;
         }
       }
       if (!res.ok) {
-        const body = (await res.json()) as { error?: string; message?: string };
+        const body =
+          errorBody ?? ((await res.json()) as { error?: string; message?: string });
         setError(body.message ?? body.error ?? `HTTP ${res.status}`);
         return;
       }
