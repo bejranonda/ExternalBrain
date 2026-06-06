@@ -1,22 +1,30 @@
-# Brain Platform — test-server MVP stack.
+# Brain Platform — single-server stack.
 #
-# Bring up:
+# One self-hosted server, one Compose file. Long-running edge services
+# (Caddy TLS terminator, Redis, nightly backup) live behind the `edge`
+# profile so a bare local `docker compose up` brings up only the core
+# (db · web · mcp-server · worker) with dev-friendly defaults, while the
+# server deploy activates `--profile edge` via scripts/deploy.sh.
+#
+# Local dev:
 #   cp .env.example .env      # fill in OPENAI_API_KEY and/or ANTHROPIC_API_KEY
-#   ./scripts/deploy.sh       # orchestrates build → migrate → up
-#
-# Or, hand-crank:
 #   docker compose -f deploy/docker-compose.yml --env-file .env up -d --build
-#   docker compose -f deploy/docker-compose.yml --env-file .env exec web pnpm --filter @brain/db prisma migrate deploy
+#
+# Server deploy (TLS, backups, lockdown audit, smoke):
+#   ./scripts/deploy.sh
+#
+# Server prereqs (the `edge` profile):
+#   1. DNS A records for $BRAIN_PUBLIC_HOSTNAME and $BRAIN_MCP_PUBLIC_HOSTNAME
+#      pointing at this host's public IP.
+#   2. Ports 80 and 443 open (ACME HTTP-01 + HTTPS).
+#   3. `.env` carries BRAIN_PUBLIC_HOSTNAME, BRAIN_MCP_PUBLIC_HOSTNAME,
+#      CADDY_EMAIL, real auth (AUTH_* / ADMIN_*), and ALLOW_DEV_AUTH=false
+#      (scripts/deploy.sh refuses the dev-auth shim on the server).
 
 services:
-  # Per-service log retention pattern (#56 gap 1):
-  #   - `logging:` block bounds the in-container log buffer to 50 MB total
-  #     (10 MB × 5 files) so a runaway log doesn't fill the host disk.
-  #   - `scripts/save-deploy-logs.sh` runs BEFORE any reload / deploy and
-  #     snapshots the live logs to `./logs/snapshots/<timestamp>/<service>.log`,
-  #     so a force-recreate (which Docker's logging driver alone cannot
-  #     survive) doesn't lose the preceding evidence.
-  # The snapshot script is invoked by reload.sh + deploy.sh + deploy-prod.sh.
+  # Per-service log retention (#56 gap 1): the `logging:` block bounds the
+  # in-container buffer to 50 MB (10 MB × 5); scripts/save-deploy-logs.sh
+  # snapshots live logs to ./logs/snapshots/<timestamp>/ before any reload.
 
   db:
     image: pgvector/pgvector:pg16
@@ -50,25 +58,25 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile
       target: web
-      args:
-        APP_VERSION: ${APP_VERSION:-dev}
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
     environment:
       DATABASE_URL: ${DATABASE_URL}
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-production}
       DEV_USER_ID: ${DEV_USER_ID:-}
       # Auth-hardening (2026-04-23): unconfigured deployments must EITHER
       # set AUTH_GITHUB_* + AUTH_SECRET for OAuth, OR set ALLOW_DEV_AUTH=true
-      # for a local/VPN-only demo. The dev-compose default is "true" so the
-      # stack boots usable after `./scripts/deploy.sh`; docker-compose.prod.yml
-      # leaves it false and requires OAuth envs instead.
+      # for a local/VPN-only demo. Default "true" so a bare local `up` boots
+      # usable; scripts/deploy.sh REFUSES ALLOW_DEV_AUTH=true on the server,
+      # so the one server must set it false + configure real auth in .env.
       ALLOW_DEV_AUTH: ${ALLOW_DEV_AUTH:-true}
       ALLOW_DEV_AUTH_IN_PRODUCTION: ${ALLOW_DEV_AUTH_IN_PRODUCTION:-true}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       REGISTRATION_REQUIRES_VOUCHER: ${REGISTRATION_REQUIRES_VOUCHER:-true}
+      # Default to the public HTTPS origin when BRAIN_PUBLIC_HOSTNAME is set
+      # (server); empty otherwise (local) so NextAuth uses the request host.
       AUTH_URL: ${AUTH_URL:-}
       # Public hostnames consumed by the installer / skill / wizard
       # endpoints (apps/web/lib/brain/skill-template.ts::publicUrlsFromEnv).
@@ -115,6 +123,8 @@ services:
       RATE_LIMIT_MCP_PER_MINUTE: ${RATE_LIMIT_MCP_PER_MINUTE:-200}
       MAX_ORACLE_COST_USD_PER_DAY: ${MAX_ORACLE_COST_USD_PER_DAY:-10}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Empty default → in-process rate-limit state (fine for local/single).
+      # On the server set REDIS_URL=redis://redis:6379 and run --profile edge.
       REDIS_URL: ${REDIS_URL:-}
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
@@ -123,6 +133,16 @@ services:
       # plain-HTTP host port. Override WEB_HOST_BIND only if you front it
       # another way; never serve plain HTTP on 0.0.0.0 in production.
       - "${WEB_HOST_BIND:-127.0.0.1}:${WEB_HOST_PORT:-3000}:3000"
+    volumes:
+      # Read-only: lets GET /api/admin/backup-status stat the replicate
+      # heartbeat written by the `backup`/`backup-replicate` services.
+      - brain_backups:/data/backups:ro
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/api/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
     logging:
       driver: json-file
       options:
@@ -160,11 +180,19 @@ services:
       # so a developer pasting the MCP hostname in a browser has somewhere
       # to go. Empty default → those fields render as null (graceful).
       BRAIN_PUBLIC_HOSTNAME: ${BRAIN_PUBLIC_HOSTNAME:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
     ports:
       # Loopback by default — MCP must be reached over TLS via Caddy, never
       # plain HTTP on a public interface (a misrouted client would send its
       # Bearer token in cleartext). Override MCP_HOST_BIND only behind a proxy.
       - "${MCP_HOST_BIND:-127.0.0.1}:${MCP_HOST_PORT:-3100}:3100"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3100/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
     logging:
       driver: json-file
       options:
@@ -182,7 +210,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: ${DATABASE_URL}
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-production}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
@@ -205,36 +233,13 @@ services:
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
       AUTOSKILL_ENABLED: ${AUTOSKILL_ENABLED:-true}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "5"
-
-  # Optional TLS terminator — opt-in via the `tls` profile. Used when the
-  # dev stack should be reachable at a public hostname over HTTPS (e.g.
-  # brain-dev.example.com). Pulls a Let's Encrypt cert on first request;
-  # requires DNS to already resolve the hostname to this host's public IP.
-  # See deploy/Caddyfile.dev for the routing rules.
-  caddy:
-    profiles: ["tls"]
-    image: caddy:2-alpine
-    restart: unless-stopped
-    depends_on:
-      - web
-      - mcp-server
-    environment:
-      BRAIN_PUBLIC_HOSTNAME: ${BRAIN_PUBLIC_HOSTNAME:?BRAIN_PUBLIC_HOSTNAME must be set when the tls profile is enabled}
-      BRAIN_MCP_PUBLIC_HOSTNAME: ${BRAIN_MCP_PUBLIC_HOSTNAME:?BRAIN_MCP_PUBLIC_HOSTNAME must be set when the tls profile is enabled — exposing MCP behind TLS prevents Bearer-token leakage on the public internet}
-      CADDY_EMAIL: ${CADDY_EMAIL:-}
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile.dev:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-      - caddy_logs:/var/log/caddy
 
   # One-shot bootstrap container: runs migrations + FTS index.
   # Invoked by scripts/deploy.sh; do not depend on it in long-running services.
@@ -259,8 +264,112 @@ services:
     # The scripts/deploy.sh orchestrator invokes individual subcommands via
     # `docker compose run --rm bootstrap '<cmd>'`.
 
+  # ───────── edge profile (server only) ─────────
+  # Redis, nightly backup, and the hardened Caddy TLS terminator. Activated
+  # by scripts/deploy.sh with `--profile edge`. A bare local `docker compose
+  # up` skips all of these, so localhost dev needs no TLS/redis/backup.
+
+  # Redis for cross-replica rate-limit state. Single-instance is fine for a
+  # bare-VM deploy; scale to managed Redis if you ever go multi-host.
+  redis:
+    profiles: ["edge"]
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "no", "--save", ""]
+    volumes:
+      - brain_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Nightly pg_dump via cron → brain_backups volume. Restore: scripts/backup-restore.sh
+  backup:
+    profiles: ["edge"]
+    image: prodrigestivill/postgres-backup-local:15
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - brain_backups:/backups
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB:-brain}
+      POSTGRES_USER: ${POSTGRES_USER:-brain}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-brain}
+      SCHEDULE: "0 3 * * *"
+      BACKUP_KEEP_DAYS: "7"
+      BACKUP_KEEP_WEEKS: "4"
+      BACKUP_KEEP_MONTHS: "6"
+      HEALTHCHECK_PORT: "8080"
+
+  # Off-host backup replication — opt-in via the `backup-replicate` profile
+  # (in addition to `edge`). Syncs brain_backups to a remote rclone backend.
+  # See docs for setup (deploy/rclone.conf, BACKUP_REMOTE).
+  backup-replicate:
+    profiles: ["backup-replicate"]
+    image: rclone/rclone:1
+    restart: unless-stopped
+    depends_on:
+      backup:
+        condition: service_started
+    volumes:
+      - brain_backups:/data/backups:ro
+      - ./rclone.conf:/config/rclone/rclone.conf:ro
+    environment:
+      RCLONE_REMOTE: ${BACKUP_REMOTE:-}
+      RCLONE_INTERVAL: ${BACKUP_INTERVAL:-3600}
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        while true; do
+          if [ -n "$$RCLONE_REMOTE" ]; then
+            rclone sync /data/backups "$$RCLONE_REMOTE" --quiet \
+              && echo "$$(date -u): synced to $$RCLONE_REMOTE" \
+              || echo "$$(date -u): sync FAILED to $$RCLONE_REMOTE" >&2
+            echo "$$(date -u +%s)" > /data/backups/.replicate-heartbeat 2>/dev/null || true
+          else
+            echo "$$(date -u): RCLONE_REMOTE not set — skipping sync"
+          fi
+          sleep "$$RCLONE_INTERVAL"
+        done
+
+  # Hardened Caddy with the mholt/caddy-ratelimit plugin baked in (the prod
+  # Caddyfile uses `rate_limit`, absent from stock caddy:2-alpine). See
+  # deploy/Caddyfile.Dockerfile (xcaddy --with github.com/mholt/caddy-ratelimit).
+  caddy:
+    profiles: ["edge"]
+    build:
+      context: ..
+      dockerfile: deploy/Caddyfile.Dockerfile
+    image: brain/caddy:2
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+      mcp-server:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"      # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - caddy_logs:/var/log/caddy
+    environment:
+      BRAIN_PUBLIC_HOSTNAME: ${BRAIN_PUBLIC_HOSTNAME}
+      BRAIN_MCP_PUBLIC_HOSTNAME: ${BRAIN_MCP_PUBLIC_HOSTNAME}
+      CADDY_EMAIL: ${CADDY_EMAIL}
+
 volumes:
   brain_db:
+  brain_backups:
+  brain_redis:
   caddy_data:
   caddy_config:
   caddy_logs:

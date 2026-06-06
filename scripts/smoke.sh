@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Production smoke test — run after `./scripts/deploy-prod.sh` reports up.
-# Also invoked automatically by deploy-prod.sh as its final step.
+# Post-deploy smoke test — run after `./scripts/deploy.sh` reports up.
+# Also invoked automatically by deploy.sh as its final step.
 #
 # Two tiers:
 #
@@ -25,7 +25,7 @@
 #   BRAIN_PUBLIC_HOSTNAME=brain.example.com \
 #   BRAIN_MCP_PUBLIC_HOSTNAME=mcp.brain.example.com \
 #   BRAIN_MCP_TOKEN=bp_...           # optional; enables auth tier \
-#     ./scripts/smoke-prod.sh
+#     ./scripts/smoke.sh
 #
 # Sourcing .env picks up BRAIN_PUBLIC_HOSTNAME / BRAIN_MCP_PUBLIC_HOSTNAME
 # automatically.
