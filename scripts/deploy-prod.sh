@@ -117,6 +117,11 @@ fi
 export DOCKER_BUILDKIT=1
 export COMPOSE_DOCKER_CLI_BUILD=1
 export BUILDX_NO_DEFAULT_ATTESTATIONS=1
+# Stamp the build with the current git version for the web UI (rail footer).
+# On prod this is normally a clean tag checkout (e.g. "v1.1.0"); "dev" if git
+# is unavailable. See scripts/deploy.sh for the full rationale.
+export APP_VERSION="${APP_VERSION:-$(git -C "$REPO_ROOT" describe --tags --always --dirty 2>/dev/null || echo dev)}"
+log "Build version: $APP_VERSION"
 
 # #56 gap 1 — snapshot live logs before any rebuild that could force-recreate
 # containers. Critical on prod: if a deploy goes wrong, the previous logs
