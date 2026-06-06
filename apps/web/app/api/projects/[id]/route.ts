@@ -281,15 +281,17 @@ export async function DELETE(
       );
     }
 
-    // Cascade the project's data first (sessions + knowledge); their dependents
-    // — session events, knowledge applications, graph edges — cascade in the DB.
-    if (hasData && withData) {
-      await db.$transaction([
-        db.session.deleteMany({ where: { projectId: id } }),
-        db.knowledge.deleteMany({ where: { ownerProjectId: id } }),
-      ]);
-    }
-    await db.project.delete({ where: { id } });
+    // Cascade the project's data (sessions + knowledge) and remove the project
+    // in one transaction, so a failure on the final delete can't leave the
+    // project in a partially-deleted state. Their dependents — session events,
+    // knowledge applications, graph edges — cascade in the DB.
+    await db.$transaction(async (tx) => {
+      if (hasData && withData) {
+        await tx.session.deleteMany({ where: { projectId: id } });
+        await tx.knowledge.deleteMany({ where: { ownerProjectId: id } });
+      }
+      await tx.project.delete({ where: { id } });
+    });
 
     void writeAudit({
       actorUserId: userId,
