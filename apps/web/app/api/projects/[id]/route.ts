@@ -248,12 +248,21 @@ export async function DELETE(
       return Response.json({ error: "forbidden" }, { status: 403 });
     }
 
-    // Refuse if the project has any non-deleted knowledge or any sessions.
-    const hasData =
-      (project._count.knowledge ?? 0) > 0 || (project._count.sessions ?? 0) > 0;
-    if (hasData) {
+    // `?withData=true` cascades: delete the project's sessions + knowledge too.
+    // Without it, refuse a non-empty project — a plain delete would orphan the
+    // data (the schema sets projectId NULL on delete, it does not cascade).
+    const withData = new URL(req.url).searchParams.get("withData") === "true";
+    const knowledgeCount = project._count.knowledge ?? 0;
+    const sessionCount = project._count.sessions ?? 0;
+    const hasData = knowledgeCount > 0 || sessionCount > 0;
+    if (hasData && !withData) {
       return Response.json(
-        { error: "project_not_empty", message: "Project still has knowledge or sessions. Transfer or delete the data first." },
+        {
+          error: "project_not_empty",
+          message: "Project still has knowledge or sessions. Transfer or delete the data first.",
+          knowledge: knowledgeCount,
+          sessions: sessionCount,
+        },
         { status: 409 },
       );
     }
@@ -272,6 +281,14 @@ export async function DELETE(
       );
     }
 
+    // Cascade the project's data first (sessions + knowledge); their dependents
+    // — session events, knowledge applications, graph edges — cascade in the DB.
+    if (hasData && withData) {
+      await db.$transaction([
+        db.session.deleteMany({ where: { projectId: id } }),
+        db.knowledge.deleteMany({ where: { ownerProjectId: id } }),
+      ]);
+    }
     await db.project.delete({ where: { id } });
 
     void writeAudit({
@@ -279,7 +296,9 @@ export async function DELETE(
       action: "project.delete",
       targetType: "project",
       targetId: id,
-      payload: {},
+      payload: withData
+        ? { withData: true, deletedKnowledge: knowledgeCount, deletedSessions: sessionCount }
+        : {},
       ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
       userAgent: req.headers.get("user-agent") ?? null,
     });
