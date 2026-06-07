@@ -70,9 +70,19 @@ export default async function SignIn({ searchParams }: Props) {
   const errorMessage = ERROR_MESSAGES[errorKey] ?? (errorKey ? "Sign-in failed. Try again." : "");
   const inviteToken = params.invite ?? "";
 
+  // Dev-shim mode (no real auth configured, ALLOW_DEV_AUTH=true): the shell
+  // resolves the dev user as "the first User row", so it only works once a
+  // user exists. With an empty DB, redirect("/") bounces straight back here
+  // (`/` can't resolve a user → redirects to /signin) → infinite loop. Only
+  // hand off to the shell when a user actually exists; otherwise fall through
+  // and render a bootstrap notice instead of looping.
+  let devShimNeedsBootstrap = false;
   if (!anySignInConfigured() && devAuthAllowed()) {
-    // Dev-shim mode: no sign-in UI needed; redirect to the shell.
-    redirect("/");
+    const userCount = await db.user.count().catch(() => 0);
+    if (userCount > 0) {
+      redirect("/");
+    }
+    devShimNeedsBootstrap = true;
   }
 
   const credentialsAllowed = adminCredentialsConfigured();
@@ -283,8 +293,34 @@ export default async function SignIn({ searchParams }: Props) {
                 ? "Sign in to access your Brain — the skills and sessions it's learning from your AI work."
                 : oauthAllowed
                   ? "Sign in with GitHub to access your Brain. New users need a voucher code from an admin."
-                  : "Sign-in is not configured on this deployment. Ask the operator to enable a sign-in mode."}
+                  : devShimNeedsBootstrap
+                    ? "Dev-auth is enabled, but this Brain has no users yet."
+                    : "Sign-in is not configured on this deployment. Ask the operator to enable a sign-in mode."}
             </div>
+
+            {devShimNeedsBootstrap && (
+              <div
+                style={{
+                  fontSize: 13,
+                  color: "var(--ink-3, #9a9cab)",
+                  padding: "12px 14px",
+                  marginBottom: 18,
+                  background: "var(--bg, #0d0e11)",
+                  border: "1px dashed var(--line, #23242c)",
+                  borderRadius: 6,
+                  lineHeight: 1.6,
+                }}
+              >
+                <code>ALLOW_DEV_AUTH=true</code> signs you in as the first user
+                row, but the database is empty. Create that first user, then
+                reload:
+                <ul style={{ margin: "8px 0 0 18px", padding: 0 }}>
+                  <li>seed it: <code>pnpm --filter @brain/db exec prisma db seed</code>, or</li>
+                  <li>point <code>DEV_USER_ID</code> at an existing user id, or</li>
+                  <li>configure real auth (<code>ADMIN_USERNAME</code> + <code>ADMIN_PASSWORD_HASH</code>, or GitHub OAuth).</li>
+                </ul>
+              </div>
+            )}
 
             {errorMessage && (
               <div
@@ -445,7 +481,7 @@ export default async function SignIn({ searchParams }: Props) {
               </form>
             )}
 
-            {!anyAllowed && (
+            {!anyAllowed && !devShimNeedsBootstrap && (
               <div
                 style={{
                   fontSize: 13,

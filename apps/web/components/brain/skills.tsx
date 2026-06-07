@@ -319,6 +319,26 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
         position: "relative",
       }}
     >
+      {/* Landmark heading for screen readers. The populated Skills view is a
+          dense filter+list tool surface with no visible page title (by
+          design — a big header would fight the density), but every other
+          surface exposes an <h1>, so a visually-hidden one keeps the
+          document-outline / a11y landmark consistent. */}
+      <h1
+        style={{
+          position: "absolute",
+          width: 1,
+          height: 1,
+          padding: 0,
+          margin: -1,
+          overflow: "hidden",
+          clip: "rect(0, 0, 0, 0)",
+          whiteSpace: "nowrap",
+          border: 0,
+        }}
+      >
+        {t("skills.knowledge")}
+      </h1>
       {statusMessage && (
         <div
           className="chip"
