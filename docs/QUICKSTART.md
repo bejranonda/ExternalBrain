@@ -32,8 +32,8 @@ cp .env.example .env
 # Open .env, fill in GOOGLE_GEMINI_API_KEY (or OPENAI_API_KEY, or ANTHROPIC_API_KEY).
 # Defaults for everything else work for a local demo.
 
-# 3. Bring the stack up
-./scripts/deploy.sh
+# 3. Bring the stack up (local/dev — no TLS, dev-friendly defaults)
+./scripts/dev-up.sh
 
 # 4. Open the webapp
 open http://localhost:3000   # macOS; Linux: xdg-open; Windows: start
@@ -41,11 +41,15 @@ open http://localhost:3000   # macOS; Linux: xdg-open; Windows: start
 # 5. Create an MCP token in the UI — see §4 below.
 ```
 
-If the deploy script says "Brain Platform is up" and `curl -sSf http://localhost:3000/api/healthz` returns `{"ok":true}`, you're running. Go to §4 to wire a coding tool.
+If `dev-up.sh` says "Brain Platform is up" and `curl -sSf http://localhost:3000/api/healthz` returns `{"ok":true}`, you're running. Go to §4 to wire a coding tool.
 
 ---
 
-## 1. What `scripts/deploy.sh` does, in order
+## 1. What `scripts/dev-up.sh` does, in order
+
+(For a public **server** deployment — Caddy + auto-TLS, real auth enforced,
+nightly backups — use `./scripts/deploy.sh` instead; see
+[DEPLOY_CHECKLIST.md](./DEPLOY_CHECKLIST.md).)
 
 So you know what to look for if it fails mid-way:
 
@@ -104,7 +108,7 @@ curl -sSf http://localhost:3000/api/readyz       # webapp + DB readiness
 curl -sSf http://localhost:3100/health           # MCP server
 ```
 
-All three return `{"ok":true}` when healthy. If `/api/readyz` fails with a DB error, the migrations or FTS indexes didn't apply — run `./scripts/deploy.sh` again; it's idempotent.
+All three return `{"ok":true}` when healthy. If `/api/readyz` fails with a DB error, the migrations or FTS indexes didn't apply — run `./scripts/dev-up.sh` again; it's idempotent.
 
 Open the webapp at http://localhost:3000. The first-run Onboarding modal walks you through token setup — you can follow its steps or use §4 below.
 
@@ -184,7 +188,7 @@ Every session you complete grows the Knowledge corpus. Refresh the webapp's Skil
 | Symptom | Diagnosis | Fix |
 |---|---|---|
 | `curl` to `/api/healthz` returns a 503 or connection-refused | Web container is still booting or crashed | `docker compose -f deploy/docker-compose.yml logs -f web` |
-| `/api/readyz` says `db not ready` | Postgres is up but migrations haven't applied | Re-run `./scripts/deploy.sh` (idempotent) |
+| `/api/readyz` says `db not ready` | Postgres is up but migrations haven't applied | Re-run `./scripts/dev-up.sh` (idempotent) |
 | Onboarding modal shows forever after reload | `bp_onboarded` flag didn't persist; LocalStorage disabled | Click **Skip** in the modal; it sets the flag explicitly |
 | Oracle returns 500 / streams nothing | No LLM provider key set, or cost cap tripped | Check `.env` has one of `GOOGLE_GEMINI_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`; check `docker compose logs web` for the exact error |
 | Retrieval returns empty | Embeddings weren't backfilled (worker missing a key, or worker is dead) | `docker compose logs worker` — if you see the queue creation on start, manually run: `docker compose --profile bootstrap run --rm bootstrap "pnpm --filter @brain/worker backfill:embeddings"` |
@@ -199,11 +203,11 @@ For deeper operational issues (restore from backup, rotate secrets, admin action
 Short rules:
 
 - **Edited TypeScript in `apps/*` or `packages/core/*`** → `./scripts/reload.sh web` (or `worker` / `mcp-server`).
-- **Edited the Prisma schema** → `./scripts/deploy.sh` (it runs `prisma migrate deploy` for you).
+- **Edited the Prisma schema** → `./scripts/dev-up.sh` (it runs `prisma migrate deploy` for you).
 - **Edited `.env` only** → `./scripts/reload.sh web` (force-recreate is what picks up env changes).
-- **Unsure / anything else** → `./scripts/deploy.sh`. Idempotent. Always safe.
+- **Unsure / anything else** → `./scripts/dev-up.sh`. Idempotent. Always safe.
 
-`reload.sh` takes 10–20 s per service. `deploy.sh` takes 30–60 s but handles everything. Full decision table in [README.md § "Which script to run when"](../README.md#which-script-to-run-when).
+`reload.sh` takes 10–20 s per service. `dev-up.sh` takes 30–60 s but handles everything. Full decision table in [README.md § "Which script to run when"](../README.md#which-script-to-run-when).
 
 Every script ends by calling `./scripts/verify-lockdown.sh`, so auth regressions surface immediately — not three days into a pilot.
 

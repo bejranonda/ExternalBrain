@@ -1,4 +1,4 @@
-# External Brain — a persistent memory layer for AI coding
+# External Brain — persistent memory for AI coding agents
 
 > **Stop re-teaching your AI the same things.** External Brain captures what you
 > learn in every AI coding session — across Claude Code, Cursor, Windsurf, and
@@ -68,14 +68,15 @@ git clone https://github.com/bejranonda/ExternalBrain.git external-brain
 cd external-brain
 
 cp .env.example .env          # add one provider key (e.g. GOOGLE_GEMINI_API_KEY)
-./scripts/deploy.sh           # build · migrate · start — idempotent
+./scripts/dev-up.sh           # build · migrate · seed · start — idempotent
 
 # Webapp:  http://localhost:3000
 # MCP HTTP: http://localhost:3100/mcp
 ```
 
-`deploy.sh` runs an auth-posture audit at the end and prints PASS/FAIL. For a
-public-internet deployment with TLS, see
+`dev-up.sh` runs an auth-posture audit at the end and prints PASS/FAIL. For a
+public-internet **server** deployment (Caddy + auto-TLS, real auth enforced,
+nightly backups), use `./scripts/deploy.sh` instead — see
 [docs/DEPLOY_CHECKLIST.md](./docs/DEPLOY_CHECKLIST.md).
 
 ### Connect your AI tool

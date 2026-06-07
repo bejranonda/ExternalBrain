@@ -41,15 +41,15 @@ Day-two operations each have a smaller command:
 
 | Situation | Command | Why |
 |---|---|---|
-| **Local dev** | `docker compose -f deploy/docker-compose.yml --env-file .env up -d --build` | Core stack only (db · web · mcp-server · worker) with dev-friendly defaults; the `edge` services (TLS/Redis/backup) stay off. |
+| **Local dev** | `./scripts/dev-up.sh` | Core stack only (db · web · mcp-server · worker) on localhost — builds, migrates, seeds the demo fixture, audits auth. The `edge` services (TLS/Redis/backup) stay off. |
 | **Server deploy (TLS)** | `./scripts/deploy.sh` | Build + migrate + backfill + up with the `edge` profile (Caddy + ACME cert, Redis, nightly backup); refuses the deploy on a lockdown-audit failure. Idempotent. |
 | **Edited TypeScript** | `./scripts/reload.sh web` (or `worker`, `mcp-server`) | Rebuilds + force-recreates only the named service(s). Skips DB wait/migrations. |
-| **Edited Prisma schema** | `./scripts/deploy.sh` | Runs `prisma migrate deploy`. Add the migration SQL under `packages/db/prisma/migrations/` first. |
+| **Edited Prisma schema** | `./scripts/dev-up.sh` (local) / `./scripts/deploy.sh` (server) | Runs `prisma migrate deploy`. Add the migration SQL under `packages/db/prisma/migrations/` first. |
 | **Edited `.env` only** | `./scripts/reload.sh web` (+ others as needed) | `--force-recreate` is what picks up new env values. |
 | **Audit the auth posture** | `./scripts/verify-lockdown.sh` | Probes root, `/api/knowledge`, MCP with/without bearer; exits non-zero on a leak. |
 | **Back up / restore** | `./scripts/backup-restore.sh backup` / `restore <timestamp>` | Writes to / restores from the `brain_backups` Docker volume. |
 
-Rules of thumb: `./scripts/deploy.sh` is always safe (idempotent; handles
+Rules of thumb: `./scripts/dev-up.sh` is always safe locally (idempotent; handles
 schema + backfill); `./scripts/reload.sh <service>` is the fast dev loop. Both
 end by running `verify-lockdown.sh`, so an auth misconfiguration surfaces at
 every deploy.

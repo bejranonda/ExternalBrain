@@ -39,7 +39,7 @@ packages/
   db/                    # Prisma schema + client
   types/                 # Cross-package TypeScript types
 deploy/                  # docker-compose, Caddyfile, Dockerfile
-scripts/                 # deploy.sh / reload.sh / verify-lockdown.sh
+scripts/                 # dev-up.sh / deploy.sh / reload.sh / verify-lockdown.sh
 docs/                    # Documentation (see the index below)
 ```
 
@@ -75,8 +75,11 @@ pnpm turbo run typecheck
 pnpm turbo run test
 pnpm turbo run build
 
-# Run your own instance (Docker Compose; idempotent first-time deploy)
+# Run your own instance locally (Docker Compose; idempotent first-time bring-up)
 cp .env.example .env      # fill in DATABASE_URL + one LLM provider key
+./scripts/dev-up.sh       # local/dev: no TLS, seeds the demo fixture
+
+# Public server deploy (Caddy + auto-TLS via the `edge` profile, real auth)
 ./scripts/deploy.sh
 
 # Fast dev iteration against a running stack (rebuild one service)
@@ -86,7 +89,7 @@ cp .env.example .env      # fill in DATABASE_URL + one LLM provider key
 ./scripts/verify-lockdown.sh
 ```
 
-`reload.sh` is right for ~95% of dev iterations; use `deploy.sh` when you've
+`reload.sh` is right for ~95% of dev iterations; use `dev-up.sh` when you've
 changed the Prisma schema or seed.
 
 ---
