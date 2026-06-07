@@ -58,6 +58,11 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile
       target: web
+      args:
+        # Stamps NEXT_PUBLIC_APP_VERSION into the bundle for the rail-footer
+        # version label. deploy.sh exports APP_VERSION from `git describe`;
+        # defaults to "dev" for a bare local build.
+        APP_VERSION: ${APP_VERSION:-dev}
     restart: unless-stopped
     depends_on:
       db:

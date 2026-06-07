@@ -1062,3 +1062,14 @@ The implementation has three parts:
 - For session citations: project name, session age, outcome indicator (✓ success / ✗ failure / ? unknown), and client type (claude_code / cursor / etc.).
 
 The enrichment is populated by `mapCitations` in `oracle.ts` without extra DB queries — it reads the fields (`successCount`, `failureCount`, `usageCount`, `lastUsedAt`, `clientType`, `project.name`) that are already present in the retrieval bundle. `effectivenessScore()` from `@brain/core/knowledge-stats` is reused — no reimplementation. The `EffectivenessBadge` component is extracted from `skills.tsx` to `effectiveness-badge.tsx` so both surfaces share the same visual. The net result: the user can open a citation card and immediately understand not just *what* the Brain cited, but *why that rule* (its trigger pattern, its track record) and *why that session* (its context and outcome).
+
+## 5aa. First-time-user review loop on an isolated stack (2026-06-07)
+
+A "does it actually work for someone with no background?" pass found three real bugs (two `#418` hydration mismatches + a `/docs` prefetch abort) and one shipped-broken feature (version footer stuck on `dev`) that unit tests and CI never caught — because they only manifest in the *rendered, hydrated* browser, not in `tsc`/`vitest`. The repeatable method:
+
+1. **Never test against the live server.** It holds real client data; a review writes/deletes data. Stand up an isolated stack (`docker compose -p brain-review`, own DB volume, non-default ports, dev-auth, no real keys) so the production `deploy` project is never touched.
+2. **Drive a real browser, capture the real signals.** Playwright (`~/playwright-validate`) over every surface, recording `console.error` + `pageerror` + failed requests per page. Zero of those is the bar — not "it looks fine."
+3. **Debug hydration with evidence, not minified args.** React's prod `#418` only says "HTML" or "text". To find the node: diff the **JS-off** DOM (pure SSR) against the **JS-on** DOM (hydrated), stripping attributes + React's `<!-- -->` text-boundary markers. To test a *data-race* hypothesis, **delay the API** with a route intercept and check whether the error survives — it isolates "fast fetch beat hydration" from "stable render-time mismatch."
+4. **Resist pattern-match fixes.** A fourth candidate (`useState(detectOs)` in the token wizard) looked identical to the real bugs, but the wizard only mounts *after* a client interaction → never hydrates → not a bug. Reverted. The iron law (no fix without a confirmed root cause) applies even when the pattern looks obvious.
+
+Lesson: a browser-driven first-run review is a distinct test genre from CI; budget it before calling a UI "done," and keep the isolated-stack + DOM-diff + delay-fetch tools around — they pay for themselves the first time.

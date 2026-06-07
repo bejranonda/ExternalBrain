@@ -100,10 +100,24 @@ export function WelcomeFlow({ mcpUrl, webUrl }: WelcomeFlowProps = {}) {
     return () => window.clearInterval(id);
   }, [stats.sessionsAllTime, loadState, refresh, waitStartedAt]);
 
+  // window/navigator are client-only. Read them post-mount and keep SSR-safe
+  // defaults for the first render, so the install snippet's text matches
+  // between server and client (reading them during render returned
+  // localhost:3000 on SSR but window.location.host on the client → a React
+  // #418 text mismatch whenever BRAIN_*_PUBLIC_HOSTNAME isn't injected).
+  const [client, setClient] = useState<{ mcp: string; web: string; os: "darwin" | "linux" | "win32" }>({
+    mcp: "http://localhost:3100/mcp",
+    web: "http://localhost:3000",
+    os: "linux",
+  });
+  useEffect(() => {
+    setClient({ mcp: fallbackMcpUrl(), web: fallbackWebUrl(), os: detectOs() });
+  }, []);
+
   const snippet = useMemo(() => {
-    const os = detectOs();
-    const resolvedMcpUrl = mcpUrl ?? fallbackMcpUrl();
-    const resolvedWebUrl = webUrl ?? fallbackWebUrl();
+    const os = client.os;
+    const resolvedMcpUrl = mcpUrl ?? client.mcp;
+    const resolvedWebUrl = webUrl ?? client.web;
     switch (tool) {
       case "claude-code":
         return claudeCodeCli(PLACEHOLDER_TOKEN, resolvedMcpUrl, resolvedWebUrl, os);
@@ -115,7 +129,7 @@ export function WelcomeFlow({ mcpUrl, webUrl }: WelcomeFlowProps = {}) {
       default:
         return rawMcpServersJson(PLACEHOLDER_TOKEN, resolvedMcpUrl, resolvedWebUrl, os);
     }
-  }, [tool, mcpUrl, webUrl]);
+  }, [tool, mcpUrl, webUrl, client]);
 
   const snippetText = snippet.lines.join("\n");
 
