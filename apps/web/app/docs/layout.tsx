@@ -25,6 +25,10 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
       <div style={{ maxWidth: 880, margin: "0 auto" }}>
         <Link
           href="/"
+          // `/` 307-redirects to the user's org/project app root, so the RSC
+          // prefetch aborts (ERR_ABORTED in the network panel on every /docs
+          // load). Nothing to prefetch for a redirect — turn it off.
+          prefetch={false}
           className="mono"
           style={{
             fontSize: 12,

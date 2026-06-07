@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { fuzzyScore } from "@brain/core/fuzzy";
 import { Icon, type IconName } from "./icons";
 import { useT } from "@/lib/brain/i18n";
@@ -40,20 +40,26 @@ function useMe(): { name: string; tenant: string; initials: string } {
 }
 
 /**
- * Visible env tag in the rail brand. The two hosted Brains
- * (brain-dev.example.com, brain.example.com) are visually identical apart
- * from the URL bar — at a glance the operator and end-user benefit from
- * knowing which one they're on. Defaults to "local" off-host.
+ * Visible env tag in the rail brand (dev / prod / local), derived from the
+ * hostname so the operator can tell environments apart at a glance.
+ *
+ * Mount-gated: returns null on the server AND the first client render, then
+ * fills in post-mount. Reading `window.location.hostname` during render (the
+ * old `useMemo` form) returned null on SSR but a value on the client, so the
+ * env-tag <div> was absent server-side and present client-side — a structural
+ * hydration mismatch that fired React #418 on every app-shell load. (The
+ * earlier #418 fixes covered ShowEverythingFold + the empty state, not this.)
  */
 function useEnvLabel(): string | null {
-  return useMemo(() => {
-    if (typeof window === "undefined") return null;
+  const [env, setEnv] = useState<string | null>(null);
+  useEffect(() => {
     const h = window.location.hostname;
-    if (h.includes("brain-dev")) return "dev";
-    if (/^brain\./.test(h)) return "prod";
-    if (h === "localhost" || h.startsWith("127.")) return "local";
-    return null;
+    if (h.includes("brain-dev")) setEnv("dev");
+    else if (/^brain\./.test(h)) setEnv("prod");
+    else if (h === "localhost" || h.startsWith("127.")) setEnv("local");
+    else setEnv(null);
   }, []);
+  return env;
 }
 
 export interface Counts {

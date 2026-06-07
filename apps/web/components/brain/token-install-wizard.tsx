@@ -106,6 +106,9 @@ export function TokenInstallWizard({
   onClose,
 }: TokenInstallWizardProps) {
   const [selectedClient, setSelectedClient] = useState<ClientId>("claudeCodeCli");
+  // detectOs() reads `navigator`, but the wizard only mounts client-side after
+  // a mint (it's never in the SSR HTML), so there's no hydration to mismatch —
+  // initializing from detectOs() here is correct and avoids an OS-default flash.
   const [selectedOs, setSelectedOs] = useState<TargetOS>(detectOs);
   const [copiedSnippet, setCopiedSnippet] = useState(false);
   const [copiedPath, setCopiedPath] = useState(false);
