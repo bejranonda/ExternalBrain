@@ -5,7 +5,8 @@ See `BLUEPRINT.md` for the full narrative. This doc is the quick-reference diagr
 ## Deployment topology
 
 External Brain runs as a single self-contained stack — four containers on one
-host, brought up by `./scripts/deploy.sh`:
+host, brought up by `./scripts/dev-up.sh` (local) or `./scripts/deploy.sh`
+(public server, adds the `edge` profile: Caddy/TLS, Redis, backups):
 
 ```
                  laptops / IDEs

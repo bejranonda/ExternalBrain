@@ -310,7 +310,7 @@ When the platform is technically sound but no colleague has tried it yet, the ga
 
 **Optimize the first ten minutes.** A colleague on first contact spends their attention on: can I sign in? where do I get credentials? is there anything to look at? Onboarding, MCP-token creation, and a narrative seed all landed in one wave precisely because each is worthless without the other two.
 
-**Dual-mode auth over maximal auth.** NextAuth v5 ships alongside the dev shim, not instead of it. Set three env vars → GitHub OAuth. Leave them empty → dev single-user. Same binary, both paths work. Lets the colleague pull the repo and `./scripts/deploy.sh` without first registering a GitHub OAuth app.
+**Dual-mode auth over maximal auth.** NextAuth v5 ships alongside the dev shim, not instead of it. Set three env vars → GitHub OAuth. Leave them empty → dev single-user. Same binary, both paths work. Lets the colleague pull the repo and `./scripts/dev-up.sh` without first registering a GitHub OAuth app.
 
 **Narrative seed over random seed.** 8 knowledge items with made-up triggers don't sell the loop. 15 items built around "Alex shipped a Stripe checkout over three weeks" shows that KEA output looks plausible for a real engineer. The graph edges between items matter — a related_to link from `stripe-webhook-raw-body` to `stripe-idempotency` is the demo; two disconnected rows is not.
 
@@ -1073,3 +1073,9 @@ A "does it actually work for someone with no background?" pass found three real 
 4. **Resist pattern-match fixes.** A fourth candidate (`useState(detectOs)` in the token wizard) looked identical to the real bugs, but the wizard only mounts *after* a client interaction → never hydrates → not a bug. Reverted. The iron law (no fix without a confirmed root cause) applies even when the pattern looks obvious.
 
 Lesson: a browser-driven first-run review is a distinct test genre from CI; budget it before calling a UI "done," and keep the isolated-stack + DOM-diff + delay-fetch tools around — they pay for themselves the first time.
+
+## 5ab. Validate the *restored* artifact on a fresh clone, not on provenance (2026-06-07)
+
+When the single-server merge made `deploy.sh` server-only, the documented newcomer quickstart silently broke; the fix resurrected the old dev flow as `dev-up.sh`. It was tempting to ship that on **provenance** alone — "it's the battle-tested pre-#26 script, so it works." That reasoning is exactly the trap §5aa warns about: the script is the same, but the *environment around it* changed (the merged compose, profiles, the new `bootstrap` gating). So the honest close-out was to **`git clone` the repo fresh, `cp .env.example .env`, and actually run `./scripts/dev-up.sh`** under an isolated compose project — which proved the script + the new compose integrate (build → migrate → seed → serve, `readyz` 200, MCP 401-gated, lockdown PASS).
+
+Two compounding lessons: (1) "restored from a known-good version" is provenance, not verification — re-run it in the *current* environment. (2) The doc sweep that introduced `dev-up.sh` (PR #29) was itself incomplete — it converted README/QUICKSTART/AGENTS but missed HOW_IT_WORKS/SECURITY/ARCHITECTURE/GUIDELINES/APPROACH, because the first pass grepped only the obvious entry-point docs. A name-grep over **every** tracked doc, run as a deliberate follow-up, is what closed the gap. When you introduce a new command name, grep all docs for both the **new** name (are the pointers right?) and the **old/changed** one (did any local-context reference get left behind?).

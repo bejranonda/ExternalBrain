@@ -51,10 +51,10 @@ Key env vars to set before first deploy:
 | `RESEND_API` | Transactional email — invite + password-reset links | `re_…` |
 | `EMAIL_FROM` | Sender address in outgoing emails | `brain@acme.com` |
 
-Then:
+Then (local/dev — for a public server use `./scripts/deploy.sh`):
 
 ```bash
-./scripts/deploy.sh
+./scripts/dev-up.sh
 ```
 
 What this orchestrates:
