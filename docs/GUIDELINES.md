@@ -380,7 +380,7 @@ If you suspect a token may have been seen by someone unintended, use `POST /api/
 
 **BuildKit cache mounts (2026-04-24, measured)**
 - The `next build` step gets two `RUN --mount=type=cache,…,sharing=locked` mounts: `/repo/apps/web/.next/cache` (webpack module graph) and `/repo/node_modules/.cache` (swc + next-babel intermediates). `pnpm install` similarly mounts `/pnpm/store`, with `PNPM_STORE_DIR=/pnpm/store` exported in the base stage so pnpm actually places its content store there. `sharing=locked` prevents races between parallel stage builds hitting the same cache dir.
-- `scripts/deploy.sh` exports `DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 BUILDX_NO_DEFAULT_ATTESTATIONS=1` immediately before `$COMPOSE build`. Without the first two, the cache-mount syntax is silently ignored on older engines; without the third, buildx attaches a provenance + SBOM manifest list that adds ~20–30 s per stage and doubles image-unpack time.
+- `scripts/deploy.sh` and `scripts/dev-up.sh` export `DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 BUILDX_NO_DEFAULT_ATTESTATIONS=1` immediately before `$COMPOSE build`. Without the first two, the cache-mount syntax is silently ignored on older engines; without the third, buildx attaches a provenance + SBOM manifest list that adds ~20–30 s per stage and doubles image-unpack time.
 - Measured warm-warm incremental rebuild of the `web` stage = **2 min 29 s** (webpack compile 40 s). Warm Docker + cold `.next/cache` = 3 min 9 s (webpack 112 s). First-ever build on a pruned machine still costs 20–30 min; the mount prevents recurrence, not first occurrence. Don't downgrade the claim — measure before re-tuning. `deploy/DEPLOY.md §"Build speed"` has the canonical numbers.
 - If webpack suddenly takes 100+ s on what should be a warm build, suspect a wiped BuildKit builder: `docker buildx inspect default` and look for `Status: stopped` or a different builder name.
 - **Never** add `cache: true` or `inline-cache` flags blindly; they interact badly with `sharing=locked`. Test with `docker compose build --progress=plain` and confirm both `RUN --mount=type=cache,...` lines appear verbatim in the output.
@@ -406,7 +406,7 @@ Any E2E test that inserts into the shared DB (fork, create, teach flows) MUST in
 A navigation regression (a surface 500s on mount, a redirect loops, a hash route loses focus) is the class of bug that passes typecheck and still ships broken. The process that prevents this is deliberately small so it actually runs every iteration. Define it as:
 
 1. **Change lands** (code edit, schema migration, route rename, env flip).
-2. **Reload the affected service** — `./scripts/reload.sh web` for anything UI-facing, `./scripts/deploy.sh` for schema changes.
+2. **Reload the affected service** — `./scripts/reload.sh web` for anything UI-facing, `./scripts/dev-up.sh` (local) / `./scripts/deploy.sh` (server) for schema changes.
 3. **Nav smoke** — `./scripts/nav-smoke.sh` curls every shell hash-route, every auth route, every admin route, every API probe. 0 = all 2xx/3xx, 1 = at least one surface 5xx'd. Takes <10s.
 4. **Lockdown audit** — `./scripts/verify-lockdown.sh` confirms no accidental un-gating. Runs automatically at the end of `reload.sh web` and both deploy scripts.
 5. **If either script fails:** fix, go back to step 2. Do NOT commit with a failing smoke or audit — a green CI is not a substitute for a green `./scripts/nav-smoke.sh` because nav-smoke hits the real running stack, not a mocked one.

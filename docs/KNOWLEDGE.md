@@ -548,7 +548,7 @@ The full per-iteration log lives in PRs #254 / #255 / #256 commit messages; the 
 
 ### 12.25 Deterministic test fixture — `prisma db seed` (2026-05-17)
 
-The platform ships a single canonical fixture used by both local dev iteration and the playwright e2e suite. Wired via `packages/db/prisma.config.ts#migrations.seed` (Prisma 7 location, not the deprecated `package.json#prisma.seed`) and run with `pnpm --filter @brain/db exec prisma db seed`. The server `scripts/deploy.sh` hard-sets `SEED_ON_DEPLOY=false` so the live server never seeds fixture data; local dev / e2e run the seed command directly (or via a `SEED_ON_DEPLOY=true` env when wrapping a local bring-up).
+The platform ships a single canonical fixture used by both local dev iteration and the playwright e2e suite. Wired via `packages/db/prisma.config.ts#migrations.seed` (Prisma 7 location, not the deprecated `package.json#prisma.seed`) and run with `pnpm --filter @brain/db exec prisma db seed`. The local bring-up `scripts/dev-up.sh` seeds the fixture by default (`SEED_ON_DEPLOY=true`); the server `scripts/deploy.sh` hard-sets `SEED_ON_DEPLOY=false` so the live server never seeds fixture data. e2e and ad-hoc setups can also run the seed command directly.
 
 The fixture is **load-bearing** — playwright specs assert on the counts directly:
 

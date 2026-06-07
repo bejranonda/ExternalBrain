@@ -199,7 +199,7 @@ BASE_URL=https://brain.example.com MCP_URL=https://mcp.brain.example.com \
 
 Exit codes: `0` locked correctly / `1` LEAK — fix before release / `2` stack unreachable.
 
-`scripts/deploy.sh` runs it automatically at the end and **refuses** the deploy if the audit fails. (A bare local `docker compose up` doesn't run it; run `verify-lockdown.sh` yourself if you expose a local stack.)
+`scripts/deploy.sh` (server) runs it automatically at the end and **refuses** the deploy if the audit fails. `scripts/dev-up.sh` (local) runs it too but only **warns** — dev-shim mode is allowed to be unlocked locally. (A bare `docker compose up` runs neither; invoke `verify-lockdown.sh` yourself if you expose a hand-rolled stack.)
 
 The deploy script also enforces the one-way combination rule that caused the original VM leak: `ALLOW_DEV_AUTH=true` together with OAuth envs is a configuration error, and `deploy.sh` dies on that combination before bringing anything up.
 
