@@ -55,7 +55,12 @@ const preHydrateTweaks = `
       blue:   { c: '#7EC8FF', cText: '#1F5C99', ink: '#0A0A0B' }
     };
     var theme = t.theme || 'dark';
-    var lang = t.language || 'en';
+    // Prefer the bp_lang cookie (the server-readable source the root layout
+    // renders <html lang> from) over localStorage, so this pre-hydrate script
+    // doesn't clobber the cookie-derived SSR value when localStorage is empty
+    // (e.g. a cross-browser visitor who set the locale elsewhere). #36.
+    var cookieLang = (document.cookie.match(/(?:^|;\\s*)bp_lang=(en|th|de)\\b/) || [])[1];
+    var lang = cookieLang || t.language || 'en';
     var density = t.density || 'balanced';
     var accent = t.accent || 'lime';
     var root = document.documentElement;

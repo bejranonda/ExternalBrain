@@ -74,9 +74,12 @@ export interface WelcomeFlowProps {
   mcpUrl?: string | undefined;
   /** Public webapp URL (e.g. https://brain.example.com). */
   webUrl?: string | undefined;
+  /** Whether the viewer has a session. Anonymous visitors skip the dashboard
+   *  poll so /welcome doesn't fire an auth-failing 401. #33. */
+  authed?: boolean;
 }
 
-export function WelcomeFlow({ mcpUrl, webUrl }: WelcomeFlowProps = {}) {
+export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps = {}) {
   const [tool, setTool] = useState<ToolChoice>("claude-code");
   const [copied, setCopied] = useState(false);
   // Closes ExternalBrain #10 — the 60-second promise had no stuck-state
@@ -85,12 +88,14 @@ export function WelcomeFlow({ mcpUrl, webUrl }: WelcomeFlowProps = {}) {
   // install didn't take.
   const [waitStartedAt] = useState(() => Date.now());
   const [elapsedSec, setElapsedSec] = useState(0);
-  const { stats, loadState, refresh } = useDashboardStats("all");
+  const { stats, loadState, refresh } = useDashboardStats("all", authed);
 
   // Poll dashboard every 4s while we're waiting for the first session.
   // Stops once one arrives — no need to keep hammering /api/dashboard.
   // Also stops on 401 (unauthorized): polling won't fix sign-in state.
+  // Anonymous viewers never poll (the fetch would 401). #33.
   useEffect(() => {
+    if (!authed) return;
     if (stats.sessionsAllTime > 0) return;
     if (loadState === "unauthorized") return;
     const id = window.setInterval(() => {
@@ -98,7 +103,7 @@ export function WelcomeFlow({ mcpUrl, webUrl }: WelcomeFlowProps = {}) {
       setElapsedSec(Math.floor((Date.now() - waitStartedAt) / 1000));
     }, 4000);
     return () => window.clearInterval(id);
-  }, [stats.sessionsAllTime, loadState, refresh, waitStartedAt]);
+  }, [authed, stats.sessionsAllTime, loadState, refresh, waitStartedAt]);
 
   // window/navigator are client-only. Read them post-mount and keep SSR-safe
   // defaults for the first render, so the install snippet's text matches

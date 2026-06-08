@@ -1,5 +1,6 @@
 import { WelcomeFlow } from "@/components/brain/welcome-flow";
 import { LocalePicker } from "@/components/brain/locale-picker";
+import { auth } from "@/auth";
 
 export const metadata = {
   title: "Welcome — External Brain",
@@ -32,13 +33,18 @@ function resolvePublicWebUrl(): string | undefined {
   return `https://${host}`;
 }
 
-export default function WelcomePage() {
+export default async function WelcomePage() {
+  // Anonymous visitors (this is a public exploratory landing page) shouldn't
+  // poll /api/dashboard — it 401s and the browser logs it. Resolve auth state
+  // server-side and let WelcomeFlow gate the poll on it. #33.
+  const session = await auth();
   return (
     <>
       <LocalePicker />
       <WelcomeFlow
         mcpUrl={resolvePublicMcpUrl()}
         webUrl={resolvePublicWebUrl()}
+        authed={!!session?.user}
       />
     </>
   );
