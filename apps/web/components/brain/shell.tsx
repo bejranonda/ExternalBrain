@@ -72,6 +72,9 @@ interface NavProps {
   setRoute: (r: Route) => void;
   counts: Counts;
   onUser?: () => void;
+  /** Rail labels-by-default collapse toggle (#4). Desktop rail only. */
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 interface NavItem {
@@ -164,11 +167,12 @@ function RailNavItem({
   );
 }
 
-export function Rail({ route, setRoute, counts, onUser }: NavProps) {
+export function Rail({ route, setRoute, counts, onUser, collapsed, onToggleCollapse }: NavProps) {
   const t = useT();
   const items = useNavItems(counts);
   const me = useMe();
   const env = useEnvLabel();
+  const railHint = collapsed ? "hover to peek labels" : "labels shown";
 
   return (
     <nav className="rail desktop-only" aria-label="Primary">
@@ -176,8 +180,8 @@ export function Rail({ route, setRoute, counts, onUser }: NavProps) {
         className="rail-brand"
         title={
           env
-            ? `External Brain · ${env} environment (hover to expand sidebar)`
-            : "External Brain (hover to expand sidebar)"
+            ? `External Brain · ${env} environment (${railHint})`
+            : `External Brain (${railHint})`
         }
       >
         <div className="rail-brand-mark">B</div>
@@ -215,6 +219,27 @@ export function Rail({ route, setRoute, counts, onUser }: NavProps) {
           UX is fully designed, not as a decorative rail dot. */}
 
       <div className="rail-footer">
+        {onToggleCollapse && (
+          <button
+            type="button"
+            className="rail-item rail-collapse-toggle"
+            onClick={onToggleCollapse}
+            aria-pressed={collapsed}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar to icons"}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar (labels show on hover)"}
+          >
+            <span
+              style={{
+                display: "inline-flex",
+                transform: collapsed ? "none" : "rotate(180deg)",
+                transition: "transform 0.12s ease-out",
+              }}
+            >
+              <Icon name="chevR" size={14} />
+            </span>
+            <span>{collapsed ? "Expand" : "Collapse"}</span>
+          </button>
+        )}
         <button
           type="button"
           className="rail-user"

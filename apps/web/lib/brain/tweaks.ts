@@ -12,6 +12,8 @@ export interface TweakState {
   accent: AccentKey;
   density: Density;
   language: Lang;
+  /** Rail collapsed to icons-only. Default false = labels shown (#4). */
+  railCollapsed: boolean;
 }
 
 export const ACCENTS: Record<AccentKey, { c: string; ink: string }> = {
@@ -26,6 +28,7 @@ export const DEFAULT_TWEAKS: TweakState = {
   accent: "lime",
   density: "balanced",
   language: "en",
+  railCollapsed: false,
 };
 
 const STORAGE_KEY = "bp_tweaks";
