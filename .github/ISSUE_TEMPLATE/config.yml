@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📖 Documentation
+    url: https://github.com/bejranonda/ExternalBrain/tree/main/docs
+    about: Quickstart, how-it-works, architecture, MCP tools, REST API, security.
+  - name: 🔒 Report a security vulnerability
+    url: https://github.com/bejranonda/ExternalBrain/security/policy
+    about: Please do NOT open a public issue for security problems — see the security policy.
