@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
+import { cookies } from "next/headers";
 import { Geist, JetBrains_Mono, Fraunces, Noto_Sans_Thai } from "next/font/google";
+import { LangProvider } from "@/components/brain/lang-provider";
+import type { Lang } from "@/lib/brain/i18n";
 import "./globals.css";
 
 const geist = Geist({
@@ -72,10 +75,15 @@ const preHydrateTweaks = `
 })();
 `;
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  // Resolve locale server-side from the `bp_lang` cookie so unauth surfaces
+  // (/signin, /welcome, …) render in the user's language on first paint, and
+  // so LangProvider's first client render matches SSR exactly (no #418). #3.
+  const cookieLang = (await cookies()).get("bp_lang")?.value;
+  const lang: Lang = cookieLang === "th" || cookieLang === "de" ? cookieLang : "en";
   return (
     <html
-      lang="en"
+      lang={lang}
       data-theme="dark"
       data-density="balanced"
       className={`${geist.variable} ${jetbrains.variable} ${fraunces.variable} ${notoThai.variable}`}
@@ -88,7 +96,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
         <script dangerouslySetInnerHTML={{ __html: preHydrateTweaks }} />
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <LangProvider initial={lang}>{children}</LangProvider>
+      </body>
     </html>
   );
 }

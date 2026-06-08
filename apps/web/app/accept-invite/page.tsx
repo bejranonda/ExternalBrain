@@ -12,6 +12,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
+import { LocalePicker } from "@/components/brain/locale-picker";
 
 function AcceptInviteInner() {
   const searchParams = useSearchParams();
@@ -86,7 +87,8 @@ function AcceptInviteInner() {
   };
 
   return (
-    <div style={containerStyle}>
+    <main style={containerStyle}>
+      <LocalePicker />
       <div style={cardStyle}>
         <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 16 }}>
           Organization Invite
@@ -130,7 +132,7 @@ function AcceptInviteInner() {
           </>
         )}
       </div>
-    </div>
+    </main>
   );
 }
 

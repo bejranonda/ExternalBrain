@@ -7,6 +7,7 @@
  * was found (prevents enumeration).
  */
 import { redirect } from "next/navigation";
+import { LocalePicker } from "@/components/brain/locale-picker";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,7 @@ export default async function ForgotPasswordPage({ searchParams }: Props) {
         padding: "24px 16px",
       }}
     >
+      <LocalePicker />
       <div
         style={{
           width: "min(440px, 92vw)",

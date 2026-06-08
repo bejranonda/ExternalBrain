@@ -7,6 +7,7 @@
  */
 import { redirect } from "next/navigation";
 import { db } from "@brain/db";
+import { LocalePicker } from "@/components/brain/locale-picker";
 
 export const dynamic = "force-dynamic";
 
@@ -84,6 +85,7 @@ export default async function ResetPasswordPage({ searchParams }: Props) {
         padding: "24px 16px",
       }}
     >
+      <LocalePicker />
       <div
         style={{
           width: "min(440px, 92vw)",

@@ -9,6 +9,7 @@ import { db } from "@brain/db";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { checkVoucherRateLimit } from "@/lib/brain/vouchers";
+import { LocalePicker } from "@/components/brain/locale-picker";
 
 export const dynamic = "force-dynamic";
 
@@ -105,6 +106,7 @@ export default async function SignIn({ searchParams }: Props) {
         padding: "24px 16px",
       }}
     >
+      <LocalePicker />
       <div
         style={{
           width: "min(440px, 92vw)",

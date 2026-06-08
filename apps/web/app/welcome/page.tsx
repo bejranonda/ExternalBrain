@@ -1,4 +1,5 @@
 import { WelcomeFlow } from "@/components/brain/welcome-flow";
+import { LocalePicker } from "@/components/brain/locale-picker";
 
 export const metadata = {
   title: "Welcome — External Brain",
@@ -33,9 +34,12 @@ function resolvePublicWebUrl(): string | undefined {
 
 export default function WelcomePage() {
   return (
-    <WelcomeFlow
-      mcpUrl={resolvePublicMcpUrl()}
-      webUrl={resolvePublicWebUrl()}
-    />
+    <>
+      <LocalePicker />
+      <WelcomeFlow
+        mcpUrl={resolvePublicMcpUrl()}
+        webUrl={resolvePublicWebUrl()}
+      />
+    </>
   );
 }
