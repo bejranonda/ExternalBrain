@@ -34,6 +34,11 @@ const EMPTY_STATS: DashboardStats = {
 
 export function useDashboardStats(
   scope: ProjectScopeKey = "project",
+  // When false, skip the fetch entirely — used by /welcome for anonymous
+  // visitors so the page doesn't fire an auth-failing GET /api/dashboard
+  // (a 401 the browser logs to the console). #33. Defaults true so every
+  // other caller is unaffected.
+  enabled = true,
 ): State & { refresh(): Promise<void> } {
   const [state, setState] = useState<State>({
     stats: EMPTY_STATS,
@@ -43,6 +48,7 @@ export function useDashboardStats(
 
   const refresh = useCallback(
     async (signal?: AbortSignal): Promise<void> => {
+      if (!enabled) return;
       try {
         const url = appendScopeParam("/api/dashboard", scope);
         const res = await fetch(
@@ -79,14 +85,15 @@ export function useDashboardStats(
         });
       }
     },
-    [scope],
+    [scope, enabled],
   );
 
   useEffect(() => {
+    if (!enabled) return;
     const ctrl = new AbortController();
     void refresh(ctrl.signal);
     return () => ctrl.abort();
-  }, [refresh]);
+  }, [refresh, enabled]);
 
   return { ...state, refresh: () => refresh() };
 }
