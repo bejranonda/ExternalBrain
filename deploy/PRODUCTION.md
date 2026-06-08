@@ -2,7 +2,7 @@
 
 Reference doc for the deployment topology. **For a step-by-step first-pilot walkthrough, use [`docs/DEPLOY_CHECKLIST.md`](../docs/DEPLOY_CHECKLIST.md) instead — it's the chronological checklist (prerequisites → clone → `.env` → deploy → voucher issuance → pre-invite audit).** This doc is the reference you read once and grep later.
 
-This is the minimum-viable path to putting Brain Platform on the open internet. Assumes a single Linux VM you control; you can resize vertically up to a handful of concurrent users without changing architecture.
+This is the minimum-viable path to putting External Brain on the open internet. Assumes a single Linux VM you control; you can resize vertically up to a handful of concurrent users without changing architecture.
 
 ## Prerequisites
 

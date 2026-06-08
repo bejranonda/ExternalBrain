@@ -1,8 +1,8 @@
-# Brain Platform — Master Blueprint
+# External Brain — Master Blueprint
 
 *Version 0.1 · 2026-04-20 · Synthesis of `research/knowledge` + adaptations from Hermes, Honcho, Obsidian, LiveSync*
 
-This document is the single source of truth for what the Brain Platform is, why it exists, how it is built, and how it makes money. It sits on top of ~7,900 lines of prior analysis in `research/knowledge/` — if anything here is unclear, those documents are the authority.
+This document is the single source of truth for what the External Brain is, why it exists, how it is built, and how it makes money. It sits on top of ~7,900 lines of prior analysis in `research/knowledge/` — if anything here is unclear, those documents are the authority.
 
 ---
 
@@ -12,7 +12,7 @@ This document is the single source of truth for what the Brain Platform is, why 
 
 Every developer using AI coding tools (Claude Code, Cursor, Windsurf, Autobahn, custom agents) today throws away 95 % of the knowledge created in each session the moment the context window closes. CLAUDE.md files and `.cursorrules` try to fix this but they are manual, per-tool, and don't learn.
 
-The Brain Platform is a **persistent, queryable, evolving, shareable layer of coding knowledge that serves any AI tool via MCP**. It is not itself an AI coding tool — it is the substrate that makes every AI coding tool smarter the longer you use it.
+The External Brain is a **persistent, queryable, evolving, shareable layer of coding knowledge that serves any AI tool via MCP**. It is not itself an AI coding tool — it is the substrate that makes every AI coding tool smarter the longer you use it.
 
 ### What the platform IS (Path B)
 - An **MCP server** that AI agents call before generating code, and report outcomes to after.

@@ -166,7 +166,7 @@ role. Backs the click-to-expand panel on the Sessions surface.
     "endedAt":     "2026-05-23T02:24:01Z",           // null if still in progress
     "outcome":     "success",                        // success | partial | failed | null
     "sqs":         0.78,                             // 0..1, or null
-    "projectName": "Brain Platform",                 // null for personal sessions
+    "projectName": "External Brain",                 // null for personal sessions
     "projectSlug": "brain-platform"                  // null for personal sessions
   },
   "injected": [                                      // skills the AI retrieved INTO this session (KRA)
@@ -207,7 +207,7 @@ Backs the click-to-expand panel on the Dashboard `Projects` section.
   "project": {
     "id":             "ck...",
     "slug":           "brain-platform",
-    "name":           "Brain Platform",
+    "name":           "External Brain",
     "organizationId": "ck...",
     "framework":      "next",        // nullable
     "language":       "ts",          // nullable

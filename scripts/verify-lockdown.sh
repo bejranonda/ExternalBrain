@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# verify-lockdown.sh — probe a running Brain Platform and report whether it
+# verify-lockdown.sh — probe a running External Brain and report whether it
 # is properly gated.
 #
 # Usage:
@@ -85,7 +85,7 @@ if [ -f .env ]; then
   fi
 fi
 
-hd "Brain Platform lockdown audit"
+hd "External Brain lockdown audit"
 printf '  BASE_URL: %s\n  MCP_URL:  %s\n  Auth mode (from .env): \033[1m%s\033[0m\n' \
   "$BASE_URL" "$MCP_URL" "$MODE"
 

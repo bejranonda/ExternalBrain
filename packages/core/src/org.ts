@@ -339,7 +339,7 @@ export async function ensureDefaultProject(
  * supplied org). If a project with that name already exists, return it.
  * Otherwise create one with a derived unique slug.
  *
- * Name matching is case-insensitive and trims whitespace — "Brain Platform"
+ * Name matching is case-insensitive and trims whitespace — "External Brain"
  * and "brain platform" resolve to the same project. Slug is derived from the
  * trimmed name via the existing `slugify` helper and made unique via
  * `uniqueSlugInOrg`.

@@ -7,7 +7,7 @@ For users who already maintain an Obsidian vault, we offer a two-way sync bridge
 ```
 Obsidian client (PouchDB) ──┐
                              ├── CouchDB (user-hosted or platform-hosted)
-Brain Platform (Postgres) ──┘           │
+External Brain (Postgres) ──┘           │
                                          │  _changes subscriber
                                          ▼
                            apps/sync-bridge (long-running)
@@ -60,7 +60,7 @@ Brain Platform (Postgres) ──┘           │
 # 1. Provision CouchDB
 docker run -p 5984:5984 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=... apache/couchdb
 
-# 2. Configure Brain Platform
+# 2. Configure External Brain
 echo "COUCHDB_URL=http://admin:...@localhost:5984" >> .env
 echo "LIVESYNC_BRIDGE_ENABLED=true" >> .env
 

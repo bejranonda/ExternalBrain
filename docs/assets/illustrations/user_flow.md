@@ -1,8 +1,8 @@
-# Brain Platform User Flow
+# External Brain User Flow
 
 ```mermaid
 flowchart TD
-    A["AI Coding Tool (Cursor, Claude Code)"] -- MCP Protocol --> B("Brain Platform Core")
+    A["AI Coding Tool (Cursor, Claude Code)"] -- MCP Protocol --> B("External Brain Core")
     B -- Extracts --> C{"Knowledge"}
     C --> D["Skills (Capabilities)"]
     C --> E["Rules (Constraints)"]

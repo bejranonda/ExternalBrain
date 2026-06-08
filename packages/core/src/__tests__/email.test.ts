@@ -100,7 +100,7 @@ describe("sendEmail — Resend happy path", () => {
   beforeEach(() => {
     process.env.EMAIL_PROVIDER = "resend";
     process.env.EMAIL_API_KEY = "test-resend-key";
-    process.env.EMAIL_FROM = "Brain Platform <noreply@example.com>";
+    process.env.EMAIL_FROM = "External Brain <noreply@example.com>";
   });
 
   it("calls fetch with correct URL and Authorization header", async () => {
@@ -134,7 +134,7 @@ describe("sendEmail — Resend happy path", () => {
     const body = JSON.parse(
       (fetchMock.mock.calls[0] as [string, { body: string }])[1].body,
     ) as Record<string, unknown>;
-    expect(body.from).toBe("Brain Platform <noreply@example.com>");
+    expect(body.from).toBe("External Brain <noreply@example.com>");
     expect(body.to).toEqual(["user@example.com"]);
     expect(body.subject).toBe("Hello");
     expect(body.html).toBe("<p>Hello</p>");

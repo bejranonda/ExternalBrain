@@ -1,6 +1,6 @@
 # Quickstart — from zero to a running Brain in 15 minutes
 
-Goal of this guide: get Brain Platform running on a laptop or a fresh VM, wire it into Claude Code (or Cursor / Windsurf), and see your first AI coding session captured end-to-end. Copy-paste steps, no guessing.
+Goal of this guide: get External Brain running on a laptop or a fresh VM, wire it into Claude Code (or Cursor / Windsurf), and see your first AI coding session captured end-to-end. Copy-paste steps, no guessing.
 
 > **Need the short version?** Skip to the [five-command happy path](#five-command-happy-path).
 
@@ -41,7 +41,7 @@ open http://localhost:3000   # macOS; Linux: xdg-open; Windows: start
 # 5. Create an MCP token in the UI — see §4 below.
 ```
 
-If `dev-up.sh` says "Brain Platform is up" and `curl -sSf http://localhost:3000/api/healthz` returns `{"ok":true}`, you're running. Go to §4 to wire a coding tool.
+If `dev-up.sh` says "External Brain is up" and `curl -sSf http://localhost:3000/api/healthz` returns `{"ok":true}`, you're running. Go to §4 to wire a coding tool.
 
 ---
 

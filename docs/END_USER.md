@@ -1,8 +1,8 @@
-# User guide — using a Brain Platform your team has set up
+# User guide — using a External Brain your team has set up
 
 > For the full technical walkthrough with concrete examples — how KEA extracts knowledge, how KRA retrieves it, how the effectiveness loop tightens — see [`HOW_IT_WORKS.md`](./HOW_IT_WORKS.md).
 
-This is for you if someone else (IT, a teammate, the project maintainer) gave you a Brain Platform URL and you want to start using it. If you're installing the platform yourself, read [`QUICKSTART.md`](./QUICKSTART.md) instead.
+This is for you if someone else (IT, a teammate, the project maintainer) gave you a External Brain URL and you want to start using it. If you're installing the platform yourself, read [`QUICKSTART.md`](./QUICKSTART.md) instead.
 
 Five minutes to first benefit. No terminal commands except the one-line config paste for your AI coding tool.
 
@@ -14,7 +14,7 @@ Five minutes to first benefit. No terminal commands except the one-line config p
 
 Every coding session with your AI tool (Claude Code, Cursor, Windsurf) produces knowledge — the framework you prefer for forms, the bug you just fixed, the rule you kept having to re-explain. Most of it evaporates when the session ends.
 
-Brain Platform captures it. Before the model generates, it injects the rules you've already established ("we use react-hook-form + zod here, not Formik"). After the session, it extracts new patterns from what happened. Over time:
+External Brain captures it. Before the model generates, it injects the rules you've already established ("we use react-hook-form + zod here, not Formik"). After the session, it extracts new patterns from what happened. Over time:
 
 - Your AI tool stops making the same stylistic mistakes.
 - You can ask **"what do I use for X?"** and get a grounded answer from your own history.

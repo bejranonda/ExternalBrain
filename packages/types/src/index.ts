@@ -1,5 +1,5 @@
 /**
- * Shared types for the Brain Platform.
+ * Shared types for the External Brain.
  *
  * These are the canonical shapes used across the MCP server, webapp, worker,
  * and SDK. If a shape lives in the DB it is authored here first and the Prisma

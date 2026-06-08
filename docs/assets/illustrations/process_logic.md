@@ -1,4 +1,4 @@
-# Process, Logics & Algorithms inside Brain Platform
+# Process, Logics & Algorithms inside External Brain
 
 ```mermaid
 sequenceDiagram

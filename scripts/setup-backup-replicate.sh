@@ -29,7 +29,7 @@ die()  { printf '\033[31m[setup-backup-replicate]\033[0m %s\n' "$*" >&2; exit 1;
 
 echo ""
 echo "============================================================"
-echo "  Brain Platform — Off-host backup replication setup"
+echo "  External Brain — Off-host backup replication setup"
 echo "============================================================"
 echo ""
 echo "This script writes deploy/rclone.conf with your provider"

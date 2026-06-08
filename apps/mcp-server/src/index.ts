@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Brain Platform MCP Server.
+ * External Brain MCP Server.
  *
  * Serves knowledge to any MCP-capable AI client (Claude Code, Cursor,
  * Windsurf, Autobahn, custom agents). Two transports:
@@ -65,7 +65,7 @@ function buildServer(counter: CallCounter = { n: 0, lists: 0 }): Server {
       // tool call right after connect — so we can distinguish working
       // clients from probes that only call `initialize` + `tools/list`.
       instructions:
-        "Brain Platform is connected. Run `brain_get_user_style` first to " +
+        "External Brain is connected. Run `brain_get_user_style` first to " +
         "verify end-to-end connectivity and bootstrap your peer card. " +
         "End each coding session with `brain_report_session_outcome` so the " +
         "Knowledge Extraction Agent can learn from the outcome — without " +
@@ -222,7 +222,7 @@ async function runHttp(): Promise<void> {
       res.end(
         JSON.stringify(
           {
-            server: "Brain Platform MCP",
+            server: "External Brain MCP",
             transport: "http",
             endpoints: {
               mcp: "/mcp (POST, Bearer auth required)",

@@ -1,4 +1,4 @@
-# How AI is Applied in Brain Platform
+# How AI is Applied in External Brain
 
 ```mermaid
 flowchart TD

@@ -1,4 +1,4 @@
-# How the Brain Platform Works — Step-by-Step
+# How the External Brain Works — Step-by-Step
 
 *A chronological walkthrough from first deploy to self-improving knowledge corpus, with concrete examples.*
 
@@ -6,7 +6,7 @@
 
 ## The thesis in one paragraph
 
-Brain Platform is a persistent knowledge layer that sits between AI coding tools and the developer. It captures the durable rules a developer accumulates while coding — via vibe-coding sessions in Claude Code, Cursor, Windsurf, Gemini CLI, or any MCP-capable agent — and serves them back at moments of decision so that the next time you face the same problem, the AI tool already knows your team's answer. The compounding mechanic: every session contributes signal; sessions whose rules pay off in subsequent sessions get reinforced; rules that don't get reinforced fade. The product claim ("the Brain measurably improves AI coding output") is currently unproven by any published number — see [`docs/VALIDATION.md`](./VALIDATION.md) for the open methodology gap.
+External Brain is a persistent knowledge layer that sits between AI coding tools and the developer. It captures the durable rules a developer accumulates while coding — via vibe-coding sessions in Claude Code, Cursor, Windsurf, Gemini CLI, or any MCP-capable agent — and serves them back at moments of decision so that the next time you face the same problem, the AI tool already knows your team's answer. The compounding mechanic: every session contributes signal; sessions whose rules pay off in subsequent sessions get reinforced; rules that don't get reinforced fade. The product claim ("the Brain measurably improves AI coding output") is currently unproven by any published number — see [`docs/VALIDATION.md`](./VALIDATION.md) for the open methodology gap.
 
 ---
 
@@ -95,7 +95,7 @@ The handler in `apps/web/app/api/orgs/[orgId]/invites/route.ts` calls `createOrg
 2. Inserts an `OrganizationInvite` row: `{ token, email: "bob@acme.com", role: "member", orgId, expiresAt: now + 7 days }`.
 3. If `EMAIL_PROVIDER=resend` (or `RESEND_API` is set), calls `sendEmail()` from `packages/core/src/email.ts` — a direct Resend HTTP call via `fetch()` with no extra npm dependency. The email looks like:
 
-   > **Subject:** You're invited to join Acme on Brain Platform
+   > **Subject:** You're invited to join Acme on External Brain
    >
    > Hi, alex@acme.com invited you to join Acme. Click below to set your password and join:
    > https://brain.acme.com/accept-invite?token=xxxxx

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Brain Platform — deploy to the single self-hosted server.
+# External Brain — deploy to the single self-hosted server.
 #
 # One server, one Compose file. Brings up the full stack with TLS (Caddy),
 # Redis, and nightly backups via the `edge` profile, runs migrations + FTS,
@@ -216,7 +216,7 @@ fi
 
 cat <<EOF
 
-Brain Platform is up.
+External Brain is up.
 
   Webapp         https://${BRAIN_PUBLIC_HOSTNAME}/
   MCP HTTP       https://${BRAIN_MCP_PUBLIC_HOSTNAME}/mcp

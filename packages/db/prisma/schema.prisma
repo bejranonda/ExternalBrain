@@ -1,4 +1,4 @@
-// Brain Platform — Prisma schema
+// External Brain — Prisma schema
 // Reference: docs/BLUEPRINT.md §5 (Knowledge model), §8 (Multi-tenancy)
 // Extended from research/knowledge/15-implementation-stubs.md §8
 
