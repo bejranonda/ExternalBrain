@@ -1,0 +1,160 @@
+name: onboarding-e2e
+
+# Anon-surface e2e gate (#1). The v0.14.x review pass shipped three
+# user-visible bugs past CI because the suite only covered signed-in
+# behaviour — /welcome, /signin, /forgot-password and the install-snippet
+# URLs were untested. This job runs the anon specs against a real built+
+# booted app whenever an onboarding/unauth surface changes.
+#
+# Gate mechanism: GitHub's native `paths-filter` (via dorny/paths-filter)
+# rather than the originally-proposed `onboarding-surface` label — the path
+# match IS the gate, with no labelling round-trip. Non-matching PRs skip to a
+# green no-op, so this check is safe to promote to a REQUIRED check in branch
+# protection (the "hard gate, opt-out not opt-in" the issue asks for). The
+# workflow + the specs it runs are in the filter, so changes to the harness
+# re-validate it.
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: onboarding-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  anon-e2e:
+    name: anon onboarding e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      db:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: brain
+          POSTGRES_PASSWORD: brain
+          POSTGRES_DB: brain
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U brain"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://brain:brain@localhost:5432/brain
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect onboarding-surface changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            onboarding:
+              - 'apps/web/app/welcome/**'
+              - 'apps/web/app/signin/**'
+              - 'apps/web/app/forgot-password/**'
+              - 'apps/web/app/reset-password/**'
+              - 'apps/web/app/accept-invite/**'
+              - 'apps/web/app/layout.tsx'
+              - 'apps/web/components/brain/welcome-flow.tsx'
+              - 'apps/web/components/brain/onboarding.tsx'
+              - 'apps/web/components/brain/locale-picker.tsx'
+              - 'apps/web/components/brain/lang-provider.tsx'
+              - 'apps/web/lib/brain/i18n.ts'
+              - 'apps/web/lib/brain/installer-templates.ts'
+              - 'apps/web/e2e/welcome-public-urls.spec.ts'
+              - 'apps/web/e2e/security.spec.ts'
+              - 'apps/web/e2e/healthz.spec.ts'
+              - 'apps/web/playwright.config.ts'
+              - '.github/workflows/onboarding-e2e.yml'
+
+      - name: Setup pnpm
+        if: steps.changes.outputs.onboarding == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node
+        if: steps.changes.outputs.onboarding == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        if: steps.changes.outputs.onboarding == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate
+        if: steps.changes.outputs.onboarding == 'true'
+        run: pnpm --filter @brain/db exec prisma generate
+
+      - name: Migrate test DB
+        if: steps.changes.outputs.onboarding == 'true'
+        env:
+          PGPASSWORD: brain
+        run: |
+          psql -h localhost -U brain -d brain -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+          pnpm --filter @brain/db exec prisma migrate deploy
+
+      - name: Build web (+ workspace deps)
+        if: steps.changes.outputs.onboarding == 'true'
+        run: pnpm turbo run build --filter=@brain/web
+
+      - name: Install Playwright chromium
+        if: steps.changes.outputs.onboarding == 'true'
+        run: pnpm --filter @brain/web exec playwright install --with-deps chromium
+
+      - name: Start web + run anon e2e
+        if: steps.changes.outputs.onboarding == 'true'
+        env:
+          # Unconfigured (locked) auth mode is fine: the anon specs hit
+          # /welcome, /signin and public APIs, which render/401 without a
+          # signed-in session. A dummy secret is still required to boot.
+          AUTH_SECRET: ci-e2e-not-a-real-secret-0000000000000000
+          # The URL-vs-env assertion in welcome-public-urls.spec compares the
+          # rendered MCP snippet host against E2E_EXPECTED_MCP_HOST.
+          BRAIN_PUBLIC_HOSTNAME: brain.ci.test
+          BRAIN_MCP_PUBLIC_HOSTNAME: mcp.brain.ci.test
+          NODE_ENV: production
+          E2E_BASE_URL: http://localhost:3000
+          E2E_EXPECTED_MCP_HOST: mcp.brain.ci.test
+        run: |
+          pnpm --filter @brain/web start &
+          APP_PID=$!
+          for _ in $(seq 1 60); do
+            if curl -sSf --max-time 2 http://localhost:3000/api/healthz >/dev/null 2>&1; then
+              echo "web is up"; break
+            fi
+            sleep 1
+          done
+          if ! curl -sSf --max-time 3 http://localhost:3000/api/healthz >/dev/null 2>&1; then
+            echo "::error::web never became healthy on :3000"
+            kill "$APP_PID" 2>/dev/null || true
+            exit 1
+          fi
+          set +e
+          pnpm --filter @brain/web exec playwright test \
+            e2e/welcome-public-urls.spec.ts \
+            e2e/security.spec.ts \
+            e2e/healthz.spec.ts
+          RC=$?
+          kill "$APP_PID" 2>/dev/null || true
+          exit $RC
+
+      - name: Upload Playwright report on failure
+        if: ${{ failure() && steps.changes.outputs.onboarding == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7
