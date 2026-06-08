@@ -1,0 +1,50 @@
+name: 🐞 Bug report
+description: Something doesn't work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please check [`docs/KNOWN_ISSUES.md`](https://github.com/bejranonda/ExternalBrain/blob/main/docs/KNOWN_ISSUES.md) and existing issues first.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+      placeholder: "Expected … but …"
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+        3. …
+    validations:
+      required: true
+  - type: input
+    id: surface
+    attributes:
+      label: Where?
+      description: Webapp page, MCP tool, REST endpoint, worker job, deploy script…
+      placeholder: "e.g. /welcome, brain_ask_oracle, ./scripts/deploy.sh"
+    validations:
+      required: false
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: Version (rail footer / `git describe`), how you run it (dev-up.sh / deploy.sh), LLM provider, browser if relevant.
+      placeholder: "v1.3.0 · deploy.sh · Gemini · Chrome 124"
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / console errors
+      description: Relevant logs or browser-console output. Redact tokens and any client data.
+      render: shell
+    validations:
+      required: false
