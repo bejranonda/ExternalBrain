@@ -78,6 +78,16 @@ export function useTweaks(): [TweakState, (patch: Partial<TweakState>) => void] 
       } catch {
         /* ignore quota / private mode */
       }
+      // Mirror the language into a server-readable cookie so the next request's
+      // SSR (and the unauth surfaces) render in the chosen locale. Keeps the
+      // authed tweaks panel and the unauth <LocalePicker> on one source. #3.
+      if (patch.language) {
+        try {
+          document.cookie = `bp_lang=${next.language};path=/;max-age=31536000;samesite=lax`;
+        } catch {
+          /* cookies disabled */
+        }
+      }
       applyTweaks(next);
       return next;
     });
