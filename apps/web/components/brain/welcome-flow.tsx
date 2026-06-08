@@ -432,8 +432,12 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
           // didn't take. After 5 min, surface a troubleshooting bullet
           // list with the most common causes.
           (() => {
-            const stuck = loadState !== "unauthorized" && elapsedSec >= 90;
-            const veryStuck = loadState !== "unauthorized" && elapsedSec >= 300;
+            // Anonymous visitors never poll (#33), so loadState stays "loading"
+            // and never reaches "unauthorized" — treat !authed the same so they
+            // still get the Sign-in CTA instead of a dead-end "Waiting…". (#44)
+            const showSignin = !authed || loadState === "unauthorized";
+            const stuck = !showSignin && elapsedSec >= 90;
+            const veryStuck = !showSignin && elapsedSec >= 300;
             const dotColor = stuck ? "var(--warn, #d97757)" : "var(--accent)";
             return (
               <>
@@ -457,7 +461,7 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
                     }}
                   />
                   <span style={{ fontSize: 14, color: "var(--ink-2)" }}>
-                    {loadState === "unauthorized" ? (
+                    {showSignin ? (
                       <>
                         <a href="/signin?next=/welcome" style={{ color: "var(--accent)" }}>
                           Sign in
