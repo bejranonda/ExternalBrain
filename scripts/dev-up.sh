@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Brain Platform — one-shot LOCAL/dev bring-up (no TLS, dev-friendly defaults).
+# External Brain — one-shot LOCAL/dev bring-up (no TLS, dev-friendly defaults).
 #
 # Brings up db · web · mcp-server · worker on localhost, runs migrations + FTS,
 # seeds the demo fixture (SEED_ON_DEPLOY=false to skip), and audits the auth
@@ -32,7 +32,7 @@ if [ ! -f .env ]; then
   if [ -f .env.example ]; then
     die "Missing .env — run:  cp .env.example .env  and fill in OPENAI_API_KEY (+ optionally ANTHROPIC_API_KEY or ANTHROPIC_BASE_URL for Z.ai GLM)."
   fi
-  die "Missing .env and .env.example — this doesn't look like a Brain Platform checkout."
+  die "Missing .env and .env.example — this doesn't look like a External Brain checkout."
 fi
 
 # shellcheck disable=SC1091
@@ -182,7 +182,7 @@ log "Status:"
 $COMPOSE ps
 cat <<EOF
 
-Brain Platform is up.
+External Brain is up.
 
   Webapp         http://localhost:${WEB_HOST_PORT:-3000}
   MCP HTTP       http://localhost:${MCP_HOST_PORT:-3100}/mcp

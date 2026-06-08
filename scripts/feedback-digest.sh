@@ -35,7 +35,7 @@ SINCE=$(date -u -d "${WINDOW_DAYS} days ago" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null |
         echo "")
 
 cat <<HEADER
-# Brain Platform — feedback digest
+# External Brain — feedback digest
 Generated: $(date -u +"%Y-%m-%d %H:%M UTC")
 Window: last ${WINDOW_DAYS} days (since ${SINCE:-unknown})
 Host: $(hostname -s 2>/dev/null || echo unknown)

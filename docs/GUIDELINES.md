@@ -246,7 +246,7 @@ KEA extraction runs in the worker with 3-second budget, enforced.
 
 ## 10. Frontend / design system
 
-The webapp is a client-side SPA at `/` with six stateful surfaces. Design tokens, layout rules, and responsive breakpoints live in **`apps/web/app/globals.css`** and are sourced from the handoff bundle at `research/design/` (Brain Platform design via Claude Design).
+The webapp is a client-side SPA at `/` with six stateful surfaces. Design tokens, layout rules, and responsive breakpoints live in **`apps/web/app/globals.css`** and are sourced from the handoff bundle at `research/design/` (External Brain design via Claude Design).
 
 Rules when touching frontend:
 

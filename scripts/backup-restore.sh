@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Restore a Brain Platform Postgres backup produced by the `backup` compose
+# Restore a External Brain Postgres backup produced by the `backup` compose
 # service (prodrigestivill/postgres-backup-local).
 #
 # Usage:

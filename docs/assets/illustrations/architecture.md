@@ -1,4 +1,4 @@
-# Brain Platform Architecture
+# External Brain Architecture
 
 ```mermaid
 flowchart TB

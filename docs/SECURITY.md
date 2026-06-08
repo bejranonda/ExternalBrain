@@ -1,12 +1,12 @@
 # Security
 
-How Brain Platform protects your data, the auth modes, the voucher gate, and the zero-error iteration loop we run before any release.
+How External Brain protects your data, the auth modes, the voucher gate, and the zero-error iteration loop we run before any release.
 
 ---
 
 ## Threat model
 
-Brain Platform is a multi-tenant knowledge substrate. The data that must not leak:
+External Brain is a multi-tenant knowledge substrate. The data that must not leak:
 
 - **Raw session events** — include full coding prompts that may carry pasted secrets, internal URLs, customer data.
 - **Extracted Knowledge rows** — include business rules, internal framework choices, personnel-specific preferences.

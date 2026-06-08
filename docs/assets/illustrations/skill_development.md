@@ -1,4 +1,4 @@
-# How Brain Platform Develops Skills and Knowledge
+# How External Brain Develops Skills and Knowledge
 
 ```mermaid
 flowchart LR

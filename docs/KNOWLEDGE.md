@@ -1,6 +1,6 @@
 # Knowledge — Representation, Ontology, and Lifecycle
 
-This doc defines what "knowledge" is inside the Brain Platform, how it's represented in storage, how it moves through the pipeline, and the invariants any implementation must respect.
+This doc defines what "knowledge" is inside the External Brain, how it's represented in storage, how it moves through the pipeline, and the invariants any implementation must respect.
 
 > This is normative. If code disagrees with this doc, the code is wrong — raise a PR to either fix the code or amend this doc.
 

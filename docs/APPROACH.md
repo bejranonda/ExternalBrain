@@ -188,7 +188,7 @@ A self-audit at the end of a wave found five outstanding issues — some I had e
 
 ## 5k. Fail-closed by default (2026-04-23)
 
-Before this week, an unconfigured Brain Platform deployment silently fell through to the dev shim and served everyone as the first User row. That was deliberate at the time — it kept `./scripts/deploy.sh` working on a colleague's laptop without them first registering a GitHub OAuth app. The cost of that convenience, once a VM was exposed on the public internet, was that any scanning IP could read the seeded Alex persona's Knowledge. The user noticed in the screenshots from the pilot VM. That convenience had to go.
+Before this week, an unconfigured External Brain deployment silently fell through to the dev shim and served everyone as the first User row. That was deliberate at the time — it kept `./scripts/deploy.sh` working on a colleague's laptop without them first registering a GitHub OAuth app. The cost of that convenience, once a VM was exposed on the public internet, was that any scanning IP could read the seeded Alex persona's Knowledge. The user noticed in the screenshots from the pilot VM. That convenience had to go.
 
 The discipline: **when the security-critical config is missing, refuse the request. Do not silently substitute a working-but-unsafe default.** `getCurrentUserId()` now throws `auth_not_configured` (503) instead of returning "the first user" when both OAuth and the explicit dev-shim opt-in are absent. The operator's mistake becomes "the app doesn't work" — visible in the first curl, impossible to miss — instead of "the app works for anyone who finds it."
 
@@ -870,7 +870,7 @@ Three independent issues stacked:
 
 ## 5ad. The platform applied to itself — recursive validation (2026-05-14, cross-session KEA scheduled + scope-filter fix)
 
-The full Brain Platform loop closed end-to-end on 2026-05-13: a real client (the iteration session itself) retrieved 5 brain rules at session start, applied 3 of them to shape an actual feature implementation (the GitHub-webhook fixture session), closed with `knowledgeUsed = [3 IDs]`, and watched `Knowledge.successCount` bump from 0 to 2 on each applied rule. Then on 2026-05-14, the next session retrieved the same rules (now ranked higher because of the successCount bump) and used them to build the daily cross-session KEA schedule — the very piece of infrastructure that produced the rules. The brain extracted patterns from its own development, then guided its own further development.
+The full External Brain loop closed end-to-end on 2026-05-13: a real client (the iteration session itself) retrieved 5 brain rules at session start, applied 3 of them to shape an actual feature implementation (the GitHub-webhook fixture session), closed with `knowledgeUsed = [3 IDs]`, and watched `Knowledge.successCount` bump from 0 to 2 on each applied rule. Then on 2026-05-14, the next session retrieved the same rules (now ranked higher because of the successCount bump) and used them to build the daily cross-session KEA schedule — the very piece of infrastructure that produced the rules. The brain extracted patterns from its own development, then guided its own further development.
 
 Three lessons compound out of this:
 
@@ -995,7 +995,7 @@ A task is done when:
 
 ## 8. Mental model you can hand to a collaborator in 60 seconds
 
-> Brain Platform is an MCP server + webapp. External AI tools call it before generating code (to retrieve knowledge) and after (to report outcomes). The platform extracts atomic rules from sessions, retrieves them by semantic meaning with a multi-factor score, evolves them over time (decay, consolidate, obsolesce), and lets users query them in natural language via the Oracle. Knowledge lives in three scopes — personal, team, community — with strict boundaries. The system's own intelligence improves through internal wisdom skills and autoskill proposals. We measure SQS + NDCG + knowledge health from day 1 because unmeasured flywheels stall.
+> External Brain is an MCP server + webapp. External AI tools call it before generating code (to retrieve knowledge) and after (to report outcomes). The platform extracts atomic rules from sessions, retrieves them by semantic meaning with a multi-factor score, evolves them over time (decay, consolidate, obsolesce), and lets users query them in natural language via the Oracle. Knowledge lives in three scopes — personal, team, community — with strict boundaries. The system's own intelligence improves through internal wisdom skills and autoskill proposals. We measure SQS + NDCG + knowledge health from day 1 because unmeasured flywheels stall.
 
 If a new contributor can't repeat that 60-second summary after reading `BLUEPRINT.md` + `APPROACH.md`, the docs have failed. Fix the docs.
 
@@ -1009,7 +1009,7 @@ The following diagrams provide a quick visual companion to the text above:
 - [`Architecture diagram`](./assets/illustrations/architecture.png) — the 3-layer block diagram (§2.4 dependency graph visualized).
 - [`AI Application diagram`](./assets/illustrations/ai_application.png) — where LLMs and embeddings are applied (§4.7 deterministic-vs-LLM boundary).
 - [`Process Logic diagram`](./assets/illustrations/process_logic.png) — end-to-end session sequence (§4.3 sync-vs-async boundary).
-- [`Vibe-Coding Improvement diagram`](./assets/illustrations/vibe_coding_improvement.png) — how Brain Platform augments AI output with precise context.
+- [`Vibe-Coding Improvement diagram`](./assets/illustrations/vibe_coding_improvement.png) — how External Brain augments AI output with precise context.
 - [`Knowledge Algorithm diagram`](./assets/illustrations/knowledge_algorithm.png) — sequential lifecycle of logging, extracting, and consolidating knowledge.
 
 Source files (Mermaid `.md`) are co-located with the PNGs in `docs/assets/illustrations/`.

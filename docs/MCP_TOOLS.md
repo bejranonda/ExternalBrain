@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-The Brain Platform exposes **12 tools** and **4 resources** over MCP. Any MCP-capable AI client (Claude Code, Cursor, Windsurf, Autobahn, custom agents) becomes Brain-aware by connecting to this server.
+The External Brain exposes **12 tools** and **4 resources** over MCP. Any MCP-capable AI client (Claude Code, Cursor, Windsurf, Autobahn, custom agents) becomes Brain-aware by connecting to this server.
 
 ## Connect
 
@@ -223,7 +223,7 @@ Each provider's entry point (`callAnthropic`, `callDashScope`, `callOpenAI`) che
 
 The MCP `initialize` response carries an `instructions` string (MCP-spec field). Capable clients (Claude Code reads it; many SDKs ignore unknown fields) see:
 
-> Brain Platform is connected. Run `brain_get_user_style` first to verify end-to-end connectivity and bootstrap your peer card. End each coding session with `brain_report_session_outcome` so the Knowledge Extraction Agent can learn from the outcome — without that close call, sessions stay open and the brain doesn't learn.
+> External Brain is connected. Run `brain_get_user_style` first to verify end-to-end connectivity and bootstrap your peer card. End each coding session with `brain_report_session_outcome` so the Knowledge Extraction Agent can learn from the outcome — without that close call, sessions stay open and the brain doesn't learn.
 
 The bootstrap call makes first-touch tool-use automatic, so the dashboard's per-token "last tool call" signal is meaningful from day 1 of a new install, not "whenever the user happens to type a brain trigger phrase."
 

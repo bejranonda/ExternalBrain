@@ -245,7 +245,7 @@ Each user's `/settings/tokens` page lists every token they've minted with name +
 
 ## Provider key scoping (Gemini + DashScope + Z.ai)
 
-The Brain Platform uses two independent provider paths:
+The External Brain uses two independent provider paths:
 
 - **Chat models** (Oracle, KEA) route through the Anthropic SDK, pointed at any Anthropic-compatible gateway via `ANTHROPIC_BASE_URL`. Uses `ANTHROPIC_API_KEY`.
 - **Embeddings** route through the OpenAI SDK, pointed at any OpenAI-compatible gateway via `EMBEDDING_BASE_URL`. Key resolution chain: `EMBEDDING_API_KEY → GOOGLE_GEMINI_API_KEY → OPENAI_API_KEY → ANTHROPIC_API_KEY`.

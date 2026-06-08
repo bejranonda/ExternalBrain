@@ -1,6 +1,6 @@
 # Production deploy checklist
 
-Single-page walkthrough for putting Brain Platform on a public-internet VM. Follow top-to-bottom the first time. ~20 minutes end to end once the prerequisites are in hand.
+Single-page walkthrough for putting External Brain on a public-internet VM. Follow top-to-bottom the first time. ~20 minutes end to end once the prerequisites are in hand.
 
 Deeper references: [`deploy/PRODUCTION.md`](../deploy/PRODUCTION.md), [`docs/SECURITY.md`](./SECURITY.md).
 
@@ -49,7 +49,7 @@ Save the plaintext (you'll use it to sign in) and the hash (you'll paste it into
 
 **A4b. GitHub OAuth App (phase-2 invitee path).** Only needed when the pilot opens to multiple users. Create at <https://github.com/settings/developers> → **OAuth Apps** → **New OAuth App**:
 
-- Application name: `Brain Platform` (or whatever)
+- Application name: `External Brain` (or whatever)
 - Homepage URL: `https://brain.yourteam.com`
 - Authorization callback URL: `https://brain.yourteam.com/api/auth/callback/github`
 
@@ -192,7 +192,7 @@ Auth mode (from .env): OAUTH
 ✓ MCP without Authorization → 4xx (fail-closed)
 PASS — no anonymous-leak vectors detected.
 
-Brain Platform (production) is up.
+External Brain (production) is up.
 ```
 
 If you see any `✗ … ANONYMOUS READ ACCESS. Leak.` — do **not** invite users. Fix the flagged issue and re-run. The deploy script refuses to print the success banner in that case.

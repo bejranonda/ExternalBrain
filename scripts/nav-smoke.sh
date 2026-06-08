@@ -29,7 +29,7 @@ probe() {
   fi
 }
 
-printf '\n\033[1mBrain Platform nav smoke\033[0m (%s)\n\n' "$BASE_URL"
+printf '\n\033[1mExternal Brain nav smoke\033[0m (%s)\n\n' "$BASE_URL"
 
 printf '\033[1mShell surfaces\033[0m (hash routes served by /)\n'
 probe "/"

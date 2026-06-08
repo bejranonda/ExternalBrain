@@ -1,4 +1,4 @@
-# Brain Platform — single-server stack.
+# External Brain — single-server stack.
 #
 # One self-hosted server, one Compose file. Long-running edge services
 # (Caddy TLS terminator, Redis, nightly backup) live behind the `edge`

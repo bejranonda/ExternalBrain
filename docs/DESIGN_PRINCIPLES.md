@@ -1,6 +1,6 @@
 # Design Principles
 
-How the Brain Platform UI decides what to show, what to hide, and when to surface depth.
+How the External Brain UI decides what to show, what to hide, and when to surface depth.
 
 > **TL;DR** — Brain is a *learning* product: it accumulates knowledge over time. The UI has to honor that arc. We use **progressive disclosure** as the headline principle, but we extend it with two principles that matter specifically for tools that compound: **earned surface area** and **quiet by default**.
 

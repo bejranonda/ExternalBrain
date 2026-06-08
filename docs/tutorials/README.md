@@ -1,10 +1,10 @@
-# Brain Platform — End-User Tutorials
+# External Brain — End-User Tutorials
 
 Hands-on, task-focused guides for someone who's been given a Brain URL
 and a token. Each tutorial is self-contained, takes ≤15 minutes, and
 ends with a working capability.
 
-If you're installing Brain Platform yourself (operator role), read
+If you're installing External Brain yourself (operator role), read
 [`../QUICKSTART.md`](../QUICKSTART.md) and [`../USING_BRAIN.md`](../USING_BRAIN.md)
 first — they cover the server side.
 
