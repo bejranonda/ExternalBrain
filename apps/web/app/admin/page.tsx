@@ -1,4 +1,5 @@
 import { db } from "@brain/db";
+import { BackupStatusCard } from "@/components/brain/backup-status-card";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ export default async function AdminOverview() {
           value={`$${Number(cost._sum.costUsd ?? 0).toFixed(2)}`}
           sub={`${cost._sum.callCount ?? 0} calls all-time`}
         />
+        <BackupStatusCard />
       </div>
 
       <section style={{ marginTop: 36 }}>
