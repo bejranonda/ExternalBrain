@@ -66,13 +66,28 @@ Invariant violations are bugs, not features. Fix the violation; do not loosen th
 | Unit (web) | `apps/web/lib/brain/__tests__` (Phase 1) | hook state machines (`useOracle`, `useKnowledge`), parsers (`parseSSE`), proxy (`check()`) |
 | Integration | `packages/core/__tests__/integration` | session-to-knowledge, outcome-feedback-loop, retrieveScored round-trip |
 | Benchmark | `packages/core/__tests__/benchmarks` | retrieval NDCG@5, KEA quality |
-| E2E | `apps/web/e2e` | 24 specs (161 tests) covering every surface + tokens + onboarding + tweaks + i18n + a11y + responsive + streaming — run with `pnpm --filter @brain/web e2e` (dev stack must be up). |
+| E2E | `apps/web/e2e` | 26 specs covering every surface + tokens + onboarding + tweaks + i18n + a11y + responsive + streaming. Run the full suite locally with `pnpm --filter @brain/web e2e` (dev stack must be up). The **anonymous subset** (`welcome-public-urls`, `healthz`, `security`) runs automatically in CI via the `onboarding-e2e` gate whenever an onboarding/unauth surface changes — see [CICD.md](./CICD.md). |
 | E2E fixture | `packages/db/prisma/seed.ts` (#236) | Deterministic seed produces 1 admin user (Alex) + 1 org + 1 project + 6 sessions + 16 knowledge rows + 4 autoskill proposals. Idempotent via upsert; safe to re-run. Wired in `prisma.config.ts#migrations.seed` (Prisma 7 location — NOT `package.json#prisma.seed`, which silently no-op's in v7). Counts are load-bearing — `skills.spec.ts` asserts ≥16, `sessions.spec.ts` asserts ≥6, `autoskill.spec.ts` asserts 4. |
 | Visual regression | `apps/web/e2e/visual.spec.ts` (#235, scaffold) | 24 baselines: 6 surfaces × 2 viewports × 2 themes. Inert by default; gated on `PWUPDATE=1` (regenerate) or `RUN_VISUAL=1` (diff) so it doesn't flake every dev's `pnpm e2e`. Baseline PNGs land once Phase 2 (`data-volatile` masking attrs) and the e2e CI Option B (in-stack runner) are ready. |
 
 Run `pnpm turbo run test` before every commit. A red test blocks merge. If you add a pure helper (parser, scorer, renderer), add at least one test in the same PR.
 
-**Playwright top-5 smoke (v0.14.0).** The opt-in `e2e-please` harness wraps the deployed-brain Playwright suite (`apps/web/tests/e2e/`) and covers the top-5 user surfaces: sign-in, dashboard, oracle, sessions, skills. These are the screens whose breakage is the most visible to a first-time visitor and the hardest to catch with typecheck alone. UI/UX, auth-flow, and public-surface PRs should add the `e2e-please` label so this suite runs as a status check; pure refactors / doc-only PRs may skip it. See `docs/DEV_PLAYBOOK.md §3a` and `APPROACH.md §5ah` for the rationale.
+**Anonymous-surface CI gate (v1.3.0, #1).** The `onboarding-e2e` workflow
+(`.github/workflows/onboarding-e2e.yml`) builds + boots the app and runs the
+anonymous Playwright specs whenever a PR touches an onboarding/unauth surface
+(`apps/web/app/{welcome,signin,forgot-password,reset-password,accept-invite}`,
+`layout.tsx`, the locale/install code). It's a **required check** on `main`, and
+a fast green no-op on PRs that don't touch those paths — so it's opt-out by
+path, not opt-in by label. This closed the gap where three user-visible bugs
+once shipped past CI because the suite only asserted signed-in behaviour. See
+[CICD.md](./CICD.md).
+
+**Playwright top-5 smoke (v0.14.0).** A separate deployed-brain Playwright suite
+(`apps/web/tests/e2e/`) covers the top-5 *authenticated* surfaces: sign-in,
+dashboard, oracle, sessions, skills. It needs an auth cookie + a target host and
+is run on demand against a deployed brain (it is the natural next tier to wire
+into CI alongside the anonymous gate above). See `APPROACH.md §5ah` for the
+rationale.
 
 **Validation discipline: exercise the artifact, not just the tests (2026-05-11).** "CI is green" is a necessary precondition, not sufficient evidence that a change does what it claims. For any PR whose value depends on runtime behavior — installers, deploy scripts, observability changes, schema migrations, anything that touches the data plane — run the actual artifact against the actual system before claiming completion. PR #202 (MCP observability + installer v2) shipped a bug in its own installer that all tests passed: the unit test used `JSON.parse`, the installer used a sed-regex that didn't handle JSON-escaped quotes, and the failure mode was an orphan Session — the very thing the PR was meant to detect. The bug surfaced only when the installer ran end-to-end and the DB counters were re-read. **Rule:** if your PR description says "ships a fix for X," your test plan must include exercising the deployed artifact and observing X actually fixed in the conditions it claims to fix. The audit-friendly read-only diagnostic script at `.dev/brain-learning-evidence.sh` is the canonical example of a "did X actually fix?" probe.
 

@@ -164,6 +164,7 @@ docs/          Documentation
 | [KNOWLEDGE](./docs/KNOWLEDGE.md) | The knowledge model (normative) |
 | [SECURITY](./docs/SECURITY.md) | Auth modes, MCP gating, threat model |
 | [DEPLOY_CHECKLIST](./docs/DEPLOY_CHECKLIST.md) | Production deploy on a public VM |
+| [CICD](./docs/CICD.md) | CI checks + the two deploy scripts, for forkers |
 | [CONTRIBUTING](./docs/CONTRIBUTING.md) · [GUIDELINES](./docs/GUIDELINES.md) | How to contribute, code style |
 | [DESIGN_PRINCIPLES](./docs/DESIGN_PRINCIPLES.md) | UI philosophy (progressive disclosure) |
 | [KNOWN_ISSUES](./docs/KNOWN_ISSUES.md) | Tracked risks & gotchas |
@@ -178,8 +179,13 @@ Diagrams (Mermaid sources + rendered PNGs) live in
 Contributions and forks are welcome. Fork the repo, branch from `main`
 (`feature/<slug>`, `bugfix/<slug>`, `docs/<slug>`), and open a PR — see
 [docs/CONTRIBUTING.md](./docs/CONTRIBUTING.md) and [AGENTS.md](./AGENTS.md)
-(the guide for AI assistants working in this repo). CI runs typecheck, tests,
-and a fresh-DB migration on every PR.
+(the guide for AI assistants working in this repo). Be kind — we follow a
+[Code of Conduct](./CODE_OF_CONDUCT.md).
+
+Every PR runs three required checks: **typecheck · test · build**, a
+**fresh-DB migration** (the day-zero deploy path), and — when an onboarding/
+unauth surface changes — an **anonymous e2e** gate. How CI and the two deploy
+scripts fit together is one short page: **[docs/CICD.md](./docs/CICD.md)**.
 
 ## License
 

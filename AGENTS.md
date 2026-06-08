@@ -149,6 +149,7 @@ false confidence is a shipped regression.
 | [`docs/SECURITY.md`](./docs/SECURITY.md) | Anything touching auth, tokens, MCP gating |
 | [`docs/GUIDELINES.md`](./docs/GUIDELINES.md) | Code style, package boundaries, testing standards |
 | [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md) | Opening a PR, code conventions |
+| [`docs/CICD.md`](./docs/CICD.md) | CI checks + the two deploy scripts (forker-facing) |
 | [`docs/KNOWN_ISSUES.md`](./docs/KNOWN_ISSUES.md) | Before filing a bug — check tracked risks |
 
 ---
