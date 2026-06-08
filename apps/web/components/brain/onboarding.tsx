@@ -68,7 +68,7 @@ export function Onboarding({
             decisions. Most of it evaporates.
           </p>
           <p style={{ margin: 0, lineHeight: 1.55, color: "var(--ink-2)" }}>
-            Brain Platform captures it from any MCP-compatible client, organizes it as typed skills
+            External Brain captures it from any MCP-compatible client, organizes it as typed skills
             and rules, and lets you query it back in natural language via the Oracle. We'll spend
             about a minute getting you wired up.
           </p>

@@ -1,5 +1,5 @@
 /**
- * Transactional email templates for Brain Platform.
+ * Transactional email templates for External Brain.
  *
  * Two templates:
  *  - inviteEmail     — sent when an org admin creates an invite (if email is configured)
@@ -25,13 +25,13 @@ function htmlWrap(body: string): string {
         style="background:#171820;border:1px solid #23242c;border-radius:10px;overflow:hidden;">
         <tr><td style="padding:8px 28px 6px;background:#0d0e11;border-bottom:1px solid #23242c;">
           <span style="font-size:13px;font-weight:600;letter-spacing:0.04em;color:#7aa2f7;">
-            Brain Platform
+            External Brain
           </span>
         </td></tr>
         <tr><td style="padding:28px 28px 32px;">${body}</td></tr>
         <tr><td style="padding:14px 28px;background:#0d0e11;border-top:1px solid #23242c;
           font-size:11px;color:#6b6d7a;line-height:1.5;">
-          This is a transactional message from Brain Platform. If you did not expect
+          This is a transactional message from External Brain. If you did not expect
           this email, you can safely ignore it.
         </td></tr>
       </table>
@@ -67,7 +67,7 @@ export function inviteEmail(args: InviteEmailArgs): TemplateResult {
   const { inviterName, orgName, acceptLink, expiresAt } = args;
   const expiry = new Date(expiresAt).toUTCString();
 
-  const subject = `${inviterName} invited you to ${orgName} on Brain Platform`;
+  const subject = `${inviterName} invited you to ${orgName} on External Brain`;
 
   const htmlBody = `
 <p style="margin:0 0 8px;font-size:18px;font-weight:500;color:#ececf0;">
@@ -75,7 +75,7 @@ export function inviteEmail(args: InviteEmailArgs): TemplateResult {
 </p>
 <p style="margin:0 0 16px;font-size:13px;color:#9a9cab;line-height:1.6;">
   <strong style="color:#ececf0;">${escHtml(inviterName)}</strong> has invited you to join
-  <strong style="color:#ececf0;">${escHtml(orgName)}</strong> on Brain Platform.
+  <strong style="color:#ececf0;">${escHtml(orgName)}</strong> on External Brain.
 </p>
 <p style="margin:0 0 4px;font-size:12px;color:#6b6d7a;">
   Click the button below to accept the invite and set up your account.
@@ -87,7 +87,7 @@ ${CTABtn(acceptLink, "Accept invite")}
   <a href="${acceptLink}" style="color:#7aa2f7;word-break:break-all;">${escHtml(acceptLink)}</a>
 </p>`;
 
-  const text = `You've been invited to ${orgName} on Brain Platform
+  const text = `You've been invited to ${orgName} on External Brain
 
 ${inviterName} has invited you to join ${orgName}. Click the link below to accept:
 
@@ -114,7 +114,7 @@ export function passwordResetEmail(args: PasswordResetEmailArgs): TemplateResult
   const { userName, resetLink, expiresAt } = args;
   const expiry = new Date(expiresAt).toUTCString();
 
-  const subject = "Reset your Brain Platform password";
+  const subject = "Reset your External Brain password";
 
   const htmlBody = `
 <p style="margin:0 0 8px;font-size:18px;font-weight:500;color:#ececf0;">
@@ -122,7 +122,7 @@ export function passwordResetEmail(args: PasswordResetEmailArgs): TemplateResult
 </p>
 <p style="margin:0 0 16px;font-size:13px;color:#9a9cab;line-height:1.6;">
   Hi <strong style="color:#ececf0;">${escHtml(userName)}</strong>, we received a request to
-  reset the password for your Brain Platform account.
+  reset the password for your External Brain account.
 </p>
 <p style="margin:0 0 4px;font-size:12px;color:#6b6d7a;">
   Click the button below to choose a new password.
@@ -141,11 +141,11 @@ ${CTABtn(resetLink, "Reset password")}
   <a href="${resetLink}" style="color:#7aa2f7;word-break:break-all;">${escHtml(resetLink)}</a>
 </p>`;
 
-  const text = `Password reset request — Brain Platform
+  const text = `Password reset request — External Brain
 
 Hi ${userName},
 
-We received a request to reset your Brain Platform password.
+We received a request to reset your External Brain password.
 
 Click the link below (valid for 1 hour, one-time use):
 

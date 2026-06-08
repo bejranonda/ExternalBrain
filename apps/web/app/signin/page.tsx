@@ -115,11 +115,11 @@ export default async function SignIn({ searchParams }: Props) {
         }}
       >
         {/* UX-newcomer-pass-3 (iter 22): the previous header was a single
-            "Brain Platform" line. A first-time visitor lands here with no
+            "External Brain" line. A first-time visitor lands here with no
             context — make this an actual h1 + tagline so they know what
             they're signing into. */}
         <h1 style={{ fontSize: 22, fontWeight: 500, margin: 0, letterSpacing: "-0.01em" }}>
-          Brain Platform
+          External Brain
         </h1>
         <div style={{ fontSize: 13, color: "var(--ink-3, #9a9cab)", marginTop: 4, marginBottom: 18 }}>
           The shared memory layer for your AI coding sessions.

@@ -94,7 +94,7 @@ export default async function ResetPasswordPage({ searchParams }: Props) {
         }}
       >
         <div style={{ fontSize: 20, fontWeight: 500, marginBottom: 6 }}>
-          Brain Platform
+          External Brain
         </div>
 
         {success ? (

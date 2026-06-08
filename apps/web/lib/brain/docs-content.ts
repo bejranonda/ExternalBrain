@@ -49,7 +49,7 @@ export const DOCS: Record<string, DocPage> = {
       {
         heading: "The five words",
         body: [
-          "Brain Platform has only five user-facing terms that matter. Everything else is built from these.",
+          "External Brain has only five user-facing terms that matter. Everything else is built from these.",
         ],
         bullets: [
           "Brain — the shared memory layer for your AI coding sessions. Your Brain is the collection of skills it knows about you.",

@@ -233,7 +233,7 @@ export const I18N = {
     },
     callout: {
       title: "Your Brain is empty",
-      body: "Brain Platform captures patterns from your AI coding sessions and serves them back. Two ways to get started — pick either:",
+      body: "External Brain captures patterns from your AI coding sessions and serves them back. Two ways to get started — pick either:",
       step1_lead: "Wire an AI tool",
       step1_rest:
         " — generate a token, paste a snippet into Claude Code / Cursor / Windsurf, then your sessions start populating your Brain automatically.",
@@ -479,7 +479,7 @@ export const I18N = {
     },
     callout: {
       title: "สมองของคุณยังว่างเปล่า",
-      body: "Brain Platform บันทึกรูปแบบจากเซสชันโค้ด AI ของคุณและส่งกลับมาให้คุณ มีสองวิธีในการเริ่มต้น เลือกอย่างใดอย่างหนึ่ง:",
+      body: "External Brain บันทึกรูปแบบจากเซสชันโค้ด AI ของคุณและส่งกลับมาให้คุณ มีสองวิธีในการเริ่มต้น เลือกอย่างใดอย่างหนึ่ง:",
       step1_lead: "เชื่อมต่อเครื่องมือ AI",
       step1_rest:
         " — สร้างโทเค็น วางสคริปต์ลงใน Claude Code / Cursor / Windsurf จากนั้นเซสชันของคุณจะเริ่มเติมเข้าสมองโดยอัตโนมัติ",
@@ -726,7 +726,7 @@ export const I18N = {
     },
     callout: {
       title: "Dein Gehirn ist leer",
-      body: "Brain Platform erfasst Muster aus deinen KI-Coding-Sitzungen und spielt sie dir zurück. Zwei Wege zum Start — wähle einen:",
+      body: "External Brain erfasst Muster aus deinen KI-Coding-Sitzungen und spielt sie dir zurück. Zwei Wege zum Start — wähle einen:",
       step1_lead: "Ein KI-Tool verbinden",
       step1_rest:
         " — Token erzeugen, Snippet in Claude Code / Cursor / Windsurf einfügen, dann füllen deine Sitzungen dein Gehirn automatisch.",

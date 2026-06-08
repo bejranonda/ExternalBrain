@@ -137,7 +137,7 @@ export async function changeUserPassword(
       code: "WRONG_PASSWORD",
       category: "auth",
       message: "Current password is incorrect.",
-      remediation: "Enter the password you use to sign in to Brain Platform.",
+      remediation: "Enter the password you use to sign in to External Brain.",
       retryable: false,
       status: 401,
     });

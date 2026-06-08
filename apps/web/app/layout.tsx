@@ -31,7 +31,7 @@ const notoThai = Noto_Sans_Thai({
 });
 
 export const metadata = {
-  title: "Brain Platform",
+  title: "External Brain",
   description:
     "The knowledge you build while coding with any AI tool, made permanent and portable.",
 };
