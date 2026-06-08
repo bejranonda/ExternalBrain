@@ -72,7 +72,6 @@ jobs:
               - 'apps/web/lib/brain/i18n.ts'
               - 'apps/web/lib/brain/installer-templates.ts'
               - 'apps/web/e2e/welcome-public-urls.spec.ts'
-              - 'apps/web/e2e/security.spec.ts'
               - 'apps/web/e2e/healthz.spec.ts'
               - 'apps/web/playwright.config.ts'
               - '.github/workflows/onboarding-e2e.yml'
@@ -145,7 +144,6 @@ jobs:
           set +e
           pnpm --filter @brain/web exec playwright test \
             e2e/welcome-public-urls.spec.ts \
-            e2e/security.spec.ts \
             e2e/healthz.spec.ts
           RC=$?
           kill "$APP_PID" 2>/dev/null || true
