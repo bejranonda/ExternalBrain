@@ -333,7 +333,7 @@ export function Oracle() {
                     // UX-newcomer-pass: chips were wrapping to 2 lines for
                     // long real prompts (the user's own session history can
                     // include 100+ char prompts like "Real improvement to
-                    // Brain Platform itself…"). Cap chip text to 60 chars
+                    // External Brain itself…"). Cap chip text to 60 chars
                     // with title attr for full text on hover. One-line
                     // chips are scannable; multi-line chips look broken.
                     const display = s.length > 60 ? `${s.slice(0, 58)}…` : s;

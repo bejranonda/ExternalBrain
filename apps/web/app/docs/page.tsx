@@ -28,7 +28,7 @@ export default function DocsIndex() {
           maxWidth: 720,
         }}
       >
-        Plain-English reference for every concept and feature in Brain Platform.
+        Plain-English reference for every concept and feature in External Brain.
         If you came here from a (?) icon in the app, the page you want is below.
         For the full technical handbook, see the{" "}
         <a

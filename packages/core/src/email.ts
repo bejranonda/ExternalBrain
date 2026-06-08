@@ -6,7 +6,7 @@
  * ENV vars:
  *   EMAIL_PROVIDER   — "resend" | "disabled" (default "disabled")
  *   EMAIL_API_KEY    — Resend API key (required when provider = "resend")
- *   EMAIL_FROM       — From address, e.g. "Brain Platform <noreply@brain-dev.example.com>"
+ *   EMAIL_FROM       — From address, e.g. "External Brain <noreply@brain-dev.example.com>"
  *   EMAIL_REPLY_TO   — Optional; defaults to EMAIL_FROM
  *
  * When EMAIL_PROVIDER is "disabled" (or unset) sendEmail() returns
@@ -61,7 +61,7 @@ export async function sendEmail(args: SendEmailArgs): Promise<SendResult> {
   }
 
   const from =
-    process.env.EMAIL_FROM ?? "Brain Platform <noreply@brain-dev.example.com>";
+    process.env.EMAIL_FROM ?? "External Brain <noreply@brain-dev.example.com>";
   const replyTo = process.env.EMAIL_REPLY_TO ?? from;
 
   const payload: Record<string, unknown> = {

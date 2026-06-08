@@ -21,7 +21,7 @@ description: Use when you need persistent project memory, semantic search over p
 
 # Brain — your project's persistent memory
 
-Brain Platform is a memory layer that survives across Claude Code sessions, projects, and machines. It runs MCP-over-HTTP at \`{{MCP_URL}}\` and exposes 9 tools + 4 resources. This skill is the *usage guide*; the MCP server is the registry of what each tool does. Read this before reaching for any \`mcp__brain__*\` tool.
+External Brain is a memory layer that survives across Claude Code sessions, projects, and machines. It runs MCP-over-HTTP at \`{{MCP_URL}}\` and exposes 9 tools + 4 resources. This skill is the *usage guide*; the MCP server is the registry of what each tool does. Read this before reaching for any \`mcp__brain__*\` tool.
 
 ## When to use Brain
 

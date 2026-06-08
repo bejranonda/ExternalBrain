@@ -176,8 +176,8 @@ export function Rail({ route, setRoute, counts, onUser }: NavProps) {
         className="rail-brand"
         title={
           env
-            ? `Brain Platform · ${env} environment (hover to expand sidebar)`
-            : "Brain Platform (hover to expand sidebar)"
+            ? `External Brain · ${env} environment (hover to expand sidebar)`
+            : "External Brain (hover to expand sidebar)"
         }
       >
         <div className="rail-brand-mark">B</div>
@@ -237,7 +237,7 @@ export function Rail({ route, setRoute, counts, onUser }: NavProps) {
           href={RELEASES_URL}
           target="_blank"
           rel="noopener noreferrer"
-          title={`Brain Platform ${APP_VERSION} — view release notes`}
+          title={`External Brain ${APP_VERSION} — view release notes`}
         >
           {APP_VERSION === "dev" ? "dev" : `v${APP_VERSION.replace(/^v/, "")}`}
         </a>
@@ -341,7 +341,7 @@ export function Topbar({
   // "Activity") added no info — every page already shows the current
   // surface label, the rail shows section grouping, and the
   // OrgProjectSwitcher on the left carries the higher-level context.
-  // "Brain Platform · Workspace / Dashboard" read as decoration to
+  // "External Brain · Workspace / Dashboard" read as decoration to
   // first-time users. Simplified to a single crumb (the current route).
   // Kept the array shape so the render loop below doesn't need to
   // branch on length.

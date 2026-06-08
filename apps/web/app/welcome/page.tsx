@@ -1,7 +1,7 @@
 import { WelcomeFlow } from "@/components/brain/welcome-flow";
 
 export const metadata = {
-  title: "Welcome — Brain Platform",
+  title: "Welcome — External Brain",
   description:
     "First-run guided tour: connect an AI tool to Brain in three steps.",
 };

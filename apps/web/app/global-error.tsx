@@ -41,7 +41,7 @@ export default function GlobalError({
         }}
       >
         <h1 style={{ fontSize: 20, fontWeight: 500, margin: 0 }}>
-          Brain Platform — fatal error
+          External Brain — fatal error
         </h1>
         <p style={{ fontSize: 14, color: "#b0b0b0", margin: 0, maxWidth: 480, textAlign: "center" }}>
           The webapp could not render. Reloading may help; if the error

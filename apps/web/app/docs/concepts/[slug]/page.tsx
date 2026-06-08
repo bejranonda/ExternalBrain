@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const page = DOCS[slug];
   if (!page) return { title: "Not found — Documentation" };
   return {
-    title: `${page.title} — Brain Platform docs`,
+    title: `${page.title} — External Brain docs`,
     description: page.summary,
   };
 }
