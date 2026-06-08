@@ -92,12 +92,17 @@ export function BrainApp() {
 
   return (
     <LangContext.Provider value={tweaks.language}>
-      <div className="app" data-screen-label={route}>
+      <div
+        className={`app${tweaks.railCollapsed ? " rail-collapsed" : ""}`}
+        data-screen-label={route}
+      >
         <Rail
           route={route}
           setRoute={setRoute}
           counts={counts}
           onUser={() => setUserOpen((v) => !v)}
+          collapsed={tweaks.railCollapsed}
+          onToggleCollapse={() => setTweaks({ railCollapsed: !tweaks.railCollapsed })}
         />
         <div className="main">
           <Topbar

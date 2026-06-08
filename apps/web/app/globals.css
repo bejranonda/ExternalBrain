@@ -147,15 +147,17 @@ button:focus-visible, input:focus-visible, [role="button"]:focus-visible {
 
 .app {
   display: grid;
-  /* Phase R: rail collapses to icon-only at rest (56px); expands to 212px
-     on hover via .rail:hover. Grid column is held at the collapsed width
-     so the main content claims the freed space; the expanded rail floats
-     over content via position/z-index. */
-  grid-template-columns: 56px 1fr;
+  /* Phase R revisit (#4): labels-by-default. The rail reserves its expanded
+     width so content sits beside it (Linear/Notion model) instead of icons-
+     only-with-hover (an expert pattern that left first-timers guessing). Users
+     who want density collapse to icons via the rail toggle (.app.rail-collapsed),
+     where the rail returns to 56px and peeks labels on hover. */
+  grid-template-columns: 212px 1fr;
   grid-template-rows: 100vh;
   height: 100vh;
   color: var(--ink);
 }
+.app.rail-collapsed { grid-template-columns: 56px 1fr; }
 
 .rail {
   background: var(--bg);
@@ -165,15 +167,20 @@ button:focus-visible, input:focus-visible, [role="button"]:focus-visible {
   /* Tightened from 14px 10px so 56px column has room for centered icons. */
   padding: 14px 8px;
   gap: 2px;
-  width: 56px;
+  width: 212px;
   overflow: hidden;
   transition: width 0.12s ease-out;
   position: relative;
-  /* Above topbar so the expanded rail floats over downstream content
-     rather than reflowing it. */
+  /* Above topbar so the collapsed rail's hover-peek floats over content
+     rather than reflowing it. (Default-expanded rail sits in its own grid
+     column and doesn't overlay.) */
   z-index: var(--z-topbar);
 }
-.rail:hover {
+/* Collapsed: rail returns to icon width; hover peeks labels back (overlay —
+   grid column stays 56px). Default (not collapsed) the rail is already 212px,
+   so hover is a no-op. */
+.app.rail-collapsed .rail { width: 56px; }
+.app.rail-collapsed .rail:hover {
   width: 212px;
   box-shadow: var(--shadow-2);
 }
@@ -338,25 +345,25 @@ button:focus-visible, input:focus-visible, [role="button"]:focus-visible {
    visual (overflow: hidden on .rail), so React tree never re-renders.
    Hovering the rail expands width → labels fade in just behind the
    width tween for a calm reveal. */
-.rail:not(:hover) .rail-item > span:nth-child(2),
-.rail:not(:hover) .rail-item .kbd,
-.rail:not(:hover) .rail-item .count {
+.app.rail-collapsed .rail:not(:hover) .rail-item > span:nth-child(2),
+.app.rail-collapsed .rail:not(:hover) .rail-item .kbd,
+.app.rail-collapsed .rail:not(:hover) .rail-item .count {
   opacity: 0;
   transition: opacity 0.08s ease-out;
 }
-.rail:hover .rail-item > span:nth-child(2),
-.rail:hover .rail-item .kbd,
-.rail:hover .rail-item .count {
+.app.rail-collapsed .rail:hover .rail-item > span:nth-child(2),
+.app.rail-collapsed .rail:hover .rail-item .kbd,
+.app.rail-collapsed .rail:hover .rail-item .count {
   opacity: 1;
   transition: opacity 0.12s ease-in 0.04s;
 }
 
 /* Brand: keep the mark, hide the wordmark + env tag when collapsed. */
-.rail:not(:hover) .rail-brand-wm,
-.rail:not(:hover) .rail-brand-tag {
+.app.rail-collapsed .rail:not(:hover) .rail-brand-wm,
+.app.rail-collapsed .rail:not(:hover) .rail-brand-tag {
   opacity: 0;
 }
-.rail:not(:hover) .rail-brand {
+.app.rail-collapsed .rail:not(:hover) .rail-brand {
   padding: 6px 4px 14px;
   justify-content: center;
 }
@@ -364,18 +371,18 @@ button:focus-visible, input:focus-visible, [role="button"]:focus-visible {
 /* Section labels (WORKSPACE / ACTIVITY) shrink to invisible spacers
    when collapsed — kept in flow so vertical rhythm doesn't jump as
    the rail expands. */
-.rail:not(:hover) .rail-section-label {
+.app.rail-collapsed .rail:not(:hover) .rail-section-label {
   visibility: hidden;
   height: 8px;
   padding: 0;
 }
 
 /* Footer collapses to just the avatar. */
-.rail:not(:hover) .rail-user-meta,
-.rail:not(:hover) .rail-footer svg {
+.app.rail-collapsed .rail:not(:hover) .rail-user-meta,
+.app.rail-collapsed .rail:not(:hover) .rail-footer svg {
   opacity: 0;
 }
-.rail:not(:hover) .rail-user {
+.app.rail-collapsed .rail:not(:hover) .rail-user {
   justify-content: center;
   padding: 6px 4px;
 }
@@ -649,7 +656,8 @@ html[lang="th"] .serif { font-family: 'Noto Serif Thai', var(--font-serif); }
     border-bottom: 1px solid var(--line-soft);
   }
 
-  .app {
+  .app,
+  .app.rail-collapsed {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr;
     height: auto;
