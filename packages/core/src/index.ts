@@ -9,6 +9,14 @@ export * as embedding from "./embedding.js";
 export * as formatter from "./formatter.js";
 export * as exporter from "./exporter.js";
 export { fuzzyScore } from "./fuzzy.js";
+export {
+  LearningSchema,
+  validateSubmittedLearnings,
+  LEARNING_EVENT_TYPE,
+  MAX_LEARNINGS_PER_SESSION,
+  MAX_SUBMITTED_CONFIDENCE,
+} from "./learnings.js";
+export type { Learning, ValidatedLearnings } from "./learnings.js";
 export { parseSSE } from "./sse.js";
 export { formatRelative } from "./format-relative.js";
 export {
