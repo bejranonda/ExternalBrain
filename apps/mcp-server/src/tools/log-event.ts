@@ -26,7 +26,7 @@ const inputShape = z.object({
 export const logEvent: ToolDef = {
   name: "brain_log_event",
   description:
-    "Log an event during a coding session. Events feed KEA and autoskill. Call frequently — do NOT batch. Safe to call from a background thread.",
+    "Log an event during a coding session. Events feed KEA and autoskill. Call frequently — do NOT batch. ALWAYS log user_correction (the user changed your approach) and knowledge_rejected (an injected skill didn't apply) the moment they happen — these drive the Brain's confidence loop. Safe to call from a background thread.",
   inputSchema: {
     type: "object",
     required: ["sessionId", "eventType", "payload"],
