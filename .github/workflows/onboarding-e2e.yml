@@ -142,7 +142,10 @@ jobs:
             exit 1
           fi
           set +e
-          pnpm --filter @brain/web exec playwright test \
+          # chromium only — these anon specs assert URLs + HTTP status, not
+          # mobile layout, so the Pixel-5 project just doubled the run for no
+          # added coverage. Keeps the gate, ~halves its runtime.
+          pnpm --filter @brain/web exec playwright test --project=chromium \
             e2e/welcome-public-urls.spec.ts \
             e2e/healthz.spec.ts
           RC=$?
