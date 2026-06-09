@@ -156,6 +156,43 @@ When the user has no projects yet, the response is `{ "project": null }` — the
 
 For project-scoped tokens, `projectName` is silently ignored — the scope wins.
 
+### `brain_report_session_outcome` — `learnings` parameter (close-capture, 2026-06-09)
+
+`brain_report_session_outcome` accepts an optional `learnings` array (0–5 items)
+— the durable rules the agent distilled from the session, shaped like the
+knowledge model itself:
+
+```json
+{
+  "trigger":   "when scaffolding a React form in this repo",
+  "rule":      "use react-hook-form + zod, not Formik",
+  "rationale": "Formik abandoned; team standard",
+  "type":      "reflex | recipe | heuristic | principle | anti_principle",
+  "source":    "user_correction | decision | discovery",
+  "confidence": 0.9
+}
+```
+
+Semantics:
+
+- **Never blocks the close.** Items are validated *per-item*; invalid ones are
+  dropped (and counted in the `report.learnings_captured` log) while the
+  outcome report, SQS, and confidence updates proceed normally. More than 5
+  items → the first 5 are kept.
+- **Persistence.** Each valid item becomes a
+  `SessionEvent { eventType: "learning_captured" }` row.
+- **Refine mode.** When KEA runs for a session that has captured learnings, it
+  *validates* them (durability/specificity judge, confidence clamped ≤ 0.95)
+  instead of mining the summary — then the usual quality filter + semantic
+  dedup apply. Persisted rows are tagged `close_capture`, so yield is
+  queryable split by source (`kea.funnel` log: `mode`, `submitted`). Sessions
+  without learnings keep the original mine path.
+
+Why: per-session mining yielded ~17% because single-session summaries are
+thin. The agent has the full session in *its own* context — close-capture asks
+it to hand over the distilled `(trigger, rule, rationale)` at the one call
+every client already makes.
+
 ### Ownership scope (v0.11.2, extended v0.14.0)
 
 Every tool that takes a caller-supplied `sessionId`, `projectId`, or `knowledgeId` validates ownership before mutating:

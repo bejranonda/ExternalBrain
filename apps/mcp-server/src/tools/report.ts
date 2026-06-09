@@ -1,6 +1,14 @@
 import { z } from "zod";
 import { db } from "@brain/db";
-import { evaluation, bulkBumpKnowledgeOutcome, getLogger, BrainError } from "@brain/core";
+import {
+  evaluation,
+  bulkBumpKnowledgeOutcome,
+  getLogger,
+  BrainError,
+  validateSubmittedLearnings,
+  LEARNING_EVENT_TYPE,
+  MAX_LEARNINGS_PER_SESSION,
+} from "@brain/core";
 import { enqueueJob } from "../jobs.js";
 import type { ToolDef } from "./index.js";
 
@@ -19,12 +27,16 @@ const inputShape = z.object({
   userFeedbackComment: z.string().optional(),
   durationMs: z.number().int().min(0).default(0),
   tokensUsed: z.number().int().min(0).default(0),
+  // Deliberately loose: per-item validation happens in
+  // validateSubmittedLearnings so one malformed learning can never fail
+  // the whole outcome report (spec 2026-06-09).
+  learnings: z.array(z.unknown()).optional(),
 });
 
 export const reportSessionOutcome: ToolDef = {
   name: "brain_report_session_outcome",
   description:
-    "Report the outcome of a coding session after completion. Must be called after the user accepts/rejects generated code. Enables the Brain's feedback loop (confidence updates + autoskill proposals).",
+    "Report the outcome of a coding session after completion. Must be called after the user accepts/rejects generated code. Include `learnings` (0-5): the durable rules you discovered this session — ESPECIALLY anything the user corrected or rejected ('we use X not Y here'). Distill each as {trigger, rule, rationale}. Enables the Brain's feedback loop (confidence updates + autoskill proposals).",
   inputSchema: {
     type: "object",
     required: ["sessionId", "success"],
@@ -45,6 +57,31 @@ export const reportSessionOutcome: ToolDef = {
       userFeedbackComment: { type: "string" },
       durationMs: { type: "integer" },
       tokensUsed: { type: "integer" },
+      learnings: {
+        type: "array",
+        maxItems: 5,
+        description:
+          "0-5 durable learnings you distilled from this session — ESPECIALLY user corrections and rejected approaches. Invalid items are dropped without failing the call.",
+        items: {
+          type: "object",
+          required: ["trigger", "rule", "rationale", "type", "source"],
+          properties: {
+            trigger: {
+              type: "string",
+              description:
+                "When does this apply? e.g. 'when scaffolding a React form in this repo'",
+            },
+            rule: { type: "string", description: "The rule to follow, specific to this codebase/team" },
+            rationale: { type: "string", description: "Why — what happens otherwise" },
+            type: {
+              type: "string",
+              enum: ["reflex", "recipe", "heuristic", "principle", "anti_principle"],
+            },
+            source: { type: "string", enum: ["user_correction", "decision", "discovery"] },
+            confidence: { type: "number", minimum: 0, maximum: 1 },
+          },
+        },
+      },
     },
   },
   handler: async (raw, auth) => {
@@ -67,6 +104,38 @@ export const reportSessionOutcome: ToolDef = {
     }
 
     // 1. Close the session
+    // Close-capture (spec 2026-06-09): persist agent-submitted learnings as
+    // events so KEA's refine mode can validate them. Written BEFORE the
+    // kea.extract enqueue below — the worker rebuilds its payload from the
+    // DB, so the events must exist when the job runs. Per-item validation:
+    // a malformed learning must never block the outcome report.
+    if (input.learnings && input.learnings.length > 0) {
+      const { valid, droppedInvalid, droppedOverflow } = validateSubmittedLearnings(
+        input.learnings,
+      );
+      if (valid.length > 0) {
+        await db.sessionEvent.createMany({
+          data: valid.map((l) => ({
+            sessionId: input.sessionId,
+            eventType: LEARNING_EVENT_TYPE,
+            payload: l,
+          })),
+        });
+      }
+      log.info(
+        {
+          op: "report.learnings_captured",
+          sessionId: input.sessionId,
+          submitted: input.learnings.length,
+          captured: valid.length,
+          droppedInvalid,
+          droppedOverflow,
+          cap: MAX_LEARNINGS_PER_SESSION,
+        },
+        "report.learnings_captured",
+      );
+    }
+
     const outcome = input.success
       ? "success"
       : input.errors.length > 0

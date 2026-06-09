@@ -19,6 +19,12 @@ import { db, toVector } from "@brain/db";
 import { embed } from "./embedding.js";
 import { getLogger } from "./logger.js";
 import { writeAudit } from "./audit.js";
+import {
+  LEARNING_EVENT_TYPE,
+  MAX_SUBMITTED_CONFIDENCE,
+  validateSubmittedLearnings,
+  type Learning,
+} from "./learnings.js";
 
 export interface KEAInputPayload {
   sessionId: string;
@@ -40,6 +46,8 @@ export interface KEAInputPayload {
   userFeedbackComment?: string | null | undefined;
   durationMs: number;
   tokensUsed: number;
+  /** Close-capture learnings the agent submitted at session close (spec 2026-06-09). */
+  submittedLearnings?: Learning[] | undefined;
 }
 
 /** KEA-side scope union — wider than the platform's KnowledgeScope because
@@ -109,22 +117,75 @@ Output JSON only, no prose before or after.`;
 // Main entry
 // ============================================================
 
+/** Judges agent-submitted learnings for durability/specificity (refine mode). */
+export type RefineJudge = (
+  learnings: Learning[],
+  payload: KEAInputPayload,
+) => Promise<KEAFinding[]>;
+
+export interface ExtractOpts {
+  /**
+   * Test seams (ESM wrapper rule, GUIDELINES §4) — the inner functions are
+   * bound at module load, so vi.spyOn can't intercept them. Production
+   * callers never set these; CI tests inject them because the real filter
+   * and persist paths call embed(), which needs a provider key CI doesn't
+   * have.
+   */
+  judge?: RefineJudge;
+  mine?: (payload: KEAInputPayload) => Promise<KEAFinding[]>;
+  filter?: (findings: KEAFinding[], ownerUserId: string) => Promise<KEAFinding[]>;
+  persist?: (findings: KEAFinding[], payload: KEAInputPayload, tags: string[]) => Promise<Knowledge[]>;
+}
+
 export async function extractFromSession(
   payload: KEAInputPayload,
+  opts: ExtractOpts = {},
 ): Promise<Knowledge[]> {
-  const findings = await runLLM(payload);
-  const filtered = await applyQualityFilter(findings, payload.userId);
-  const persisted = await persist(filtered, payload);
+  const submitted = payload.submittedLearnings ?? [];
+  const mineFn = opts.mine ?? runLLM;
+  let mode: "refine" | "mine" = submitted.length > 0 ? "refine" : "mine";
+  let findings: KEAFinding[];
+
+  if (mode === "refine") {
+    try {
+      findings = await refineSubmittedLearnings(payload, submitted, opts.judge ?? defaultRefineJudge);
+    } catch (err) {
+      // Spec: a provider blip on the judge must never lose the session —
+      // fall back to mining the summary instead.
+      getLogger("kea", { stream: "stdout" }).warn(
+        {
+          op: "kea.refine_fallback",
+          sessionId: payload.sessionId,
+          err: err instanceof Error ? err.message : String(err),
+        },
+        "kea.refine_fallback",
+      );
+      mode = "mine";
+      findings = await mineFn(payload);
+    }
+  } else {
+    findings = await mineFn(payload);
+  }
+
+  const filtered = await (opts.filter ?? applyQualityFilter)(findings, payload.userId);
+  const persisted = await (opts.persist ?? persist)(
+    filtered,
+    payload,
+    mode === "refine" ? ["close_capture"] : [],
+  );
   // Diagnostic breakdown: `items` in the worker log only shows the final
   // count, conflating "LLM returned zero findings" with "quality filter
   // dropped them all." This trace separates the two so the operator
   // doesn't have to guess which lever to tune (model quality vs filter
   // threshold) when KEA is silent. See docs/RUNBOOK.md
-  // §"Tokens connect but brain doesn't learn".
+  // §"Tokens connect but brain doesn't learn". `mode`/`submitted` split
+  // the yield metric by close-capture vs mine (spec 2026-06-09).
   getLogger("kea", { stream: "stdout" }).info(
     {
       op: "kea.funnel",
       sessionId: payload.sessionId,
+      mode,
+      submitted: submitted.length,
       llmFindings: findings.length,
       filterPassed: filtered.length,
       persisted: persisted.length,
@@ -142,6 +203,8 @@ export async function extractFromSession(
     targetType: "Session",
     targetId: payload.sessionId,
     payload: {
+      mode,
+      submitted: submitted.length,
       llmFindings: findings.length,
       filterPassed: filtered.length,
       persisted: persisted.length,
@@ -150,6 +213,75 @@ export async function extractFromSession(
     ...(payload.projectId ? { projectId: payload.projectId } : {}),
   });
   return persisted;
+}
+
+// ============================================================
+// Refine mode (spec 2026-06-09) — validate agent-submitted learnings
+// instead of mining a thin summary. The agent distilled in its own
+// context (where the full session is loaded); the judge only screens
+// for durability/specificity and normalizes wording.
+// ============================================================
+
+const REFINE_SYSTEM_PROMPT = `You are KEA (Knowledge Extraction Agent) in REFINE mode.
+
+The coding agent that just finished a session has SUBMITTED candidate learnings
+it distilled from its own context. Your job is to VALIDATE each candidate — not
+to mine new ones:
+- KEEP a candidate only if it is durable (true beyond this one task) and
+  specific (names a concrete trigger and rule, not generic advice).
+- Normalize wording into one crisp trigger + rule + rationale.
+- You may LOWER a confidence you find inflated; never raise it.
+- DROP candidates that are session-trivia, generic best practice, or vague.
+
+Return JSON only:
+{
+  "findings": [
+    {
+      "type": "reflex|recipe|heuristic|principle|anti_principle",
+      "scope": "user",
+      "trigger": "...",
+      "rule": "...",
+      "rationale": "...",
+      "confidence": 0.0-1.0
+    }
+  ]
+}
+If nothing survives, return {"findings": []}.`;
+
+/** Default judge — same cheap-model family dispatch as runLLM, refine prompt. */
+async function defaultRefineJudge(
+  learnings: Learning[],
+  payload: KEAInputPayload,
+): Promise<KEAFinding[]> {
+  const model = process.env.KEA_REFINE_MODEL ?? process.env.KEA_MODEL ?? "qwen3-coder";
+  const userPrompt =
+    `SESSION CONTEXT (for judging durability):\n` +
+    JSON.stringify(
+      { prompt: payload.prompt, framework: payload.framework, language: payload.language },
+      null,
+      2,
+    ) +
+    `\n\nSUBMITTED CANDIDATES:\n${JSON.stringify(learnings, null, 2)}\n\nValidate now.`;
+  if (model.startsWith("claude")) {
+    return callAnthropic(userPrompt, { model, systemPrompt: REFINE_SYSTEM_PROMPT });
+  }
+  if (model.startsWith("qwen") || model.startsWith("glm")) {
+    return callDashScope(userPrompt, model, REFINE_SYSTEM_PROMPT);
+  }
+  return callOpenAI(userPrompt, model, REFINE_SYSTEM_PROMPT);
+}
+
+async function refineSubmittedLearnings(
+  payload: KEAInputPayload,
+  learnings: Learning[],
+  judge: RefineJudge,
+): Promise<KEAFinding[]> {
+  const findings = await judge(learnings, payload);
+  // The judge may lower but never raise: clamp to the submission ceiling.
+  return findings.map((f) => ({
+    ...f,
+    confidence: Math.min(f.confidence, MAX_SUBMITTED_CONFIDENCE),
+  }));
 }
 
 // ============================================================
@@ -567,13 +699,14 @@ async function callAnthropic(
 async function callOpenAI(
   userPrompt: string,
   model: string,
+  systemPrompt: string = SYSTEM_PROMPT,
 ): Promise<KEAFinding[]> {
   const { default: OpenAI } = await import("openai");
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const res = await client.chat.completions.create({
     model,
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
     response_format: { type: "json_object" },
@@ -585,6 +718,7 @@ async function callOpenAI(
 async function callDashScope(
   userPrompt: string,
   model: string,
+  systemPrompt: string = SYSTEM_PROMPT,
 ): Promise<KEAFinding[]> {
   // DashScope is OpenAI-compatible via its /compatible-mode endpoint.
   // Guard up-front: passing undefined apiKey makes the OpenAI SDK throw
@@ -606,7 +740,7 @@ async function callDashScope(
   const res = await client.chat.completions.create({
     model,
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
     max_tokens: 1024,
@@ -715,6 +849,7 @@ async function isSemanticDuplicate(
 async function persist(
   findings: KEAFinding[],
   payload: KEAInputPayload,
+  tags: string[] = [],
 ): Promise<Knowledge[]> {
   // Idempotency on retry (audit C8 / #108): wrap each finding's persist
   // sequence (create row + write embedding + record application) in a
@@ -746,7 +881,7 @@ async function persist(
           rationale: f.rationale,
           framework: payload.framework ?? null,
           language: payload.language ?? null,
-          tags: [],
+          tags,
           confidence: f.confidence,
           extractedBy: "kea",
           sourceSessionIds: [payload.sessionId],
@@ -792,6 +927,15 @@ export async function buildPayload(
     (session.events.find((e) => e.eventType === "session_started")
       ?.payload as { prompt?: string } | null)?.prompt ?? "";
 
+  // Close-capture: collect agent-submitted learnings persisted by
+  // report_session_outcome as learning_captured events. Re-validated here
+  // (not just at capture) so a hand-inserted event can't bypass the shape.
+  const submitted = validateSubmittedLearnings(
+    session.events
+      .filter((e) => e.eventType === LEARNING_EVENT_TYPE)
+      .map((e) => e.payload),
+  ).valid;
+
   return {
     sessionId,
     userId: session.userId,
@@ -809,5 +953,6 @@ export async function buildPayload(
     userFeedbackComment: metrics.userFeedbackComment ?? null,
     durationMs: metrics.durationMs,
     tokensUsed: metrics.tokensUsed,
+    ...(submitted.length > 0 ? { submittedLearnings: submitted } : {}),
   };
 }

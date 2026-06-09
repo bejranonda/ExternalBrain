@@ -70,6 +70,11 @@ function buildServer(counter: CallCounter = { n: 0, lists: 0 }): Server {
         "End each coding session with `brain_report_session_outcome` so the " +
         "Knowledge Extraction Agent can learn from the outcome — without " +
         "that close call, sessions stay open and the brain doesn't learn. " +
+        "When you call it, include `learnings`: 0-5 durable rules you " +
+        "distilled from the session — especially user corrections and " +
+        "rejected approaches — each as {trigger, rule, rationale, type, " +
+        "source}. This is how the Brain learns best; a session closed " +
+        "without learnings only gets mined from a thin summary. " +
         "If any tool returns \"Server not initialized\" or the session " +
         "appears stuck, the MCP transport dropped (server restart, " +
         "30-min orphan sweep, or network blip) — the client SDK does NOT " +
