@@ -82,12 +82,21 @@ path, not opt-in by label. This closed the gap where three user-visible bugs
 once shipped past CI because the suite only asserted signed-in behaviour. See
 [CICD.md](./CICD.md).
 
+**Authed-surface CI tier (2026-06-09).** The `authed-e2e` workflow
+(`.github/workflows/authed-e2e.yml`) boots the app in credentials mode with the
+seeded fixture (the env-admin maps onto seeded Alex via
+`ADMIN_EMAILS=alex@brain.local`), signs in once via `e2e/auth.setup.ts`, and
+runs the stable signed-in subset — dashboard, sessions, skills, nav — chromium
+only, path-gated on `apps/web/** + packages/{core,db}/**`. Excluded by design:
+oracle/streaming (no LLM key in CI), signout (destroys the shared auth state),
+visual/responsive (baseline flake). **Report-only for now** — promote to a
+required check once proven green across PRs (same rollout as the anon gate).
+
 **Playwright top-5 smoke (v0.14.0).** A separate deployed-brain Playwright suite
-(`apps/web/tests/e2e/`) covers the top-5 *authenticated* surfaces: sign-in,
-dashboard, oracle, sessions, skills. It needs an auth cookie + a target host and
-is run on demand against a deployed brain (it is the natural next tier to wire
-into CI alongside the anonymous gate above). See `APPROACH.md §5ah` for the
-rationale.
+(`apps/web/tests/e2e/`) covers the top-5 *authenticated* surfaces against a
+LIVE brain: sign-in, dashboard, oracle, sessions, skills. It needs an auth
+cookie + a target host and is run on demand (e.g. post-deploy validation). See
+`APPROACH.md §5ah` for the rationale.
 
 **Validation discipline: exercise the artifact, not just the tests (2026-05-11).** "CI is green" is a necessary precondition, not sufficient evidence that a change does what it claims. For any PR whose value depends on runtime behavior — installers, deploy scripts, observability changes, schema migrations, anything that touches the data plane — run the actual artifact against the actual system before claiming completion. PR #202 (MCP observability + installer v2) shipped a bug in its own installer that all tests passed: the unit test used `JSON.parse`, the installer used a sed-regex that didn't handle JSON-escaped quotes, and the failure mode was an orphan Session — the very thing the PR was meant to detect. The bug surfaced only when the installer ran end-to-end and the DB counters were re-read. **Rule:** if your PR description says "ships a fix for X," your test plan must include exercising the deployed artifact and observing X actually fixed in the conditions it claims to fix. The audit-friendly read-only diagnostic script at `.dev/brain-learning-evidence.sh` is the canonical example of a "did X actually fix?" probe.
 
