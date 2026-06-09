@@ -5,6 +5,13 @@ test.describe("dashboard surface", () => {
     await page.goto("/#dashboard");
     // Wait for the app container to reflect the current route.
     await expect(page.locator('[data-screen-label="dashboard"]')).toBeVisible({ timeout: 15_000 });
+    // The home-hero redesign moved the data panels (composition, SQS, recent
+    // sessions, proposals, View-all) behind the collapsed "▸ Show everything"
+    // fold. Expand it so the panel assertions below can see them (#52).
+    const fold = page.getByRole("button", { name: /Show everything/i }).first();
+    if (await fold.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await fold.click();
+    }
   });
 
   test("H1 contains the dashboard title", async ({ page }) => {
@@ -28,8 +35,10 @@ test.describe("dashboard surface", () => {
     });
 
     // Expand the Advanced toggle to surface KnowledgeTypes/KnowledgeHealth.
+    // (beforeEach already opened the "Show everything" fold; this covers the
+    // nested Advanced section where present.)
     const advancedBtn = page.getByRole("button", {
-      name: /Advanced metrics|connection status/i,
+      name: /Show everything|Advanced metrics|connection status/i,
     }).first();
     if (await advancedBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
       await advancedBtn.click();

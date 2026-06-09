@@ -265,8 +265,10 @@ test.describe("skills surface", () => {
     const detailPane = page.locator(".skills-detail");
     await expect(detailPane).toBeVisible({ timeout: 5_000 });
 
-    // The "Download rules bundle" button is at the bottom of the detail pane
-    const downloadBtn = detailPane.locator("button").filter({ hasText: /download rules bundle/i });
+    // The bundle download button sits at the bottom of the detail pane.
+    // "rules bundle" was renamed "skills bundle" in the vocabulary cleanup;
+    // accept both so the spec survives wording shifts (#52).
+    const downloadBtn = detailPane.locator("button").filter({ hasText: /download (rules|skills) bundle/i });
     await expect(downloadBtn).toBeVisible({ timeout: 5_000 });
 
     // Set up download listener

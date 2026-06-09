@@ -143,11 +143,14 @@ jobs:
           # visual/responsive excluded — flake-prone baselines).
           # --project=chromium pulls in the auth `setup` project via its
           # declared dependency (playwright.config.ts).
+          # Patterns are ANCHORED: Playwright treats args as substring regexes,
+          # so a bare "e2e/dashboard.spec.ts" also matches the deployed-brain
+          # suite at tests/e2e/dashboard.spec.ts, which can't run in CI (#52).
           pnpm --filter @brain/web exec playwright test --project=chromium \
-            e2e/dashboard.spec.ts \
-            e2e/sessions.spec.ts \
-            e2e/skills.spec.ts \
-            e2e/nav.spec.ts
+            "^e2e/dashboard.spec.ts" \
+            "^e2e/sessions.spec.ts" \
+            "^e2e/skills.spec.ts" \
+            "^e2e/nav.spec.ts"
           RC=$?
           kill "$APP_PID" 2>/dev/null || true
           exit $RC

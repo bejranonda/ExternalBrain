@@ -1,13 +1,16 @@
 import { test, expect } from "@playwright/test";
 
 // Routes ordered by keyboard shortcut 1..6 — matches KEY_MAP in lib/brain/routes.ts.
+// `label` is the VISIBLE rail text — it diverges from the hash where the
+// vocabulary cleanup renamed a surface (autoskill → "Proposals"). Asserting
+// the label keeps this spec honest against the locked glossary (#52).
 const SURFACES = [
-  { key: "1", hash: "dashboard" },
-  { key: "2", hash: "oracle" },
-  { key: "3", hash: "skills" },
-  { key: "4", hash: "graph" },
-  { key: "5", hash: "autoskill" },
-  { key: "6", hash: "sessions" },
+  { key: "1", hash: "dashboard", label: "Dashboard" },
+  { key: "2", hash: "oracle", label: "Oracle" },
+  { key: "3", hash: "skills", label: "Skills" },
+  { key: "4", hash: "graph", label: "Graph" },
+  { key: "5", hash: "autoskill", label: "Proposals" },
+  { key: "6", hash: "sessions", label: "Sessions" },
 ] as const;
 
 test.describe("navigation rail", () => {
@@ -19,9 +22,9 @@ test.describe("navigation rail", () => {
     await expect(rail).toBeVisible();
 
     for (const s of SURFACES) {
-      // Each surface has a rail-item button; check by aria-label or button text.
+      // Each surface has a rail-item button; check by its visible label.
       await expect(
-        rail.locator(`button[class*="rail-item"]`).filter({ hasText: s.hash }),
+        rail.locator(`button[class*="rail-item"]`).filter({ hasText: s.label }),
       ).toBeVisible({ timeout: 5_000 });
     }
   });
