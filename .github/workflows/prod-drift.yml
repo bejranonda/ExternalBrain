@@ -1,0 +1,98 @@
+name: prod-drift
+
+# "Green on main ≠ live" alarm. The v1.2.x stale-deploy incident: a React #418
+# fix sat merged on main for two days while production ran an older build —
+# the bug looked alive and cost a diagnosis session. Deploys here are
+# deliberately human-run (scripts/deploy.sh), so this watchdog closes the gap
+# the other way: once a day it compares the deployed version (from
+# /api/healthz, baked via git describe at build time) against main's
+# git describe, and keeps exactly one "prod is behind main" issue open while
+# they differ. In-sync (or no BRAIN_DEPLOY_URL secret — e.g. a fork with no
+# deployment) → green no-op and any open drift issue is closed.
+#
+# BRAIN_DEPLOY_URL is a SECRET, not a variable: this repo deliberately does
+# not publish its deployment hostname, and workflow logs are public — secrets
+# are masked there.
+
+on:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    name: deployed vs main
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      DEPLOY_URL: ${{ secrets.BRAIN_DEPLOY_URL }}
+    steps:
+      - name: Checkout (full history for git describe)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compare deployed version to main
+        id: drift
+        run: |
+          if [ -z "$DEPLOY_URL" ]; then
+            echo "BRAIN_DEPLOY_URL secret not set — nothing to watch (fork or no deployment). Skipping."
+            echo "state=skip" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          DEPLOYED=$(curl -fsS --max-time 10 "$DEPLOY_URL/api/healthz" | jq -r '.version // empty')
+          if [ -z "$DEPLOYED" ]; then
+            # Older deployment without the version field, or unreachable —
+            # surface as drift-unknown rather than failing the run red.
+            echo "healthz returned no version (pre-version build or unreachable)."
+            echo "state=unknown" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          MAIN=$(git describe --tags --always origin/main)
+          echo "deployed=$DEPLOYED" >> "$GITHUB_OUTPUT"
+          echo "main=$MAIN" >> "$GITHUB_OUTPUT"
+          if [ "$DEPLOYED" = "$MAIN" ]; then
+            echo "state=in_sync" >> "$GITHUB_OUTPUT"
+            echo "In sync: deployed=$DEPLOYED main=$MAIN"
+          else
+            echo "state=drift" >> "$GITHUB_OUTPUT"
+            echo "DRIFT: deployed=$DEPLOYED main=$MAIN"
+          fi
+
+      - name: Open/update or close the drift issue
+        if: steps.drift.outputs.state == 'drift' || steps.drift.outputs.state == 'in_sync'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATE: ${{ steps.drift.outputs.state }}
+          DEPLOYED: ${{ steps.drift.outputs.deployed }}
+          MAIN: ${{ steps.drift.outputs.main }}
+        run: |
+          EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --label prod-drift --state open --json number --jq '.[0].number // empty')
+          if [ "$STATE" = "drift" ]; then
+            BODY="Production is running \`$DEPLOYED\` but \`main\` is at \`$MAIN\`.
+
+Merged work is not live. Deploy when convenient:
+
+\`\`\`bash
+git pull --ff-only && ./scripts/deploy.sh
+\`\`\`
+
+_This issue is managed by the \`prod-drift\` workflow — it updates daily while drift persists and closes itself once production matches \`main\`._"
+            if [ -n "$EXISTING" ]; then
+              gh issue comment "$EXISTING" --repo "$GITHUB_REPOSITORY" --body "Still drifting: deployed \`$DEPLOYED\`, main \`$MAIN\`."
+            else
+              gh issue create --repo "$GITHUB_REPOSITORY" \
+                --title "prod-drift: production is behind main" \
+                --label prod-drift \
+                --body "$BODY"
+            fi
+          else
+            if [ -n "$EXISTING" ]; then
+              gh issue close "$EXISTING" --repo "$GITHUB_REPOSITORY" \
+                --comment "Back in sync: production and \`main\` are both at \`$DEPLOYED\`."
+            fi
+          fi
