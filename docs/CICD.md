@@ -7,7 +7,7 @@ infrastructure.
 
 ## The whole picture in one diagram
 
-```
+```text
   you open a PR ──▶  GitHub Actions (CI)         you run a script (CD)
                      ├─ typecheck · test · build   ├─ ./scripts/dev-up.sh   (local, no TLS)
                      ├─ fresh-DB migrate · FTS      └─ ./scripts/deploy.sh   (public VM, TLS)
