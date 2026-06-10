@@ -12,8 +12,13 @@ test.describe("skills surface", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/#skills");
     await expect(page.locator('[data-screen-label="skills"]')).toBeVisible({ timeout: 15_000 });
-    // Wait for the list to load (seed has 16 items)
-    await expect(page.locator(".skills-list")).toBeVisible({ timeout: 10_000 });
+    // Wait for the list to load (seed has 16 items). 30s, not 10s: while
+    // /api/knowledge is in flight the Skills surface renders a loading
+    // panel with NO .skills-list at all, and the FIRST query on a freshly
+    // booted CI stack (cold Prisma pool under runner load) can exceed 10s —
+    // that single race produced every "different skills test fails each
+    // run" failure in the authed-tier rollout (#52). Warm loads are <1s.
+    await expect(page.locator(".skills-list")).toBeVisible({ timeout: 30_000 });
   });
 
   // Clean up rows authored by the fork-on-edit test. Without this, every run
@@ -60,10 +65,6 @@ test.describe("skills surface", () => {
   });
 
   test("sort cycles through recency / confidence / uses and top row changes", async ({ page }) => {
-    // Timing-sensitive under CI load (passed run 4, failed runs 5-6 of the
-    // authed tier with the sort button timing out) — the serial suite's
-    // shared state makes it environment-dependent. Dev-stack only (#52).
-    test.skip(!!process.env["CI"], "serial-suite timing flake under CI load (#52)");
     const itemButtons = page.locator(".skills-list .scroll button");
     await expect(itemButtons.first()).toBeVisible({ timeout: 12_000 });
 
@@ -262,10 +263,6 @@ test.describe("skills surface", () => {
   });
 
   test("download rules bundle: fires a download event with non-empty markdown", async ({ page }) => {
-    // Still red under the CI-booted stack after the wording fix — not yet
-    // root-caused (download-event handling vs export prerequisites). Kept
-    // runnable against a dev stack; tracked in #52.
-    test.skip(!!process.env["CI"], "download flow not yet green under the CI-booted stack (#52)");
     const firstItem = page.locator(".skills-list .scroll button").first();
     await expect(firstItem).toBeVisible({ timeout: 12_000 });
     await firstItem.click();

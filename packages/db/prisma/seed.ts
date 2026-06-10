@@ -85,6 +85,10 @@ async function seedSessions(): Promise<void> {
   // 6 sessions; deterministic ids; mix of outcomes; all closed so KEA
   // would normally fire (but the seed doesn't trigger pg-boss jobs).
   const outcomes = ["success", "success", "success", "success", "partial", "failed"] as const;
+  // Deterministic SQS values so the dashboard's SQS trend renders real
+  // numbers from the bare seed — the e2e assertion needs a non-zero value
+  // without running the scoring pipeline (#52).
+  const sqsValues = [82, 76, 88, 91, 54, 31] as const;
   const now = Date.now();
   for (let i = 0; i < 6; i++) {
     const id = `seed_session_${i.toString().padStart(2, "0")}_______`;
@@ -100,8 +104,9 @@ async function seedSessions(): Promise<void> {
         startedAt,
         endedAt,
         outcome: outcomes[i],
+        sqs: sqsValues[i],
       },
-      update: { endedAt, outcome: outcomes[i] },
+      update: { endedAt, outcome: outcomes[i], sqs: sqsValues[i] },
     });
   }
 }
@@ -139,6 +144,12 @@ async function seedKnowledge(): Promise<void> {
   for (let i = 0; i < rules.length; i++) {
     const r = rules[i]!;
     const id = `seed_knowledge_${i.toString().padStart(2, "0")}_____`;
+    // Tag the first 4 rows "rules-export" so the Skills export/download
+    // path has content out of the box: buildRulesBundle() selects ONLY
+    // rules-export-tagged rows, and without any the demo's "Download
+    // skills bundle" button produced an EMPTY file (first-run wart found
+    // via the authed e2e tier, #52).
+    const tags = i < 4 ? ["seed", "rules-export"] : ["seed"];
     await db.knowledge.upsert({
       where: { id },
       create: {
@@ -151,11 +162,11 @@ async function seedKnowledge(): Promise<void> {
         ruleText: r.rule,
         rationale: r.rationale,
         confidence: 0.85,
-        tags: ["seed"],
+        tags,
         extractedBy: "imported",
         visibility: "project",
       },
-      update: {},
+      update: { tags },
     });
   }
 }
