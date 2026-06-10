@@ -117,6 +117,14 @@ jobs:
           # Maps the credentials admin onto the seeded Alex row (fixture owner).
           ADMIN_EMAILS: alex@brain.local
           NODE_ENV: production
+          # The whole suite hits /api/* from ONE localhost IP; with the
+          # default 200/min the burst (24 tests + nav count polling + serial
+          # retries re-running the chain) trips the limiter and /api/knowledge
+          # starts returning 429 → the Skills surface renders its error branch
+          # with no .skills-list at all. That was the "intermittent skills
+          # void" across rollout runs 4-11 (#52) — proven via the trace
+          # network log. Prod default untouched.
+          RATE_LIMIT_MCP_PER_MINUTE: "5000"
           E2E_BASE_URL: http://localhost:3000
           E2E_ADMIN_USERNAME: alex
           E2E_ADMIN_PASSWORD: e2e-ci-throwaway-password
