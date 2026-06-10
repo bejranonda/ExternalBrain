@@ -1,0 +1,170 @@
+name: authed-e2e
+
+# Signed-in e2e tier (#authed-tier, follow-up to the anon onboarding gate).
+# The anon gate covers /welcome + health; this job covers what a SIGNED-IN
+# user sees: dashboard, sessions, skills, nav — the "top surfaces" smoke from
+# GUIDELINES §4, now CI-run instead of on-demand.
+#
+# How auth works here: the app boots in credentials mode (Mode A) with
+# ADMIN_USERNAME=alex + a bcrypt hash generated at runtime from a throwaway
+# password, and ADMIN_EMAILS=alex@brain.local so the credentials admin maps
+# onto the SEEDED Alex user — the owner of the e2e fixture data the specs
+# assert against (skills ≥16, sessions ≥6, …). Playwright's auth.setup.ts
+# signs in once via /signin and persists the session for the specs.
+#
+# The password is a literal in this public file — deliberate: it guards an
+# ephemeral CI database containing only the seed fixture. Nothing real.
+#
+# Rollout: NOT a required check yet (same pattern as the anon gate — prove
+# it green across PRs first, then promote in branch protection).
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: authed-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  authed-e2e:
+    name: authed surfaces e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      db:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: brain
+          POSTGRES_PASSWORD: brain
+          POSTGRES_DB: brain
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U brain"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://brain:brain@localhost:5432/brain
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect web-surface changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            web:
+              - 'apps/web/**'
+              - 'packages/core/**'
+              - 'packages/db/**'
+              - '.github/workflows/authed-e2e.yml'
+
+      - name: Setup pnpm
+        if: steps.changes.outputs.web == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node
+        if: steps.changes.outputs.web == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        if: steps.changes.outputs.web == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate
+        if: steps.changes.outputs.web == 'true'
+        run: pnpm --filter @brain/db exec prisma generate
+
+      - name: Migrate + seed fixture
+        if: steps.changes.outputs.web == 'true'
+        env:
+          PGPASSWORD: brain
+        run: |
+          psql -h localhost -U brain -d brain -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+          pnpm --filter @brain/db exec prisma migrate deploy
+          # The e2e fixture: Alex (admin) + 1 org + 1 project + 6 sessions +
+          # 16 knowledge rows + 4 proposals. Counts are load-bearing —
+          # skills.spec asserts ≥16, sessions.spec ≥6 (GUIDELINES §4).
+          pnpm --filter @brain/db exec prisma db seed
+
+      - name: Build web (+ workspace deps)
+        if: steps.changes.outputs.web == 'true'
+        run: pnpm turbo run build --filter=@brain/web
+
+      - name: Install Playwright chromium
+        if: steps.changes.outputs.web == 'true'
+        run: pnpm --filter @brain/web exec playwright install --with-deps chromium
+
+      - name: Start web + run authed e2e
+        if: steps.changes.outputs.web == 'true'
+        env:
+          AUTH_SECRET: ci-e2e-not-a-real-secret-0000000000000000
+          ADMIN_USERNAME: alex
+          # Maps the credentials admin onto the seeded Alex row (fixture owner).
+          ADMIN_EMAILS: alex@brain.local
+          NODE_ENV: production
+          E2E_BASE_URL: http://localhost:3000
+          E2E_ADMIN_USERNAME: alex
+          E2E_ADMIN_PASSWORD: e2e-ci-throwaway-password
+        run: |
+          # bcryptjs ships with apps/web; resolve it from that cwd (pnpm does
+          # not hoist it to the workspace root). Cost 10 keeps sign-in fast.
+          export ADMIN_PASSWORD_HASH=$(cd apps/web && node -e "console.log(require('bcryptjs').hashSync(process.env.E2E_ADMIN_PASSWORD, 10))")
+          pnpm --filter @brain/web start &
+          APP_PID=$!
+          for _ in $(seq 1 60); do
+            if curl -sSf --max-time 2 http://localhost:3000/api/healthz >/dev/null 2>&1; then
+              echo "web is up"; break
+            fi
+            sleep 1
+          done
+          if ! curl -sSf --max-time 3 http://localhost:3000/api/healthz >/dev/null 2>&1; then
+            echo "::error::web never became healthy on :3000"
+            kill "$APP_PID" 2>/dev/null || true
+            exit 1
+          fi
+          set +e
+          # Curated stable subset (no LLM key in CI → oracle/streaming excluded;
+          # signout excluded — it would destroy the shared auth state;
+          # visual/responsive excluded — flake-prone baselines).
+          # --project=chromium pulls in the auth `setup` project via its
+          # declared dependency (playwright.config.ts).
+          # Patterns are regexes matched against the ABSOLUTE file path (so
+          # "^e2e/" matches nothing — caught on the first run). "web/e2e/<spec>"
+          # selects apps/web/e2e/* while excluding the deployed-brain suite at
+          # apps/web/tests/e2e/*, which can't run in CI (#52).
+          # --retries=1 absorbs one-off flake; a real failure fails twice.
+          # skills.spec is EXCLUDED (#52): its serial suite's beforeEach
+          # (.skills-list visible, 10s) times out intermittently under CI
+          # load — runs 5-7 each failed a different skills test at that same
+          # boundary (in-test CI-skips can't help; beforeEach fails first).
+          # It stays in the local dev-stack suite.
+          pnpm --filter @brain/web exec playwright test --project=chromium --retries=1 \
+            "web/e2e/dashboard.spec.ts" \
+            "web/e2e/sessions.spec.ts" \
+            "web/e2e/nav.spec.ts"
+          RC=$?
+          kill "$APP_PID" 2>/dev/null || true
+          exit $RC
+
+      - name: Upload Playwright report on failure
+        if: ${{ failure() && steps.changes.outputs.web == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: authed-playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7
