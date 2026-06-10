@@ -73,15 +73,20 @@ jobs:
         run: |
           EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --label prod-drift --state open --json number --jq '.[0].number // empty')
           if [ "$STATE" = "drift" ]; then
-            BODY="Production is running \`$DEPLOYED\` but \`main\` is at \`$MAIN\`.
-
-Merged work is not live. Deploy when convenient:
-
-\`\`\`bash
-git pull --ff-only && ./scripts/deploy.sh
-\`\`\`
-
-_This issue is managed by the \`prod-drift\` workflow — it updates daily while drift persists and closes itself once production matches \`main\`._"
+            # printf-composed so every source line stays indented inside this
+            # YAML block scalar — a multi-line shell string with column-1
+            # continuation lines terminates the block and invalidates the
+            # whole workflow file (#54: GitHub then registers it trigger-less).
+            BODY=$(printf '%s\n' \
+              "Production is running \`$DEPLOYED\` but \`main\` is at \`$MAIN\`." \
+              "" \
+              "Merged work is not live. Deploy when convenient:" \
+              "" \
+              '```bash' \
+              "git pull --ff-only && ./scripts/deploy.sh" \
+              '```' \
+              "" \
+              "_This issue is managed by the \`prod-drift\` workflow — it updates daily while drift persists and closes itself once production matches \`main\`._")
             if [ -n "$EXISTING" ]; then
               gh issue comment "$EXISTING" --repo "$GITHUB_REPOSITORY" --body "Still drifting: deployed \`$DEPLOYED\`, main \`$MAIN\`."
             else
