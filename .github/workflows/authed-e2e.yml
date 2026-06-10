@@ -147,13 +147,15 @@ jobs:
           # "^e2e/" matches nothing — caught on the first run). "web/e2e/<spec>"
           # selects apps/web/e2e/* while excluding the deployed-brain suite at
           # apps/web/tests/e2e/*, which can't run in CI (#52).
-          # --retries=1: the serial skills suite shares state and shows
-          # occasional one-off flake under CI load (sort-cycle test, run 5);
-          # a real failure still fails twice and goes red.
+          # --retries=1 absorbs one-off flake; a real failure fails twice.
+          # skills.spec is EXCLUDED (#52): its serial suite's beforeEach
+          # (.skills-list visible, 10s) times out intermittently under CI
+          # load — runs 5-7 each failed a different skills test at that same
+          # boundary (in-test CI-skips can't help; beforeEach fails first).
+          # It stays in the local dev-stack suite.
           pnpm --filter @brain/web exec playwright test --project=chromium --retries=1 \
             "web/e2e/dashboard.spec.ts" \
             "web/e2e/sessions.spec.ts" \
-            "web/e2e/skills.spec.ts" \
             "web/e2e/nav.spec.ts"
           RC=$?
           kill "$APP_PID" 2>/dev/null || true
