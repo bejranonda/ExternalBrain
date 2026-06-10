@@ -82,15 +82,27 @@ path, not opt-in by label. This closed the gap where three user-visible bugs
 once shipped past CI because the suite only asserted signed-in behaviour. See
 [CICD.md](./CICD.md).
 
-**Authed-surface CI tier (2026-06-09).** The `authed-e2e` workflow
-(`.github/workflows/authed-e2e.yml`) boots the app in credentials mode with the
-seeded fixture (the env-admin maps onto seeded Alex via
-`ADMIN_EMAILS=alex@brain.local`), signs in once via `e2e/auth.setup.ts`, and
-runs the stable signed-in subset — dashboard, sessions, skills, nav — chromium
-only, path-gated on `apps/web/** + packages/{core,db}/**`. Excluded by design:
-oracle/streaming (no LLM key in CI), signout (destroys the shared auth state),
-visual/responsive (baseline flake). **Report-only for now** — promote to a
-required check once proven green across PRs (same rollout as the anon gate).
+**Authed-surface CI tier (2026-06-09, required since 2026-06-10).** The
+`authed-e2e` workflow (`.github/workflows/authed-e2e.yml`) boots the app in
+credentials mode with the seeded fixture (the env-admin maps onto seeded Alex
+via `ADMIN_EMAILS=alex@brain.local`), signs in once via `e2e/auth.setup.ts`,
+and runs the signed-in suite — dashboard, sessions, skills, nav — chromium
+only with `--retries=1`, path-gated on `apps/web/** + packages/{core,db}/**`.
+It is a **required check** on `main`. Excluded by design: oracle/streaming (no
+LLM key in CI), signout (destroys the shared auth state), visual/responsive
+(baseline flake).
+
+**Rate-limit rule for in-stack test suites (2026-06-10, #52).** Any suite that
+drives the booted app from a single IP must raise
+`RATE_LIMIT_MCP_PER_MINUTE` in the app's env: the production default (200/min,
+`apps/web/proxy.ts`) trips under a test burst, `/api/*` starts returning 429,
+and surfaces render their error/empty branches — which presents as
+*intermittent, different-test-each-run* failures that no timeout increase can
+fix. The 12-iteration authed-tier rollout burned days on timing theories before
+the Playwright **trace `.network` log** showed the 429s. Corollary debugging
+rule: for CI Playwright failures, download the report artifact and read
+`data/*.md` (error context + page snapshot) and the trace zip's `.network`
+entries — run-log greps drown in app log noise.
 
 **Playwright top-5 smoke (v0.14.0).** A separate deployed-brain Playwright suite
 (`apps/web/tests/e2e/`) covers the top-5 *authenticated* surfaces against a
