@@ -771,6 +771,15 @@ html[lang="th"] .serif { font-family: 'Noto Serif Thai', var(--font-serif); }
 
   .topbar-live { display: none; }
 
+  /* #60: the topbar's flex min-content (switcher + crumbs + search + icons)
+     exceeded a phone viewport (463px on 375px) and dragged the WHOLE page's
+     scrollWidth with it — horizontal scroll everywhere. Crumbs duplicate the
+     bottom-nav's active-surface indicator on mobile, so drop them; the
+     overflow clamp is belt-and-braces so no future topbar child can widen
+     the page again. */
+  .crumbs { display: none; }
+  .topbar { min-width: 0; overflow: hidden; }
+
   .dash-head { flex-direction: column; align-items: flex-start !important; gap: 8px; }
   .dash-head > *:last-child { align-self: stretch; display: flex; gap: 6px; }
 
