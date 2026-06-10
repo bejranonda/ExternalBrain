@@ -52,7 +52,7 @@ test.describe("dashboard surface", () => {
 
   test("SQS trend element renders a non-zero / non-placeholder value", async ({ page }) => {
     // SQSChart renders a tab-num span with the current SQS value formatted with .toFixed(2)
-    // It sits inside the dash-grid-stats area. The seed now carries
+    // The seed carries
     // deterministic per-session sqs values (#52), so this works on the
     // bare CI fixture too.
     await page.waitForResponse(
@@ -60,11 +60,14 @@ test.describe("dashboard surface", () => {
       { timeout: 15_000 },
     ).catch(() => { /* already happened */ });
 
-    // The SQS number is rendered in a .tab-num span at font-size 26
-    // We find it by looking for the panel that spans 2 columns (class "span-2") with the sqs value
-    const sqsPanel = page.locator(".dash-grid-stats .span-2, .dash-grid-stats [style*='span 2']").first();
-    // Fallback: just get the first big tab-num in the stats grid
-    const bigNums = page.locator(".dash-grid-stats .tab-num").filter({ hasText: /\d+\.\d+/ });
+    // The SQS headline is a .tab-num inside the SQSChart panel, whose root
+    // carries title={t("tip.sqs")} ("Session Quality Score — …"). The old
+    // .dash-grid-stats parent no longer exists post-redesign — the run-10
+    // snapshot showed the values rendering while this selector matched
+    // nothing (#52).
+    const bigNums = page
+      .locator('.panel[title^="Session Quality Score"] .tab-num')
+      .filter({ hasText: /\d+\.\d+/ });
     await expect(bigNums.first()).toBeVisible({ timeout: 10_000 });
     const text = await bigNums.first().textContent();
     expect(text?.trim()).not.toBe("0.00");
