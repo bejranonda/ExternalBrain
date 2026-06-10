@@ -147,7 +147,10 @@ jobs:
           # "^e2e/" matches nothing — caught on the first run). "web/e2e/<spec>"
           # selects apps/web/e2e/* while excluding the deployed-brain suite at
           # apps/web/tests/e2e/*, which can't run in CI (#52).
-          pnpm --filter @brain/web exec playwright test --project=chromium \
+          # --retries=1: the serial skills suite shares state and shows
+          # occasional one-off flake under CI load (sort-cycle test, run 5);
+          # a real failure still fails twice and goes red.
+          pnpm --filter @brain/web exec playwright test --project=chromium --retries=1 \
             "web/e2e/dashboard.spec.ts" \
             "web/e2e/sessions.spec.ts" \
             "web/e2e/skills.spec.ts" \
