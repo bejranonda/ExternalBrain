@@ -60,11 +60,19 @@ test.describe("dashboard surface", () => {
       { timeout: 15_000 },
     ).catch(() => { /* already happened */ });
 
+    // SQSChart was relocated INTO the nested Advanced section (Phase 2:
+    // "most users don't parse a 12-point sparkline"), so expand that toggle
+    // first — beforeEach only opens the outer "Show everything" fold (#52).
+    const advancedBtn = page.getByRole("button", {
+      name: /Advanced metrics|connection status/i,
+    }).first();
+    if (await advancedBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await advancedBtn.click();
+    }
+
     // The SQS headline is a .tab-num inside the SQSChart panel, whose root
     // carries title={t("tip.sqs")} ("Session Quality Score — …"). The old
-    // .dash-grid-stats parent no longer exists post-redesign — the run-10
-    // snapshot showed the values rendering while this selector matched
-    // nothing (#52).
+    // .dash-grid-stats parent no longer exists post-redesign (#52).
     const bigNums = page
       .locator('.panel[title^="Session Quality Score"] .tab-num')
       .filter({ hasText: /\d+\.\d+/ });
