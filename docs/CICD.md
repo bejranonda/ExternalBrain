@@ -10,31 +10,33 @@ infrastructure.
 ```text
   you open a PR ──▶  GitHub Actions (CI)         you run a script (CD)
                      ├─ typecheck · test · build   ├─ ./scripts/dev-up.sh   (local, no TLS)
-                     ├─ fresh-DB migrate · FTS      └─ ./scripts/deploy.sh   (public VM, TLS)
-                     └─ anon onboarding e2e*
+                     │  (incl. fresh-DB migrate)    └─ ./scripts/deploy.sh   (public VM, TLS)
+                     ├─ anon onboarding e2e*
+                     └─ authed surfaces e2e*  (report-only)
                               │
                      green ──▶ merge to main ──▶ you deploy main
 ```
 
-`*` only runs when a PR touches an onboarding/unauth surface (see below).
+`*` only does real work when a PR touches the matching paths (see below).
 
 ---
 
 ## CI — runs automatically on every PR
 
-Defined in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) and
-[`.github/workflows/onboarding-e2e.yml`](../.github/workflows/onboarding-e2e.yml).
-A fork inherits both; they run on **your** GitHub Actions minutes.
+Defined in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml),
+[`.github/workflows/onboarding-e2e.yml`](../.github/workflows/onboarding-e2e.yml)
+and [`.github/workflows/authed-e2e.yml`](../.github/workflows/authed-e2e.yml).
+A fork inherits them; they run on **your** GitHub Actions minutes.
 
 | Check | What it proves | Cost |
 |---|---|---|
-| **typecheck · test · build** | The monorepo type-checks, all unit/integration tests pass (against a real pgvector service), and all six packages build. | ~2–3 min |
-| **fresh-DB migrate · FTS** | The full migration history applies cleanly to an **empty** database — the day-zero deploy path — plus the full-text-search index DDL. Catches migration-ordering bugs unit tests can't. | ~1 min |
-| **anon onboarding e2e** | Builds + boots the app and runs the anonymous-surface Playwright specs (`/welcome`, install-snippet URLs, health, security). **Only does real work when the PR touches an onboarding/unauth surface** (`apps/web/app/{welcome,signin,forgot-password,…}`, `layout.tsx`, the locale/install code); on every other PR it skips to a green no-op in seconds. | ~2–3 min (or seconds when skipped) |
+| **typecheck · test · build** | The monorepo type-checks, all unit/integration tests pass (against a real pgvector service), and all six packages build. The migrate step doubles as the **fresh-DB gate**: the service DB starts empty every run, so the full migration history applies front-to-back exactly like a day-zero deploy (then the FTS index DDL) — catches migration-ordering bugs unit tests can't. | ~2–3 min |
+| **anon onboarding e2e** | Builds + boots the app and runs the anonymous-surface Playwright specs (`/welcome`, install-snippet URLs, health). **Only does real work when the PR touches an onboarding/unauth surface** (`apps/web/app/{welcome,signin,forgot-password,…}`, `layout.tsx`, the locale/install code); on every other PR it skips to a green no-op in seconds. | ~2–3 min (or seconds when skipped) |
+| **authed surfaces e2e** | Boots the app in credentials mode with the seeded fixture, signs in, and runs the stable signed-in subset (dashboard, sessions, skills, nav). Path-gated on `apps/web/**` + `packages/{core,db}/**`. **Report-only** — not yet required. | ~4–5 min (or seconds when skipped) |
 
-All three are **required checks** on `main`, so a PR can't merge until they're
-green. The no-op behaviour of the e2e gate is what makes it safe to require on
-*every* PR.
+The first two are **required checks** on `main`, so a PR can't merge until
+they're green. The no-op behaviour of the e2e gates is what makes them safe to
+run on *every* PR.
 
 > **Why the e2e gate is path-scoped:** three user-visible bugs once shipped past
 > CI because the suite only covered signed-in behaviour. The gate closes that

@@ -182,10 +182,11 @@ Contributions and forks are welcome. Fork the repo, branch from `main`
 (the guide for AI assistants working in this repo). Be kind — we follow a
 [Code of Conduct](./CODE_OF_CONDUCT.md).
 
-Every PR runs three required checks: **typecheck · test · build**, a
-**fresh-DB migration** (the day-zero deploy path), and — when an onboarding/
-unauth surface changes — an **anonymous e2e** gate. How CI and the two deploy
-scripts fit together is one short page: **[docs/CICD.md](./docs/CICD.md)**.
+Every PR runs two required checks — **typecheck · test · build** (which
+includes the fresh-DB migration gate, the day-zero deploy path) and, when an
+onboarding/unauth surface changes, an **anonymous e2e** gate — plus a
+report-only **signed-in e2e** tier. How CI and the two deploy scripts fit
+together is one short page: **[docs/CICD.md](./docs/CICD.md)**.
 
 ## License
 

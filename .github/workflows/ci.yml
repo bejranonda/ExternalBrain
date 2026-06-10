@@ -81,12 +81,19 @@ jobs:
 
       # #233 — apply migrations against the real DB before tests run so
       # DB-gated test files have the schema they need.
-      - name: Migrate test DB
+      - name: Migrate test DB (fresh-DB gate) + FTS indexes
         env:
           PGPASSWORD: brain
         run: |
           psql -h localhost -U brain -d brain -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+          # This IS the fresh-DB migrate gate (#37/#36): the service container
+          # starts empty every run, so the full migration history applies
+          # front-to-back exactly like a day-zero deploy. Formerly a separate
+          # `fresh-deploy` job — folded in (2026-06-09) because both jobs ran
+          # identical migrate steps on identical empty DBs; the only unique
+          # step was the FTS DDL below (mirrors scripts/deploy.sh §3).
           pnpm --filter @brain/db exec prisma migrate deploy
+          psql -h localhost -U brain -d brain -f packages/db/sql/session-fts-index.sql
 
       - name: Typecheck
         run: pnpm turbo run typecheck
@@ -103,73 +110,3 @@ jobs:
       # that previously slipped through (#37).
       - name: Build
         run: pnpm turbo run build
-
-  # Fresh-DB migrate-deploy gate (#37). Boots an empty pgvector instance and
-  # runs the entire migration set front-to-back, plus the FTS GIN index DDL
-  # that scripts/deploy-prod.sh applies. Catches migration-ordering bugs
-  # (#36) that pass every existing CI gate because unit tests run against a
-  # Prisma-generated client and per-PR migrations apply cleanly in isolation
-  # against an already-migrated DB — they only surface when deploy-prod.sh
-  # spins up an empty Postgres on day-zero, which this job reproduces.
-  fresh-deploy:
-    name: fresh-DB migrate · FTS
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    services:
-      db:
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_USER: brain
-          POSTGRES_PASSWORD: brain
-          POSTGRES_DB: brain
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U brain"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 20
-
-    env:
-      DATABASE_URL: postgresql://brain:brain@localhost:5432/brain
-      NODE_ENV: test
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9.15.0
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-
-      - name: Install
-        run: pnpm install --frozen-lockfile
-
-      - name: Enable pgvector
-        # Mirrors `scripts/deploy-prod.sh` — the migration referencing
-        # `vector(1536)` will fail unless the extension exists first.
-        run: psql "$DATABASE_URL" -c 'CREATE EXTENSION IF NOT EXISTS vector;'
-
-      - name: Apply migrations on fresh DB
-        # The actual class-of-#36 catcher: runs the full migration history
-        # front-to-back against an empty database, exactly like day-zero
-        # production does. Migration ordering bugs (like #36's #20-vs-#17
-        # divergence) surface here even though they pass per-PR isolation.
-        run: pnpm --filter @brain/db exec prisma migrate deploy
-
-      - name: Apply FTS GIN indexes
-        # Mirrors `scripts/deploy-prod.sh §3` — applies the session full-text
-        # search index that `deploy-prod.sh` runs after migrate.
-        run: psql "$DATABASE_URL" -f packages/db/sql/session-fts-index.sql
-
-      # The migrate + FTS path is the broad net for migration-ordering and
-      # schema bugs; seed/data-shape coverage is intentionally out of scope
-      # for this job.
