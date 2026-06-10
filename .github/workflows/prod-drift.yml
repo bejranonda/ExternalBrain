@@ -45,6 +45,11 @@ jobs:
             exit 0
           fi
           DEPLOYED=$(curl -fsS --max-time 10 "$DEPLOY_URL/api/healthz" | jq -r '.version // empty')
+          # #62 hardening: the value is build-time baked (git describe) and so
+          # trusted in practice, but it crosses a network boundary — strip
+          # newlines and cap length so a hostile response can't forge step
+          # outputs ($GITHUB_OUTPUT is line-delimited) or bloat issue bodies.
+          DEPLOYED=$(printf '%s' "$DEPLOYED" | tr -d '\n\r' | head -c 64)
           if [ -z "$DEPLOYED" ]; then
             # Older deployment without the version field, or unreachable —
             # surface as drift-unknown rather than failing the run red.
