@@ -85,6 +85,10 @@ async function seedSessions(): Promise<void> {
   // 6 sessions; deterministic ids; mix of outcomes; all closed so KEA
   // would normally fire (but the seed doesn't trigger pg-boss jobs).
   const outcomes = ["success", "success", "success", "success", "partial", "failed"] as const;
+  // Deterministic SQS values so the dashboard's SQS trend renders real
+  // numbers from the bare seed — the e2e assertion needs a non-zero value
+  // without running the scoring pipeline (#52).
+  const sqsValues = [82, 76, 88, 91, 54, 31] as const;
   const now = Date.now();
   for (let i = 0; i < 6; i++) {
     const id = `seed_session_${i.toString().padStart(2, "0")}_______`;
@@ -100,8 +104,9 @@ async function seedSessions(): Promise<void> {
         startedAt,
         endedAt,
         outcome: outcomes[i],
+        sqs: sqsValues[i],
       },
-      update: { endedAt, outcome: outcomes[i] },
+      update: { endedAt, outcome: outcomes[i], sqs: sqsValues[i] },
     });
   }
 }

@@ -25,10 +25,6 @@ test.describe("dashboard surface", () => {
   });
 
   test("knowledge composition section shows at least one type row", async ({ page }) => {
-    // CI boots the bare seed: no embeddings (no provider key) and no worker
-    // jobs (health snapshot), so the composition/health panels render their
-    // data-absent state. Runs against a full dev stack only (#52).
-    test.skip(!!process.env["CI"], "needs worker-produced data absent in the CI fixture (#52)");
     // Phase 3: KnowledgeTypes (composition panel) moved into the Advanced
     // collapsed section. Expand it before assertions.
     await page.waitForResponse(
@@ -38,11 +34,13 @@ test.describe("dashboard surface", () => {
       // If the API call already happened before this listener, that's fine
     });
 
-    // Expand the Advanced toggle to surface KnowledgeTypes/KnowledgeHealth.
-    // (beforeEach already opened the "Show everything" fold; this covers the
-    // nested Advanced section where present.)
+    // Expand the nested Advanced toggle (beforeEach already opened the
+    // "Show everything" fold — do NOT match it here: its label is the same
+    // open or closed, so a second click would COLLAPSE it and hide the
+    // panels this test asserts on; that double-toggle was the run-4
+    // composition failure in #52).
     const advancedBtn = page.getByRole("button", {
-      name: /Show everything|Advanced metrics|connection status/i,
+      name: /Advanced metrics|connection status/i,
     }).first();
     if (await advancedBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
       await advancedBtn.click();
@@ -53,11 +51,10 @@ test.describe("dashboard surface", () => {
   });
 
   test("SQS trend element renders a non-zero / non-placeholder value", async ({ page }) => {
-    // Same CI-fixture gap as the composition test: the SQS trend needs
-    // worker-produced data the bare seed doesn't carry (#52).
-    test.skip(!!process.env["CI"], "needs worker-produced data absent in the CI fixture (#52)");
     // SQSChart renders a tab-num span with the current SQS value formatted with .toFixed(2)
-    // It sits inside the dash-grid-stats area. The seed should have a real SQS value.
+    // It sits inside the dash-grid-stats area. The seed now carries
+    // deterministic per-session sqs values (#52), so this works on the
+    // bare CI fixture too.
     await page.waitForResponse(
       (resp) => resp.url().includes("/api/dashboard") && resp.status() === 200,
       { timeout: 15_000 },

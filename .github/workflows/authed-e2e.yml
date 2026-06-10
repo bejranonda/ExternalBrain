@@ -148,14 +148,15 @@ jobs:
           # selects apps/web/e2e/* while excluding the deployed-brain suite at
           # apps/web/tests/e2e/*, which can't run in CI (#52).
           # --retries=1 absorbs one-off flake; a real failure fails twice.
-          # skills.spec is EXCLUDED (#52): its serial suite's beforeEach
-          # (.skills-list visible, 10s) times out intermittently under CI
-          # load — runs 5-7 each failed a different skills test at that same
-          # boundary (in-test CI-skips can't help; beforeEach fails first).
-          # It stays in the local dev-stack suite.
+          # skills.spec is back in the gate (#52 root cause): every skills
+          # failure in the rollout was ONE race — the first /api/knowledge on
+          # a cold CI boot exceeding the 10s .skills-list wait (the surface
+          # renders no .skills-list while loading). beforeEach now allows 30s
+          # for that first load; warm loads are <1s.
           pnpm --filter @brain/web exec playwright test --project=chromium --retries=1 \
             "web/e2e/dashboard.spec.ts" \
             "web/e2e/sessions.spec.ts" \
+            "web/e2e/skills.spec.ts" \
             "web/e2e/nav.spec.ts"
           RC=$?
           kill "$APP_PID" 2>/dev/null || true
