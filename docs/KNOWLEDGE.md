@@ -172,6 +172,15 @@ Cost budget: `MAX_KEA_COST_USD_PER_SESSION=0.05`. Above that the job should abor
 
 **Cross-session KEA (2026-05-14, PR #213 + #219).** A second extraction pass that complements per-session KEA: instead of looking at one closed session in isolation, the cross-session pipeline bundles a user's last N closed sessions and asks the LLM to find patterns that REPEAT across them (≥2 sessions per finding). On dev, this lifted extraction yield from 17% (1/6 sessions producing any findings) to 50% (3 findings from a 6-session bundle). Runs daily at `0 6 * * *` UTC via the pg-boss `kea.cross_extract` queue. Idempotent: each daily run only processes users whose newest closed session is newer than their last cross-session Knowledge row — users with no new sessions log `op="kea.cross.skip"` and don't burn an LLM call. Findings are persisted with `tags: ["cross_session"]` and `sourceSessionIds` listing every contributing session for audit attribution. See `packages/core/src/kea.ts:runCrossExtractDaily`.
 
+**Close-capture / refine mode (2026-06-09, v1.4.0, PR #49).** A third acquisition path that inverts the mine model: the *agent* distills durable learnings in its own context — where the full session is loaded — and submits them at the one call every client reliably makes, `brain_report_session_outcome(learnings: [...])` (0–5 items shaped `{trigger, rule, rationale, type, source, confidence?}`). Semantics:
+
+- **Capture never blocks the close.** Items are validated per-item (`packages/core/src/learnings.ts`); invalid ones are dropped and counted, the feedback loop always completes. Valid items persist as `SessionEvent {eventType: "learning_captured"}` — no schema migration.
+- **KEA routes by submission.** `buildPayload` collects (and re-validates) the events into `submittedLearnings`; `extractFromSession` then runs **refine** mode — a cheap-LLM judge screens each candidate for durability/specificity and may lower (never raise) confidence, clamped ≤ 0.95 — instead of mining the thin summary. Judge failure falls back to mine, so a provider blip never loses the session. Sessions without learnings keep the original mine path byte-for-byte.
+- **The same gates apply.** Refine output passes the step-5 quality filter above (≥0.7 confidence, length/generic screens, semantic dedup) and the normal persist path; rows are tagged `close_capture` so yield is queryable split by source (the `kea.funnel` log gains `mode` + `submitted`).
+- **Elicitation is part of the design.** The MCP server `instructions` and the `report`/`log_event` tool descriptions actively ask agents for learnings at close and for in-the-moment `user_correction` / `knowledge_rejected` events — the event schema existed long before; the yield problem was that nothing *asked*.
+
+Validated on production day one: a real session submitting 4 learnings persisted 3 `close_capture` rows (vs. the ~17% mine baseline where most sessions persist zero). Spec: `docs/superpowers/specs/2026-06-09-close-capture-learnings-design.md`.
+
 ---
 
 ## 8. How retrieval works (KRA summary)

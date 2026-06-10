@@ -12,9 +12,11 @@ infrastructure.
                      ├─ typecheck · test · build   ├─ ./scripts/dev-up.sh   (local, no TLS)
                      │  (incl. fresh-DB migrate)    └─ ./scripts/deploy.sh   (public VM, TLS)
                      ├─ anon onboarding e2e*
-                     └─ authed surfaces e2e*  (report-only)
+                     └─ authed surfaces e2e*
                               │
                      green ──▶ merge to main ──▶ you deploy main
+                                                  (a daily prod-drift watchdog
+                                                   flags main-ahead-of-prod)
 ```
 
 `*` only does real work when a PR touches the matching paths (see below).
@@ -32,11 +34,17 @@ A fork inherits them; they run on **your** GitHub Actions minutes.
 |---|---|---|
 | **typecheck · test · build** | The monorepo type-checks, all unit/integration tests pass (against a real pgvector service), and all six packages build. The migrate step doubles as the **fresh-DB gate**: the service DB starts empty every run, so the full migration history applies front-to-back exactly like a day-zero deploy (then the FTS index DDL) — catches migration-ordering bugs unit tests can't. | ~2–3 min |
 | **anon onboarding e2e** | Builds + boots the app and runs the anonymous-surface Playwright specs (`/welcome`, install-snippet URLs, health). **Only does real work when the PR touches an onboarding/unauth surface** (`apps/web/app/{welcome,signin,forgot-password,…}`, `layout.tsx`, the locale/install code); on every other PR it skips to a green no-op in seconds. | ~2–3 min (or seconds when skipped) |
-| **authed surfaces e2e** | Boots the app in credentials mode with the seeded fixture, signs in, and runs the stable signed-in subset (dashboard, sessions, skills, nav). Path-gated on `apps/web/**` + `packages/{core,db}/**`. **Report-only** — not yet required. | ~4–5 min (or seconds when skipped) |
+| **authed surfaces e2e** | Boots the app in credentials mode with the seeded fixture (the env-admin maps onto seeded Alex), signs in once, and runs the signed-in suite (dashboard, sessions, skills, nav). Path-gated on `apps/web/**` + `packages/{core,db}/**`. The CI app env raises `RATE_LIMIT_MCP_PER_MINUTE` — the whole suite hits `/api/*` from one IP, and the production default (200/min) trips under the burst. | ~4–5 min (or seconds when skipped) |
 
-The first two are **required checks** on `main`, so a PR can't merge until
-they're green. The no-op behaviour of the e2e gates is what makes them safe to
-run on *every* PR.
+All three are **required checks** on `main`, so a PR can't merge until they're
+green. The no-op behaviour of the e2e gates is what makes them safe to run on
+*every* PR.
+
+A fourth workflow, [`prod-drift.yml`](../.github/workflows/prod-drift.yml),
+runs daily (not per-PR): it compares the deployed `/api/healthz` `version`
+against `main`'s `git describe` and keeps exactly one `prod-drift` issue open
+while they differ — closing it itself once you redeploy. Forks without a
+`BRAIN_DEPLOY_URL` secret skip it green.
 
 > **Why the e2e gate is path-scoped:** three user-visible bugs once shipped past
 > CI because the suite only covered signed-in behaviour. The gate closes that
