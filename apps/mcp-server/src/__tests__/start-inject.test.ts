@@ -45,8 +45,14 @@ guard("brain_start_session inject-at-open", () => {
     return u.id;
   }
 
+  // AuthContext types tokenId as non-null string, but Session.tokenId is a
+  // nullable column and the handler writes it through verbatim — null is the
+  // honest value for a test session with no real MCPToken row (a fake string
+  // would violate the FK).
   const authFor = (userId: string) =>
-    ({ userId, projectId: null, tokenId: null }) as Parameters<typeof startSession.handler>[1];
+    ({ userId, projectId: null, tokenId: null }) as unknown as Parameters<
+      typeof startSession.handler
+    >[1];
 
   it("fail-soft: prompt + no embedding provider → session opens, no relevantKnowledge", async () => {
     const userId = await mintUser();
