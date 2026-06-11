@@ -136,6 +136,37 @@ false confidence is a shipped regression.
 
 ---
 
+## Working with the Brain (agents)
+
+If a Brain MCP connection is available in your session, the memory loop is a
+**house rule**, not a suggestion — it's how this project compounds knowledge
+across sessions (and it's the product's own dogfood):
+
+1. **Open**: `brain_start_session(prompt: …)` at the start of each task.
+   Phrase the prompt as *technology + repo + task shape* ("debug intermittent
+   Playwright e2e failure in CI for the External Brain webapp") — it doubles
+   as the retrieval query; "fix bug" retrieves nothing useful.
+2. **Apply**: the response carries `relevantKnowledge` — rules this Brain
+   already learned that match the task. Read them before working; they are
+   frequently the answer (the 429-rate-limit lesson arrived this way on its
+   first live run).
+3. **Resume-shaped tasks**: ask `brain_ask_oracle` ("what did we decide about
+   X?") before re-deriving decisions; use `brain_find_skill` when you need a
+   full recipe rather than atomic rules.
+4. **Close**: `brain_report_session_outcome` with `learnings` (0–5 distilled
+   `{trigger, rule, rationale}` items — ESPECIALLY user corrections and
+   rejected approaches) and `knowledgeUsed` (the injected IDs you actually
+   applied). This feeds confidence scoring; without it the Brain can't tell
+   which rules pay off. If the close response returns a `hint`, act on it
+   (`brain_teach_knowledge` for a correction that would otherwise evaporate).
+
+Why this matters: rules with registered usage survive decay and rise in
+retrieval; unclosed sessions teach nothing. The loop's two halves were each
+built because agents skipped the optional version — don't be the reason a
+third elicitation fix is needed.
+
+---
+
 ## Where to read what
 
 | File | Read when |
