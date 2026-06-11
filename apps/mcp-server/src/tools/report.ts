@@ -202,6 +202,26 @@ export const reportSessionOutcome: ToolDef = {
       }
     }
 
-    return { sqs, queued };
+    // Ask-back (#64 follow-up): a close without learnings is the moment the
+    // highest-value knowledge evaporates — especially after a failure or a
+    // thumbs-down, where the user's correction is fresh in the agent's
+    // context. The close is already committed, so the nudge points at
+    // brain_teach_knowledge (still callable) rather than a re-close.
+    let hint: string | undefined;
+    const noLearnings = !input.learnings || input.learnings.length === 0;
+    if (noLearnings && (!input.success || input.userFeedback === "down")) {
+      hint =
+        "This session ended unsuccessfully and no learnings were submitted. " +
+        "If the user corrected or rejected an approach, capture it NOW with " +
+        "brain_teach_knowledge ({trigger, rule, rationale}) — corrections are " +
+        "the highest-value knowledge and they evaporate when the session ends.";
+    } else if (noLearnings) {
+      hint =
+        "No learnings submitted. If anything durable came out of this session " +
+        "(a correction, a decision, a discovered pitfall), record it with " +
+        "brain_teach_knowledge so the next session starts smarter.";
+    }
+
+    return { sqs, queued, ...(hint ? { hint } : {}) };
   },
 };
