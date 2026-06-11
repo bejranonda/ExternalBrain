@@ -70,7 +70,11 @@ function buildServer(counter: CallCounter = { n: 0, lists: 0 }): Server {
         "Start each coding task with `brain_start_session(prompt: <task " +
         "description>)` — the response carries `relevantKnowledge`, rules " +
         "this Brain already learned that apply to the task; APPLY them and " +
-        "pass their IDs back as `knowledgeUsed` when you close. " +
+        "pass their IDs back as `knowledgeUsed` when you close. Phrase the " +
+        "prompt as technology + repo + task shape (it doubles as the " +
+        "retrieval query — 'fix bug' retrieves nothing useful). When " +
+        "resuming or continuing earlier work, ask `brain_ask_oracle` " +
+        "('what did we decide about X?') before re-deriving decisions. " +
         "End each coding session with `brain_report_session_outcome` so the " +
         "Knowledge Extraction Agent can learn from the outcome — without " +
         "that close call, sessions stay open and the brain doesn't learn. " +

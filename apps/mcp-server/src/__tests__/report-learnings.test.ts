@@ -112,4 +112,34 @@ guard("report_session_outcome learnings capture", () => {
     });
     expect(events).toBe(0);
   });
+
+  // Ask-back nudge (#64 follow-up): the hint steers the agent toward
+  // brain_teach_knowledge when the highest-value knowledge is about to
+  // evaporate; it must never appear when learnings were submitted.
+  it("failed close without learnings → strong teach-knowledge hint", async () => {
+    const { userId, sessionId } = await mintOpenSession();
+    const res = (await reportSessionOutcome.handler(
+      { sessionId, success: false },
+      authFor(userId),
+    )) as { hint?: string };
+    expect(res.hint).toMatch(/brain_teach_knowledge/);
+    expect(res.hint).toMatch(/unsuccessfully/);
+  });
+
+  it("successful close without learnings → gentle hint; with learnings → none", async () => {
+    const a = await mintOpenSession();
+    const resA = (await reportSessionOutcome.handler(
+      { sessionId: a.sessionId, success: true },
+      authFor(a.userId),
+    )) as { hint?: string };
+    expect(resA.hint).toMatch(/brain_teach_knowledge/);
+    expect(resA.hint).not.toMatch(/unsuccessfully/);
+
+    const b = await mintOpenSession();
+    const resB = (await reportSessionOutcome.handler(
+      { sessionId: b.sessionId, success: true, learnings: [goodLearning] },
+      authFor(b.userId),
+    )) as { hint?: string };
+    expect(resB.hint).toBeUndefined();
+  });
 });
