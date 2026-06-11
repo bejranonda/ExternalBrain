@@ -165,6 +165,7 @@ jobs:
             "web/e2e/dashboard.spec.ts" \
             "web/e2e/sessions.spec.ts" \
             "web/e2e/skills.spec.ts" \
+            "web/e2e/mobile-overflow.spec.ts" \
             "web/e2e/nav.spec.ts"
           RC=$?
           kill "$APP_PID" 2>/dev/null || true
