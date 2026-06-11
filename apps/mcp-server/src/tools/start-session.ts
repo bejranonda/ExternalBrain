@@ -6,8 +6,13 @@ import {
   ensureNamedProject,
   userCanAccessProject,
   BrainError,
+  kra,
+  formatter,
+  getLogger,
 } from "@brain/core";
 import type { ToolDef } from "./index.js";
+
+const log = getLogger("start-session");
 
 const inputShape = z.object({
   clientType: z
@@ -29,7 +34,7 @@ const inputShape = z.object({
 export const startSession: ToolDef = {
   name: "brain_start_session",
   description:
-    "Open a new coding session. Call once at the start of a coding task, save the returned `sessionId`, and pass it to every subsequent `brain_log_event` and `brain_report_session_outcome`. Idempotent clients should issue a fresh session per user-visible task.",
+    "Open a new coding session. Call once at the start of a coding task, save the returned `sessionId`, and pass it to every subsequent `brain_log_event` and `brain_report_session_outcome`. ALWAYS include `prompt` (the task description): the response then carries `relevantKnowledge` — rules this Brain already learned that apply to the task. APPLY them, and pass `relevantKnowledge.knowledgeIds` back as `knowledgeUsed` when you close, so the Brain learns which rules paid off. Idempotent clients should issue a fresh session per user-visible task.",
   inputSchema: {
     type: "object",
     required: [],
@@ -152,6 +157,62 @@ export const startSession: ToolDef = {
         },
       },
     });
-    return { sessionId: session.id, startedAt: session.startedAt.toISOString() };
+
+    // Inject-at-open (spec 2026-06-11, #64): the prompt is the retrieval
+    // query, and this call is the one touchpoint every client reliably hits
+    // — measured before this change: 0% of knowledge ever retrieved across
+    // 22 sessions because the separate brain_retrieve_knowledge call never
+    // happens in practice. kra.retrieve records the
+    // SessionKnowledgeApplication(role:"injected") rows, which report.ts
+    // step 3b already turns into success/failure feedback on close.
+    // FAIL-SOFT: opening a session must never block on retrieval — any
+    // error (no embedding provider, vector blip) logs and omits the field.
+    let relevantKnowledge:
+      | { knowledgeIds: string[]; injection: string }
+      | undefined;
+    if (input.prompt && input.prompt.trim().length > 0) {
+      try {
+        const bundle = await kra.retrieve(
+          input.prompt,
+          {
+            sessionId: session.id,
+            userId: auth.userId,
+            ...(resolvedProjectId ? { projectId: resolvedProjectId } : {}),
+            ...(input.framework ? { framework: input.framework } : {}),
+            ...(input.language ? { language: input.language } : {}),
+          },
+          5,
+        );
+        if (bundle.injectedIds.length > 0) {
+          relevantKnowledge = {
+            knowledgeIds: bundle.injectedIds,
+            injection: formatter.formatForInjection(bundle),
+          };
+        }
+        log.info(
+          {
+            op: "start.inject",
+            sessionId: session.id,
+            injected: bundle.injectedIds.length,
+          },
+          "start.inject",
+        );
+      } catch (err) {
+        log.warn(
+          {
+            op: "start.inject_failed",
+            sessionId: session.id,
+            err: err instanceof Error ? err.message : String(err),
+          },
+          "start.inject_failed (session opens without knowledge)",
+        );
+      }
+    }
+
+    return {
+      sessionId: session.id,
+      startedAt: session.startedAt.toISOString(),
+      ...(relevantKnowledge ? { relevantKnowledge } : {}),
+    };
   },
 };

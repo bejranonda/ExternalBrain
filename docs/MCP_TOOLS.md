@@ -156,6 +156,36 @@ When the user has no projects yet, the response is `{ "project": null }` — the
 
 For project-scoped tokens, `projectName` is silently ignored — the scope wins.
 
+### `brain_start_session` — `relevantKnowledge` response (inject-at-open, 2026-06-11)
+
+When `brain_start_session` is called with a `prompt` (the task description),
+the response additionally carries the knowledge the agent should apply:
+
+```json
+{
+  "sessionId": "…",
+  "startedAt": "…",
+  "relevantKnowledge": {
+    "knowledgeIds": ["…"],
+    "injection": "## What I've Learned About You\n### Unconditional Rules …"
+  }
+}
+```
+
+- Retrieval runs the existing KRA scoring (top 5) **in the same round-trip**
+  — no separate `brain_retrieve_knowledge` call to remember. (That tool
+  remains for mid-task re-query.)
+- Each injected row is recorded as `SessionKnowledgeApplication(role:
+  "injected")`; passing `knowledgeIds` back as `knowledgeUsed` at close bumps
+  success/failure — the confidence loop, end to end.
+- **Fail-soft:** any retrieval error (no embedding provider, vector blip) is
+  logged (`op:"start.inject_failed"`) and the field is omitted — opening a
+  session never blocks on retrieval. No `prompt` → no retrieval.
+
+Why: measured before this change, **0%** of knowledge had ever been retrieved
+across 22 sessions — the read-side mirror of the elicitation gap close-capture
+fixed at the close call (#64).
+
 ### `brain_report_session_outcome` — `learnings` parameter (close-capture, 2026-06-09)
 
 `brain_report_session_outcome` accepts an optional `learnings` array (0–5 items)

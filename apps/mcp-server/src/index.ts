@@ -67,6 +67,10 @@ function buildServer(counter: CallCounter = { n: 0, lists: 0 }): Server {
       instructions:
         "External Brain is connected. Run `brain_get_user_style` first to " +
         "verify end-to-end connectivity and bootstrap your peer card. " +
+        "Start each coding task with `brain_start_session(prompt: <task " +
+        "description>)` — the response carries `relevantKnowledge`, rules " +
+        "this Brain already learned that apply to the task; APPLY them and " +
+        "pass their IDs back as `knowledgeUsed` when you close. " +
         "End each coding session with `brain_report_session_outcome` so the " +
         "Knowledge Extraction Agent can learn from the outcome — without " +
         "that close call, sessions stay open and the brain doesn't learn. " +
