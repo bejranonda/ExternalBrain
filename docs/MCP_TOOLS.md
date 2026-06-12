@@ -217,6 +217,12 @@ Semantics:
   dedup apply. Persisted rows are tagged `close_capture`, so yield is
   queryable split by source (`kea.funnel` log: `mode`, `submitted`). Sessions
   without learnings keep the original mine path.
+- **Ask-back `hint` (2026-06-11).** A close *without* learnings returns an
+  advisory `hint` in the response — strong after `success: false` or
+  `userFeedback: "down"` ("capture the correction NOW with
+  `brain_teach_knowledge`"), gentle otherwise, absent when learnings were
+  submitted. The close is committed by then, so the hint targets the
+  still-callable teach tool; agents should act on it.
 
 Why: per-session mining yielded ~17% because single-session summaries are
 thin. The agent has the full session in *its own* context — close-capture asks

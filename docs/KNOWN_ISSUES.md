@@ -191,6 +191,15 @@ recorded metrics. These are capability-extension items, not defects.
 
 ---
 
+## 0e. v1.5.0 flywheel close-out (2026-06-11 → 2026-06-12)
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**Agent-session retrieval was a dead path — knowledge flowed in but was never read back.**~~ **Resolved (v1.5.0, [#64]).** Production telemetry showed coding agents essentially never called `brain_retrieve_knowledge`, so the injection→feedback loop (`SessionKnowledgeApplication` → report step 3b success-rate updates) was wired but starved — zero inflow for weeks. Fix mirrors close-capture: `brain_start_session(prompt)` now runs the KRA query in the same round-trip, returns `relevantKnowledge { knowledgeIds, injection }`, and records the injection; retrieval happens at the one touchpoint every client reliably hits instead of relying on agents remembering a second call. Fail-soft: a retrieval error logs `start.inject_failed` and the session still opens (keyless CI proves the path). Complemented by the ask-back `hint` on learning-less closes ([#66]) and the AGENTS.md brain-protocol house rule ([#68]). **Caveat for future diagnosis:** the original "0% of knowledge ever retrieved" reading was a measurement artifact (summed `usageCount`/`successCount`, which `/api/knowledge` doesn't serialize — it exposes `uses`/`success`); the corrected baseline was 57% usage via Oracle citations, and only the agent-session path was truly dead. See `docs/APPROACH.md §5ao`. | `apps/mcp-server/src/tools/start-session.ts`, `apps/mcp-server/src/tools/report.ts`, `packages/core/src/kra.ts` | done (v1.5.0) |
+| **MCP clients cache tool catalogs + instructions per connection.** Sessions opened before the inject-at-open deploy keep the old `brain_start_session` description (no `prompt` guidance) until the client reconnects — same class as the §0b tool-catalog row. Transient; restart the editor or `/mcp` → reconnect. | client-side | no fix needed |
+
+---
+
 ## 0. MVP-complete open items (2026-04-29, operator action required)
 
 These are not blocking pilot but must be resolved before a second contributor joins or the platform is advertised publicly.

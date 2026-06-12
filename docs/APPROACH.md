@@ -1104,3 +1104,41 @@ The v1.4.x cycle shipped two things that look like infrastructure but earned the
 2. **Artifacts over logs.** The report's `data/*.md` (error context + page snapshot) and the trace's `.network` entries answered in minutes what run-log greps had obscured for hours.
 3. **A failing gate that keeps finding real defects is doing its job — finish it, don't shelve it.** The tier caught spec rot, a demo-breaking bug, and a latent ops trap (silent trigger-less workflows, #54) before its first green run. It was promoted to a required check the moment it proved stable.
 4. **Watchdogs must be validated by firing them.** The prod-drift workflow merged dead (invalid YAML → GitHub registered it trigger-less); only a manual dispatch attempt exposed it. It has since detected real drift, opened its issue, and closed it after redeploy — the full lifecycle exercised, not assumed.
+
+## 5ao. The read side mirrors the write side — inject-at-open closes the flywheel (2026-06-11 → 2026-06-12, v1.5.0, #64 / #66 / #68)
+
+Close-capture (§5an) fixed the *write* half of the loop by moving elicitation to
+the one call every client reliably makes. A week of production telemetry showed
+the *read* half had the same disease: `brain_retrieve_knowledge` existed,
+worked, and was essentially never called by agents — knowledge flowed in and
+sat unread. The fix is the same move, mirrored: **don't ask the agent to
+remember to retrieve; run retrieval at the reliable touchpoint on its behalf.**
+`brain_start_session(prompt)` now executes the KRA query in the same
+round-trip and returns `relevantKnowledge { knowledgeIds, injection }`, records
+the injection as a `SessionKnowledgeApplication`, and the existing
+close-report step credits success/failure back to the injected rows. The
+symmetric principle: *every reliable touchpoint should both give and take* —
+open injects, close elicits (#66's ask-back `hint` nags a learning-less close,
+strongest exactly when knowledge is about to evaporate: after a failure).
+
+Method lessons that generalize:
+
+1. **When a metric reads exactly 0%, suspect the instrument before the
+   system.** The first diagnosis ("0% of knowledge ever retrieved") summed
+   fields the API doesn't serialize (`usageCount`/`successCount` vs the view's
+   `uses`/`success`) — the real baseline was 57% via Oracle citations. The
+   *narrower* finding (agent sessions never retrieve) survived correction and
+   was the one that mattered. Exact-zero readings are more often a
+   wrong-field, wrong-filter, or wrong-name artifact than a true dead system.
+2. **A loop can be wired and still starved.** The injection→feedback circuit
+   (`recordInjection` → report step 3b) had been implemented for weeks; it
+   had simply never been fed because nothing upstream called retrieve. Before
+   building new plumbing, check whether the existing plumbing has zero inflow.
+3. **Behavioral rules belong in the protocol surface, not the docs.** The
+   MCP server's `instructions` field and AGENTS.md (#68) now carry the
+   open-inject → apply → close-with-`knowledgeUsed` contract, because agents
+   read tool descriptions and house rules — they do not read HOW_IT_WORKS.md.
+4. **Validate compounding, not just function.** The proof wasn't "injection
+   returns rows" — it was a live session whose injected lessons were the exact
+   429/trace lessons taught days earlier, then closing with `knowledgeUsed`
+   and watching the rows' success rate update to 100%.

@@ -86,7 +86,9 @@ once shipped past CI because the suite only asserted signed-in behaviour. See
 `authed-e2e` workflow (`.github/workflows/authed-e2e.yml`) boots the app in
 credentials mode with the seeded fixture (the env-admin maps onto seeded Alex
 via `ADMIN_EMAILS=alex@brain.local`), signs in once via `e2e/auth.setup.ts`,
-and runs the signed-in suite — dashboard, sessions, skills, nav — chromium
+and runs the signed-in suite — dashboard, sessions, skills, nav, plus a 375px
+mobile-overflow regression net (`mobile-overflow.spec.ts`, #67: asserts no
+horizontal scroll on the three main surfaces) — chromium
 only with `--retries=1`, path-gated on `apps/web/** + packages/{core,db}/**`.
 It is a **required check** on `main`. Excluded by design: oracle/streaming (no
 LLM key in CI), signout (destroys the shared auth state), visual/responsive

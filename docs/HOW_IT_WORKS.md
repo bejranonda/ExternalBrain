@@ -265,6 +265,13 @@ The new `Knowledge` row is now searchable via pgvector and will appear in future
 
 A week later, bob asks Claude Code: *"add zod to the password-reset form."*
 
+**Since v1.5.0 (inject-at-open, #64) this step is automatic:** opening the
+session with `brain_start_session(prompt: "add zod to the password-reset
+form")` runs the retrieval below on the agent's behalf and returns
+`relevantKnowledge { knowledgeIds, injection }` in the same response — no
+separate call to remember. The standalone tool remains for mid-task re-query;
+the worked example below shows what happens under the hood either way.
+
 Claude calls `brain_retrieve_knowledge({ query: "zod password reset form", context: { sessionId: "sess_def456", projectId: "proj_frontend" } })`.
 
 ### What KRA does
