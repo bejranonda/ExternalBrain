@@ -185,7 +185,20 @@ Validated on production day one: a real session submitting 4 learnings persisted
 
 ## 8. How retrieval works (KRA summary)
 
-1. MCP client calls `brain_retrieve_knowledge({ prompt, context })`.
+**Entry points (inject-at-open, 2026-06-11, v1.5.0, #64).** Retrieval has two
+doors, and the load-bearing one is the session open: `brain_start_session`
+with a `prompt` runs this pipeline automatically and returns
+`relevantKnowledge { knowledgeIds, injection }` in the same round-trip —
+because measurement showed agent sessions never make a separate retrieval
+call (`brain_retrieve_knowledge` remains for mid-task re-query). Each injected
+row is recorded as `SessionKnowledgeApplication(role:"injected")`, and the
+close call's `knowledgeUsed` list turns those into success/failure bumps —
+the same reliable-touchpoint principle as close-capture (§7), applied to the
+read side. Fail-soft: a retrieval error never blocks the session open.
+
+1. MCP client calls `brain_retrieve_knowledge({ prompt, context })` — or, in
+   the primary path above, `brain_start_session` runs it on the agent's
+   behalf.
 2. Embed the prompt → `queryVector`.
 3. pgvector query for top-20 candidates filtered by scope + decay > 0.3 + user match.
 4. Score each with `0.40·sim + 0.20·success + 0.15·recency + 0.15·contextFit + 0.10·confidence`.

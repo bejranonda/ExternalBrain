@@ -104,8 +104,10 @@ Cursor / Windsurf / any MCP client: [docs/CLIENTS.md](./docs/CLIENTS.md).
                             └─ answer questions via the Oracle (cited)
 ```
 
-1. **Before a task**, your tool calls `brain_retrieve_knowledge` and relevant
-   past skills are injected into context.
+1. **Before a task**, opening a session (`brain_start_session` with the task
+   description) returns `relevantKnowledge` — past skills scored against the
+   task, injected in the same round-trip. (`brain_retrieve_knowledge` remains
+   for mid-task re-query.)
 2. **After a task**, the session + outcome are reported and queued for
    extraction.
 3. **A background worker** mines sessions into typed skills, embeds them for
