@@ -22,6 +22,7 @@ import { writeAudit } from "./audit.js";
 import {
   LEARNING_EVENT_TYPE,
   MAX_SUBMITTED_CONFIDENCE,
+  DECISION_TAG,
   validateSubmittedLearnings,
   type Learning,
 } from "./learnings.js";
@@ -142,26 +143,36 @@ export async function extractFromSession(
   opts: ExtractOpts = {},
 ): Promise<Knowledge[]> {
   const submitted = payload.submittedLearnings ?? [];
+  // User-stated decisions skip the judge and route to shared project scope;
+  // everything else goes through the refine/mine path (spec 2026-06-16).
+  const decisionLearnings = submitted.filter((l) => l.source === "decision");
+  const judgeLearnings = submitted.filter((l) => l.source !== "decision");
   const mineFn = opts.mine ?? runLLM;
   let mode: "refine" | "mine" = submitted.length > 0 ? "refine" : "mine";
   let findings: KEAFinding[];
 
   if (mode === "refine") {
-    try {
-      findings = await refineSubmittedLearnings(payload, submitted, opts.judge ?? defaultRefineJudge);
-    } catch (err) {
-      // Spec: a provider blip on the judge must never lose the session —
-      // fall back to mining the summary instead.
-      getLogger("kea", { stream: "stdout" }).warn(
-        {
-          op: "kea.refine_fallback",
-          sessionId: payload.sessionId,
-          err: err instanceof Error ? err.message : String(err),
-        },
-        "kea.refine_fallback",
-      );
-      mode = "mine";
-      findings = await mineFn(payload);
+    if (judgeLearnings.length === 0) {
+      // All submitted learnings were decisions — nothing for the judge to do,
+      // and the agent already distilled, so don't fall back to mining.
+      findings = [];
+    } else {
+      try {
+        findings = await refineSubmittedLearnings(payload, judgeLearnings, opts.judge ?? defaultRefineJudge);
+      } catch (err) {
+        // Spec: a provider blip on the judge must never lose the session —
+        // fall back to mining the summary instead.
+        getLogger("kea", { stream: "stdout" }).warn(
+          {
+            op: "kea.refine_fallback",
+            sessionId: payload.sessionId,
+            err: err instanceof Error ? err.message : String(err),
+          },
+          "kea.refine_fallback",
+        );
+        mode = "mine";
+        findings = await mineFn(payload);
+      }
     }
   } else {
     findings = await mineFn(payload);
@@ -173,6 +184,20 @@ export async function extractFromSession(
     payload,
     mode === "refine" ? ["close_capture"] : [],
   );
+
+  // Route user-stated decisions to shared project scope + decision tag,
+  // bypassing the durability judge (spec 2026-06-16 §intake channel 1).
+  if (decisionLearnings.length > 0) {
+    const dFiltered = await (opts.filter ?? applyQualityFilter)(
+      decisionFindings(decisionLearnings),
+      payload.userId,
+    );
+    const dRows = await (opts.persist ?? persist)(dFiltered, payload, [
+      DECISION_TAG,
+      "close_capture",
+    ]);
+    persisted.push(...dRows);
+  }
   // Diagnostic breakdown: `items` in the worker log only shows the final
   // count, conflating "LLM returned zero findings" with "quality filter
   // dropped them all." This trace separates the two so the operator
@@ -281,6 +306,23 @@ async function refineSubmittedLearnings(
   return findings.map((f) => ({
     ...f,
     confidence: Math.min(f.confidence, MAX_SUBMITTED_CONFIDENCE),
+  }));
+}
+
+/**
+ * Decision learnings are user-stated facts, not inferences — persist them
+ * directly as project-scoped findings, bypassing the durability judge
+ * (spec 2026-06-16 §intake channel 1). Confidence is already clamped ≤0.95
+ * by validateSubmittedLearnings.
+ */
+function decisionFindings(learnings: Learning[]): KEAFinding[] {
+  return learnings.map((l) => ({
+    type: l.type,
+    scope: "project" as KEAScope,
+    trigger: l.trigger,
+    rule: l.rule,
+    rationale: l.rationale,
+    confidence: l.confidence,
   }));
 }
 

@@ -92,6 +92,7 @@ export {
   bulkBumpKnowledgeOutcome,
   effectivenessScore,
   getTopRules,
+  supersedeKnowledge,
 } from "./knowledge-stats.js";
 export type { TopRuleRow } from "./knowledge-stats.js";
 export { resetKnowledge } from "./knowledge-reset.js";

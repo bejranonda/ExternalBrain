@@ -14,6 +14,8 @@ export const LEARNING_EVENT_TYPE = "learning_captured";
 export const MAX_LEARNINGS_PER_SESSION = 5;
 /** Agent self-estimates are advisory — never persisted above this. */
 export const MAX_SUBMITTED_CONFIDENCE = 0.95;
+/** Tag marking a Knowledge row as a user-stated project decision (spec 2026-06-16). */
+export const DECISION_TAG = "decision";
 
 // Min-length floors mirror applyQualityFilter in kea.ts (trigger ≥10,
 // rule ≥20) so structurally-hopeless items die at the door instead of
