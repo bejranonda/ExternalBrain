@@ -159,6 +159,13 @@ across sessions (and it's the product's own dogfood):
    applied). This feeds confidence scoring; without it the Brain can't tell
    which rules pay off. If the close response returns a `hint`, act on it
    (`brain_teach_knowledge` for a correction that would otherwise evaporate).
+5. **Capture decisions**: when the user states a project decision or status
+   change ("we'll use X", "deprecate Y", "Z owns auth"), record it immediately
+   with `brain_teach_knowledge` as a decision — `scope: "project"`, the rejected
+   alternative in `instead`, `"decision"` in `tags`, and (if it reverses a prior
+   decision) that decision's id in `supersedesKnowledgeId`. Decisions are shared
+   project memory: a teammate's next `brain_start_session` surfaces them, and
+   they are exempt from decay (a stated fact, retired only by supersession).
 
 Why this matters: rules with registered usage survive decay and rise in
 retrieval; unclosed sessions teach nothing. The loop's two halves were each
