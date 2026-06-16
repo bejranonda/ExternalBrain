@@ -6,6 +6,8 @@ import {
   ensureDefaultProject,
   userCanAccessProject,
   BrainError,
+  supersedeKnowledge,
+  getLogger,
 } from "@brain/core";
 import type { ToolDef } from "./index.js";
 
@@ -20,12 +22,13 @@ const inputShape = z.object({
   framework: z.string().optional(),
   language: z.string().optional(),
   tags: z.array(z.string()).default([]),
+  supersedesKnowledgeId: z.string().optional(),
 });
 
 export const teachKnowledge: ToolDef = {
   name: "brain_teach_knowledge",
   description:
-    "Record a piece of knowledge the user explicitly taught. Use when the user says 'remember that I prefer X' or 'always do Y'. User-taught knowledge has highest confidence (1.0) and overrides KEA-extracted siblings.",
+    "Record a piece of knowledge the user explicitly taught, OR a project DECISION / status change ('we'll use X', 'deprecate Y', 'Z owns auth'). For a decision: set scope:'project', put the rejected alternative in `instead`, add 'decision' to `tags`, and — if it reverses a prior decision — pass that decision's id as `supersedesKnowledgeId` (it is retired and replaced). Decisions become shared project memory: a teammate's next brain_start_session surfaces them. User-taught knowledge has highest confidence (1.0) and overrides KEA-extracted siblings.",
   inputSchema: {
     type: "object",
     required: ["type", "trigger", "rule"],
@@ -43,6 +46,7 @@ export const teachKnowledge: ToolDef = {
       framework: { type: "string" },
       language: { type: "string" },
       tags: { type: "array", items: { type: "string" } },
+      supersedesKnowledgeId: { type: "string" },
     },
   },
   handler: async (raw, auth) => {
@@ -114,6 +118,29 @@ export const teachKnowledge: ToolDef = {
       toVector(vec),
       row.id,
     );
+
+    // A decision that reverses a prior one retires + links the predecessor so
+    // KRA stops serving a stale decision to the team (spec 2026-06-16 §5).
+    if (input.supersedesKnowledgeId) {
+      await supersedeKnowledge(db, {
+        newId: row.id,
+        supersededId: input.supersedesKnowledgeId,
+        userId: auth.userId,
+      });
+    }
+    // Measurement (APPROACH §1.3): split decision capture out of generic teach.
+    if (input.tags.includes("decision")) {
+      getLogger("mcp", { stream: "stdout" }).info(
+        {
+          op: "decision.captured",
+          knowledgeId: row.id,
+          scope: input.scope,
+          channel: "teach",
+          superseded: input.supersedesKnowledgeId ?? null,
+        },
+        "decision.captured",
+      );
+    }
 
     return { id: row.id, confidence: 1.0 };
   },

@@ -31,6 +31,32 @@ export async function bulkBumpKnowledgeUsage(
 }
 
 /**
+ * Retire a superseded decision and link its successor (spec 2026-06-16 §5).
+ * Reuses parentKnowledgeId lineage; soft-deletes the predecessor so KRA stops
+ * serving it. Ownership-checked. Returns false (no throw) when the target is
+ * missing or not owned — capture of the new decision must never fail on this.
+ */
+export async function supersedeKnowledge(
+  db: PrismaClient,
+  args: { newId: string; supersededId: string; userId: string },
+): Promise<boolean> {
+  const target = await db.knowledge.findFirst({
+    where: { id: args.supersededId, ownerUserId: args.userId, deletedAt: null },
+    select: { id: true, ownerUserId: true },
+  });
+  if (!target) return false;
+  await db.knowledge.update({
+    where: { id: args.supersededId },
+    data: { deletedAt: new Date() },
+  });
+  await db.knowledge.update({
+    where: { id: args.newId },
+    data: { parentKnowledgeId: args.supersededId },
+  });
+  return true;
+}
+
+/**
  * After a session outcome is reported, bump successCount or failureCount for
  * every Knowledge row that was applied (injected) during that session.
  *
