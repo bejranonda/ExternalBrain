@@ -15,8 +15,9 @@ name: authed-e2e
 # The password is a literal in this public file — deliberate: it guards an
 # ephemeral CI database containing only the seed fixture. Nothing real.
 #
-# Rollout: NOT a required check yet (same pattern as the anon gate — prove
-# it green across PRs first, then promote in branch protection).
+# Rollout: promoted to a required check on `main` (2026-06-10) after proving
+# green across PRs — same path the anon gate took. Branch protection now lists
+# "authed surfaces e2e" alongside "anon onboarding e2e" and "typecheck · test · build".
 
 on:
   pull_request:
