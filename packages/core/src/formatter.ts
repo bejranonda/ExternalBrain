@@ -8,9 +8,29 @@
  * self-contained.
  */
 import type { Knowledge, KnowledgeBundle } from "@brain/types";
+import { DECISION_TAG } from "./learnings.js";
+
+const isDecision = (k: Knowledge): boolean => k.tags?.includes(DECISION_TAG) ?? false;
 
 export function formatForInjection(bundle: KnowledgeBundle): string {
   const parts: string[] = ["## What I've Learned About You"];
+
+  // Decisions lead — settled project choices a teammate should treat as given
+  // (spec 2026-06-16). They live as principle/anti_principle rows carrying the
+  // decision tag, so pull them out of those buckets and render them distinctly.
+  const decisions = [...bundle.principles, ...bundle.antiPrinciples].filter(isDecision);
+  if (decisions.length) {
+    parts.push(
+      "",
+      "## Decisions in this project",
+      "_Settled choices — treat as given, don't re-litigate._",
+    );
+    for (const d of decisions) {
+      parts.push(
+        `- ${d.ruleText}${d.instead ? ` (not ${d.instead})` : ""}${d.rationale ? ` — ${d.rationale}` : ""}`,
+      );
+    }
+  }
 
   if (bundle.reflexes.length) {
     parts.push("", "### Unconditional Rules (always apply)");
@@ -24,16 +44,18 @@ export function formatForInjection(bundle: KnowledgeBundle): string {
     parts.push("", "### Your Preferred Approaches");
     for (const r of bundle.heuristics) parts.push(line("HEURISTIC", r));
   }
-  if (bundle.antiPrinciples.length) {
+  const antiNonDecision = bundle.antiPrinciples.filter((r) => !isDecision(r));
+  if (antiNonDecision.length) {
     parts.push("", "### Things You've Asked Me To Avoid");
-    for (const r of bundle.antiPrinciples)
+    for (const r of antiNonDecision)
       parts.push(
         `- [ANTI-PRINCIPLE] ${r.ruleText}${r.instead ? ` — use ${r.instead} instead.` : ""} (corrected ${r.failureCount}×)`,
       );
   }
-  if (bundle.principles.length) {
+  const principlesNonDecision = bundle.principles.filter((r) => !isDecision(r));
+  if (principlesNonDecision.length) {
     parts.push("", "### Your Coding Principles");
-    for (const r of bundle.principles) parts.push(`- ${r.ruleText}`);
+    for (const r of principlesNonDecision) parts.push(`- ${r.ruleText}`);
   }
   if (bundle.skill) {
     parts.push("", `### A Skill That Might Apply`, bundle.skill.content);
