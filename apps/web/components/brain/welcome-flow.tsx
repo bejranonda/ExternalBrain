@@ -171,7 +171,7 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
             margin: "0 0 10px",
           }}
         >
-          Welcome to Brain
+          Welcome to your Brain
         </h1>
         <p
           style={{
@@ -182,8 +182,8 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
             maxWidth: 620,
           }}
         >
-          Connect an AI tool. We&apos;ll show you what Brain learned 60 seconds
-          after your first session.
+          Connect an AI tool. We&apos;ll show you what your Brain learned 60
+          seconds after your first session.
         </p>
       </header>
 
