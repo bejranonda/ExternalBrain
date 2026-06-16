@@ -13,9 +13,15 @@
 import { db, toVector } from "@brain/db";
 import { cosineSimilarity } from "./embedding.js";
 import { effectivenessScore } from "./knowledge-stats.js";
+import { DECISION_TAG } from "./learnings.js";
 
 const HALF_LIFE_DAYS = 90;
 const MIN_DECAY = 0.05;
+
+/** Decisions are user-stated facts, not scored heuristics — never decay/flag them (spec 2026-06-16 §5). */
+export function isDecayExempt(tags: string[]): boolean {
+  return tags.includes(DECISION_TAG);
+}
 
 export async function decayUnused(): Promise<{ updated: number; flaggedLowEffectiveness: number }> {
   // Audit WK2 (#103): batch with cursor pagination instead of loading
@@ -74,6 +80,7 @@ async function processDecayBatch(
   let updated = 0;
   let flaggedLowEffectiveness = 0;
   for (const r of rows) {
+    if (isDecayExempt(r.tags)) continue;
     const ref = r.lastUsedAt ?? r.createdAt;
     const days = (Date.now() - new Date(ref).getTime()) / 86_400_000;
 
