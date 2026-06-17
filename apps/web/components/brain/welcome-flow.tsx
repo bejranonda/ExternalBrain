@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDashboardStats } from "@/lib/brain/use-dashboard";
+import { useT } from "@/lib/brain/i18n";
 import {
   claudeCodeCli,
   cursor,
@@ -18,9 +19,8 @@ import {
  *   2. Copy the install command — auto-updates per tool choice
  *   3. Run any AI task — live status polls until first session arrives
  *
- * No new strings are wired through i18n; copy is intentionally English-only
- * here so the i18n cleanup subagent (sibling sprint task) doesn't conflict
- * on the same files. TODO(i18n): add keys once cleanup lands.
+ * Copy is wired through i18n (the `welcome.*` namespace, en/th/de). The TH/DE
+ * strings were AI-generated and await a native sweep — see docs/KNOWN_ISSUES.md.
  */
 
 type ToolChoice = "claude-code" | "cursor" | "windsurf" | "other";
@@ -80,6 +80,7 @@ export interface WelcomeFlowProps {
 }
 
 export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps = {}) {
+  const tr = useT();
   const [tool, setTool] = useState<ToolChoice>("claude-code");
   const [copied, setCopied] = useState(false);
   // Closes ExternalBrain #10 — the 60-second promise had no stuck-state
@@ -171,7 +172,7 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
             margin: "0 0 10px",
           }}
         >
-          Welcome to your Brain
+          {tr("welcome.title")}
         </h1>
         <p
           style={{
@@ -182,8 +183,7 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
             maxWidth: 620,
           }}
         >
-          Connect an AI tool. We&apos;ll show you what your Brain learned 60
-          seconds after your first session.
+          {tr("welcome.tagline")}
         </p>
       </header>
 
@@ -205,7 +205,7 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
               marginBottom: 4,
             }}
           >
-            STEP 1
+            {tr("welcome.step")} 1
           </div>
           <h2
             id="welcome-step1-heading"
@@ -216,7 +216,7 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
               letterSpacing: "-0.01em",
             }}
           >
-            Pick your AI tool
+            {tr("welcome.step1_title")}
           </h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {TOOLS.map((t) => {
@@ -253,7 +253,7 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
                         marginTop: 1,
                       }}
                     >
-                      {t.blurb}
+                      {tr(`welcome.tool_blurb.${t.id}`)}
                     </span>
                   </span>
                 </label>
@@ -277,7 +277,7 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
               marginBottom: 4,
             }}
           >
-            STEP 2
+            {tr("welcome.step")} 2
           </div>
           <h2
             id="welcome-step2-heading"
@@ -288,7 +288,7 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
               letterSpacing: "-0.01em",
             }}
           >
-            Copy the install command
+            {tr("welcome.step2_title")}
           </h2>
           <pre
             className="mono"
@@ -337,14 +337,14 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
               style={{ fontSize: 13 }}
               onClick={() => void onCopy()}
             >
-              {copied ? "Copied!" : "Copy"}
+              {copied ? tr("welcome.copied") : tr("welcome.copy")}
             </button>
             <a
               href="/settings/tokens"
               className="btn btn-ghost"
               style={{ fontSize: 13, textDecoration: "none" }}
             >
-              Get a token &rarr;
+              {tr("welcome.get_token")}
             </a>
             <span
               style={{
@@ -353,7 +353,7 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
                 marginLeft: "auto",
               }}
             >
-              Replace <code className="mono">{PLACEHOLDER_TOKEN}</code> with your token
+              {tr("welcome.replace_prefix")} <code className="mono">{PLACEHOLDER_TOKEN}</code> {tr("welcome.replace_suffix")}
             </span>
           </div>
         </section>
@@ -379,7 +379,7 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
             marginBottom: 4,
           }}
         >
-          STEP 3
+          {tr("welcome.step")} 3
         </div>
         <h2
           id="welcome-step3-heading"
@@ -390,7 +390,7 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
             letterSpacing: "-0.01em",
           }}
         >
-          Run any AI task
+          {tr("welcome.step3_title")}
         </h2>
         {firstSessionArrived ? (
           <div
@@ -412,7 +412,7 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
               }}
             />
             <span style={{ fontSize: 14, color: "var(--ink)" }}>
-              Got it! Your first session arrived.
+              {tr("welcome.success")}
             </span>
             <a
               href="/"
@@ -423,7 +423,7 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
                 marginLeft: "auto",
               }}
             >
-              Go to dashboard &rarr;
+              {tr("welcome.go_dashboard")}
             </a>
           </div>
         ) : (
@@ -464,17 +464,16 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
                     {showSignin ? (
                       <>
                         <a href="/signin?next=/welcome" style={{ color: "var(--accent)" }}>
-                          Sign in
+                          {tr("welcome.signin_link")}
                         </a>{" "}
-                        to see when your Brain learns from your first session.
+                        {tr("welcome.signin_rest")}
                       </>
                     ) : stuck ? (
                       <>
-                        Still nothing after {Math.floor(elapsedSec / 60) || 1} min — your
-                        install likely didn&apos;t take.
+                        {tr("welcome.stuck", { min: Math.floor(elapsedSec / 60) || 1 })}
                       </>
                     ) : (
-                      "Waiting for your first session…"
+                      tr("welcome.waiting")
                     )}
                   </span>
                   <span
@@ -484,7 +483,7 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
                       marginLeft: "auto",
                     }}
                   >
-                    Tip: ask your AI to call <code className="mono">brain_get_user_style</code> to verify the connection.
+                    {tr("welcome.tip_prefix")} <code className="mono">brain_get_user_style</code> {tr("welcome.tip_suffix")}
                   </span>
                 </div>
                 {veryStuck && (
@@ -501,23 +500,22 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
                     }}
                     role="status"
                   >
-                    <strong style={{ color: "var(--ink, #ececf0)" }}>Common causes:</strong>
+                    <strong style={{ color: "var(--ink, #ececf0)" }}>{tr("welcome.causes")}</strong>
                     <ul style={{ margin: "6px 0 0 18px", padding: 0 }}>
                       <li>
-                        Token typo or expired — generate a fresh one at{" "}
+                        {tr("welcome.cause1_prefix")}{" "}
                         <a href="/settings/tokens" style={{ color: "var(--accent)" }}>
                           /settings/tokens
                         </a>
                         .
                       </li>
                       <li>
-                        MCP host unreachable — the snippet you copied must use the
-                        public MCP URL (your Brain&apos;s <code className="mono">mcp.&lt;host&gt;</code>{" "}
-                        subdomain), not a raw port.
+                        {tr("welcome.cause2_prefix")}{" "}
+                        <code className="mono">mcp.&lt;host&gt;</code>{" "}
+                        {tr("welcome.cause2_suffix")}
                       </li>
                       <li>
-                        Your AI client cached an old tool list — restart Claude
-                        Code / Cursor / Windsurf after editing the MCP config.
+                        {tr("welcome.cause3")}
                       </li>
                     </ul>
                   </div>
@@ -538,7 +536,7 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
             textDecoration: "none",
           }}
         >
-          Skip welcome &rarr;
+          {tr("welcome.skip")}
         </a>
       </div>
 
