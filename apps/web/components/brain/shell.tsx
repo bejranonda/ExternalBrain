@@ -106,6 +106,8 @@ function useNavItems(counts: Counts): NavItem[] {
       hint: t("nav.hints.skills") },
     { id: "graph", label: t("nav.graph"), icon: "graph", kbd: "4",
       hint: t("nav.hints.graph") },
+    { id: "decisions", label: t("nav.decisions"), icon: "decisions", kbd: "7",
+      hint: t("nav.hints.decisions") },
     { id: "autoskill", label: t("nav.autoskill"), icon: "autoskill", kbd: "5",
       count: { value: counts.proposals, kind: "queue" },
       hint: t("nav.hints.autoskill") },
@@ -198,12 +200,12 @@ export function Rail({ route, setRoute, counts, onUser, collapsed, onToggleColla
       </div>
 
       <div className="rail-section-label">{t("nav.workspace")}</div>
-      {items.slice(0, 4).map((it) => (
+      {items.slice(0, 5).map((it) => (
         <RailNavItem key={it.id} item={it} active={route === it.id} onClick={() => setRoute(it.id)} />
       ))}
 
       <div className="rail-section-label">{t("nav.activity")}</div>
-      {items.slice(4).map((it) => (
+      {items.slice(5).map((it) => (
         <RailNavItem key={it.id} item={it} active={route === it.id} onClick={() => setRoute(it.id)} />
       ))}
 
@@ -377,6 +379,7 @@ export function Topbar({
     graph: [{ label: t("nav.graph"), to: "graph" }],
     autoskill: [{ label: t("nav.autoskill"), to: "autoskill" }],
     sessions: [{ label: t("nav.sessions"), to: "sessions" }],
+    decisions: [{ label: t("nav.decisions"), to: "decisions" }],
   };
   const crumbs = crumbsMap[route];
 
@@ -511,6 +514,7 @@ export function CmdK({ open, onClose, go }: CmdKProps) {
         { label: t("nav.graph"), hint: "4", icon: "graph", action: () => go("graph") },
         { label: t("nav.autoskill"), hint: "5", icon: "autoskill", action: () => go("autoskill") },
         { label: t("nav.sessions"), hint: "6", icon: "sessions", action: () => go("sessions") },
+        { label: t("nav.decisions"), hint: "7", icon: "decisions", action: () => go("decisions") },
       ],
     },
     {

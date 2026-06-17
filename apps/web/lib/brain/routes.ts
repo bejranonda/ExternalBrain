@@ -7,6 +7,7 @@ export const ROUTES = [
   "oracle",
   "skills",
   "graph",
+  "decisions",
   "autoskill",
   "sessions",
 ] as const;
@@ -19,7 +20,7 @@ export function isRoute(r: string): r is Route {
   return (ROUTES as readonly string[]).includes(r);
 }
 
-/** Number-key bindings 1..6 mapped to surfaces. */
+/** Number-key bindings 1..7 mapped to surfaces. */
 export const KEY_MAP: Record<string, Route> = {
   "1": "dashboard",
   "2": "oracle",
@@ -27,6 +28,7 @@ export const KEY_MAP: Record<string, Route> = {
   "4": "graph",
   "5": "autoskill",
   "6": "sessions",
+  "7": "decisions",
 };
 
 const STORAGE_KEY = "bp_route";

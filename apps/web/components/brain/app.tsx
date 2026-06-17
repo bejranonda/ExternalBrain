@@ -9,6 +9,7 @@ import { Skills } from "./skills";
 import { Graph } from "./graph";
 import { Autoskill } from "./autoskill";
 import { Sessions } from "./sessions";
+import { Decisions } from "./decisions";
 import { LangContext } from "@/lib/brain/i18n";
 import { KEY_MAP, useRoute } from "@/lib/brain/routes";
 import { useTweaks } from "@/lib/brain/tweaks";
@@ -88,6 +89,7 @@ export function BrainApp() {
     graph: <Graph />,
     autoskill: <Autoskill />,
     sessions: <Sessions />,
+    decisions: <Decisions />,
   } as const;
 
   return (
