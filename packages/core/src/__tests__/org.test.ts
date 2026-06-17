@@ -279,10 +279,12 @@ function makeMock(store: Store): any {
       },
     },
 
-    // Minimal $transaction: run the callback with `this` as the tx client.
+    // Minimal $transaction: run the callback with a fresh client over the same
+    // store and RETURN its result (real Prisma resolves to the callback's
+    // return value — createOrg relies on this).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    $transaction: async (fn: (tx: any) => Promise<void>) => {
-      await fn(makeMock(store));
+    $transaction: async (fn: (tx: any) => Promise<any>) => {
+      return fn(makeMock(store));
     },
 
     _txLog: txLog,
