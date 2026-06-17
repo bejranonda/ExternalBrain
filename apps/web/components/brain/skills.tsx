@@ -51,7 +51,7 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
     visibilityFilter === "all" ? undefined : visibilityFilter,
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | KnowledgeType>("all");
+  const [filter, setFilter] = useState<"all" | KnowledgeType | "decision">("all");
   const [scopeFilter, setScopeFilter] = useState<ScopeFilter>("all");
   const [sort, setSort] = useState<"recency" | "confidence" | "uses">("recency");
   const [editing, setEditing] = useState(false);
@@ -173,18 +173,20 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
     );
   }
 
-  const types: Array<{ k: "all" | KnowledgeType; label: string; count: number }> = [
+  const types: Array<{ k: "all" | KnowledgeType | "decision"; label: string; count: number }> = [
     { k: "all", label: t("skills.all"), count: items.length },
     { k: "recipe", label: t("skills.recipe"), count: items.filter((i) => i.type === "recipe").length },
     { k: "heuristic", label: t("skills.heuristic"), count: items.filter((i) => i.type === "heuristic").length },
     { k: "principle", label: t("skills.principle"), count: items.filter((i) => i.type === "principle").length },
     { k: "reflex", label: t("skills.reflex"), count: items.filter((i) => i.type === "reflex").length },
     { k: "anti", label: t("skills.anti"), count: items.filter((i) => i.type === "anti").length },
+    { k: "decision", label: t("skills.decisions"), count: items.filter((i) => i.tags.includes("decision")).length },
   ];
 
   const filtered = items.filter(
     (i) =>
-      (filter === "all" || i.type === filter) &&
+      (filter === "all" ||
+        (filter === "decision" ? i.tags.includes("decision") : i.type === filter)) &&
       (scopeFilter === "all" || i.scope === scopeFilter),
   );
   const sorted = [...filtered].sort((a, b) => {
@@ -403,7 +405,7 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
                     width: 6,
                     height: 6,
                     borderRadius: 99,
-                    background: `var(--k-${tt.k})`,
+                    background: tt.k === "decision" ? "var(--accent)" : `var(--k-${tt.k})`,
                   }}
                 />
               ) : (

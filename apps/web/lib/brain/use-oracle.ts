@@ -14,6 +14,8 @@ export interface OracleCitationMeta {
   outcomes?: number;
   usageCount?: number;
   lastUsedAt?: string;
+  /** True when the cited Knowledge row is a project decision (tag "decision"). */
+  isDecision?: boolean;
   // Session fields
   projectName?: string;
   sessionStartedAt?: string;

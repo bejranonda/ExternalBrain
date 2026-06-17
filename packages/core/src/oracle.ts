@@ -90,6 +90,7 @@ export interface RetrievedKnowledge {
   failureCount: number;
   usageCount: number;
   lastUsedAt: Date | null;
+  tags: string[];
   _similarity: number;
 }
 
@@ -132,7 +133,7 @@ async function buildContext(
 
   const knowledge = await db.$queryRawUnsafe<RetrievedKnowledge[]>(
     `
-    SELECT id, type, "triggerText", "ruleText", rationale, confidence,
+    SELECT id, type, tags, "triggerText", "ruleText", rationale, confidence,
            "successCount", "failureCount", "usageCount", "lastUsedAt",
            1 - (embedding <=> $1::vector) AS "_similarity"
     FROM "Knowledge"
@@ -600,6 +601,7 @@ export function mapCitations(
         outcomes: row.successCount + row.failureCount,
         usageCount: row.usageCount,
         ...(row.lastUsedAt !== null ? { lastUsedAt: row.lastUsedAt.toISOString() } : {}),
+        ...(Array.isArray(row.tags) && row.tags.includes("decision") ? { isDecision: true } : {}),
       };
       seen.set(key, {
         marker: n + 1,

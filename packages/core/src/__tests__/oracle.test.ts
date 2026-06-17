@@ -160,6 +160,7 @@ function makeKRow(overrides: Partial<RetrievedKnowledge> = {}): RetrievedKnowled
     failureCount: 2,
     usageCount: 15,
     lastUsedAt: new Date("2026-04-22T10:00:00Z"),
+    tags: [],
     _similarity: 0.85,
     ...overrides,
   };
@@ -215,6 +216,14 @@ describe("mapCitations — knowledge meta", () => {
     const k = makeKRow({ successCount: 5, failureCount: 3 });
     const citations = mapCitations(answer, [k], []);
     expect(citations[0]!.meta!.outcomes).toBe(8);
+  });
+
+  it("flags isDecision when the knowledge row carries the decision tag", () => {
+    const answer = "We use Postgres [^K1].";
+    const decided = mapCitations(answer, [makeKRow({ tags: ["decision"] })], []);
+    expect(decided[0]!.meta!.isDecision).toBe(true);
+    const plain = mapCitations(answer, [makeKRow({ tags: [] })], []);
+    expect(plain[0]!.meta!.isDecision).toBeUndefined();
   });
 
   it("sets lastUsedAt to undefined when lastUsedAt is null", () => {
