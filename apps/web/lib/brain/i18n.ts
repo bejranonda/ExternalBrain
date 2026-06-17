@@ -240,6 +240,7 @@ export const I18N = {
       step2_lead: "Or teach a rule directly",
       step2_rest:
         " — type a pattern you already follow. The Oracle can cite it on the next question.",
+      get_started: "Get started — guided tour →",
     },
     tip: {
       mcp: "Model Context Protocol — the channel your AI tool uses to talk to Brain.",
@@ -486,6 +487,7 @@ export const I18N = {
       step2_lead: "หรือสอนกฎโดยตรง",
       step2_rest:
         " — พิมพ์รูปแบบที่คุณใช้อยู่แล้ว ผู้ช่วยอัจฉริยะจะอ้างอิงได้ในคำถามครั้งถัดไป",
+      get_started: "เริ่มต้น — ทัวร์แนะนำ →",
     },
     tip: {
       mcp: "Model Context Protocol — ช่องทางที่เครื่องมือ AI ของคุณใช้สื่อสารกับ Brain",
@@ -733,6 +735,7 @@ export const I18N = {
       step2_lead: "Oder eine Regel direkt lehren",
       step2_rest:
         " — tippe ein Muster, das du bereits befolgst. Der Assistent kann es bei der nächsten Frage zitieren.",
+      get_started: "Loslegen — geführte Tour →",
     },
     tip: {
       mcp: "Model Context Protocol — der Kanal, über den dein KI-Tool mit Brain spricht.",

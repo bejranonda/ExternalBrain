@@ -78,8 +78,7 @@ export function EmptyBrainCallout({ onTeach }: Props) {
               className="btn btn-primary"
               style={{ fontSize: 13, textDecoration: "none" }}
             >
-              {/* TODO(i18n): add callout.get_started key in sibling i18n cleanup PR */}
-              <Icon name="link" size={11} /> Get started — guided tour &rarr;
+              <Icon name="link" size={11} /> {t("callout.get_started")}
             </a>
             <button
               type="button"
