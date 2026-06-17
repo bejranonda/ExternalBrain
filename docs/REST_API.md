@@ -9,6 +9,15 @@ GET    /api/orgs
   auth   required (session cookie)
   resp   { orgs: [{ id, slug, name, role, projects: [{ id, slug, name, framework, language, createdAt, isOwn }] }], activeProjectId }
 
+POST   /api/orgs
+  body   { name: string }   (1–120 chars)
+  auth   required (session cookie) — any signed-in user may create an org
+  resp   200 { ok: true, org: { id, slug, name, role: "owner" }, redirectTo: "/<orgSlug>/default" }
+  errs   400 invalid_request | INVALID_ORG_NAME · 409 slug_conflict (concurrent-create race; retry)
+  side   creates the Organization + an owner OrganizationMember + a "Default" project,
+         all in one transaction, then sets bp_active_project to the new project so the
+         caller lands inside the new org. Org slugs are globally unique (de-duped with -2, -3…).
+
 POST   /api/projects
   body   { orgId: string, name: string }
   auth   required; user must be a member of orgId
@@ -112,6 +121,25 @@ POST   /api/invites/signup
          accepts invite, and returns existingUser: true so the client can show "sign in instead".
          redirectTo is "/<orgSlug>/<projectSlug>" — the invited org's first project.
 ```
+
+POST   /api/auth/register
+  body   { email: string; password: string; voucher?: string }
+  auth   none (anonymous — self-service sign-up). Requires the Credentials provider
+         to be configured (ADMIN_USERNAME/ADMIN_PASSWORD_HASH) so the new account can
+         sign in afterwards; otherwise 403 registration_unavailable.
+  resp   200 { ok: true; redirectTo: string }
+  errs   400 invalid_request | weak_password (< 8 chars) | voucher_required
+         400 voucher_invalid | voucher_expired | voucher_exhausted | voucher_disabled
+         403 registration_unavailable  (Credentials provider not configured)
+         409 email_taken
+         429 rate_limited (5/hour/IP) | voucher_rate_limited (voucher brute-force limiter)
+  note   Posture is governed by REGISTRATION_REQUIRES_VOUCHER (default "true"): when on,
+         a valid voucher is mandatory and is validated BEFORE the email-exists check so an
+         attacker without a voucher cannot enumerate accounts. When the operator sets the
+         flag to "false", registration is fully open and the voucher field is ignored.
+         On success: creates User + UserCredential (+ claims the voucher when gated), then
+         bootstraps the user's personal org + default project. The /signin?mode=register
+         page calls this, then signs the user in with the just-created credentials.
 
 POST   /api/auth/forgot-password
   body   { email: string }

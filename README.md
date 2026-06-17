@@ -79,6 +79,16 @@ public-internet **server** deployment (Caddy + auto-TLS, real auth enforced,
 nightly backups), use `./scripts/deploy.sh` instead — see
 [docs/DEPLOY_CHECKLIST.md](./docs/DEPLOY_CHECKLIST.md).
 
+### Sign in & create your workspace
+
+New users can self-register from **`/signin` → "Create one"** (email + password)
+and get their own personal workspace immediately. Registration is
+secure-by-default: it requires a voucher code (minted by the operator at
+`/admin`) unless you set `REGISTRATION_REQUIRES_VOUCHER=false` to open signup
+fully. Any signed-in user can also create additional organizations from
+**Settings → Organization → New organization**. See
+[docs/SECURITY.md](./docs/SECURITY.md) for the full posture.
+
 ### Connect your AI tool
 
 After signing in, the **`/welcome`** flow walks you through it: pick your tool,

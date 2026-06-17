@@ -42,8 +42,10 @@ probe "/#sessions"
 
 printf '\n\033[1mAuth + account\033[0m\n'
 probe "/signin"
+probe "/signin?mode=register"
 probe "/signout"
 probe "/settings/tokens"
+probe "/settings/org"
 
 printf '\n\033[1mAdmin\033[0m (200 for admin, redirect for others)\n'
 probe "/admin"
@@ -58,6 +60,7 @@ probe "/api/me"
 # gated routes — 401/403/503 are expected successes for this smoke;
 # only 5xx is a regression.
 probe "/api/knowledge"
+probe "/api/orgs"
 probe "/api/sessions"
 probe "/api/dashboard"
 probe "/api/graph"

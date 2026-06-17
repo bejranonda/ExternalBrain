@@ -4,6 +4,7 @@ import {
   adminCredentialsConfigured,
   anySignInConfigured,
   devAuthAllowed,
+  registrationRequiresVoucher,
 } from "@/auth";
 import { db } from "@brain/db";
 import { cookies, headers } from "next/headers";
@@ -14,7 +15,7 @@ import { LocalePicker } from "@/components/brain/locale-picker";
 export const dynamic = "force-dynamic";
 
 interface Props {
-  searchParams: Promise<{ error?: string; voucher?: string; invite?: string }>;
+  searchParams: Promise<{ error?: string; voucher?: string; invite?: string; mode?: string }>;
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -37,6 +38,13 @@ const ERROR_MESSAGES: Record<string, string> = {
   CredentialsSignin: "Wrong username or password. Check your entry and try again.",
   weak_password: "Password must be at least 8 characters. Mix letters, numbers, and symbols for safety.",
   password_mismatch: "Passwords do not match.",
+  email_taken:
+    "An account with that email already exists. Sign in instead, or reset your password if you've forgotten it.",
+  rate_limited:
+    "Too many sign-up attempts from this address. Wait an hour and try again.",
+  registration_failed: "Couldn't create your account. Try again, or ask the operator for help.",
+  registration_unavailable:
+    "Self-service sign-up isn't enabled on this deployment. Ask the operator for an invite.",
   invite_not_found: "Invite token not found. Check the link and try again.",
   invite_revoked: "This invite has been revoked. Ask the org admin for a new one.",
   invite_expired: "This invite has expired. Ask the org admin for a new one.",
@@ -93,6 +101,15 @@ export default async function SignIn({ searchParams }: Props) {
   // If we have an invite token, fetch the invite metadata for the sign-up form.
   const inviteMeta = inviteToken ? await getInviteMeta(inviteToken) : null;
   const showSignupForm = !!inviteToken && !!inviteMeta;
+
+  // Self-service registration (#new-user-onboarding). Only meaningful when the
+  // credentials provider is configured — that's what lets the just-created
+  // email+password account sign in afterwards (per-user credential path in
+  // auth.ts). The voucher field is required unless the operator opened signup
+  // via REGISTRATION_REQUIRES_VOUCHER=false.
+  const voucherRequiredForSignup = registrationRequiresVoucher();
+  const showRegisterForm =
+    credentialsAllowed && params.mode === "register" && !showSignupForm;
 
   return (
     <main
@@ -275,6 +292,163 @@ export default async function SignIn({ searchParams }: Props) {
                 Create account &amp; join {inviteMeta.orgName}
               </button>
             </form>
+
+            <div style={{ fontSize: 12, color: "var(--ink-4, #6b6d7a)", marginTop: 14, lineHeight: 1.5 }}>
+              Already have an account?{" "}
+              <a href="/signin" style={{ color: "var(--accent, #7aa2f7)", textDecoration: "none" }}>
+                Sign in instead
+              </a>
+            </div>
+          </>
+        ) : showRegisterForm ? (
+          // ── Self-service registration form ───────────────────────────────
+          <>
+            <div style={{ fontSize: 13, color: "var(--ink-3, #9a9cab)", marginBottom: 16, lineHeight: 1.5 }}>
+              Create your account. You&apos;ll get your own personal Brain — a
+              private workspace you can start using right away, and add
+              teammates to later.
+            </div>
+
+            {errorMessage && (
+              <div
+                role="alert"
+                style={{
+                  padding: "10px 12px",
+                  marginBottom: 18,
+                  border: "1px solid var(--warn, #d97757)",
+                  borderRadius: 6,
+                  background: "rgba(217, 119, 87, 0.08)",
+                  color: "var(--warn, #d97757)",
+                  fontSize: 12.5,
+                  lineHeight: 1.5,
+                }}
+              >
+                {errorMessage}
+              </div>
+            )}
+
+            <form
+              action={async (formData: FormData) => {
+                "use server";
+                const email = String(formData.get("email") ?? "").trim();
+                const password = String(formData.get("password") ?? "");
+                const confirmPassword = String(formData.get("confirmPassword") ?? "");
+                const voucher = String(formData.get("voucher") ?? "").trim();
+
+                if (!email || !password) {
+                  redirect("/signin?mode=register&error=invalid_credentials");
+                }
+                if (password.length < 8) {
+                  redirect("/signin?mode=register&error=weak_password");
+                }
+                if (password !== confirmPassword) {
+                  redirect("/signin?mode=register&error=password_mismatch");
+                }
+
+                const res = await fetch(
+                  `${process.env.NEXTAUTH_URL ?? process.env.AUTH_URL ?? "http://localhost:3000"}/api/auth/register`,
+                  {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({
+                      email,
+                      password,
+                      ...(voucher ? { voucher } : {}),
+                    }),
+                  },
+                );
+
+                if (!res.ok) {
+                  const data = (await res.json().catch(() => ({}))) as { error?: string };
+                  redirect(`/signin?mode=register&error=${data.error ?? "registration_failed"}`);
+                }
+
+                const { redirectTo } = (await res.json()) as { redirectTo?: string };
+
+                // Sign in with the just-created credentials.
+                try {
+                  await signIn("admin-credentials", {
+                    username: email,
+                    password,
+                    redirectTo: redirectTo ?? "/",
+                  });
+                } catch (err) {
+                  if ((err as { message?: string })?.message?.includes("NEXT_REDIRECT")) {
+                    throw err;
+                  }
+                  redirect(redirectTo ?? "/");
+                }
+              }}
+            >
+              <label style={{ display: "block", marginBottom: 14 }}>
+                <span style={labelSpanStyle}>Email</span>
+                <input
+                  type="email"
+                  name="email"
+                  autoComplete="email"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  required
+                  style={inputStyle}
+                />
+              </label>
+
+              <label style={{ display: "block", marginBottom: 14 }}>
+                <span style={labelSpanStyle}>Password</span>
+                <input
+                  type="password"
+                  name="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                  style={inputStyle}
+                />
+              </label>
+
+              <label style={{ display: "block", marginBottom: voucherRequiredForSignup ? 14 : 18 }}>
+                <span style={labelSpanStyle}>Confirm password</span>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                  style={inputStyle}
+                />
+              </label>
+
+              {voucherRequiredForSignup && (
+                <label style={{ display: "block", marginBottom: 18 }}>
+                  <span style={labelSpanStyle}>
+                    Voucher code{" "}
+                    <span style={{ textTransform: "none", letterSpacing: 0 }}>
+                      — required to sign up here
+                    </span>
+                  </span>
+                  <input
+                    type="text"
+                    name="voucher"
+                    placeholder="e.g. PILOT-2026-A1B2"
+                    autoComplete="off"
+                    spellCheck={false}
+                    required
+                    style={inputStyle}
+                  />
+                </label>
+              )}
+
+              <button type="submit" style={primaryBtnStyle}>
+                Create account
+              </button>
+            </form>
+
+            {voucherRequiredForSignup && (
+              <div style={{ fontSize: 12, color: "var(--ink-4, #6b6d7a)", marginTop: 12, lineHeight: 1.5 }}>
+                Don&apos;t have a voucher? Ask the person who invited you, or the
+                operator of this Brain, for one.
+              </div>
+            )}
 
             <div style={{ fontSize: 12, color: "var(--ink-4, #6b6d7a)", marginTop: 14, lineHeight: 1.5 }}>
               Already have an account?{" "}
@@ -514,9 +688,10 @@ export default async function SignIn({ searchParams }: Props) {
 
             {/* #295 — onboarding affordance. A first-time visitor with no
                 account otherwise sees a login wall with no path forward.
-                The explainer reuses voucher-required language so it stays
-                consistent if the operator later flips to OAUTH mode. */}
-            {anyAllowed && (
+                When credentials sign-in is configured, offer self-service
+                registration (voucher-gated unless the operator opened it).
+                Otherwise (OAuth-only) keep the invite-link explainer. */}
+            {credentialsAllowed && (
               <div
                 style={{
                   fontSize: 12,
@@ -530,9 +705,31 @@ export default async function SignIn({ searchParams }: Props) {
                 <strong style={{ color: "var(--ink-3, #9a9cab)", fontWeight: 500 }}>
                   Don&apos;t have an account?
                 </strong>{" "}
-                Brain is invite-only on this deployment. Ask the person who
-                invited you (or the operator of this Brain) for an invite
-                link — they can send one from <code>/admin</code>.
+                <a href="/signin?mode=register" style={{ color: "var(--accent, #7aa2f7)", textDecoration: "none" }}>
+                  Create one
+                </a>
+                {voucherRequiredForSignup
+                  ? " — you'll need a voucher code from the operator."
+                  : "."}
+              </div>
+            )}
+
+            {!credentialsAllowed && anyAllowed && (
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "var(--ink-4, #6b6d7a)",
+                  marginTop: 20,
+                  paddingTop: 16,
+                  borderTop: "1px dashed var(--line, #23242c)",
+                  lineHeight: 1.5,
+                }}
+              >
+                <strong style={{ color: "var(--ink-3, #9a9cab)", fontWeight: 500 }}>
+                  Don&apos;t have an account?
+                </strong>{" "}
+                New GitHub users need a voucher code from the operator — enter
+                it above when you continue with GitHub.
               </div>
             )}
 

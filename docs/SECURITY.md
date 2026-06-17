@@ -109,6 +109,40 @@ VoucherRedemption
 6. `claimVoucher()` runs a Postgres transaction with `SELECT ... FOR UPDATE` on the voucher row, checks `disabled / expiresAt / usedCount < maxUses`, creates the User row, increments `usedCount`, writes the `VoucherRedemption` row. All four steps commit atomically, so two concurrent claims on the last seat of a multi-use code cannot both succeed.
 7. On failure, redirects `/signin?error=voucher_<reason>` with one of: `invalid | disabled | expired | exhausted`.
 
+### Email + password self-service registration
+
+The same voucher gate also governs a no-OAuth signup path, so a deployment that
+only runs Credentials mode (the pilot default) can still let new users onboard
+themselves instead of waiting for an invite. Flow:
+
+1. A visitor opens `/signin?mode=register` (linked from the "Don't have an
+   account? Create one" affordance) and submits email + password (+ a voucher
+   code, shown as required while `REGISTRATION_REQUIRES_VOUCHER=true`).
+2. The page's server action POSTs to **`POST /api/auth/register`**.
+3. The route refuses early with `403 registration_unavailable` if the
+   Credentials provider isn't configured — without it the new account could
+   never sign in, so we don't create a stranded row.
+4. Rate-limit: **5 registrations / hour / IP**, plus the shared voucher
+   brute-force limiter (10 / hour / IP) on the gated path.
+5. **Enumeration guard:** on the gated path the voucher is validated *before*
+   the email-exists check. An anonymous caller with no valid voucher therefore
+   gets `voucher_*` regardless of whether the email is registered — they can't
+   use this endpoint to enumerate accounts. Only a valid-voucher holder (rate-
+   limited) can see `email_taken`. On the open path (operator set the flag to
+   `false`) enumeration is inherent to open signup; the per-IP limiter is the
+   mitigation.
+6. The password is bcrypt-hashed (cost 12) **outside** the DB transaction, then
+   `claimVoucher({ …, passwordHash })` creates the `User` + `UserCredential` +
+   voucher redemption atomically (open path: a plain `User` + `UserCredential`
+   transaction). The new user is then bootstrapped with their own personal org
+   + default project, exactly like every other sign-in path.
+7. Success returns `{ ok, redirectTo }`; the page signs the user in with the
+   credentials they just set.
+
+`REGISTRATION_REQUIRES_VOUCHER` is the **single knob** for "is open signup
+allowed here" — it gates both this path and the OAuth path. Default `true`
+keeps a freshly-deployed instance closed to the public (secure-by-default).
+
 ### Kinds
 
 - **Personal** codes default to `maxUses=1`. Meant for a single pilot invitee.

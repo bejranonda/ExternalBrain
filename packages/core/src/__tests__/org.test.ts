@@ -13,8 +13,10 @@ import {
   requireOrgMember,
   isOrgOwner,
   ensureDefaultProject,
+  createOrg,
   slugify,
   uniqueSlugInOrg,
+  uniqueOrgSlug,
 } from "../org.js";
 import { BrainError } from "../logger.js";
 
@@ -143,6 +145,19 @@ function makeMock(store: Store): any {
         }
         txLog.push("member.upsert");
       },
+
+      create: async ({ data }: { data: Partial<MemberRow> & { orgId: string; userId: string; role: string } }) => {
+        const row: MemberRow = {
+          id: data.id ?? `om_${Math.random().toString(36).slice(2, 10)}`,
+          orgId: data.orgId,
+          userId: data.userId,
+          role: data.role,
+          joinedAt: data.joinedAt ?? new Date(),
+        };
+        store.members.push(row);
+        txLog.push("member.create");
+        return row;
+      },
     },
 
     organization: {
@@ -158,6 +173,53 @@ function makeMock(store: Store): any {
           store.orgs.push(create);
         }
         txLog.push("org.upsert");
+      },
+
+      findUnique: async ({
+        where,
+        select,
+      }: {
+        where: { slug?: string; id?: string };
+        select?: Record<string, boolean>;
+      }) => {
+        const row =
+          store.orgs.find(
+            (o) =>
+              (where.slug !== undefined && o.slug === where.slug) ||
+              (where.id !== undefined && o.id === where.id),
+          ) ?? null;
+        if (!row || !select) return row;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const out: Record<string, any> = {};
+        for (const k of Object.keys(select)) {
+          if (select[k]) out[k] = (row as Record<string, unknown>)[k];
+        }
+        return out;
+      },
+
+      create: async ({
+        data,
+        select,
+      }: {
+        data: { id?: string; slug: string; name: string };
+        select?: Record<string, boolean>;
+      }) => {
+        const row: OrgRow = {
+          id: data.id ?? `org_${Math.random().toString(36).slice(2, 10)}`,
+          slug: data.slug,
+          name: data.name,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        store.orgs.push(row);
+        txLog.push("org.create");
+        if (!select) return row;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const out: Record<string, any> = {};
+        for (const k of Object.keys(select)) {
+          if (select[k]) out[k] = (row as Record<string, unknown>)[k];
+        }
+        return out;
       },
     },
 
@@ -303,6 +365,95 @@ describe("ensurePersonalOrg", () => {
     await ensurePersonalOrg(db, "cuid_user_01");
 
     expect(store.orgs[0]?.name).toBe("bob");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// createOrg
+// ---------------------------------------------------------------------------
+
+describe("createOrg", () => {
+  it("creates the org, an owner membership, and a default project", async () => {
+    const store: Store = { orgs: [], members: [], users: [makeUser()], projects: [] };
+    const db = makeMock(store);
+
+    const result = await createOrg(db, "cuid_user_01", "Acme Inc.");
+
+    expect(result.slug).toBe("acme-inc");
+    expect(result.name).toBe("Acme Inc.");
+    expect(result.projectSlug).toBe("default");
+
+    expect(store.orgs).toHaveLength(1);
+    expect(store.members).toHaveLength(1);
+    expect(store.members[0]).toMatchObject({
+      orgId: result.orgId,
+      userId: "cuid_user_01",
+      role: "owner",
+    });
+    expect(store.projects).toHaveLength(1);
+    expect(store.projects[0]).toMatchObject({
+      organizationId: result.orgId,
+      ownerUserId: "cuid_user_01",
+      slug: "default",
+    });
+  });
+
+  it("derives a globally-unique slug when the base slug is taken", async () => {
+    const store: Store = {
+      orgs: [
+        { id: "org_existing", slug: "acme", name: "Acme", createdAt: BASE_DATE, updatedAt: BASE_DATE },
+      ],
+      members: [],
+      users: [makeUser()],
+      projects: [],
+    };
+    const db = makeMock(store);
+
+    const result = await createOrg(db, "cuid_user_01", "Acme");
+
+    expect(result.slug).toBe("acme-2");
+  });
+
+  it("trims the name and rejects an empty one", async () => {
+    const store: Store = { orgs: [], members: [], users: [makeUser()], projects: [] };
+    const db = makeMock(store);
+
+    await expect(createOrg(db, "cuid_user_01", "   ")).rejects.toBeInstanceOf(BrainError);
+    expect(store.orgs).toHaveLength(0);
+  });
+
+  it("rejects a name longer than 120 characters", async () => {
+    const store: Store = { orgs: [], members: [], users: [makeUser()], projects: [] };
+    const db = makeMock(store);
+
+    await expect(createOrg(db, "cuid_user_01", "x".repeat(121))).rejects.toBeInstanceOf(BrainError);
+    expect(store.orgs).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// uniqueOrgSlug
+// ---------------------------------------------------------------------------
+
+describe("uniqueOrgSlug", () => {
+  it("returns the candidate when free", async () => {
+    const store: Store = { orgs: [], members: [], users: [makeUser()], projects: [] };
+    const db = makeMock(store);
+    expect(await uniqueOrgSlug(db, "fresh")).toBe("fresh");
+  });
+
+  it("appends an incrementing suffix past collisions", async () => {
+    const store: Store = {
+      orgs: [
+        { id: "o1", slug: "team", name: "T", createdAt: BASE_DATE, updatedAt: BASE_DATE },
+        { id: "o2", slug: "team-2", name: "T2", createdAt: BASE_DATE, updatedAt: BASE_DATE },
+      ],
+      members: [],
+      users: [makeUser()],
+      projects: [],
+    };
+    const db = makeMock(store);
+    expect(await uniqueOrgSlug(db, "team")).toBe("team-3");
   });
 });
 
