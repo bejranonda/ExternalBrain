@@ -779,6 +779,15 @@ function TurnView({ turn, t, feedback, onFeedback, onFollow, onCopy, onTeach, st
                           {c.knowledgeId ? "knowledge" : c.sessionId ? "session" : "ref"}
                         </span>
                       )}
+                      {c.knowledgeId && c.meta?.isDecision && (
+                        <span
+                          className="chip"
+                          style={{ fontSize: 11, color: "var(--accent)", borderColor: "var(--accent)" }}
+                          title="A settled project decision"
+                        >
+                          decision
+                        </span>
+                      )}
                       {/* Knowledge meta chips */}
                       {c.knowledgeId && c.meta && typeof c.meta.effectiveness === "number" && (
                         <EffectivenessBadge

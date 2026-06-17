@@ -270,6 +270,8 @@ export interface OracleCitationMeta {
   usageCount?: number;
   /** ISO string for lastUsedAt on the Knowledge row. */
   lastUsedAt?: string;
+  /** True when the cited Knowledge row is a project decision (carries the "decision" tag). */
+  isDecision?: boolean;
 
   // ── Session citation fields ──────────────────────────────────────────────
   /** Display name of the owning Project. */

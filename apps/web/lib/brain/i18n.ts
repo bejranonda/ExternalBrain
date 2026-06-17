@@ -171,6 +171,7 @@ export const I18N = {
       principle: "Principle",
       reflex: "Reflex",
       anti: "Anti-pattern",
+      decisions: "Decisions",
       loading: "Loading skills…",
       empty_title: "No skills in your Brain yet",
       empty_body:
@@ -458,6 +459,7 @@ export const I18N = {
       principle: "หลักการ",
       reflex: "การตอบสนองอัตโนมัติ",
       anti: "รูปแบบที่ควรหลีกเลี่ยง",
+      decisions: "การตัดสินใจ",
       loading: "กำลังโหลดสกิล…",
       empty_title: "ยังไม่มีสกิลในสมองของคุณ",
       empty_body:
@@ -742,6 +744,7 @@ export const I18N = {
       principle: "Prinzip",
       reflex: "Automatische Reaktion",
       anti: "Anti-Muster",
+      decisions: "Entscheidungen",
       loading: "Skills werden geladen…",
       empty_title: "Noch keine Skills in deinem Gehirn",
       empty_body:
