@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 
 export type IconName =
-  | "brain" | "dashboard" | "oracle" | "skills" | "graph" | "autoskill" | "sessions"
+  | "brain" | "dashboard" | "oracle" | "skills" | "graph" | "autoskill" | "sessions" | "decisions"
   | "search" | "settings" | "notifications" | "plus" | "chevR" | "chevD"
   | "arrowUp" | "arrowR" | "sparkle" | "check" | "x" | "clock" | "file" | "link"
   | "cite" | "filter" | "sort" | "more" | "bolt" | "branch" | "bookmark" | "copy"
@@ -44,6 +44,7 @@ const paths: Record<IconName, ReactNode> = {
       <path d="M2 6h12M5 3v10" />
     </>
   ),
+  decisions: <path d="M3 8.5l3 3 6.5-7" />,
   search: (
     <>
       <circle cx="7" cy="7" r="4" />
