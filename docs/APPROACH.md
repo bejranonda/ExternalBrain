@@ -1191,3 +1191,24 @@ it safe:
    file:line evidence, lean on CI for typecheck/test/build, and hand the
    operator a deploy + throwaway-account E2E checklist rather than claim a
    browser pass that never happened.
+
+**Coda (post-merge, 2026-06-18):** the operator ran the exact checklist on live using a clean throwaway account. The full new-user journey passed: register → sign-in → `/api/me` returns the new user (not admin) → `/api/orgs` shows *only* the auto-provisioned personal org (tenant isolation: no admin or other-tenant orgs visible) → `POST /api/orgs` creates a second org as owner → re-list confirms. All three product claims (registration, org creation, tenant isolation) were proven live. The "hand the operator a checklist" close-out transferred cleanly into a real E2E validation.
+
+---
+
+## 5aq. The migration carve-out is the safety boundary for autonomous deploy (2026-06-18)
+
+Operator decision recorded this session: the AI may autonomously merge a PR into `main` and run `./scripts/deploy.sh` when (a) all required CI checks are green and (b) the diff contains no Prisma migration. Understanding *why that line* rather than some other is what makes the policy principled.
+
+**A code-only deploy is low-risk and reversible.** If the deployed code breaks something, `git revert` + redeploy undoes it in minutes. Postgres schema is unchanged; no data is at risk. CI green means typecheck, tests, and build passed; the diff went through PR review.
+
+**A migration deploy is qualitatively different.** `prisma migrate deploy` modifies the production DB schema irreversibly — column drops, NOT NULL additions, and enum changes cannot be undone by `git revert`. A migration that passes the dev fixture may still fail against prod data. The failure mode is "DB partially migrated; application in inconsistent state; operator must intervene manually." That requires a human in the loop.
+
+**The policy in three rules:**
+1. No Prisma migration in diff (`packages/db/prisma/migrations/` unchanged) + CI green → AI may autonomously merge and deploy.
+2. Prisma migration present in diff → STOP. Ask the operator. Do not merge, do not run `deploy.sh`.
+3. SSH and destructive DB ops (`migrate reset --force`, volume surgery) are always hard-blocked regardless.
+
+**Why "migration present" beats "migration is safe" as the check:** the detection is `git diff HEAD...origin/main -- packages/db/prisma/migrations/ | wc -l` — it's binary and reliable. "Safe migration" requires knowing prod data shape, concurrency, and acceptable downtime — a human judgment call. The binary check produces a stable boundary; the safety check does not.
+
+Recorded in `CLAUDE.local.md` (gitignored, operator-local). Brain decision id `cmqjpwfwy00000nnzyajiaj1d`.
