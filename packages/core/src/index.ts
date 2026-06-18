@@ -54,8 +54,10 @@ export {
   isOrgOwner,
   ensureDefaultProject,
   ensureNamedProject,
+  createOrg,
   slugify,
   uniqueSlugInOrg,
+  uniqueOrgSlug,
   listOrgMembers,
   setOrgMemberRole,
   removeOrgMember,
@@ -66,7 +68,7 @@ export {
   getAccessibleProjectIds,
   userCanAccessProject,
 } from "./org.js";
-export type { UserProject, OrgMemberView, OrgInviteView } from "./org.js";
+export type { UserProject, OrgMemberView, OrgInviteView, CreatedOrg } from "./org.js";
 export {
   buildKnowledgeWhere,
   buildSessionWhere,

@@ -1,13 +1,12 @@
 /**
- * GET /api/orgs
- *
- * Returns the current user's organizations with their projects, plus the
- * active project id resolved from the bp_active_project cookie.
+ * GET  /api/orgs — list the current user's organizations + projects.
+ * POST /api/orgs — create a new organization owned by the current user.
  */
 import { cookies } from "next/headers";
+import { z } from "zod";
 import { db } from "@brain/db";
 import { authErrorResponse, getCurrentUserId } from "@/lib/brain/auth";
-import { getUserOrgs, getUserProjects } from "@brain/core";
+import { createOrg, getUserOrgs, getUserProjects, writeAudit, BrainError } from "@brain/core";
 
 export async function GET(): Promise<Response> {
   try {
@@ -57,5 +56,75 @@ export async function GET(): Promise<Response> {
     return Response.json({ orgs: result, activeProjectId });
   } catch (err) {
     return authErrorResponse(err);
+  }
+}
+
+const createSchema = z.object({
+  name: z.string().min(1).max(120),
+});
+
+export async function POST(req: Request): Promise<Response> {
+  let userId: string;
+  try {
+    userId = await getCurrentUserId();
+  } catch (err) {
+    return authErrorResponse(err);
+  }
+
+  let name: string;
+  try {
+    ({ name } = createSchema.parse(await req.json()));
+  } catch {
+    return Response.json({ error: "invalid_request" }, { status: 400 });
+  }
+
+  try {
+    const org = await createOrg(db, userId, name);
+
+    await writeAudit({
+      actorUserId: userId,
+      action: "org.create",
+      targetType: "organization",
+      targetId: org.orgId,
+      payload: { slug: org.slug, name: org.name },
+    });
+
+    // Make the new org the active context so the user lands inside it.
+    const jar = await cookies();
+    jar.set("bp_active_project", org.projectId, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+    });
+
+    return Response.json({
+      ok: true,
+      org: {
+        id: org.orgId,
+        slug: org.slug,
+        name: org.name,
+        role: "owner",
+      },
+      redirectTo: `/${org.slug}/${org.projectSlug}`,
+    });
+  } catch (err) {
+    if (err instanceof BrainError) {
+      return Response.json(
+        { error: err.code, message: err.message },
+        { status: err.status ?? 400 },
+      );
+    }
+    // P2002 = unique slug collision under concurrent creation — transient.
+    if (err && typeof err === "object" && (err as { code?: string }).code === "P2002") {
+      return Response.json(
+        {
+          error: "slug_conflict",
+          message: "Couldn't create the organization just now — please try again.",
+        },
+        { status: 409 },
+      );
+    }
+    throw err;
   }
 }

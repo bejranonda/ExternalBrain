@@ -43,11 +43,13 @@ export type Action =
   | "project.create"
   | "project.update"
   | "project.delete"
+  | "org.create"
   | "org.invite.create"
   | "org.invite.accept"
   | "org.invite.revoke"
   | "org.member.role"
   | "org.member.remove"
+  | "user.register"
   | "user.password_change"
   | "user.password_reset_request"
   | "user.password_reset_complete";

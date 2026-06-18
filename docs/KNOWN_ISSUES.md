@@ -200,6 +200,16 @@ recorded metrics. These are capability-extension items, not defects.
 
 ---
 
+## 0f. Self-service onboarding (2026-06-17)
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**No self-service registration — new users could not create an account.**~~ **Resolved.** `/signin` only offered invite acceptance or voucher-gated GitHub OAuth; there was no email+password self-service path, so a Credentials-mode pilot was effectively invite-only. Added `POST /api/auth/register` + a `/signin?mode=register` form. Posture is governed by the existing `REGISTRATION_REQUIRES_VOUCHER` flag (default `true`), which now gates *both* the OAuth and email paths — a single secure-by-default knob. Voucher is validated before the email-exists check so the endpoint can't be used to enumerate accounts. | `apps/web/app/api/auth/register/route.ts`, `apps/web/app/signin/page.tsx`, `apps/web/auth.ts` | done |
+| ~~**No way to create an organization, and `/settings/org` hard-blocked zero-org users with "Admins only".**~~ **Resolved.** There was no org-creation API or UI; every user got exactly one auto-provisioned personal org and could make no others. A user who ended up with zero *manageable* orgs (dev-shim, or a silently-swallowed sign-in bootstrap failure at `auth.ts`) hit a dead-end "Admins only" panel with no path forward. Added `createOrg` (core) + `POST /api/orgs` + a "New organization" affordance, and replaced the dead-end with a "Create your first organization" form. Any user can now own multiple orgs. | `packages/core/src/org.ts`, `apps/web/app/api/orgs/route.ts`, `apps/web/app/settings/org/page.tsx` | done |
+| **Self-service email registration requires the Credentials provider.** `POST /api/auth/register` returns `403 registration_unavailable` when `ADMIN_USERNAME`/`ADMIN_PASSWORD_HASH` aren't set — an email+password account can only sign in through that provider, so without it the route refuses rather than create a stranded account. OAuth-only deployments should onboard via the voucher-gated GitHub path instead. | `apps/web/app/api/auth/register/route.ts` | by design |
+
+---
+
 ## 0. MVP-complete open items (2026-04-29, operator action required)
 
 These are not blocking pilot but must be resolved before a second contributor joins or the platform is advertised publicly.

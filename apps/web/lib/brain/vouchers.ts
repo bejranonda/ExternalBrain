@@ -111,6 +111,16 @@ export interface ClaimParams {
   name: string | null;
   image: string | null;
   roleIfAdmin?: "admin";
+  /**
+   * Pre-computed bcrypt hash for an email+password registration. When set, a
+   * `UserCredential` row is created for the new user inside the same
+   * transaction so the voucher claim and the password are committed together
+   * (or not at all). Omitted for the OAuth path, where there is no password.
+   *
+   * Hash *before* calling — bcrypt is intentionally ~200ms and we don't want
+   * to hold the voucher row lock for that long.
+   */
+  passwordHash?: string;
 }
 
 export type ClaimResult =
@@ -159,6 +169,12 @@ export async function claimVoucher(params: ClaimParams): Promise<ClaimResult> {
         role: params.roleIfAdmin === "admin" ? "admin" : "user",
       },
     });
+
+    if (params.passwordHash) {
+      await tx.userCredential.create({
+        data: { userId: user.id, passwordHash: params.passwordHash },
+      });
+    }
 
     await tx.voucherCode.update({
       where: { id: locked.id },

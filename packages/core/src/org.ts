@@ -392,6 +392,120 @@ export async function ensureNamedProject(
 }
 
 // ---------------------------------------------------------------------------
+// uniqueOrgSlug
+// ---------------------------------------------------------------------------
+
+/**
+ * Given a candidate slug, return a slug guaranteed to be globally unique across
+ * the Organization table by appending -2, -3, … if needed. Org slugs are
+ * `@unique` platform-wide (unlike project slugs, which are unique per-org), so
+ * this can't reuse `uniqueSlugInOrg`.
+ */
+export async function uniqueOrgSlug(
+  db: PrismaClient,
+  candidate: string,
+): Promise<string> {
+  const base = candidate || "org";
+  let slug = base;
+  let suffix = 1;
+  while (true) {
+    const existing = await db.organization.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
+    if (!existing) return slug;
+    suffix++;
+    slug = `${base}-${suffix}`;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// createOrg
+// ---------------------------------------------------------------------------
+
+export interface CreatedOrg {
+  orgId: string;
+  slug: string;
+  name: string;
+  projectId: string;
+  projectSlug: string;
+}
+
+/**
+ * Create a brand-new organization owned by `userId`, plus a default project so
+ * the org is immediately usable (a project-less org can't be activated — see
+ * `getActiveProject`). The creator is added as `owner`.
+ *
+ * Unlike `ensurePersonalOrg` (one auto-provisioned org per user, keyed on a
+ * deterministic id), this is the explicit user-initiated path: a user may own
+ * any number of these. The whole thing runs in one transaction so a half-built
+ * org (no owner, or no project) can never be observed.
+ *
+ * Throws `BrainError(INVALID_ORG_NAME, 400)` if the name is empty after trim.
+ */
+export async function createOrg(
+  db: PrismaClient,
+  userId: string,
+  name: string,
+): Promise<CreatedOrg> {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw new BrainError({
+      code: "INVALID_ORG_NAME",
+      category: "validation",
+      message: "Organization name must not be empty.",
+      remediation: "Provide a non-empty name for the organization.",
+      retryable: false,
+      status: 400,
+    });
+  }
+  if (trimmed.length > 120) {
+    throw new BrainError({
+      code: "INVALID_ORG_NAME",
+      category: "validation",
+      message: "Organization name must be 120 characters or fewer.",
+      remediation: "Shorten the organization name.",
+      retryable: false,
+      status: 400,
+    });
+  }
+
+  // Resolve the slug outside the transaction to keep the lock window short.
+  // A concurrent creation could still collide on the @unique slug; the
+  // transaction's create will then throw P2002 and the caller can retry.
+  const slug = await uniqueOrgSlug(db, slugify(trimmed));
+
+  return db.$transaction(async (tx) => {
+    const org = await tx.organization.create({
+      data: { slug, name: trimmed },
+      select: { id: true, slug: true, name: true },
+    });
+
+    await tx.organizationMember.create({
+      data: { orgId: org.id, userId, role: "owner" },
+    });
+
+    const project = await tx.project.create({
+      data: {
+        organizationId: org.id,
+        ownerUserId: userId,
+        name: "Default",
+        slug: "default",
+      },
+      select: { id: true, slug: true },
+    });
+
+    return {
+      orgId: org.id,
+      slug: org.slug,
+      name: org.name,
+      projectId: project.id,
+      projectSlug: project.slug,
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
 // listOrgMembers
 // ---------------------------------------------------------------------------
 

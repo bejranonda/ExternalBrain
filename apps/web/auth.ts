@@ -98,9 +98,12 @@ function parseAdminEmails(): Set<string> {
   );
 }
 
-function registrationRequiresVoucher(): boolean {
+export function registrationRequiresVoucher(): boolean {
   // Default true — a secure-by-default posture for a multi-tenant platform.
-  // Only the explicit string "false" disables the gate.
+  // Only the explicit string "false" disables the gate. Governs BOTH the
+  // GitHub-OAuth signup path (signIn callback below) and the email+password
+  // self-service registration endpoint (/api/auth/register), so the operator
+  // has a single knob for "is open signup allowed on this deployment".
   return (process.env.REGISTRATION_REQUIRES_VOUCHER ?? "true").toLowerCase() !== "false";
 }
 

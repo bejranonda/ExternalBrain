@@ -1142,3 +1142,52 @@ Method lessons that generalize:
    returns rows" — it was a live session whose injected lessons were the exact
    429/trace lessons taught days earlier, then closing with `knowledgeUsed`
    and watching the rows' success rate update to 100%.
+
+## 5ap. Open a door, don't lower a wall — self-service onboarding (2026-06-17)
+
+The ask was "let new users register and create their own org." The naive read
+is a feature toggle: flip registration open. On a **secure-by-default,
+multi-tenant** platform holding real client data, that framing is the trap —
+"open registration" is a *posture change*, not a feature. The method that kept
+it safe:
+
+1. **Validate the problem against the code before building.** The reported
+   "`/settings/org` hard-blocks zero-org users" turned out to be a *latent
+   edge case*, not the common path: `ensurePersonalOrg` gives every user an
+   owner org on sign-in, so the "Admins only" dead-end only fires when that
+   bootstrap was skipped (dev-shim) or **silently swallowed** (the sign-in
+   `try/catch` logs and continues). The real, always-present gap was the one
+   underneath: no way to create an org at all, and a dead-end instead of a
+   recovery path. The fix turns the dead-end *into* the entry point — the
+   zero-org branch now offers "Create your first organization," solving the
+   edge case and the feature in one move.
+
+2. **Reuse the existing gate; don't invent a new one.** Registration was
+   already governed by `REGISTRATION_REQUIRES_VOUCHER` for the OAuth path. The
+   email+password path rides the **same flag** rather than adding a parallel
+   `ALLOW_OPEN_REGISTRATION` knob — one decision, one place to reason about,
+   and the platform's "compose existing primitives over new entities" bias
+   honored. Default `true` keeps a fresh deploy closed; the operator opts in.
+
+3. **Ordering is a security control.** The review caught that returning
+   `email_taken` before validating the voucher turns the endpoint into an
+   account-enumeration oracle for *anonymous* callers. The fix is pure
+   ordering: validate the voucher first, so only a valid-voucher holder (rate-
+   limited) can observe email status. Same lesson as the credentials-timing
+   flatten (SECURITY.md): *what you reveal, and in what order, is part of the
+   threat model.*
+
+4. **Keep the expensive thing out of the lock.** bcrypt (cost 12, ~200ms) must
+   be hashed *before* the DB transaction on both registration paths — holding a
+   row lock for 200ms under concurrent signup is how you exhaust a connection
+   pool. The voucher path already did this; the review found the open path
+   didn't, and it was made to match.
+
+5. **Honest validation under a deploy you don't control.** This checkout can't
+   run the app (no pnpm/Node 18) and deploys are operator-gated, so "test on
+   live" is not available pre-merge. The honest close-out is: unit-test the
+   pure core (`createOrg` — owner membership, default project, global-unique
+   slug, name validation), hand-trace the route + server-action flow with
+   file:line evidence, lean on CI for typecheck/test/build, and hand the
+   operator a deploy + throwaway-account E2E checklist rather than claim a
+   browser pass that never happened.

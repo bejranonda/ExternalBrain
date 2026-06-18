@@ -461,6 +461,73 @@ function InviteForm({
   );
 }
 
+// ─── CreateOrgForm ──────────────────────────────────────────────────────────
+
+function CreateOrgForm({
+  onCreated,
+  onError,
+}: {
+  onCreated: (org: OrgData) => void;
+  onError: (msg: string) => void;
+}) {
+  const [name, setName] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed || creating) return;
+    setCreating(true);
+    try {
+      const res = await fetch("/api/orgs", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (!res.ok) {
+        const d = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+        throw new Error(d.message ?? d.error ?? `HTTP ${res.status}`);
+      }
+      const { org } = (await res.json()) as { org: OrgData };
+      setName("");
+      onCreated(org);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "create failed");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+      <label style={{ flex: "1 1 240px", minWidth: 0 }}>
+        <span style={labelStyle}>Organization name</span>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={120}
+          placeholder="e.g. Acme Inc."
+          style={{ ...inputStyle, marginTop: 4 }}
+          required
+        />
+      </label>
+      <button
+        type="submit"
+        disabled={creating || !name.trim()}
+        style={{
+          ...btnStyle,
+          borderColor: "var(--accent)",
+          color: "var(--accent-text)",
+          opacity: creating || !name.trim() ? 0.6 : 1,
+        }}
+      >
+        {creating ? "Creating…" : "Create organization"}
+      </button>
+    </form>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────
 
 export default function OrgPage() {
@@ -468,6 +535,7 @@ export default function OrgPage() {
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
   const [flash, setFlash] = useState<{ text: string; isLink: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
 
   const show = (text: string, isLink = false) => {
     setFlash({ text, isLink });
@@ -476,27 +544,38 @@ export default function OrgPage() {
     }
   };
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        const res = await fetch("/api/orgs", { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as {
-          orgs: Array<{ id: string; name: string; role: string }>;
-        };
-        // Only show orgs where caller is owner or admin
-        const manageable = data.orgs.filter(
-          (o) => o.role === "owner" || o.role === "admin",
-        );
-        setOrgs(manageable);
-        if (manageable.length > 0) {
-          setSelectedOrgId(manageable[0]!.id);
-        }
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "load failed");
-      }
-    })();
+  const loadOrgs = useCallback(async () => {
+    try {
+      const res = await fetch("/api/orgs", { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as {
+        orgs: Array<{ id: string; name: string; role: string }>;
+      };
+      // Only show orgs where caller is owner or admin
+      const manageable = data.orgs.filter(
+        (o) => o.role === "owner" || o.role === "admin",
+      );
+      setOrgs(manageable);
+      setSelectedOrgId((prev) =>
+        prev && manageable.some((o) => o.id === prev)
+          ? prev
+          : manageable[0]?.id ?? "",
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "load failed");
+    }
   }, []);
+
+  useEffect(() => {
+    void loadOrgs();
+  }, [loadOrgs]);
+
+  const onOrgCreated = (org: OrgData) => {
+    setShowCreate(false);
+    setSelectedOrgId(org.id);
+    show(`Organization “${org.name}” created.`);
+    void loadOrgs();
+  };
 
   const selectedOrg = orgs?.find((o) => o.id === selectedOrgId);
 
@@ -517,30 +596,34 @@ export default function OrgPage() {
   }
 
   if (orgs.length === 0) {
+    // No org you can manage. Rather than a dead-end "Admins only" message,
+    // offer to create one — every user can own organizations. (This also
+    // recovers the edge case where the sign-in personal-org bootstrap was
+    // skipped or failed, leaving a user with zero owned orgs.)
     return (
       <div style={{ maxWidth: 960 }}>
         <h1 style={{ fontSize: 22, fontWeight: 500, margin: "0 0 12px" }}>
           Organization
         </h1>
-        <div
-          className="panel"
-          style={{ padding: "20px 22px", maxWidth: 520 }}
-        >
+        {flash && !flash.isLink && (
+          <div style={{ ...flashStyle, color: "var(--ink-2)" }}>{flash.text}</div>
+        )}
+        <div className="panel" style={{ padding: "20px 22px", maxWidth: 520 }}>
           <h2 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 500 }}>
-            Admins only
+            Create your first organization
           </h2>
           <p
             style={{
-              margin: 0,
+              margin: "0 0 16px",
               fontSize: 13,
               color: "var(--ink-3)",
               lineHeight: 1.55,
             }}
           >
-            This page manages members, invites, and org settings — it&rsquo;s
-            visible only to org owners and admins. If you need to manage an
-            org, ask its owner to upgrade your role.
+            Organizations group projects and let you invite teammates. You&rsquo;ll
+            be the owner of any org you create here.
           </p>
+          <CreateOrgForm onCreated={onOrgCreated} onError={(m) => show(m)} />
         </div>
       </div>
     );
@@ -564,7 +647,23 @@ export default function OrgPage() {
             {selectedOrg.name}
           </span>
         )}
+        <button
+          type="button"
+          onClick={() => setShowCreate((v) => !v)}
+          style={{ ...btnStyle, marginLeft: "auto" }}
+        >
+          {showCreate ? "Cancel" : "New organization"}
+        </button>
       </div>
+
+      {showCreate && (
+        <div className="panel" style={{ padding: "16px 18px", marginBottom: 24, maxWidth: 520 }}>
+          <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 500 }}>
+            Create a new organization
+          </h2>
+          <CreateOrgForm onCreated={onOrgCreated} onError={(m) => show(m)} />
+        </div>
+      )}
 
       {flash && (
         <div style={flash.isLink ? flashStyle : { ...flashStyle, color: "var(--ink-2)" }}>
