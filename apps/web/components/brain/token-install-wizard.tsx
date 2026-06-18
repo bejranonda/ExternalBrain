@@ -7,6 +7,10 @@ import {
   cursor,
   windsurf,
   geminiCli,
+  antigravity,
+  githubCopilotVscode,
+  githubCopilotJetbrains,
+  githubCopilotCli,
   rawMcpServersJson,
   restApiCurl,
 } from "@brain/core/install-snippets";
@@ -20,6 +24,10 @@ type ClientId =
   | "cursor"
   | "windsurf"
   | "geminiCli"
+  | "antigravity"
+  | "githubCopilotVscode"
+  | "githubCopilotJetbrains"
+  | "githubCopilotCli"
   | "rawMcpServersJson"
   | "restApiCurl";
 
@@ -35,6 +43,18 @@ const CLIENT_OPTIONS: ClientOption[] = [
   { id: "cursor", label: "Cursor", needsOs: false },
   { id: "windsurf", label: "Windsurf", needsOs: false },
   { id: "geminiCli", label: "Gemini CLI", needsOs: false },
+  { id: "antigravity", label: "Google Antigravity", needsOs: false },
+  {
+    id: "githubCopilotVscode",
+    label: "GitHub Copilot — VS Code",
+    needsOs: false,
+  },
+  {
+    id: "githubCopilotJetbrains",
+    label: "GitHub Copilot — JetBrains / Visual Studio / Eclipse / Xcode",
+    needsOs: false,
+  },
+  { id: "githubCopilotCli", label: "GitHub Copilot — CLI", needsOs: false },
   {
     id: "rawMcpServersJson",
     label: "Other MCP-aware client (raw JSON)",
@@ -91,6 +111,10 @@ const snippetFns: Record<
   cursor,
   windsurf,
   geminiCli,
+  antigravity,
+  githubCopilotVscode,
+  githubCopilotJetbrains,
+  githubCopilotCli,
   rawMcpServersJson,
   restApiCurl,
 };

@@ -16,7 +16,16 @@ const log = getLogger("start-session");
 
 const inputShape = z.object({
   clientType: z
-    .enum(["claude_code", "cursor", "windsurf", "autobahn", "custom", "webapp"])
+    .enum([
+      "claude_code",
+      "cursor",
+      "windsurf",
+      "autobahn",
+      "antigravity",
+      "github_copilot",
+      "custom",
+      "webapp",
+    ])
     .default("custom"),
   projectId: z.string().optional(),
   /**
@@ -41,7 +50,16 @@ export const startSession: ToolDef = {
     properties: {
       clientType: {
         type: "string",
-        enum: ["claude_code", "cursor", "windsurf", "autobahn", "custom", "webapp"],
+        enum: [
+          "claude_code",
+          "cursor",
+          "windsurf",
+          "autobahn",
+          "antigravity",
+          "github_copilot",
+          "custom",
+          "webapp",
+        ],
       },
       projectId: { type: "string" },
       projectName: {

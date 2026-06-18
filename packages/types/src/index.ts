@@ -129,6 +129,8 @@ export type SessionClientType =
   | "cursor"
   | "windsurf"
   | "autobahn"
+  | "antigravity"
+  | "github_copilot"
   | "custom"
   | "webapp";
 
