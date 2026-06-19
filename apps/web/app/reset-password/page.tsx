@@ -152,11 +152,11 @@ export default async function ResetPasswordPage({ searchParams }: Props) {
               This reset link is invalid, expired, or has already been used.
             </div>
             <div style={{ fontSize: 12, color: "var(--ink-4, #6b6d7a)", lineHeight: 1.5 }}>
-              <a href="/forgot-password" style={{ color: "var(--accent, #7aa2f7)", textDecoration: "none" }}>
+              <a href="/forgot-password" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>
                 Request a new reset link
               </a>
               {" "}&mdash;{" "}
-              <a href="/signin" style={{ color: "var(--accent, #7aa2f7)", textDecoration: "none" }}>
+              <a href="/signin" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>
                 Back to sign in
               </a>
             </div>
@@ -265,7 +265,7 @@ export default async function ResetPasswordPage({ searchParams }: Props) {
             </form>
 
             <div style={{ fontSize: 12, color: "var(--ink-4, #6b6d7a)", marginTop: 16, lineHeight: 1.5 }}>
-              <a href="/signin" style={{ color: "var(--accent, #7aa2f7)", textDecoration: "none" }}>
+              <a href="/signin" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>
                 Back to sign in
               </a>
             </div>

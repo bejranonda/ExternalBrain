@@ -782,7 +782,7 @@ function TurnView({ turn, t, feedback, onFeedback, onFollow, onCopy, onTeach, st
                       {c.knowledgeId && c.meta?.isDecision && (
                         <span
                           className="chip"
-                          style={{ fontSize: 11, color: "var(--accent)", borderColor: "var(--accent)" }}
+                          style={{ fontSize: 11, color: "var(--accent-text)", borderColor: "var(--accent-text)" }}
                           title="A settled project decision"
                         >
                           decision

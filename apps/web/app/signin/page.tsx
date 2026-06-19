@@ -295,7 +295,7 @@ export default async function SignIn({ searchParams }: Props) {
 
             <div style={{ fontSize: 12, color: "var(--ink-4, #6b6d7a)", marginTop: 14, lineHeight: 1.5 }}>
               Already have an account?{" "}
-              <a href="/signin" style={{ color: "var(--accent, #7aa2f7)", textDecoration: "none" }}>
+              <a href="/signin" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>
                 Sign in instead
               </a>
             </div>
@@ -452,7 +452,7 @@ export default async function SignIn({ searchParams }: Props) {
 
             <div style={{ fontSize: 12, color: "var(--ink-4, #6b6d7a)", marginTop: 14, lineHeight: 1.5 }}>
               Already have an account?{" "}
-              <a href="/signin" style={{ color: "var(--accent, #7aa2f7)", textDecoration: "none" }}>
+              <a href="/signin" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>
                 Sign in instead
               </a>
             </div>
@@ -570,7 +570,7 @@ export default async function SignIn({ searchParams }: Props) {
                 <div style={{ textAlign: "right", marginBottom: 18 }}>
                   <a
                     href="/forgot-password"
-                    style={{ fontSize: 12, color: "var(--accent, #7aa2f7)", textDecoration: "none" }}
+                    style={{ fontSize: 12, color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}
                   >
                     Forgot password?
                   </a>
@@ -705,7 +705,7 @@ export default async function SignIn({ searchParams }: Props) {
                 <strong style={{ color: "var(--ink-3, #9a9cab)", fontWeight: 500 }}>
                   Don&apos;t have an account?
                 </strong>{" "}
-                <a href="/signin?mode=register" style={{ color: "var(--accent, #7aa2f7)", textDecoration: "none" }}>
+                <a href="/signin?mode=register" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>
                   Create one
                 </a>
                 {voucherRequiredForSignup
