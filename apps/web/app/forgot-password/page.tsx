@@ -89,11 +89,11 @@ export default async function ForgotPasswordPage({ searchParams }: Props) {
             </div>
             <div style={{ fontSize: 12, color: "var(--ink-4, #6b6d7a)", lineHeight: 1.5 }}>
               Did not receive it?{" "}
-              <a href="/forgot-password" style={{ color: "var(--accent, #7aa2f7)", textDecoration: "none" }}>
+              <a href="/forgot-password" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>
                 Try again
               </a>
               {" "}&mdash;{" "}
-              <a href="/signin" style={{ color: "var(--accent, #7aa2f7)", textDecoration: "none" }}>
+              <a href="/signin" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>
                 Back to sign in
               </a>
             </div>
@@ -155,7 +155,7 @@ export default async function ForgotPasswordPage({ searchParams }: Props) {
             </form>
 
             <div style={{ fontSize: 12, color: "var(--ink-4, #6b6d7a)", marginTop: 16, lineHeight: 1.5 }}>
-              <a href="/signin" style={{ color: "var(--accent, #7aa2f7)", textDecoration: "none" }}>
+              <a href="/signin" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>
                 Back to sign in
               </a>
             </div>

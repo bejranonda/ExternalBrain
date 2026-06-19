@@ -122,7 +122,7 @@ export default function ChangePasswordPage() {
               borderRadius: 6,
               background: "rgba(122,162,247,0.08)",
               border: "1px solid rgba(122,162,247,0.25)",
-              color: "var(--accent, #7aa2f7)",
+              color: "var(--accent-text, #7aa2f7)",
               fontSize: 13,
               marginBottom: 20,
             }}

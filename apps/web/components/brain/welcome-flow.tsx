@@ -463,7 +463,7 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
                   <span style={{ fontSize: 14, color: "var(--ink-2)" }}>
                     {showSignin ? (
                       <>
-                        <a href="/signin?next=/welcome" style={{ color: "var(--accent)" }}>
+                        <a href="/signin?next=/welcome" style={{ color: "var(--accent-text)" }}>
                           {tr("welcome.signin_link")}
                         </a>{" "}
                         {tr("welcome.signin_rest")}
@@ -504,7 +504,7 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
                     <ul style={{ margin: "6px 0 0 18px", padding: 0 }}>
                       <li>
                         {tr("welcome.cause1_prefix")}{" "}
-                        <a href="/settings/tokens" style={{ color: "var(--accent)" }}>
+                        <a href="/settings/tokens" style={{ color: "var(--accent-text)" }}>
                           /settings/tokens
                         </a>
                         .

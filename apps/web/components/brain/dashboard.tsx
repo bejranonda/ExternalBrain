@@ -227,7 +227,7 @@ function LiveExtraction() {
             anything those tools do shows up here in real time.{" "}
             <a
               href="/settings/tokens"
-              style={{ color: "var(--accent)", textDecoration: "none" }}
+              style={{ color: "var(--accent-text)", textDecoration: "none" }}
             >
               Get a token →
             </a>
