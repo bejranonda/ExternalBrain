@@ -164,6 +164,10 @@ function clientLabel(client: string): string {
       return "Windsurf";
     case "autobahn":
       return "Autobahn";
+    case "antigravity":
+      return "Antigravity";
+    case "github_copilot":
+      return "GitHub Copilot";
     case "mcp":
       return "MCP client";
     case "webapp":

@@ -16,6 +16,10 @@ import {
   cursor,
   windsurf,
   geminiCli,
+  antigravity,
+  githubCopilotVscode,
+  githubCopilotJetbrains,
+  githubCopilotCli,
   rawMcpServersJson,
   restApiCurl,
 } from "../install-snippets.js";
@@ -215,6 +219,156 @@ describe("geminiCli", () => {
     const s = geminiCli(TOKEN, MCP_URL, WEB_URL, "linux");
     expect(s.note).toContain("Gemini CLI");
     expect(s.note).toContain("2025");
+  });
+});
+
+// ─── antigravity ─────────────────────────────────────────────────────────────
+
+describe("antigravity", () => {
+  it("returns json kind with valid JSON body", () => {
+    const s = antigravity(TOKEN, MCP_URL, WEB_URL, "linux");
+    expect(s.kind).toBe("json");
+    const parsed: unknown = JSON.parse(joinLines(s.lines));
+    expect(parsed).toBeTruthy();
+  });
+
+  it("keys the remote server off serverUrl (not url) with the bearer header", () => {
+    const s = antigravity(TOKEN, MCP_URL, WEB_URL, "darwin");
+    const parsed = JSON.parse(joinLines(s.lines)) as {
+      mcpServers: {
+        brain: { serverUrl: string; headers: { Authorization: string } };
+      };
+    };
+    expect(parsed.mcpServers.brain.serverUrl).toBe(MCP_URL);
+    expect(parsed.mcpServers.brain.headers.Authorization).toBe(
+      `Bearer ${TOKEN}`,
+    );
+    // The Antigravity trap: it must NOT emit a `url` key.
+    expect(joinLines(s.lines)).not.toContain('"url"');
+  });
+
+  it("configPath is ~/.gemini/antigravity/mcp_config.json on unix", () => {
+    const s = antigravity(TOKEN, MCP_URL, WEB_URL, "linux");
+    expect(s.configPath!.linux).toBe("~/.gemini/antigravity/mcp_config.json");
+    expect(s.configPath!.darwin).toBe("~/.gemini/antigravity/mcp_config.json");
+  });
+
+  it("configPath uses %USERPROFILE%\\.gemini\\antigravity on win32", () => {
+    const s = antigravity(TOKEN, MCP_URL, WEB_URL, "win32");
+    expect(s.configPath!.win32).toContain("%USERPROFILE%");
+    expect(s.configPath!.win32).toContain("antigravity");
+  });
+
+  it("note flags the serverUrl quirk", () => {
+    const s = antigravity(TOKEN, MCP_URL, WEB_URL, "linux");
+    expect(s.note).toContain("serverUrl");
+  });
+});
+
+// ─── githubCopilotVscode ─────────────────────────────────────────────────────
+
+describe("githubCopilotVscode", () => {
+  it("returns json kind with valid JSON body", () => {
+    const s = githubCopilotVscode(TOKEN, MCP_URL, WEB_URL, "linux");
+    expect(s.kind).toBe("json");
+    const parsed: unknown = JSON.parse(joinLines(s.lines));
+    expect(parsed).toBeTruthy();
+  });
+
+  it("uses the servers wrapper with type:http, url, and a direct headers bearer", () => {
+    const s = githubCopilotVscode(TOKEN, MCP_URL, WEB_URL, "darwin");
+    const parsed = JSON.parse(joinLines(s.lines)) as {
+      servers: {
+        brain: {
+          type: string;
+          url: string;
+          headers: { Authorization: string };
+        };
+      };
+    };
+    expect(parsed.servers.brain.type).toBe("http");
+    expect(parsed.servers.brain.url).toBe(MCP_URL);
+    expect(parsed.servers.brain.headers.Authorization).toBe(`Bearer ${TOKEN}`);
+  });
+
+  it("configPath is .vscode/mcp.json", () => {
+    const s = githubCopilotVscode(TOKEN, MCP_URL, WEB_URL, "linux");
+    expect(s.configPath!.linux).toBe(".vscode/mcp.json");
+    expect(s.configPath!.win32).toContain(".vscode");
+  });
+});
+
+// ─── githubCopilotJetbrains ──────────────────────────────────────────────────
+
+describe("githubCopilotJetbrains", () => {
+  it("returns json kind with valid JSON body", () => {
+    const s = githubCopilotJetbrains(TOKEN, MCP_URL, WEB_URL, "linux");
+    expect(s.kind).toBe("json");
+    const parsed: unknown = JSON.parse(joinLines(s.lines));
+    expect(parsed).toBeTruthy();
+  });
+
+  it("puts the bearer under requestInit.headers (not a top-level headers)", () => {
+    const s = githubCopilotJetbrains(TOKEN, MCP_URL, WEB_URL, "darwin");
+    const parsed = JSON.parse(joinLines(s.lines)) as {
+      servers: {
+        brain: {
+          url: string;
+          requestInit: { headers: { Authorization: string } };
+          headers?: unknown;
+        };
+      };
+    };
+    expect(parsed.servers.brain.url).toBe(MCP_URL);
+    expect(parsed.servers.brain.requestInit.headers.Authorization).toBe(
+      `Bearer ${TOKEN}`,
+    );
+    expect(parsed.servers.brain.headers).toBeUndefined();
+  });
+
+  it("has no fixed configPath (per-IDE editor)", () => {
+    const s = githubCopilotJetbrains(TOKEN, MCP_URL, WEB_URL, "linux");
+    expect(s.configPath).toBeUndefined();
+  });
+
+  it("note names the IDE family", () => {
+    const s = githubCopilotJetbrains(TOKEN, MCP_URL, WEB_URL, "linux");
+    expect(s.note).toContain("JetBrains");
+  });
+});
+
+// ─── githubCopilotCli ────────────────────────────────────────────────────────
+
+describe("githubCopilotCli", () => {
+  it("returns json kind with valid JSON body", () => {
+    const s = githubCopilotCli(TOKEN, MCP_URL, WEB_URL, "linux");
+    expect(s.kind).toBe("json");
+    const parsed: unknown = JSON.parse(joinLines(s.lines));
+    expect(parsed).toBeTruthy();
+  });
+
+  it("uses mcpServers with type:http, url, and a direct headers bearer", () => {
+    const s = githubCopilotCli(TOKEN, MCP_URL, WEB_URL, "darwin");
+    const parsed = JSON.parse(joinLines(s.lines)) as {
+      mcpServers: {
+        brain: {
+          type: string;
+          url: string;
+          headers: { Authorization: string };
+        };
+      };
+    };
+    expect(parsed.mcpServers.brain.type).toBe("http");
+    expect(parsed.mcpServers.brain.url).toBe(MCP_URL);
+    expect(parsed.mcpServers.brain.headers.Authorization).toBe(
+      `Bearer ${TOKEN}`,
+    );
+  });
+
+  it("configPath is ~/.copilot/mcp-config.json on unix", () => {
+    const s = githubCopilotCli(TOKEN, MCP_URL, WEB_URL, "linux");
+    expect(s.configPath!.linux).toBe("~/.copilot/mcp-config.json");
+    expect(s.configPath!.win32).toContain(".copilot");
   });
 });
 

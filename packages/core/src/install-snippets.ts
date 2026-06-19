@@ -166,6 +166,144 @@ export function geminiCli(
 }
 
 /**
+ * Google Antigravity MCP config snippet.
+ * Antigravity is the odd one out: it keys remote servers off `serverUrl`
+ * (flat — no nested `transport`/`type`), not `url`. Pasting a `url`-shaped
+ * entry silently does nothing.
+ */
+export function antigravity(
+  token: string,
+  mcpUrl: string,
+  _webUrl: string,
+  _os: TargetOS,
+): InstallSnippet {
+  const body = JSON.stringify(
+    {
+      mcpServers: {
+        brain: {
+          serverUrl: mcpUrl,
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      },
+    },
+    null,
+    2,
+  );
+  return {
+    kind: "json",
+    lines: body.split("\n"),
+    note: "Antigravity → Settings → Customizations → Open MCP Config. Note: Antigravity uses `serverUrl` (not `url`) for HTTP servers.",
+    configPath: {
+      darwin: "~/.gemini/antigravity/mcp_config.json",
+      linux: "~/.gemini/antigravity/mcp_config.json",
+      win32: "%USERPROFILE%\\.gemini\\antigravity\\mcp_config.json",
+    },
+  };
+}
+
+/**
+ * GitHub Copilot — VS Code MCP config snippet.
+ * VS Code keys servers under `servers` (not `mcpServers`) and accepts the
+ * static header directly under `headers` with `type:"http"`.
+ */
+export function githubCopilotVscode(
+  token: string,
+  mcpUrl: string,
+  _webUrl: string,
+  _os: TargetOS,
+): InstallSnippet {
+  const body = JSON.stringify(
+    {
+      servers: {
+        brain: {
+          type: "http",
+          url: mcpUrl,
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      },
+    },
+    null,
+    2,
+  );
+  return {
+    kind: "json",
+    lines: body.split("\n"),
+    note: 'VS Code → command palette → "MCP: Open User Configuration" for a global install, or commit `.vscode/mcp.json` to share it with a repo.',
+    configPath: {
+      darwin: ".vscode/mcp.json",
+      linux: ".vscode/mcp.json",
+      win32: ".vscode\\mcp.json",
+    },
+  };
+}
+
+/**
+ * GitHub Copilot — JetBrains / Visual Studio / Eclipse / Xcode MCP config.
+ * These surfaces share one shape: `servers` + bare `url`, but the header
+ * goes under `requestInit.headers` (not a top-level `headers`). No fixed
+ * config path — each IDE opens its own `mcp.json` editor.
+ */
+export function githubCopilotJetbrains(
+  token: string,
+  mcpUrl: string,
+  _webUrl: string,
+  _os: TargetOS,
+): InstallSnippet {
+  const body = JSON.stringify(
+    {
+      servers: {
+        brain: {
+          url: mcpUrl,
+          requestInit: { headers: { Authorization: `Bearer ${token}` } },
+        },
+      },
+    },
+    null,
+    2,
+  );
+  return {
+    kind: "json",
+    lines: body.split("\n"),
+    note: "Same JSON for JetBrains IDEs, Visual Studio, Eclipse, and Xcode — open each one's MCP config (mcp.json) and paste. On these surfaces the bearer goes under `requestInit.headers`.",
+  };
+}
+
+/**
+ * GitHub Copilot — CLI MCP config snippet.
+ * The `copilot` CLI keys servers under `mcpServers` with `type:"http"`.
+ */
+export function githubCopilotCli(
+  token: string,
+  mcpUrl: string,
+  _webUrl: string,
+  _os: TargetOS,
+): InstallSnippet {
+  const body = JSON.stringify(
+    {
+      mcpServers: {
+        brain: {
+          type: "http",
+          url: mcpUrl,
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      },
+    },
+    null,
+    2,
+  );
+  return {
+    kind: "json",
+    lines: body.split("\n"),
+    note: "Or run `copilot` then `/mcp add` for the interactive form. Set COPILOT_HOME to relocate the config dir.",
+    configPath: {
+      darwin: "~/.copilot/mcp-config.json",
+      linux: "~/.copilot/mcp-config.json",
+      win32: "%USERPROFILE%\\.copilot\\mcp-config.json",
+    },
+  };
+}
+
+/**
  * Generic raw `mcpServers` JSON — fallback for any MCP-aware client.
  */
 export function rawMcpServersJson(

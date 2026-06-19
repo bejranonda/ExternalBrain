@@ -175,6 +175,96 @@ curl -X POST https://<your-brain>/mcp \
 
 After `initialize` returns, persist the `Mcp-Session-Id` response header and send it on every subsequent request as a `Mcp-Session-Id:` request header.
 
+### Google Antigravity
+
+Antigravity speaks native streamable-HTTP MCP — no `mcp-remote` shim needed. The
+catch: it keys remote servers off **`serverUrl`** (not `url`); a `url`-shaped
+entry is silently ignored.
+
+```json
+{
+  "mcpServers": {
+    "brain": {
+      "serverUrl": "https://<your-brain>/mcp",
+      "headers": { "Authorization": "Bearer bp_…" }
+    }
+  }
+}
+```
+
+Config at `~/.gemini/antigravity/mcp_config.json` (Windows:
+`%USERPROFILE%\.gemini\antigravity\mcp_config.json`). Open it from
+**Settings → Customizations → Open MCP Config**.
+
+### GitHub Copilot (all surfaces)
+
+Copilot has native HTTP MCP across its editors, CLI, and cloud agent — but the
+config shape differs per surface. The wizard emits the right one for each.
+
+| Surface | Config file | Top key | Bearer goes under |
+|---|---|---|---|
+| VS Code | `.vscode/mcp.json` (or user config) | `servers` | `headers` |
+| JetBrains / Visual Studio / Eclipse / Xcode | `mcp.json` | `servers` | `requestInit.headers` |
+| Copilot CLI | `~/.copilot/mcp-config.json` | `mcpServers` | `headers` |
+| Coding agent (cloud) | repo **Settings → Copilot → Coding agent** | `mcpServers` | `COPILOT_MCP_*` secret |
+
+**VS Code** (`.vscode/mcp.json`, or palette → "MCP: Open User Configuration"):
+
+```json
+{
+  "servers": {
+    "brain": {
+      "type": "http",
+      "url": "https://<your-brain>/mcp",
+      "headers": { "Authorization": "Bearer bp_…" }
+    }
+  }
+}
+```
+
+**JetBrains / Visual Studio / Eclipse / Xcode** — same `servers` wrapper, but the
+header moves under `requestInit.headers`:
+
+```json
+{
+  "servers": {
+    "brain": {
+      "url": "https://<your-brain>/mcp",
+      "requestInit": { "headers": { "Authorization": "Bearer bp_…" } }
+    }
+  }
+}
+```
+
+**Copilot CLI** (`~/.copilot/mcp-config.json`, or run `copilot` then `/mcp add`):
+
+```json
+{
+  "mcpServers": {
+    "brain": {
+      "type": "http",
+      "url": "https://<your-brain>/mcp",
+      "headers": { "Authorization": "Bearer bp_…" }
+    }
+  }
+}
+```
+
+**Coding agent (cloud).** Configured in the repository's **Settings → Copilot →
+Coding agent → MCP configuration**, not a local file. Because it runs in GitHub's
+cloud, it can only reach a Brain that is **internet-reachable** (a localhost or
+private-network deploy won't work), and the token must be stored as a
+`COPILOT_MCP_*` repository secret rather than pasted inline.
+
+> **Static-bearer note.** Antigravity and Copilot have both shipped bugs where a
+> `401` from an HTTP MCP server triggers an OAuth-discovery flow instead of
+> sending the configured header (antigravity-cli #25, copilot-cli #3100). The
+> Brain uses a static bearer and advertises no OAuth metadata, so a
+> statically-configured `headers`/`requestInit.headers` entry is sent on every
+> request — including `initialize` — which is the supported path. If a client is
+> observed probing `/.well-known/oauth-*` instead, re-check that the header is
+> present in the config above.
+
 ---
 
 ## Sanity-check from any shell
