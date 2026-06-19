@@ -1,8 +1,9 @@
 # External Brain — persistent memory for AI coding agents
 
 > **Stop re-teaching your AI the same things.** External Brain captures what you
-> learn in every AI coding session — across Claude Code, Cursor, Windsurf, and
-> any MCP client — turns it into reusable skills, and serves it back
+> learn in every AI coding session — across Claude Code, Cursor, Windsurf,
+> Google Antigravity, GitHub Copilot, and any MCP client — turns it into
+> reusable skills, and serves it back
 > automatically the next time you code.
 
 <p>
@@ -39,7 +40,8 @@ External Brain is the missing **memory substrate**:
 - 🧠 **Captures knowledge automatically** — finished sessions are mined for
   durable, reusable lessons. No manual note-taking.
 - 🔌 **Works with every AI tool** — it's an MCP server, so Claude Code, Cursor,
-  Windsurf, and any MCP-capable agent are first-class clients.
+  Windsurf, Google Antigravity, GitHub Copilot (VS Code, JetBrains, CLI), and
+  any MCP-capable agent are first-class clients.
 - 🔎 **Semantic retrieval** — relevant skills are injected into context *before*
   the model generates, by meaning, not keyword match.
 - 💬 **Grounded Oracle** — ask "how did we fix the deploy bug?" in plain English
@@ -100,7 +102,8 @@ curl -fsSL https://<your-host>/api/onboard.sh | bash -s 'bp_<your-token>'
 
 The installer wires the MCP server, smoke-tests the round-trip, and seeds your
 first session so the brain starts learning from day zero. Manual wiring for
-Cursor / Windsurf / any MCP client: [docs/CLIENTS.md](./docs/CLIENTS.md).
+Cursor / Windsurf / Antigravity / GitHub Copilot / any MCP client:
+[docs/CLIENTS.md](./docs/CLIENTS.md).
 
 ---
 
@@ -171,7 +174,7 @@ docs/          Documentation
 | [ARCHITECTURE](./docs/ARCHITECTURE.md) | System design, layers, data flow |
 | [MCP_TOOLS](./docs/MCP_TOOLS.md) | The `brain_*` MCP tools + resources |
 | [REST_API](./docs/REST_API.md) | HTTP endpoints |
-| [CLIENTS](./docs/CLIENTS.md) | Wiring Claude Code / Cursor / Windsurf |
+| [CLIENTS](./docs/CLIENTS.md) | Wiring Claude Code / Cursor / Windsurf / Antigravity / GitHub Copilot |
 | [USING_BRAIN](./docs/USING_BRAIN.md) | Daily workflow, trigger phrases, recipes |
 | [KNOWLEDGE](./docs/KNOWLEDGE.md) | The knowledge model (normative) |
 | [SECURITY](./docs/SECURITY.md) | Auth modes, MCP gating, threat model |

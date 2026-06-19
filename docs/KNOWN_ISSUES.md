@@ -211,6 +211,16 @@ recorded metrics. These are capability-extension items, not defects.
 
 ---
 
+## 0g. Multi-client MCP onboarding — Antigravity + GitHub Copilot (2026-06-19, v1.7.0)
+
+| Issue | Where | Status |
+|---|---|---|
+| **A wrong-shaped config is silently ignored — each client keys its remote server differently.** Antigravity uses `mcpServers` + **`serverUrl`** (a `url` key is dropped); Copilot VS Code uses `servers` + `headers`; Copilot JetBrains/Visual Studio/Eclipse/Xcode use `servers` + **`requestInit.headers`** (a top-level `headers` is dropped); Copilot CLI uses `mcpServers` + `headers`. The token install wizard emits the correct shape per client, so use it rather than hand-editing. (Severity: low; user error. Workaround: copy from `/settings/tokens` wizard or the matrix in `docs/CLIENTS.md`.) | `packages/core/src/install-snippets.ts`, `docs/CLIENTS.md` | mitigated by wizard |
+| **Antigravity / Copilot may attempt OAuth discovery on a `401` instead of sending the configured static bearer.** Both clients have shipped bugs (antigravity-cli #25, copilot-cli #3100) where an HTTP MCP server's `401` triggers a `/.well-known/oauth-*` discovery flow rather than falling back to the configured header. The Brain uses a **static bearer** and advertises no OAuth metadata, so a statically-configured `headers`/`requestInit.headers` entry is sent on every request including `initialize` — the supported path. If a client is observed probing `/.well-known/oauth-protected-resource` against `/mcp`, re-check that the header is actually present in its config. (Severity: low; client-side, config-dependent.) | client-side; `docs/CLIENTS.md` static-bearer note | client-side; documented |
+| **Copilot cloud coding agent can't reach a self-hosted Brain on a private network.** Unlike the editor/CLI surfaces, the coding agent runs in GitHub's cloud and is configured in repo **Settings → Copilot → Coding agent** (not a local file), with the token stored as a `COPILOT_MCP_*` secret. It only works against an **internet-reachable** Brain — a localhost or LAN-only deploy will fail. Documented-only; not a wizard entry. | repo Settings UI; `docs/CLIENTS.md` | by design |
+
+---
+
 ## 0. MVP-complete open items (2026-04-29, operator action required)
 
 These are not blocking pilot but must be resolved before a second contributor joins or the platform is advertised publicly.

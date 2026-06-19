@@ -3,7 +3,8 @@
 You are working in the **External Brain** repository — an MCP server + webapp
 that captures knowledge from AI coding sessions and serves it back as typed
 skills and a grounded Oracle. This file orients humans and AI assistants
-(Claude Code, Gemini CLI, Cursor, Windsurf, etc.) before their first edit.
+(Claude Code, Gemini CLI, Cursor, Windsurf, Google Antigravity, GitHub Copilot,
+etc.) before their first edit.
 
 `CLAUDE.md` and `GEMINI.md` are symlinks to this file — edit `AGENTS.md` and
 the changes propagate. Maintainers running a live deployment may also keep a

@@ -629,6 +629,8 @@ The Sessions table has always shown counts in the `K in/out` column (skills retr
 }
 ```
 
+**Client provenance.** `clientType` is the wire-tag of the agent that opened the session — an open `String` (not a DB enum), so the client set grows without a migration. As of v1.7.0 it spans `claude_code`, `cursor`, `windsurf`, `gemini` (Gemini CLI), `antigravity`, `github_copilot`, `autobahn`, `custom`, and `webapp`; `clientLabel()` humanizes each for display and falls back to "MCP client" for unknown tags. Provenance is descriptive metadata only — it never affects retrieval or scope filtering, which key off owner/project.
+
 **Auth invariant.** A session is readable by its owner OR by a member of the org that owns the session's project. The `OR` keeps personal sessions (no `projectId`) reachable for their owner without an org-membership probe; org-scoped sessions are reachable by all members so cross-user collaboration on a shared project surfaces the round-trip correctly. Soft-deleted Knowledge rows are filtered at the API layer — we surface what the user can act on, not what's tombstoned.
 
 **Role split is load-bearing.** `SessionKnowledgeApplication.role` has three values: `injected` (skill retrieved INTO the session by KRA), `retrieved_but_not_used` (matched but skipped — diagnostic, not user-facing), and `extracted_from` (new Knowledge KEA pulled OUT of the session). The endpoint only returns the first and third — `retrieved_but_not_used` is operator telemetry, not user-facing value. If a future surface needs the "almost-matched" set, add a separate role filter rather than overloading this response.

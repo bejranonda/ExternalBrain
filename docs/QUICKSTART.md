@@ -1,6 +1,6 @@
 # Quickstart — from zero to a running Brain in 15 minutes
 
-Goal of this guide: get External Brain running on a laptop or a fresh VM, wire it into Claude Code (or Cursor / Windsurf), and see your first AI coding session captured end-to-end. Copy-paste steps, no guessing.
+Goal of this guide: get External Brain running on a laptop or a fresh VM, wire it into Claude Code (or Cursor / Windsurf / Google Antigravity / GitHub Copilot), and see your first AI coding session captured end-to-end. Copy-paste steps, no guessing.
 
 > **Need the short version?** Skip to the [five-command happy path](#five-command-happy-path).
 
@@ -156,6 +156,25 @@ Editor settings → MCP → add server. Same shape as above. Cursor uses its own
 ### Windsurf
 
 Open `~/.codeium/windsurf/mcp_config.json` and add the same `brain` block as the Claude Code example.
+
+### Google Antigravity
+
+Open `~/.gemini/antigravity/mcp_config.json` (Settings → Customizations → Open MCP Config). Antigravity keys remote servers off **`serverUrl`** (not `url`):
+
+```json
+{
+  "mcpServers": {
+    "brain": {
+      "serverUrl": "http://localhost:3100/mcp",
+      "headers": { "Authorization": "Bearer <token>" }
+    }
+  }
+}
+```
+
+### GitHub Copilot
+
+Native HTTP MCP across VS Code, JetBrains/Visual Studio/Eclipse/Xcode, and the `copilot` CLI — the config shape differs per surface (VS Code uses `servers` + `headers`; the JetBrains family uses `requestInit.headers`; the CLI uses `mcpServers`). The per-surface JSON is in [docs/CLIENTS.md](./CLIENTS.md#github-copilot-all-surfaces).
 
 ### Others (any OpenAI/Anthropic-compatible agent)
 
