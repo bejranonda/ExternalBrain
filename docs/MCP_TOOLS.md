@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-The External Brain exposes **12 tools** and **4 resources** over MCP. Any MCP-capable AI client (Claude Code, Cursor, Windsurf, Autobahn, custom agents) becomes Brain-aware by connecting to this server.
+The External Brain exposes **12 tools** and **4 resources** over MCP. Any MCP-capable AI client (Claude Code, Cursor, Windsurf, Google Antigravity, GitHub Copilot, Autobahn, custom agents) becomes Brain-aware by connecting to this server.
 
 ## Connect
 
