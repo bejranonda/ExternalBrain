@@ -3,6 +3,11 @@
 This doc defines what "knowledge" is inside the External Brain, how it's represented in storage, how it moves through the pipeline, and the invariants any implementation must respect.
 
 > This is normative. If code disagrees with this doc, the code is wrong — raise a PR to either fix the code or amend this doc.
+>
+> **Rebuilding the system?** The implementation specs for the knowledge layer live in
+> [`REBUILD/01-foundation.md`](../REBUILD/01-foundation.md) (schema) and
+> [`REBUILD/02-core-intelligence.md`](../REBUILD/02-core-intelligence.md) (KRA · KEA ·
+> Oracle · decay). This doc defines the *what*; those files define the *how*.
 
 ---
 

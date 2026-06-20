@@ -160,6 +160,7 @@ packages/
   types/       Cross-package TypeScript types
 deploy/        Docker Compose, Caddy, Dockerfile
 docs/          Documentation
+REBUILD/       Phase-by-phase vibe-coding reconstruction guide (start: REBUILD/00-START-HERE.md)
 ```
 
 ---
@@ -183,6 +184,7 @@ docs/          Documentation
 | [CONTRIBUTING](./docs/CONTRIBUTING.md) · [GUIDELINES](./docs/GUIDELINES.md) | How to contribute, code style |
 | [DESIGN_PRINCIPLES](./docs/DESIGN_PRINCIPLES.md) | UI philosophy (progressive disclosure) |
 | [KNOWN_ISSUES](./docs/KNOWN_ISSUES.md) | Tracked risks & gotchas |
+| [REBUILD](./REBUILD/00-START-HERE.md) | **Rebuild from scratch** — 6-phase vibe-coding guide for porting to a new machine |
 
 Diagrams (Mermaid sources + rendered PNGs) live in
 [`docs/assets/illustrations/`](./docs/assets/illustrations/).

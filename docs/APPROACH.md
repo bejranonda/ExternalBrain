@@ -1226,3 +1226,61 @@ v1.7.0 added Google Antigravity and every GitHub Copilot surface (VS Code, JetBr
 **Two client-side caveats worth documenting, not fixing.** Both Antigravity and Copilot have shipped bugs where a `401` triggers OAuth discovery instead of sending the configured static header. The Brain advertises no OAuth metadata and sends the static bearer on every request, so the supported path works — but the symptom (a client probing `/.well-known/oauth-*`) looks like a server bug and isn't. And the Copilot cloud coding agent can't reach a private Brain at all: it runs in GitHub's cloud, so it needs an internet-reachable host and a repo-secret token. Naming these in `KNOWN_ISSUES §0g` up front is cheaper than fielding them as bug reports later.
 
 **Rule:** when integrating a standard protocol across many clients, assume the *envelope* diverges even when the *protocol* doesn't — generate the envelope, pin each variant with a test, and document the silent-fail shapes. Brain knowledge ids: `cmqkoc9n5000n0nnzo11szfjy` (config matrix), `cmqkoc55h000m0nnzog1a1wcr` (wizard-extension recipe), `cmqkochmn000o0nnz2vyln0ck` (supported-clients decision).
+
+---
+
+## 5as. A monolith is a bad brief — structured phase files for vibe-coding reconstruction (2026-06-20)
+
+The original `RECREATE_EXTERNAL_BRAIN.md` was a correct but unusable artifact: a
+13-section, 770-line document covering everything from pgvector to CI in one read. An AI
+agent handed that file produces shallow output because it can't hold the schema, the auth
+model, the scoring formula, and the Dockerfile in working context simultaneously. A human
+rebuilder faces the same problem — they can't checkpoint and verify in the middle of a
+1,000-line spec.
+
+**The split exposed the real problem: a brief optimized for comprehensiveness is
+optimized for the author, not the builder.** The author wants to capture everything.
+The builder wants to know *what to build next* and *when they're done with this piece*.
+Those are different documents.
+
+`REBUILD/` replaces the monolith with nine files, one per phase plus a reference and a
+sign-off checklist. Each phase file:
+
+1. Opens with a **copy-paste agent prompt** — the exact text to hand the AI to start
+   that phase. No paraphrasing required; the builder doesn't need to extract the task
+   from prose.
+2. Contains **complete, self-sufficient specs** for that phase — all models, all
+   invariants, all algorithms, all config shapes. A builder can read phase 3 without
+   re-reading phases 1–2.
+3. Closes with a **runnable checkpoint** — shell commands and a pass-criteria checkbox
+   list. The checkpoint is a contract: if it passes, the phase is done. If it fails,
+   the phase is not done regardless of whether the code "looks right".
+
+**The phase boundary is the gate.** The most common failure mode in a multi-session
+vibe-coding rebuild is drift: the agent builds phase N while phase N-1 has a latent
+defect, and the defect compounds through N+1 and N+2 before surfacing. A checkpoint
+that must pass before the next phase starts prevents this. "The checkpoint is
+annoying to run" is a symptom that the checkpoint is doing its job.
+
+**What the phases cover and why this order:**
+
+| Phase | What | Why this order |
+|-------|------|----------------|
+| 1 — Foundation | Monorepo + types + DB | Everything downstream imports these; the schema must be correct before any logic runs |
+| 2 — Core | Intelligence layer | Three runtimes share one implementation; core must compile before any app touches it |
+| 3 — MCP server | Gateway + auth | Auth invariants are easiest to verify in isolation; the loop closes later |
+| 4 — Worker | Background jobs | Can't verify the loop closes without a worker draining the queue |
+| 5 — Web | UI + NextAuth | Last because it depends on all packages and can be partially tested without a worker |
+| 6 — Deploy + CI | Docker Compose + scripts + GitHub Actions | Infrastructure wraps everything; test it when everything else is green |
+
+**The two mandatory tests that must never be skipped** (§5ar):
+- `antigravity` snippet emits `serverUrl`, not `url`
+- `githubCopilotJetbrains` snippet puts auth in `requestInit.headers`, not `headers`
+
+These are silent-failure traps pinned as unit tests in `REBUILD/02-core-intelligence.md
+§2.16`. Any rebuild that skips them will produce a "works on my machine" install wizard
+that silently breaks for Antigravity and JetBrains users.
+
+**Rule:** when producing a reconstruction brief for a complex system, split it by
+build-phase and checkpoint, not by document section. A phase is a unit of verifiable
+progress; a section is a unit of narrative. They are not the same thing.

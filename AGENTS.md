@@ -42,6 +42,7 @@ packages/
 deploy/                  # docker-compose, Caddyfile, Dockerfile
 scripts/                 # dev-up.sh / deploy.sh / reload.sh / verify-lockdown.sh
 docs/                    # Documentation (see the index below)
+REBUILD/                 # Phase-by-phase vibe-coding guide — start at REBUILD/00-START-HERE.md
 ```
 
 **Package boundary rule:** `types → db → core → (mcp-server | web | worker)`.
@@ -190,6 +191,7 @@ third elicitation fix is needed.
 | [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md) | Opening a PR, code conventions |
 | [`docs/CICD.md`](./docs/CICD.md) | CI checks + the two deploy scripts (forker-facing) |
 | [`docs/KNOWN_ISSUES.md`](./docs/KNOWN_ISSUES.md) | Before filing a bug — check tracked risks |
+| [`REBUILD/00-START-HERE.md`](./REBUILD/00-START-HERE.md) | Rebuilding from scratch on a new machine (vibe-coding guide) |
 
 ---
 

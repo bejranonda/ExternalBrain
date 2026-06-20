@@ -221,6 +221,22 @@ recorded metrics. These are capability-extension items, not defects.
 
 ---
 
+## 0h. Vibe-coding reconstruction guide — `REBUILD/` (2026-06-20)
+
+The `REBUILD/` folder at the repo root is the canonical resource for recreating
+External Brain from scratch on a new machine using AI-assisted (vibe) coding.
+It supersedes the earlier monolithic `RECREATE_EXTERNAL_BRAIN.md`.
+
+| Issue | Where | Status |
+|---|---|---|
+| **Two client config shapes are silent-failure traps.** Antigravity uses `serverUrl` (not `url`); GitHub Copilot JetBrains uses `requestInit.headers` (not `headers`). Paste the wrong key and the client connects with zero error messages. The unit tests in `@brain/core` pin both shapes — any rebuild must include those tests. | `REBUILD/02-core-intelligence.md §2.16`, `packages/core/src/__tests__/install-snippets.test.ts` | tested + documented |
+| **pg-boss v12 schema floor.** A fresh install gets schema v25+. A DB migrated from pg-boss v10 sits at v24; `boss.start()` crashes. The `scripts/pgboss-version-check.sh` script (spec'd in `REBUILD/04-worker.md §4.5`) exits non-zero on sub-v25 schemas and must run before the worker starts. | `REBUILD/04-worker.md`, `scripts/pgboss-version-check.sh` | documented; script to be included in rebuild |
+| **`SKIP_DB_INIT=1` required during `next build`.** The Prisma engine initialises on `import` in a Next.js build context unless `SKIP_DB_INIT=1` is set. Omitting it causes the build to fail or silently use the wrong client. Set it as a build-time env in both the Dockerfile and CI. | `REBUILD/06-deploy-ci.md §6.2`, `deploy/Dockerfile` | documented |
+| **Seed password hash placeholder.** `REBUILD/01-foundation.md` includes a placeholder bcrypt hash in the seed file. A builder must generate a real hash with `pnpm hash-admin-password '<pw>'` and replace it before testing sign-in. | `REBUILD/01-foundation.md §5.6`, `scripts/hash-admin-password.ts` | documented |
+| **`--accent` vs `--accent-text` contrast invariant.** `--accent` is brand fill (e.g. lime `#D8FF3E`), never safe as foreground text. Always use `--accent-text` for text color. Rebuilders who copy raw color values from the theme system will introduce WCAG failures that pass visual inspection on a dark monitor but fail on light themes. | `REBUILD/05-web-app.md §5.3`, `apps/web/src/app/globals.css` | documented |
+
+---
+
 ## 0. MVP-complete open items (2026-04-29, operator action required)
 
 These are not blocking pilot but must be resolved before a second contributor joins or the platform is advertised publicly.

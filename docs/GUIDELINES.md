@@ -490,6 +490,44 @@ Three modes: OAuth (`AUTH_GITHUB_*` + `AUTH_SECRET`), dev shim (`ALLOW_DEV_AUTH=
 
 ---
 
+## 12b. Rebuilding from scratch (`REBUILD/`)
+
+The `REBUILD/` folder at the repo root is the canonical resource for anyone
+porting External Brain to a new machine using AI-assisted (vibe) coding.
+
+```
+REBUILD/
+  00-START-HERE.md          — master index, rules, phase map
+  01-foundation.md          — monorepo + @brain/types + @brain/db (full schema + seed)
+  02-core-intelligence.md   — @brain/core (KRA · KEA · Oracle · decay · snippets)
+  03-mcp-server.md          — apps/mcp-server (Bearer auth · 12 tools · 4 resources)
+  04-worker.md              — apps/worker (pg-boss · 9 jobs · embeddings backfill)
+  05-web-app.md             — apps/web (NextAuth · dashboard · Oracle · Skills · Admin)
+  06-deploy-ci.md           — Docker Compose · Dockerfile · scripts · CI workflows
+  07-env-catalog.md         — complete .env reference
+  08-acceptance-criteria.md — 9-point definition of done + sign-off checklist
+```
+
+**Each file:**
+- Opens with a copy-paste agent prompt block — hand it verbatim to the AI
+- Contains complete specs for that phase (data models, algorithms, invariants)
+- Closes with a runnable checkpoint the builder must pass before the next phase
+
+**When to update `REBUILD/`:** any change to the schema, the MCP tool surface, the
+auth model, the install-snippet shapes, or the deployment topology should be mirrored
+in the relevant REBUILD phase file so the rebuild guide stays current with the
+running system.
+
+**Two mandatory unit tests that REBUILD/02 pins (never skip these):**
+```typescript
+// antigravity: serverUrl (not url)
+// githubCopilotJetbrains: requestInit.headers (not headers)
+```
+Both are silent-failure traps — wrong key, zero error, no connection. See
+`REBUILD/02-core-intelligence.md §2.16` and `docs/KNOWN_ISSUES.md §0h`.
+
+---
+
 ## 13. References
 
 - `docs/BLUEPRINT.md` — the product.
@@ -497,6 +535,7 @@ Three modes: OAuth (`AUTH_GITHUB_*` + `AUTH_SECRET`), dev shim (`ALLOW_DEV_AUTH=
 - `docs/KNOWLEDGE.md` — ontology and lifecycle (normative).
 - `docs/KNOWN_ISSUES.md` — what to watch out for.
 - `docs/NAVIGATION.md` — frontend navigation surfaces and zero-error checklist.
+- `REBUILD/00-START-HERE.md` — vibe-coding rebuild guide.
 - `research/knowledge/README.md` — 7,900 lines of prior analysis.
 - [`Architecture diagram`](./assets/illustrations/architecture.png) — visual: 3-layer system architecture for new contributors.
 - [`AI Application diagram`](./assets/illustrations/ai_application.png) — visual: where LLMs and embeddings are used.
