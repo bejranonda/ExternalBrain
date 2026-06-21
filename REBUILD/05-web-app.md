@@ -498,6 +498,32 @@ export function t(key: string, locale: Locale = "en"): string
 Locale is stored in `bp_lang` cookie. The `LangProvider` component provides `t()` via
 React context. Server components read `bp_lang` directly from the cookie store.
 
+### Long-form docs content (`src/lib/docs-content.ts`) — #59
+
+Short UI strings live in the dictionary above. The in-app `/docs` *prose* does
+not — it's structured `DocPage` data (title / summary / sections / bullets), too
+long for flat keys. Translate it as **parallel records**, not dictionary entries:
+
+```typescript
+export const DOCS:    Record<string, DocPage> = { /* EN — canonical, also the slug source */ };
+const DOCS_TH: Record<string, DocPage> = { /* same slugs */ };
+const DOCS_DE: Record<string, DocPage> = { /* same slugs */ };
+
+// Per-slug EN fallback: a missing translation degrades to English, never a 404.
+export function getDoc(lang: Lang, slug: string): DocPage | undefined {
+  return (DOCS_BY_LANG[lang] ?? DOCS)[slug] ?? DOCS[slug];
+}
+// Short docs chrome (index title, section headings, "Related concepts", …):
+export function getDocsChrome(lang: Lang): DocsChrome { /* EN fallback */ }
+```
+
+The `/docs` pages are **client components** that read `useLang()`, so the unauth
+`<LocalePicker>` switches the whole surface in place with no reload; they still
+SSR in the cookie-resolved locale through `LangProvider`. `generateStaticParams`
++ a cookie-localized `generateMetadata` stay on the server page; the body is a
+small client view. AI-translated TH/DE prose is flagged in `KNOWN_ISSUES.md` for
+a native-speaker pass.
+
 ### Tweaks store (`src/lib/tweaks.ts`)
 ```typescript
 // Zustand store persisted to localStorage as bp_tweaks

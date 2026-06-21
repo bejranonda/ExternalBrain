@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LocalePicker } from "@/components/brain/locale-picker";
 
 export const metadata: Metadata = {
   title: "Documentation — External Brain",
@@ -22,6 +23,9 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
         padding: "32px 24px 80px",
       }}
     >
+      {/* Locale switcher — /docs is now translated (TH/DE), so it joins the
+          other unauth surfaces in offering the picker. #59. */}
+      <LocalePicker />
       <div style={{ maxWidth: 880, margin: "0 auto" }}>
         <Link
           href="/"

@@ -1,12 +1,21 @@
+"use client";
+
 import Link from "next/link";
-import { DOCS, DOCS_SECTIONS } from "@/lib/brain/docs-content";
+import { DOCS_SECTIONS, getDoc, getDocsChrome } from "@/lib/brain/docs-content";
+import { useLang } from "@/lib/brain/i18n";
 
 /**
  * Landing index for in-app documentation. Grouped by section per the
  * registry; each card links to the concept page and shows the one-line
  * summary so users can skim and find what they need.
+ *
+ * Client component so it reacts to the unauth <LocalePicker /> instantly via
+ * useLang(); it still server-renders in the cookie-resolved language (the
+ * LangProvider seeds the context from the bp_lang cookie). #59.
  */
 export default function DocsIndex() {
+  const lang = useLang();
+  const c = getDocsChrome(lang);
   return (
     <>
       <h1
@@ -17,7 +26,7 @@ export default function DocsIndex() {
           margin: "0 0 8px",
         }}
       >
-        Documentation
+        {c.indexTitle}
       </h1>
       <p
         style={{
@@ -28,22 +37,21 @@ export default function DocsIndex() {
           maxWidth: 720,
         }}
       >
-        Plain-English reference for every concept and feature in External Brain.
-        If you came here from a (?) icon in the app, the page you want is below.
-        For the full technical handbook, see the{" "}
+        {c.indexIntro}{" "}
+        {c.indexHandbookPre}
         <a
           href="https://github.com/bejranonda/BrainPlatform/tree/main/docs"
           target="_blank"
           rel="noopener"
           style={{ color: "var(--accent-text)", textDecoration: "underline" }}
         >
-          docs/ folder on GitHub
+          {c.indexHandbookLink}
         </a>
         .
       </p>
 
       {DOCS_SECTIONS.map((section) => (
-        <section key={section.heading} style={{ marginBottom: 36 }}>
+        <section key={section.id} style={{ marginBottom: 36 }}>
           <h2
             className="mono"
             style={{
@@ -55,7 +63,7 @@ export default function DocsIndex() {
               margin: "0 0 14px",
             }}
           >
-            {section.heading}
+            {c.sections[section.id] ?? section.heading}
           </h2>
           <div
             style={{
@@ -65,7 +73,7 @@ export default function DocsIndex() {
             }}
           >
             {section.slugs.map((slug) => {
-              const page = DOCS[slug];
+              const page = getDoc(lang, slug);
               if (!page) return null;
               return (
                 <Link
@@ -122,7 +130,7 @@ export default function DocsIndex() {
             margin: "0 0 14px",
           }}
         >
-          Need help?
+          {c.needHelpTitle}
         </h2>
         <ul
           style={{
@@ -134,49 +142,49 @@ export default function DocsIndex() {
           }}
         >
           <li>
-            For end-user walkthroughs:{" "}
+            {c.helpTutorialsPre}
             <a
               href="https://github.com/bejranonda/BrainPlatform/tree/main/docs/tutorials"
               target="_blank"
               rel="noopener"
               style={{ color: "var(--accent-text)" }}
             >
-              tutorials/
-            </a>{" "}
-            (six step-by-step guides).
+              {c.helpTutorialsLink}
+            </a>
+            {c.helpTutorialsPost}
           </li>
           <li>
-            Something broken? Check{" "}
+            {c.helpBrokenPre}
             <a
               href="https://github.com/bejranonda/BrainPlatform/blob/main/docs/tutorials/06-troubleshooting.md"
               target="_blank"
               rel="noopener"
               style={{ color: "var(--accent-text)" }}
             >
-              the troubleshooting guide
-            </a>{" "}
-            or{" "}
+              {c.helpBrokenLink}
+            </a>
+            {c.helpBrokenMid}
             <a
               href="https://github.com/bejranonda/BrainPlatform/issues/new"
               target="_blank"
               rel="noopener"
               style={{ color: "var(--accent-text)" }}
             >
-              file an issue
+              {c.helpBrokenLink2}
             </a>
-            .
+            {c.helpBrokenPost}
           </li>
           <li>
-            Operator / production runbook:{" "}
+            {c.helpRunbookPre}
             <a
               href="https://github.com/bejranonda/BrainPlatform/blob/main/docs/RUNBOOK.md"
               target="_blank"
               rel="noopener"
               style={{ color: "var(--accent-text)" }}
             >
-              RUNBOOK.md
+              {c.helpRunbookLink}
             </a>
-            .
+            {c.helpRunbookPost}
           </li>
         </ul>
       </section>
