@@ -448,19 +448,26 @@ export async function supersedeKnowledge(
 ## 2.11 Scope filters (`scope-filter.ts`)
 
 ```typescript
-// For Prisma `where` clauses
-export function buildKnowledgeWhereV2(args: {
+// Both helpers take the SAME full args object. activeOrgId +
+// accessibleProjectIds are REQUIRED to enforce org-scoped visibility — kra.ts
+// passes this exact shape, so a simplified signature won't compile against it.
+export interface VisibilityScopeArgs {
   userId: string;
-  projectId?: string;
-  dataScope?: "project" | "all";
-  accessibleProjectIds?: string[];
-}): Prisma.KnowledgeWhereInput
+  activeProjectId: string | null;
+  activeOrgId: string | null;
+  /** All project IDs in the active org that this user can access. */
+  accessibleProjectIds: string[];
+  scope: "project" | "all";
+}
+
+// For Prisma `where` clauses
+export function buildKnowledgeWhereV2(args: VisibilityScopeArgs): object // Prisma.KnowledgeWhereInput
 
 // For raw pgvector queries
 export function buildRawProjectFilterV2(
-  args: { userId: string; projectId?: string; dataScope?: "project" | "all" },
-  startParam: number  // the next $N placeholder index
-): { sql: string; params: unknown[] }
+  args: VisibilityScopeArgs,
+  startParam: number, // the next $N placeholder index
+): { sql: string; params: (string | null)[] }
 ```
 
 **Visibility rules:**

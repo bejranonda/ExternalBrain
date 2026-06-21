@@ -229,7 +229,11 @@ export type SessionEventType =
   | "session_started" | "tool_use" | "file_created" | "file_modified"
   | "file_rejected" | "build_attempt" | "build_success" | "build_failure"
   | "user_clarification" | "user_correction" | "knowledge_injected"
-  | "knowledge_rejected" | "learning_captured";
+  | "knowledge_rejected";
+// Note: SessionEvent.eventType is a String column, so the runtime also writes
+// values outside this union — e.g. "learning_captured" (LEARNING_EVENT_TYPE in
+// core/learnings.ts). Keep that string OUT of this union; it is matched by
+// constant, not by the typed event surface.
 
 export interface SessionContext {
   sessionId: string;
@@ -249,6 +253,9 @@ export interface SessionMetrics {
   filesRejected: string[];
   buildAttempts: number;
   errors: string[];
+  userFeedback?: "up" | "down" | undefined;
+  userFeedbackComment?: string | undefined;
+  knowledgeUsed: string[]; // IDs injected at start — credited by the outcome bumper
   durationMs: number;
   tokensUsed: number;
 }
@@ -281,15 +288,23 @@ export type OracleReasoningLevel =
 export type OracleGroundedness = "strong" | "moderate" | "weak" | "none";
 
 export interface OracleCitationMeta {
-  type?: string;
-  scope?: string;
-  confidence?: number;
-  tags?: string[];
-  successRate?: number;
+  // ── Knowledge citation fields ──────────────────────────────────────
+  knowledgeType?: "reflex" | "recipe" | "heuristic" | "principle" | "anti_principle";
+  triggerText?: string;
+  effectiveness?: number; // 0..1 when ≥3 outcomes, -1 sentinel otherwise
+  outcomes?: number;      // successCount + failureCount
+  usageCount?: number;
+  lastUsedAt?: string;    // ISO string
+  isDecision?: boolean;
+  // ── Session citation fields ────────────────────────────────────────
+  projectName?: string;
+  sessionStartedAt?: string;     // ISO string
+  sessionOutcome?: "success" | "failure" | "unknown";
+  clientType?: string;
 }
 
 export interface OracleCitation {
-  marker: string;
+  marker: number; // the [^N] footnote index in the response
   knowledgeId?: string;
   sessionId?: string;
   skillId?: string;
@@ -331,7 +346,7 @@ export interface AutoskillProposal {
   diff: string;
   patch: Record<string, unknown>;
   reasoning: string;
-  status: "pending" | "approved" | "rejected" | "applied";
+  status: "pending" | "applied" | "rejected" | "superseded";
   createdAt: Date;
   resolvedAt: Date | null;
 }
@@ -381,13 +396,21 @@ packages/db/src/index.ts   — re-exports
 ```prisma
 generator client {
   provider        = "prisma-client-js"
+  // postgresqlExtensions lets Prisma manage the pgvector extension;
+  // driverAdapters (Prisma 7) moves datasource.url out of the schema.
+  previewFeatures = ["postgresqlExtensions", "driverAdapters"]
+  // native = host running `prisma generate`; the linux targets cover the
+  // Debian-slim and Alpine deploy images so the engine binary ships locally.
+  binaryTargets   = ["native", "debian-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
   output          = "../src/generated/client"
-  previewFeatures = ["driverAdapters"]
 }
 
+// Prisma 7+: datasource.url moved to prisma.config.ts at the package root.
+// The runtime connection comes from the @prisma/adapter-pg adapter; migrations
+// read the URL from prisma.config.ts.
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  extensions = [vector]
 }
 ```
 
@@ -414,10 +437,12 @@ model User {
   peerCards        PeerCard[]
   autoskillProps   AutoskillProposal[]
   feedback         Feedback[]
-  auditLogs        AuditLog[]
+  publishedCommunitySkills CommunitySkill[] @relation("Publisher")
   voucherRedemption VoucherRedemption?
-  oracleCosts      OracleCostLedger[]
 }
+// NOTE: AuditLog and OracleCostLedger are deliberately NOT related back to User.
+// AuditLog.actorUserId is a bare string (append-only trail survives user deletion);
+// OracleCostLedger has no User relation. Do not add `auditLogs`/`oracleCosts` here.
 
 model Organization {
   id        String   @id @default(cuid())
@@ -429,6 +454,8 @@ model Organization {
   members   OrganizationMember[]
   invites   OrganizationInvite[]
   projects  Project[]
+  teams     Team[]
+  mcpTokens MCPToken[]
 }
 
 model OrganizationMember {
@@ -474,16 +501,23 @@ model Project {
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   sessions     Session[]
   knowledge    Knowledge[]
+  mcpTokens    MCPToken[]
 
   @@unique([organizationId, slug])
 }
 
 model Team {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
+  id             String   @id @default(cuid())
+  name           String
+  ownerId        String
+  organizationId String?
+  createdAt      DateTime @default(now())
 
-  memberships TeamMembership[]
+  members      TeamMembership[]
+  skills       Skill[]
+  knowledge    Knowledge[]
+  mcpTokens    MCPToken[]
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 }
 
 model TeamMembership {
@@ -533,7 +567,13 @@ model Knowledge {
   deletedAt        DateTime?
   embedding        Unsupported("vector(1536)")?
 
-  owner            User?     @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
+  // Audit decision: owner/team are Cascade (a deleted user/team takes its
+  // knowledge with it — no orphaned rows that violate tenant isolation or
+  // complicate GDPR erasure); project is SetNull (project rows outlive a
+  // deleted sub-project).
+  owner            User?     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  team             Team?     @relation(fields: [ownerTeamId], references: [id], onDelete: Cascade)
+  project          Project?  @relation(fields: [ownerProjectId], references: [id], onDelete: SetNull)
   parent           Knowledge? @relation("KnowledgeParent", fields: [parentKnowledgeId], references: [id])
   children         Knowledge[] @relation("KnowledgeParent")
   applications     SessionKnowledgeApplication[]
@@ -568,7 +608,8 @@ model Skill {
   updatedAt     DateTime @updatedAt
   embedding     Unsupported("vector(1536)")?
 
-  owner User? @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
+  owner User? @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  team  Team? @relation(fields: [ownerTeamId], references: [id], onDelete: Cascade)
 
   @@unique([skillId, ownerUserId])
   @@index([scope, stage])
@@ -691,8 +732,8 @@ model Feedback {
   sessionId    String?
   knowledgeId  String?
   skillId      String?
-  rating       Int
-  comment      String?
+  rating       String   // "up" | "down" | "neutral"
+  comment      String?  @db.Text
   feedbackType String   @default("session")
   createdAt    DateTime @default(now())
 
@@ -721,8 +762,15 @@ model MCPToken {
   scheduledRevokeAt  DateTime?
   rotatedFromId      String?   @unique
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessions Session[]
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team         Team?         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  // Audit C12 (#109): a token bound to an org/project must be REVOKED when its
+  // scope is deleted, not silently unscoped. SetNull would drop the column to
+  // NULL and the visibility fallback would WIDEN the token's authority — the
+  // opposite of revocation. Cascade is correct: the token dies with its scope.
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sessions     Session[]
 
   @@index([userId])
   @@index([tokenHash])
@@ -793,7 +841,10 @@ model AuditLog {
   projectId      String?
   createdAt      DateTime @default(now())
 
-  actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  // Deliberately NO `actor User` relation: actorUserId is a bare string so the
+  // append-only audit trail survives the deletion of the user it references.
+  @@index([actorUserId, createdAt])
+  @@index([action, createdAt])
 }
 
 model OracleCostLedger {
@@ -806,8 +857,7 @@ model OracleCostLedger {
   callCount    Int      @default(0)
   updatedAt    DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  // No User relation: userId is a bare string (no FK), matching the codebase.
   @@unique([userId, day])
 }
 
@@ -822,13 +872,23 @@ model KnowledgeHealthSnapshot {
   medianAgeDays       Float
 }
 
+// A CommunitySkill is a PUBLICATION RECORD that references the original Skill
+// via skillId (title/content/tags come from the linked Skill, not stored here).
+// It adds attribution, community metrics, and a moderation workflow.
 model CommunitySkill {
-  id        String   @id @default(cuid())
-  skillId   String   @unique
-  title     String
-  content   String
-  tags      String[]
-  createdAt DateTime @default(now())
+  id                String   @id @default(cuid())
+  skillId           String   @unique
+  publishedByUserId String
+  publishedAt       DateTime @default(now())
+  downloadCount     Int      @default(0)
+  successRate       Float?
+  averageRating     Float?
+  reportCount       Int      @default(0)
+  moderationStatus  String   @default("pending") // pending | approved | flagged | removed
+
+  publisher User @relation("Publisher", fields: [publishedByUserId], references: [id], onDelete: Cascade)
+
+  @@index([moderationStatus])
 }
 
 model SkillImport {
