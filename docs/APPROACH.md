@@ -505,6 +505,54 @@ is months of stubbornness when the signal arrives.
 
 ---
 
+## 5as. Translate before you decorate — finishing the i18n surface at `/docs` (2026-06-21, #59)
+
+`/docs` was the last unauth surface without the locale picker. The
+naive "fix" is obvious: drop `<LocalePicker>` into the docs layout and
+close the issue. That is exactly the **class-1 "decorative state"
+anti-pattern** from §5af — a control that visibly does nothing. The
+docs *body* (`docs-content.ts`) was EN-only, so a picker there would
+switch the chrome language while nine pages of prose stayed English.
+The issue's own ordering encoded the rule: **(1) translate the
+content, then (2) add the picker.** Shipping (2) before (1) doesn't
+half-solve the issue — it manufactures the bug the issue exists to
+prevent.
+
+Three method points compounded:
+
+1. **The honest first answer was "not yet."** On the first pass the
+   right call was to *leave the issue open* with a triage comment
+   explaining the block, rather than fake-close it with a picker over
+   English text. An open issue that says why beats a green checkmark
+   over a dead button. Only when the operator explicitly accepted
+   AI-translations-with-native-followup did (1) become actionable.
+
+2. **Long-form content wants a different i18n shape than UI strings.**
+   The dictionary (`useT()` / `translate()`) is right for short labels;
+   it's wrong for multi-paragraph prose. Docs translate as **parallel
+   `DocPage` data** (`DOCS_TH` / `DOCS_DE`) resolved by
+   `getDoc(lang, slug)` with a **per-slug EN fallback** — so a missing
+   or retracted translation degrades to English, never a 404 or a raw
+   key. The fallback also *is* the reversal plan (§5al's rule): delete
+   a localized page and it silently reverts to EN.
+
+3. **Server-cookie i18n and a client picker disagree about *when*.**
+   The rest of the app resolves locale server-side from the `bp_lang`
+   cookie, but `setLang` deliberately does **not** `router.refresh()`
+   (that would re-run every dashboard fetch). A server-rendered docs
+   body would therefore ignore the picker until a reload. The fix was
+   to render the docs body as **client components** (`useLang()`): they
+   still SSR in the cookie locale via `LangProvider`, but the picker
+   re-renders them in place. Match the rendering strategy to the
+   interaction you promised — instant switch ⇒ client read of the same
+   context the picker writes.
+
+The AI-translated TH/DE prose is flagged in `KNOWN_ISSUES.md` for a
+native sweep — same discipline as every other machine-translated block
+(§5al): ship it usable, mark it provisional, make the reversal cheap.
+
+---
+
 ## 5ak. The AI proposes, the human prioritizes (2026-05-25, ROADMAP-2026-05-25.md)
 
 After the v0.14.0 UI revision landed (Phase R.3), the agent wrote
