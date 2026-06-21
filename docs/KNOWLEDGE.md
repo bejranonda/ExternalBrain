@@ -248,6 +248,8 @@ The five types surface in `apps/web` as `--k-*` CSS variables (`--k-recipe`, `--
 
 The Skills surface (`apps/web/components/brain/skills.tsx`) also renders the stage enum — `inbox`, `notes`, `knowledge`, `wisdom` — as the left filter rail. When §8 changes, these filters and their i18n keys (`skills.inbox`, `skills.notes`, `skills.knowledge_stage`, `skills.wisdom`) must change with it.
 
+The narrative *explanation* of this ontology — the in-app `/docs` concept pages (Skills, Oracle, Sessions, Decay, Groundedness, plus the vocabulary glossary, §12.28) — is localized **EN / TH / DE** (#59). Long-form docs prose does **not** route through the `useT()` dictionary: it lives as parallel `DocPage` data in `apps/web/lib/brain/docs-content.ts` (`DOCS` / `DOCS_TH` / `DOCS_DE`), resolved by `getDoc(lang, slug)` with a **per-slug EN fallback** so a missing translation degrades to English, never a broken page. EN is authoritative; when the ontology changes, update the EN `DocPage` first, then its TH/DE siblings. (Rationale + rendering strategy in `docs/GUIDELINES.md` i18n section and `APPROACH.md §5as`.)
+
 ---
 
 ---
@@ -554,6 +556,8 @@ The webapp deliberately uses a small fixed vocabulary in user-visible copy. The 
 | **Proposal** | A candidate skill awaiting review | `AutoskillProposal` (table); route is `/autoskill` for backwards compat |
 
 Advanced acronyms (tooltip-only, never in primary copy): **KEA** (Knowledge Extraction Agent), **KRA** (Knowledge Retrieval Agent), **MCP** (Model Context Protocol), **SQS** (Session Quality Score).
+
+The glossary page is translated (TH/DE) as of #59, but the five user-facing **words themselves stay in Latin script** in every locale — the TH/DE prose explains "Brain / Skill / Session / Oracle / Proposal" rather than substituting native nouns, so the vocabulary stays a single shared lock across languages (matching the `i18n.ts` convention of keeping product/technical terms untranslated).
 
 The discipline behind locking the vocabulary lives in `docs/APPROACH.md §5ag` — "vocabulary drift is the third newcomer-eye finding class." The two earlier classes (decorative state, leaked identifiers) are in §5af.
 
