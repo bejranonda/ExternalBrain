@@ -112,7 +112,7 @@ export const DOCS: Record<string, DocPage> = {
       {
         heading: "2. Point it at this workspace",
         body: [
-          "Create or select the project this repo belongs to, so knowledge files under the right project.",
+          "Create or select the project this repo belongs to, so knowledge is filed under the right project.",
         ],
         callout: "Create a project in the Brain for this workspace and make it active.",
       },
