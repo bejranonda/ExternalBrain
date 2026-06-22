@@ -242,6 +242,19 @@ export const I18N = {
       install_hint:
         "One-line install script that registers Brain MCP with Claude Code",
     },
+    agentPrompts: {
+      title: "Talk to your Brain",
+      body: "Type these to your AI agent (Claude Code, Cursor, …). It picks the right tool for you.",
+      copy: "Copy",
+      copied: "Copied",
+      more: "See all prompts →",
+      collapsed: "Talk to your Brain →",
+      // p_* are prompts the user types to an English-speaking agent, not UI
+      // chrome — kept in English across all locales (matches the doc callouts).
+      p_check: "Do you have a connection to the Brain? Can you see any projects?",
+      p_project: "Create a project in the Brain for this workspace and make it active.",
+      p_close: "Transfer what we learned this session into the Brain, then close the session.",
+    },
     callout: {
       title: "Your Brain is empty",
       body: "External Brain captures patterns from your AI coding sessions and serves them back. Two ways to get started — pick either:",
@@ -527,6 +540,18 @@ export const I18N = {
       view_install: "ดูสคริปต์ติดตั้ง ↗",
       install_hint:
         "สคริปต์บรรทัดเดียวที่ลงทะเบียน Brain MCP กับ Claude Code",
+    },
+    agentPrompts: {
+      title: "คุยกับ Brain ของคุณ",
+      body: "พิมพ์สิ่งเหล่านี้ให้ AI agent ของคุณ (Claude Code, Cursor, …) แล้วมันจะเลือกเครื่องมือที่เหมาะสมให้",
+      copy: "คัดลอก",
+      copied: "คัดลอกแล้ว",
+      more: "ดู prompt ทั้งหมด →",
+      collapsed: "คุยกับ Brain ของคุณ →",
+      // p_* prompts stay in English — typed to an English-speaking agent.
+      p_check: "Do you have a connection to the Brain? Can you see any projects?",
+      p_project: "Create a project in the Brain for this workspace and make it active.",
+      p_close: "Transfer what we learned this session into the Brain, then close the session.",
     },
     callout: {
       title: "สมองของคุณยังว่างเปล่า",
@@ -815,6 +840,18 @@ export const I18N = {
       view_install: "Installations-Skript ansehen ↗",
       install_hint:
         "Einzeiliges Skript, das Brain MCP bei Claude Code registriert",
+    },
+    agentPrompts: {
+      title: "Sprich mit deinem Brain",
+      body: "Tippe diese an deinen AI-Agenten (Claude Code, Cursor, …). Er wählt das passende Tool für dich.",
+      copy: "Kopieren",
+      copied: "Kopiert",
+      more: "Alle Prompts ansehen →",
+      collapsed: "Sprich mit deinem Brain →",
+      // p_* prompts stay in English — typed to an English-speaking agent.
+      p_check: "Do you have a connection to the Brain? Can you see any projects?",
+      p_project: "Create a project in the Brain for this workspace and make it active.",
+      p_close: "Transfer what we learned this session into the Brain, then close the session.",
     },
     callout: {
       title: "Dein Gehirn ist leer",
