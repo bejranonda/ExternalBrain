@@ -55,7 +55,7 @@ External Brain is the missing **memory substrate**:
   ask. Progressive disclosure, not a wall of dials.
 - 🌐 **Multilingual** — the UI *and* the in-app docs (`/docs`) are available in
   English, Thai (ไทย), and German, switchable on every surface including the
-  unauthenticated pages. (TH/DE are AI-translated, pending a native-speaker pass.)
+  unauthenticated pages. (TH/DE are AI-translated and operator-reviewed.)
 
 > **What it is *not*:** another AI coding tool. External Brain doesn't write
 > code — it's the substrate that makes whatever tool you already use smarter
