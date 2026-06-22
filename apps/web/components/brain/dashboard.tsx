@@ -14,6 +14,7 @@ import type { SessionView } from "@/lib/brain/views";
 import { useTopRules, type TopRuleRow } from "@/lib/brain/use-top-rules";
 import { ConnectionStatus } from "./connection-status";
 import { EmptyBrainCallout } from "./empty-brain-callout";
+import { AgentPromptsCard } from "./agent-prompts-card";
 import { HelpPopover } from "./help-popover";
 import { ProjectsList } from "./projects-list";
 import { SessionDetailPanel } from "./session-detail-panel";
@@ -857,6 +858,7 @@ export function Dashboard({
       {isEmpty ? (
         <>
           <EmptyBrainCallout onTeach={() => onTeach?.()} />
+          <AgentPromptsCard sessionsAllTime={s.sessionsAllTime} />
           <div style={{ marginTop: 16 }}>
             <ConnectionStatus
               onManageTokens={() => {

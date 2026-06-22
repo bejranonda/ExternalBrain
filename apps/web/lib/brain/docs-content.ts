@@ -91,6 +91,56 @@ export const DOCS: Record<string, DocPage> = {
     related: ["skills", "oracle", "sessions", "autoskill"],
   },
 
+  "using-from-your-agent": {
+    slug: "using-from-your-agent",
+    title: "Using Brain from your agent",
+    summary:
+      "The exact prompts to type to Claude Code, Cursor, or any MCP client to drive your Brain day-to-day.",
+    surfaces: ["dashboard"],
+    sections: [
+      {
+        heading: "The daily loop, in plain prompts",
+        body: [
+          "Once your token is wired, you talk to the Brain through your AI agent in natural language. You don't call tools by hand — you ask, and the agent picks the right brain_* tool. Here are the prompts that map to each step.",
+        ],
+      },
+      {
+        heading: "1. Check the connection",
+        body: ["Confirm the agent can see your Brain and projects before relying on it."],
+        callout: "Do you have a connection to the Brain? Can you see any projects?",
+      },
+      {
+        heading: "2. Point it at this workspace",
+        body: [
+          "Create or select the project this repo belongs to, so knowledge files under the right project.",
+        ],
+        callout: "Create a project in the Brain for this workspace and make it active.",
+      },
+      {
+        heading: "3. Pull knowledge before you work",
+        body: ["At the start of a task, have the agent open a session and apply what the Brain already knows."],
+        callout: "Start a Brain session for this task and apply anything relevant it already knows.",
+      },
+      {
+        heading: "4. Bank what you learned",
+        body: [
+          "At the end, close the session so the Brain can extract skills. This is the step that makes the Brain improve — skipping it is the #1 reason a Brain feels stagnant.",
+        ],
+        callout: "Transfer what we learned this session into the Brain, then close the session.",
+      },
+      {
+        heading: "5. Ask the Oracle anything",
+        body: ["Recall past decisions and patterns without re-deriving them."],
+        callout: "Ask the Brain: what did we decide about <topic>?",
+      },
+    ],
+    related: ["vocabulary", "tokens", "sessions", "oracle"],
+    repoDoc: {
+      label: "MCP tools reference",
+      href: "https://github.com/bejranonda/BrainPlatform/blob/main/docs/MCP_TOOLS.md",
+    },
+  },
+
   // ─── Core concepts ────────────────────────────────────────────────────────
 
   skills: {
@@ -253,6 +303,72 @@ export const DOCS: Record<string, DocPage> = {
     related: ["skills", "oracle"],
   },
 
+  graph: {
+    slug: "graph",
+    title: "Graph",
+    summary:
+      "A visual map of how your skills connect — which rules relate, supersede, or cluster around the same topic.",
+    surfaces: ["graph"],
+    sections: [
+      {
+        heading: "What the graph shows",
+        body: [
+          "The graph is a bird's-eye view of your Brain. Each node is a skill; each edge is a relationship the Brain inferred — skills that share a topic, build on each other, or where one supersedes another.",
+        ],
+      },
+      {
+        heading: "How to read it",
+        body: ["Use it to spot clusters (areas you've taught a lot) and orphans (skills with no connections, often one-offs)."],
+        bullets: [
+          "Node — one skill. Larger or brighter nodes are higher-confidence or more-used.",
+          "Edge — a relationship between two skills (related topic or supersedes).",
+          "Cluster — a group of tightly-linked skills around one theme.",
+        ],
+      },
+      {
+        heading: "Why it's useful",
+        body: [
+          "Clusters tell you where your Brain is strong; isolated nodes hint at knowledge that hasn't connected yet. It's a map, not a to-do list — nothing here needs action.",
+        ],
+      },
+    ],
+    related: ["skills", "decisions", "decay"],
+  },
+
+  decisions: {
+    slug: "decisions",
+    title: "Decisions",
+    summary:
+      "Settled project choices — the calls your team made and shouldn't re-litigate. Shared, and exempt from decay.",
+    surfaces: ["decisions"],
+    sections: [
+      {
+        heading: "What a decision is",
+        body: [
+          "A decision is a deliberate project choice: \"we'll use X\", \"deprecate Y\", \"Z owns auth\". Unlike an ordinary skill, a decision is shared project memory — every teammate's next session surfaces it — and it never decays. It stays until a newer decision supersedes it.",
+        ],
+      },
+      {
+        heading: "Where decisions come from",
+        body: [
+          "The agent records one when you state a project choice during a session, or you can teach one directly. A decision can name the rejected alternative and, if it reverses an earlier call, point at the decision it supersedes.",
+        ],
+        bullets: [
+          "Supersedes — this decision replaces an older one; the old one is retired, not deleted.",
+          "Instead — the alternative that was considered and rejected.",
+          "Scope — project decisions are visible to the whole project, not just you.",
+        ],
+      },
+      {
+        heading: "Why they're separate from skills",
+        body: [
+          "Skills are patterns the Brain learned and scores by how often they pay off; decisions are facts you asserted. Mixing them would let a stated choice quietly decay — so decisions get their own decay-exempt surface.",
+        ],
+      },
+    ],
+    related: ["skills", "sessions", "vocabulary"],
+  },
+
   // ─── Connection / setup ───────────────────────────────────────────────────
 
   tokens: {
@@ -348,8 +464,8 @@ export const DOCS: Record<string, DocPage> = {
  * heading in DOCS_CHROME; `heading` is the EN fallback.
  */
 export const DOCS_SECTIONS: Array<{ id: string; heading: string; slugs: string[] }> = [
-  { id: "start", heading: "Start here", slugs: ["vocabulary"] },
-  { id: "core", heading: "Core concepts", slugs: ["skills", "oracle", "sessions", "autoskill", "decay"] },
+  { id: "start", heading: "Start here", slugs: ["vocabulary", "using-from-your-agent"] },
+  { id: "core", heading: "Core concepts", slugs: ["skills", "oracle", "sessions", "autoskill", "decay", "graph", "decisions"] },
   { id: "connection", heading: "Connection & setup", slugs: ["tokens", "connection-status"] },
   { id: "deeper", heading: "Deeper", slugs: ["groundedness"] },
 ];
@@ -413,6 +529,56 @@ const DOCS_DE: Record<string, DocPage> = {
       },
     ],
     related: ["skills", "oracle", "sessions", "autoskill"],
+  },
+
+  "using-from-your-agent": {
+    slug: "using-from-your-agent",
+    title: "Brain aus deinem Agenten nutzen",
+    summary:
+      "Die genauen Prompts, die du an Claude Code, Cursor oder einen beliebigen MCP-Client schickst, um dein Brain im Alltag zu steuern.",
+    surfaces: ["dashboard"],
+    sections: [
+      {
+        heading: "Die tägliche Schleife, in einfachen Prompts",
+        body: [
+          "Sobald dein Token eingerichtet ist, sprichst du über deinen AI-Agenten in natürlicher Sprache mit dem Brain. Du rufst keine Tools von Hand auf — du fragst, und der Agent wählt das passende brain_*-Tool. Hier sind die Prompts für jeden Schritt.",
+        ],
+      },
+      {
+        heading: "1. Verbindung prüfen",
+        body: ["Vergewissere dich, dass der Agent dein Brain und deine Projekte sieht, bevor du dich darauf verlässt."],
+        callout: "Do you have a connection to the Brain? Can you see any projects?",
+      },
+      {
+        heading: "2. Auf diesen Workspace ausrichten",
+        body: [
+          "Erstelle oder wähle das Projekt, zu dem dieses Repo gehört, damit Wissen unter dem richtigen Projekt abgelegt wird.",
+        ],
+        callout: "Create a project in the Brain for this workspace and make it active.",
+      },
+      {
+        heading: "3. Wissen abrufen, bevor du arbeitest",
+        body: ["Lass den Agenten zu Beginn einer Aufgabe eine Session öffnen und anwenden, was das Brain bereits weiß."],
+        callout: "Start a Brain session for this task and apply anything relevant it already knows.",
+      },
+      {
+        heading: "4. Gelerntes sichern",
+        body: [
+          "Schließe am Ende die Session, damit das Brain Skills extrahieren kann. Dieser Schritt lässt das Brain besser werden — ihn auszulassen ist der häufigste Grund, warum sich ein Brain stagnierend anfühlt.",
+        ],
+        callout: "Transfer what we learned this session into the Brain, then close the session.",
+      },
+      {
+        heading: "5. Frag das Oracle alles",
+        body: ["Rufe frühere Entscheidungen und Muster ab, ohne sie neu herzuleiten."],
+        callout: "Ask the Brain: what did we decide about <topic>?",
+      },
+    ],
+    related: ["vocabulary", "tokens", "sessions", "oracle"],
+    repoDoc: {
+      label: "MCP-Tools-Referenz",
+      href: "https://github.com/bejranonda/BrainPlatform/blob/main/docs/MCP_TOOLS.md",
+    },
   },
 
   skills: {
@@ -575,6 +741,72 @@ const DOCS_DE: Record<string, DocPage> = {
     related: ["skills", "oracle"],
   },
 
+  graph: {
+    slug: "graph",
+    title: "Graph",
+    summary:
+      "Eine visuelle Karte, wie deine Skills zusammenhängen — welche Regeln verwandt sind, einander ersetzen oder sich um dasselbe Thema gruppieren.",
+    surfaces: ["graph"],
+    sections: [
+      {
+        heading: "Was der Graph zeigt",
+        body: [
+          "Der Graph ist die Vogelperspektive auf dein Brain. Jeder Knoten ist ein Skill; jede Kante ist eine Beziehung, die das Brain abgeleitet hat — Skills, die ein Thema teilen, aufeinander aufbauen oder bei denen einer einen anderen ersetzt.",
+        ],
+      },
+      {
+        heading: "Wie man ihn liest",
+        body: ["Nutze ihn, um Cluster (Bereiche, in denen du viel beigebracht hast) und Ausreißer (Skills ohne Verbindungen, oft Einzelfälle) zu erkennen."],
+        bullets: [
+          "Knoten — ein Skill. Größere oder hellere Knoten haben höhere Konfidenz oder werden öfter genutzt.",
+          "Kante — eine Beziehung zwischen zwei Skills (verwandtes Thema oder Ersetzung).",
+          "Cluster — eine Gruppe eng verbundener Skills zu einem Thema.",
+        ],
+      },
+      {
+        heading: "Warum er nützlich ist",
+        body: [
+          "Cluster zeigen, wo dein Brain stark ist; isolierte Knoten deuten auf Wissen hin, das sich noch nicht verbunden hat. Es ist eine Karte, keine To-do-Liste — hier ist keine Aktion nötig.",
+        ],
+      },
+    ],
+    related: ["skills", "decisions", "decay"],
+  },
+
+  decisions: {
+    slug: "decisions",
+    title: "Entscheidungen",
+    summary:
+      "Feststehende Projektentscheidungen — die Festlegungen deines Teams, die nicht neu verhandelt werden sollten. Geteilt und vom Verfall ausgenommen.",
+    surfaces: ["decisions"],
+    sections: [
+      {
+        heading: "Was eine Entscheidung ist",
+        body: [
+          "Eine Entscheidung ist eine bewusste Projektfestlegung: „wir nutzen X“, „Y wird abgekündigt“, „Z verantwortet Auth“. Anders als ein normaler Skill ist eine Entscheidung geteiltes Projektgedächtnis — sie taucht in der nächsten Session jedes Teammitglieds auf — und sie verfällt nie. Sie bleibt, bis eine neuere Entscheidung sie ersetzt.",
+        ],
+      },
+      {
+        heading: "Woher Entscheidungen kommen",
+        body: [
+          "Der Agent hält eine fest, wenn du während einer Session eine Projektfestlegung äußerst, oder du bringst sie direkt bei. Eine Entscheidung kann die verworfene Alternative benennen und, falls sie eine frühere Festlegung umkehrt, auf die Entscheidung verweisen, die sie ersetzt.",
+        ],
+        bullets: [
+          "Ersetzt — diese Entscheidung löst eine ältere ab; die alte wird zurückgezogen, nicht gelöscht.",
+          "Stattdessen — die Alternative, die erwogen und verworfen wurde.",
+          "Scope — Projektentscheidungen sind für das ganze Projekt sichtbar, nicht nur für dich.",
+        ],
+      },
+      {
+        heading: "Warum sie von Skills getrennt sind",
+        body: [
+          "Skills sind Muster, die das Brain gelernt hat und danach bewertet, wie oft sie sich auszahlen; Entscheidungen sind Fakten, die du behauptet hast. Eine Vermischung würde eine getroffene Festlegung still verfallen lassen — deshalb bekommen Entscheidungen ihre eigene, verfallsfreie Fläche.",
+        ],
+      },
+    ],
+    related: ["skills", "sessions", "vocabulary"],
+  },
+
   tokens: {
     slug: "tokens",
     title: "MCP-Tokens",
@@ -703,6 +935,54 @@ const DOCS_TH: Record<string, DocPage> = {
       },
     ],
     related: ["skills", "oracle", "sessions", "autoskill"],
+  },
+
+  "using-from-your-agent": {
+    slug: "using-from-your-agent",
+    title: "ใช้ Brain จาก agent ของคุณ",
+    summary:
+      "prompt ที่ใช้พิมพ์ให้ Claude Code, Cursor หรือ MCP client ใดก็ได้ เพื่อสั่งงาน Brain ของคุณในแต่ละวัน",
+    surfaces: ["dashboard"],
+    sections: [
+      {
+        heading: "วงจรประจำวัน ในรูปแบบ prompt ง่าย ๆ",
+        body: [
+          "เมื่อต่อ token แล้ว คุณคุยกับ Brain ผ่าน AI agent ด้วยภาษาธรรมดา คุณไม่ต้องเรียกเครื่องมือเอง — แค่ถาม แล้ว agent จะเลือกเครื่องมือ brain_* ที่เหมาะสมให้ ต่อไปนี้คือ prompt ที่ตรงกับแต่ละขั้น",
+        ],
+      },
+      {
+        heading: "1. ตรวจการเชื่อมต่อ",
+        body: ["ยืนยันว่า agent มองเห็น Brain และโปรเจกต์ของคุณก่อนจะพึ่งพามัน"],
+        callout: "Do you have a connection to the Brain? Can you see any projects?",
+      },
+      {
+        heading: "2. ชี้ไปที่ workspace นี้",
+        body: ["สร้างหรือเลือกโปรเจกต์ที่ repo นี้สังกัด เพื่อให้ความรู้ถูกจัดเก็บใต้โปรเจกต์ที่ถูกต้อง"],
+        callout: "Create a project in the Brain for this workspace and make it active.",
+      },
+      {
+        heading: "3. ดึงความรู้ก่อนเริ่มงาน",
+        body: ["ตอนเริ่มงาน ให้ agent เปิดเซสชันและนำสิ่งที่ Brain รู้อยู่แล้วมาใช้"],
+        callout: "Start a Brain session for this task and apply anything relevant it already knows.",
+      },
+      {
+        heading: "4. เก็บสิ่งที่เรียนรู้",
+        body: [
+          "เมื่อจบงาน ให้ปิดเซสชันเพื่อให้ Brain สกัด Skill ได้ ขั้นนี้คือสิ่งที่ทำให้ Brain ดีขึ้น — การข้ามมันคือเหตุผลอันดับหนึ่งที่ทำให้ Brain รู้สึกหยุดนิ่ง",
+        ],
+        callout: "Transfer what we learned this session into the Brain, then close the session.",
+      },
+      {
+        heading: "5. ถาม Oracle ได้ทุกเรื่อง",
+        body: ["เรียกคืนการตัดสินใจและแพตเทิร์นในอดีตโดยไม่ต้องคิดใหม่"],
+        callout: "Ask the Brain: what did we decide about <topic>?",
+      },
+    ],
+    related: ["vocabulary", "tokens", "sessions", "oracle"],
+    repoDoc: {
+      label: "เอกสารอ้างอิงเครื่องมือ MCP",
+      href: "https://github.com/bejranonda/BrainPlatform/blob/main/docs/MCP_TOOLS.md",
+    },
   },
 
   skills: {
@@ -863,6 +1143,72 @@ const DOCS_TH: Record<string, DocPage> = {
       },
     ],
     related: ["skills", "oracle"],
+  },
+
+  graph: {
+    slug: "graph",
+    title: "Graph",
+    summary:
+      "แผนที่ภาพแสดงว่า Skill ของคุณเชื่อมโยงกันอย่างไร — กฎใดเกี่ยวข้องกัน แทนที่กัน หรือรวมกลุ่มรอบหัวข้อเดียวกัน",
+    surfaces: ["graph"],
+    sections: [
+      {
+        heading: "Graph แสดงอะไร",
+        body: [
+          "Graph คือมุมมองจากด้านบนของ Brain ของคุณ แต่ละโหนดคือหนึ่ง Skill แต่ละเส้นคือความสัมพันธ์ที่ Brain อนุมานได้ — Skill ที่มีหัวข้อร่วมกัน ต่อยอดกัน หรือที่อันหนึ่งแทนที่อีกอัน",
+        ],
+      },
+      {
+        heading: "อ่านอย่างไร",
+        body: ["ใช้มันเพื่อมองหากลุ่ม (พื้นที่ที่คุณสอนไว้มาก) และโหนดโดดเดี่ยว (Skill ที่ไม่มีการเชื่อมต่อ มักเป็นกรณีครั้งเดียว)"],
+        bullets: [
+          "โหนด — หนึ่ง Skill โหนดที่ใหญ่หรือสว่างกว่ามีความเชื่อมั่นสูงกว่าหรือถูกใช้บ่อยกว่า",
+          "เส้น — ความสัมพันธ์ระหว่างสอง Skill (หัวข้อเกี่ยวข้องกันหรือการแทนที่)",
+          "กลุ่ม — กลุ่ม Skill ที่เชื่อมโยงกันแน่นรอบหนึ่งหัวข้อ",
+        ],
+      },
+      {
+        heading: "ทำไมจึงมีประโยชน์",
+        body: [
+          "กลุ่มบอกว่า Brain ของคุณแข็งแรงตรงไหน ส่วนโหนดโดดเดี่ยวบอกใบ้ถึงความรู้ที่ยังไม่เชื่อมโยง มันคือแผนที่ ไม่ใช่รายการสิ่งที่ต้องทำ — ที่นี่ไม่มีอะไรต้องลงมือ",
+        ],
+      },
+    ],
+    related: ["skills", "decisions", "decay"],
+  },
+
+  decisions: {
+    slug: "decisions",
+    title: "การตัดสินใจ",
+    summary:
+      "ทางเลือกของโปรเจกต์ที่ตกลงแล้ว — สิ่งที่ทีมตัดสินและไม่ควรนำมาถกใหม่ ใช้ร่วมกันและได้รับการยกเว้นจากการเสื่อม",
+    surfaces: ["decisions"],
+    sections: [
+      {
+        heading: "การตัดสินใจคืออะไร",
+        body: [
+          "การตัดสินใจคือทางเลือกของโปรเจกต์ที่จงใจ: \"เราจะใช้ X\" \"เลิกใช้ Y\" \"Z ดูแล auth\" ต่างจาก Skill ทั่วไป การตัดสินใจคือความจำของโปรเจกต์ที่ใช้ร่วมกัน — มันจะปรากฏในเซสชันถัดไปของเพื่อนร่วมทีมทุกคน — และมันไม่เสื่อม มันคงอยู่จนกว่าจะมีการตัดสินใจใหม่มาแทนที่",
+        ],
+      },
+      {
+        heading: "การตัดสินใจมาจากไหน",
+        body: [
+          "agent จะบันทึกเมื่อคุณระบุทางเลือกของโปรเจกต์ระหว่างเซสชัน หรือคุณจะสอนมันโดยตรงก็ได้ การตัดสินใจสามารถระบุทางเลือกที่ถูกปฏิเสธ และหากมันกลับทิศการตัดสินใจก่อนหน้า ก็ชี้ไปยังการตัดสินใจที่มันแทนที่",
+        ],
+        bullets: [
+          "แทนที่ — การตัดสินใจนี้แทนที่อันเก่า อันเก่าถูกปลดระวาง ไม่ได้ถูกลบ",
+          "แทนที่จะเป็น — ทางเลือกที่ถูกพิจารณาและปฏิเสธ",
+          "ขอบเขต — การตัดสินใจของโปรเจกต์มองเห็นได้ทั้งโปรเจกต์ ไม่ใช่แค่คุณ",
+        ],
+      },
+      {
+        heading: "ทำไมจึงแยกจาก Skill",
+        body: [
+          "Skill คือแพตเทิร์นที่ Brain เรียนรู้และให้คะแนนตามว่ามันคุ้มค่าบ่อยแค่ไหน ส่วนการตัดสินใจคือข้อเท็จจริงที่คุณยืนยัน การปนกันจะทำให้ทางเลือกที่ตัดสินแล้วค่อย ๆ เสื่อมอย่างเงียบ ๆ — การตัดสินใจจึงมีพื้นที่ของตัวเองที่ไม่เสื่อม",
+        ],
+      },
+    ],
+    related: ["skills", "sessions", "vocabulary"],
   },
 
   tokens: {

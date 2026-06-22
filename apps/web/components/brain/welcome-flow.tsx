@@ -425,6 +425,13 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
             >
               {tr("welcome.go_dashboard")}
             </a>
+            <a
+              href="/docs/concepts/using-from-your-agent"
+              className="btn btn-ghost"
+              style={{ fontSize: 13, textDecoration: "none" }}
+            >
+              See the prompts to keep using it →
+            </a>
           </div>
         ) : (
           // Stuck-state escalation (#10): after 90s, switch from "waiting"

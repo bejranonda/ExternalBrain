@@ -172,9 +172,15 @@ export function Onboarding({
             Ask anything about your own coding patterns. Every answer is grounded — claims are
             cited to the skill or session that supports them.
           </p>
-          <p style={{ margin: 0, lineHeight: 1.55, color: "var(--ink-2)" }}>
+          <p style={{ margin: "0 0 10px", lineHeight: 1.55, color: "var(--ink-2)" }}>
             Try: <em>"What patterns do I follow for React forms?"</em> or{" "}
             <em>"How did I solve the last build error?"</em>
+          </p>
+          <p style={{ margin: 0, lineHeight: 1.5, color: "var(--ink-3)", fontSize: 12 }}>
+            New to driving Brain from your agent?{" "}
+            <a href="/docs/concepts/using-from-your-agent" style={{ color: "var(--accent-text)" }}>
+              See the prompts to type →
+            </a>
           </p>
         </div>
       ),
