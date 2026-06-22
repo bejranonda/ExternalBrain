@@ -91,6 +91,56 @@ export const DOCS: Record<string, DocPage> = {
     related: ["skills", "oracle", "sessions", "autoskill"],
   },
 
+  "using-from-your-agent": {
+    slug: "using-from-your-agent",
+    title: "Using Brain from your agent",
+    summary:
+      "The exact prompts to type to Claude Code, Cursor, or any MCP client to drive your Brain day-to-day.",
+    surfaces: ["dashboard"],
+    sections: [
+      {
+        heading: "The daily loop, in plain prompts",
+        body: [
+          "Once your token is wired, you talk to the Brain through your AI agent in natural language. You don't call tools by hand — you ask, and the agent picks the right brain_* tool. Here are the prompts that map to each step.",
+        ],
+      },
+      {
+        heading: "1. Check the connection",
+        body: ["Confirm the agent can see your Brain and projects before relying on it."],
+        callout: "Do you have a connection to the Brain? Can you see any projects?",
+      },
+      {
+        heading: "2. Point it at this workspace",
+        body: [
+          "Create or select the project this repo belongs to, so knowledge files under the right project.",
+        ],
+        callout: "Create a project in the Brain for this workspace and make it active.",
+      },
+      {
+        heading: "3. Pull knowledge before you work",
+        body: ["At the start of a task, have the agent open a session and apply what the Brain already knows."],
+        callout: "Start a Brain session for this task and apply anything relevant it already knows.",
+      },
+      {
+        heading: "4. Bank what you learned",
+        body: [
+          "At the end, close the session so the Brain can extract skills. This is the step that makes the Brain improve — skipping it is the #1 reason a Brain feels stagnant.",
+        ],
+        callout: "Transfer what we learned this session into the Brain, then close the session.",
+      },
+      {
+        heading: "5. Ask the Oracle anything",
+        body: ["Recall past decisions and patterns without re-deriving them."],
+        callout: "Ask the Brain: what did we decide about <topic>?",
+      },
+    ],
+    related: ["vocabulary", "tokens", "sessions", "oracle"],
+    repoDoc: {
+      label: "MCP tools reference",
+      href: "https://github.com/bejranonda/BrainPlatform/blob/main/docs/MCP_TOOLS.md",
+    },
+  },
+
   // ─── Core concepts ────────────────────────────────────────────────────────
 
   skills: {
@@ -253,6 +303,72 @@ export const DOCS: Record<string, DocPage> = {
     related: ["skills", "oracle"],
   },
 
+  graph: {
+    slug: "graph",
+    title: "Graph",
+    summary:
+      "A visual map of how your skills connect — which rules relate, supersede, or cluster around the same topic.",
+    surfaces: ["graph"],
+    sections: [
+      {
+        heading: "What the graph shows",
+        body: [
+          "The graph is a bird's-eye view of your Brain. Each node is a skill; each edge is a relationship the Brain inferred — skills that share a topic, build on each other, or where one supersedes another.",
+        ],
+      },
+      {
+        heading: "How to read it",
+        body: ["Use it to spot clusters (areas you've taught a lot) and orphans (skills with no connections, often one-offs)."],
+        bullets: [
+          "Node — one skill. Larger or brighter nodes are higher-confidence or more-used.",
+          "Edge — a relationship between two skills (related topic or supersedes).",
+          "Cluster — a group of tightly-linked skills around one theme.",
+        ],
+      },
+      {
+        heading: "Why it's useful",
+        body: [
+          "Clusters tell you where your Brain is strong; isolated nodes hint at knowledge that hasn't connected yet. It's a map, not a to-do list — nothing here needs action.",
+        ],
+      },
+    ],
+    related: ["skills", "decisions", "decay"],
+  },
+
+  decisions: {
+    slug: "decisions",
+    title: "Decisions",
+    summary:
+      "Settled project choices — the calls your team made and shouldn't re-litigate. Shared, and exempt from decay.",
+    surfaces: ["decisions"],
+    sections: [
+      {
+        heading: "What a decision is",
+        body: [
+          "A decision is a deliberate project choice: \"we'll use X\", \"deprecate Y\", \"Z owns auth\". Unlike an ordinary skill, a decision is shared project memory — every teammate's next session surfaces it — and it never decays. It stays until a newer decision supersedes it.",
+        ],
+      },
+      {
+        heading: "Where decisions come from",
+        body: [
+          "The agent records one when you state a project choice during a session, or you can teach one directly. A decision can name the rejected alternative and, if it reverses an earlier call, point at the decision it supersedes.",
+        ],
+        bullets: [
+          "Supersedes — this decision replaces an older one; the old one is retired, not deleted.",
+          "Instead — the alternative that was considered and rejected.",
+          "Scope — project decisions are visible to the whole project, not just you.",
+        ],
+      },
+      {
+        heading: "Why they're separate from skills",
+        body: [
+          "Skills are patterns the Brain learned and scores by how often they pay off; decisions are facts you asserted. Mixing them would let a stated choice quietly decay — so decisions get their own decay-exempt surface.",
+        ],
+      },
+    ],
+    related: ["skills", "sessions", "vocabulary"],
+  },
+
   // ─── Connection / setup ───────────────────────────────────────────────────
 
   tokens: {
@@ -348,8 +464,8 @@ export const DOCS: Record<string, DocPage> = {
  * heading in DOCS_CHROME; `heading` is the EN fallback.
  */
 export const DOCS_SECTIONS: Array<{ id: string; heading: string; slugs: string[] }> = [
-  { id: "start", heading: "Start here", slugs: ["vocabulary"] },
-  { id: "core", heading: "Core concepts", slugs: ["skills", "oracle", "sessions", "autoskill", "decay"] },
+  { id: "start", heading: "Start here", slugs: ["vocabulary", "using-from-your-agent"] },
+  { id: "core", heading: "Core concepts", slugs: ["skills", "oracle", "sessions", "autoskill", "decay", "graph", "decisions"] },
   { id: "connection", heading: "Connection & setup", slugs: ["tokens", "connection-status"] },
   { id: "deeper", heading: "Deeper", slugs: ["groundedness"] },
 ];
