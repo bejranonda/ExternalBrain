@@ -505,7 +505,7 @@ is months of stubbornness when the signal arrives.
 
 ---
 
-## 5as. Translate before you decorate — finishing the i18n surface at `/docs` (2026-06-21, #59)
+## 5at. Translate before you decorate — finishing the i18n surface at `/docs` (2026-06-21, #59)
 
 `/docs` was the last unauth surface without the locale picker. The
 naive "fix" is obvious: drop `<LocalePicker>` into the docs layout and
