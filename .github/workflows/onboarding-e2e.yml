@@ -71,7 +71,10 @@ jobs:
               - 'apps/web/components/brain/lang-provider.tsx'
               - 'apps/web/lib/brain/i18n.ts'
               - 'apps/web/lib/brain/installer-templates.ts'
+              - 'apps/web/lib/brain/docs-content.ts'
+              - 'apps/web/app/docs/**'
               - 'apps/web/e2e/welcome-public-urls.spec.ts'
+              - 'apps/web/e2e/docs-i18n.spec.ts'
               - 'apps/web/e2e/healthz.spec.ts'
               - 'apps/web/playwright.config.ts'
               - '.github/workflows/onboarding-e2e.yml'
@@ -147,6 +150,7 @@ jobs:
           # added coverage. Keeps the gate, ~halves its runtime.
           pnpm --filter @brain/web exec playwright test --project=chromium \
             e2e/welcome-public-urls.spec.ts \
+            e2e/docs-i18n.spec.ts \
             e2e/healthz.spec.ts
           RC=$?
           kill "$APP_PID" 2>/dev/null || true
