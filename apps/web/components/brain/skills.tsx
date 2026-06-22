@@ -10,6 +10,7 @@ import { useProjectScope } from "@/lib/brain/use-project-scope";
 import { ScopePill } from "./scope-pill";
 import { EffectivenessBadge } from "./effectiveness-badge";
 import { HelpPopover } from "./help-popover";
+import { InfoDot } from "./info-dot";
 import type { KnowledgeItemView } from "@/lib/brain/views";
 
 type ScopeFilter = "all" | KnowledgeItemView["scope"];
@@ -379,6 +380,11 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
           }}
         >
           {t("skills.type")}
+          <InfoDot
+            term="Skill type"
+            conceptSlug="skills"
+            tip="recipe = step-by-step; rule of thumb = heuristic; principle = a value; reflex = always-do; anti-pattern = never-do."
+          />
         </div>
         {/* UX-newcomer-pass-2 (iter 13): hide buckets with zero items so
             "Anti-pattern 0" doesn't show on a fresh Brain. We keep "All"

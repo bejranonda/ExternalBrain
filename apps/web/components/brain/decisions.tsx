@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useT } from "@/lib/brain/i18n";
 import { useProjectScope } from "@/lib/brain/use-project-scope";
 import { useKnowledge } from "@/lib/brain/use-knowledge";
+import { HelpPopover } from "./help-popover";
 
 /**
  * Decisions surface — the project's settled choices as shared memory.
@@ -27,9 +28,23 @@ export function Decisions() {
   return (
     <div className="scroll" style={{ padding: "24px 32px 96px" }}>
       <div style={{ maxWidth: 760, margin: "0 auto" }}>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 500, letterSpacing: "-0.02em" }}>
-          {t("decisions.title")}
-        </h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 500, letterSpacing: "-0.02em" }}>
+            {t("decisions.title")}
+          </h1>
+          <HelpPopover
+            content={{
+              what: "Settled project choices — the calls your team made and shouldn't re-litigate. Shared across the project and exempt from decay.",
+              whatToDo: [
+                "Browse the decisions your team has recorded; each shows the choice and, where set, the alternative it ruled out.",
+                "Capture new ones over MCP (your agent records them when you state a project choice), or teach one directly.",
+                "Editing lives in Skills — filter by the 'decision' tag.",
+              ],
+              related: [],
+              docHref: "/docs/concepts/decisions",
+            }}
+          />
+        </div>
         <p
           style={{
             margin: "2px 0 18px",
