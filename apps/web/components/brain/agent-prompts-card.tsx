@@ -79,7 +79,7 @@ export function AgentPromptsCard({ sessionsAllTime }: Props) {
           type="button"
           className="btn btn-ghost"
           style={{ fontSize: 11, height: 22 }}
-          aria-label="Dismiss"
+          aria-label={t("agentPrompts.dismiss")}
           onClick={() => {
             window.localStorage.setItem(STORAGE_KEY, "true");
             setDismissed(true);
