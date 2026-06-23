@@ -553,6 +553,53 @@ native sweep — same discipline as every other machine-translated block
 
 ---
 
+## 5au. Audit before you build; review live where it's free (2026-06-22 → 06-23, v1.9.0/v1.9.1, orientation layer)
+
+A request to "add onboarding, a glossary, tooltips, and example agent
+prompts" reads like a from-scratch build. It wasn't: the app already
+shipped a five-step first-run modal, the `/welcome` flow, an
+`EmptyBrainCallout`, a full localized `/docs` concept system, and
+nav-item tooltips. **The first move on any "add X" request to a mature
+surface is to inventory what already exists** — the honest gaps here were
+narrow: two concept pages (`graph`, `decisions`) whose nav-surface
+`HelpPopover` "Read more" links were already pointing at pages that
+*didn't exist yet* (dead links shipped earlier), an agent-prompt
+cheat-sheet (the one genuinely missing piece — what to *type* to the
+agent, mapped to each `brain_*` verb), and a single inline tooltip on the
+Skills type filter. Building "onboarding" from zero would have rebuilt
+working, tested, deployed UX.
+
+Four method points compounded:
+
+1. **Live anon review caught what CI couldn't.** `/docs` is a public
+   surface, so it can be browser-reviewed on the live host *without* a
+   throwaway account. That live pass caught a grammar bug — "so knowledge
+   *files* under the right project" (a noun where a verb belonged) — that
+   typecheck and the Playwright e2e both passed green. The split that
+   makes this honest: **public surfaces get a real live browser pass;
+   auth-gated surfaces (the dashboard card, the SQS tooltip) get a
+   throwaway-account operator checklist**, not a faked signed-in pass.
+2. **"Tooltip everything" is an unbounded goal — name it and bound it.**
+   The follow-up sweep, on inspection, had almost no targets: connection
+   status, scope, confidence, and effectiveness already carried `title=`
+   tips or `HelpPopover`s. Adding `InfoDot`s there would have *duplicated*
+   existing help and violated quiet-by-default. The audit added exactly
+   one inline tooltip (the dashboard `Quality`/SQS number, the lone jargon
+   with no explanation). Restraint was the correct output.
+3. **One bounded review→fix→re-verify cycle, not an open loop.** "Iterate
+   till the review is good" has no exit condition. The committed loop was:
+   one build → one structured first-time-user review → fix what it finds →
+   re-verify the fix live. The review found one defect; it was fixed and
+   re-confirmed live. Done is a state, not a vibe.
+4. **Bundling build + validate + release pulls extra deploys; tag first.**
+   Because the version label is baked at build time from `git describe`,
+   doing the work and *then* deciding to release meant three webpack
+   builds (feature, copy-fix, version-label). The cheaper order is the one
+   §5aq already implies: settle the change, then **tag before
+   `deploy.sh`** so a single build ships a clean label.
+
+---
+
 ## 5ak. The AI proposes, the human prioritizes (2026-05-25, ROADMAP-2026-05-25.md)
 
 After the v0.14.0 UI revision landed (Phase R.3), the agent wrote

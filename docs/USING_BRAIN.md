@@ -6,6 +6,12 @@ This document is the **daily-workflow** guide. It assumes the wiring step is don
 
 Lifted from real session transcripts — every example is a phrase, command, or response that actually worked.
 
+> **In-app companion:** the most common prompts here are also surfaced inside the
+> webapp — the **"Talk to your Brain"** dashboard card and the
+> **`/docs/concepts/using-from-your-agent`** concept page (localized EN/TH/DE) —
+> each mapped to the `brain_*` tool it triggers. This doc is the long-form
+> superset; that page is the at-a-glance cheat-sheet for a new user.
+
 ---
 
 ## 0. Mental model in 60 seconds
