@@ -12,6 +12,8 @@
  * non-zero delta — the same gate the original SQS chip used so trend
  * wording never appears for a brand-new brain whose trend is undefined.
  */
+import { InfoDot } from "./info-dot";
+
 export function PulseLine({
   sessionsWeek,
   sessionsAllTime,
@@ -61,7 +63,16 @@ export function PulseLine({
       <strong>This week:</strong> {sessionsWeek} session
       {sessionsWeek === 1 ? "" : "s"} · {activeKnowledge} skill
       {activeKnowledge === 1 ? "" : "s"} in your Brain
-      {showQuality && ` · Quality ${sqsCurrent.toFixed(2)}`}
+      {showQuality && (
+        <>
+          {" · "}Quality {sqsCurrent.toFixed(2)}
+          <InfoDot
+            term="Quality"
+            conceptSlug="vocabulary"
+            tip="Session Quality Score (SQS): are your recent sessions succeeding? 0–1, target ≥ 0.70."
+          />
+        </>
+      )}
       {showTrend && (
         <>
           {" "}
