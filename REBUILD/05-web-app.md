@@ -436,7 +436,9 @@ export const config = {
 Tabs/screens: Dashboard · Oracle · Skills · Graph · Autoskill · Sessions · Decisions
 
 ### Screens (`src/components/screens/`)
-- **dashboard**: session summary cards, recent knowledge, connection status widget
+- **dashboard**: session summary cards, recent knowledge, connection status widget; on
+  the empty state, an `EmptyBrainCallout` (wire-a-tool) plus an `AgentPromptsCard`
+  (what-to-type-to-your-agent — see 5.6)
 - **oracle**: question input → SSE stream → cited answer with `[^K1]`/`[^S1]` markers
 - **skills**: skill browser with stage filter (inbox/notes/knowledge/wisdom)
 - **graph**: knowledge graph visualization (force-directed, type-colored edges)
@@ -470,6 +472,24 @@ when `effectivenessScore === -1`. **Never show 0% for a row with 0 outcomes.**
 
 **`connection-status.tsx`**: live-polls `/api/dashboard/connection-status` (SSE or
 polling). Shows which AI clients are actively connected (recent MCP sessions).
+
+**`agent-prompts-card.tsx`**: the second half of onboarding — once a token is wired,
+the user still needs to know *what to type to their agent*. Renders a dismissable
+dashboard card (expanded while `sessionsAllTime === 0`, collapses to a one-line link
+after the first session or on dismiss via `localStorage: bp_agent_prompts_dismissed`)
+with copy-to-clipboard prompts: check connection → create project → close/transfer.
+The full list lives in the `using-from-your-agent` concept doc (see 5.7). Keep the
+prompt text **English in every locale** — it's typed to an English-speaking LLM, not
+UI chrome. SSR-safe: default to collapsed so server and first client render agree,
+then read `localStorage` in `useEffect`.
+
+**`info-dot.tsx`**: a tiny inline term-level "?" affordance, distinct from the
+page-level `HelpPopover`. Takes `{ term, tip, conceptSlug? }`; tooltips the definition
+and (when `conceptSlug` is set) links to `/docs/concepts/<slug>`. Apply it only to
+jargon with **no existing explanation** — most surfaces already carry `title=` tips or
+a `HelpPopover`, so a blanket sweep just adds clutter. The genuine gaps were the
+Skills *type* filter (recipe/heuristic/principle/reflex/anti-pattern) and the
+dashboard `PulseLine` *Quality* (SQS) number.
 
 ### Settings screens (`/settings/`)
 - **`/settings/tokens`** — list tokens, create new, revoke, rotate; inline install wizard
@@ -523,6 +543,28 @@ SSR in the cookie-resolved locale through `LangProvider`. `generateStaticParams`
 + a cookie-localized `generateMetadata` stay on the server page; the body is a
 small client view. AI-translated TH/DE prose is flagged in `KNOWN_ISSUES.md` for
 a native-speaker pass.
+
+**Concept slugs to author** (each as a `DocPage` in all three records, then added
+to the `DOCS_SECTIONS` index array — a page that isn't in `DOCS_SECTIONS` exists
+but never appears on `/docs`):
+
+| Section | Slugs |
+|---|---|
+| Start here | `vocabulary`, `using-from-your-agent` |
+| Core concepts | `skills`, `oracle`, `sessions`, `autoskill`, `decay`, `graph`, `decisions` |
+| Connection & setup | `tokens`, `connection-status` |
+| Deeper | `groundedness` |
+
+Two coupling rules learned the hard way:
+
+- **Every nav surface's `HelpPopover` `docHref` must resolve to a real slug.** `graph`
+  and `decisions` shipped with `HelpPopover` "Read more" links pointing at concept
+  pages that didn't exist yet — dead links until the docs were authored. Author the
+  doc and wire the `docHref` in the same change.
+- **`using-from-your-agent`** is the bridge from "token wired" to "daily use" — the
+  literal prompts mapped to the `brain_*` verb each triggers. The onboarding modal's
+  last step and `/welcome`'s success state link to it, and `AgentPromptsCard` is its
+  dashboard surface. Its `callout` prompt text stays English in TH/DE.
 
 ### Tweaks store (`src/lib/tweaks.ts`)
 ```typescript
