@@ -34,11 +34,11 @@ export function Decisions() {
           </h1>
           <HelpPopover
             content={{
-              what: "Settled project choices — the calls your team made and shouldn't re-litigate. Shared across the project and exempt from decay.",
+              what: t("decisions.help_what"),
               whatToDo: [
-                "Browse the decisions your team has recorded; each shows the choice and, where set, the alternative it ruled out.",
-                "Capture new ones over MCP (your agent records them when you state a project choice), or teach one directly.",
-                "Editing lives in Skills — filter by the 'decision' tag.",
+                t("decisions.help_todo_1"),
+                t("decisions.help_todo_2"),
+                t("decisions.help_todo_3"),
               ],
               related: [],
               docHref: "/docs/concepts/decisions",

@@ -52,6 +52,13 @@ export const I18N = {
       empty_title: "No decisions captured yet",
       empty_body:
         "When you tell your AI tool a project decision — \"we'll use X\", \"deprecate Y\" — capture it with brain_teach_knowledge (scope: project, tag: decision). It then shows up here, in every teammate's inject-at-open, and in the Oracle.",
+      help_what:
+        "Settled project choices — the calls your team made and shouldn't re-litigate. Shared across the project and exempt from decay.",
+      help_todo_1:
+        "Browse the decisions your team has recorded; each shows the choice and, where set, the alternative it ruled out.",
+      help_todo_2:
+        "Capture new ones over MCP (your agent records them when you state a project choice), or teach one directly.",
+      help_todo_3: "Editing lives in Skills — filter by the 'decision' tag.",
     },
     dash: {
       title: "Your Brain right now",
@@ -249,6 +256,7 @@ export const I18N = {
       copied: "Copied",
       more: "See all prompts →",
       collapsed: "Talk to your Brain →",
+      dismiss: "Dismiss",
       // p_* are prompts the user types to an English-speaking agent, not UI
       // chrome — kept in English across all locales (matches the doc callouts).
       p_check: "Do you have a connection to the Brain? Can you see any projects?",
@@ -548,6 +556,7 @@ export const I18N = {
       copied: "คัดลอกแล้ว",
       more: "ดู prompt ทั้งหมด →",
       collapsed: "คุยกับ Brain ของคุณ →",
+      dismiss: "ปิด",
       // p_* prompts stay in English — typed to an English-speaking agent.
       p_check: "Do you have a connection to the Brain? Can you see any projects?",
       p_project: "Create a project in the Brain for this workspace and make it active.",
@@ -848,6 +857,7 @@ export const I18N = {
       copied: "Kopiert",
       more: "Alle Prompts ansehen →",
       collapsed: "Sprich mit deinem Brain →",
+      dismiss: "Schließen",
       // p_* prompts stay in English — typed to an English-speaking agent.
       p_check: "Do you have a connection to the Brain? Can you see any projects?",
       p_project: "Create a project in the Brain for this workspace and make it active.",
