@@ -412,17 +412,57 @@ curl -sf http://localhost:3100/health | jq .
 
 ---
 
+## Criterion 10 — Onboarding & orientation (manual)
+
+**What it proves:** A brand-new user can understand the product and learn how to drive
+it from their agent without reading the repo docs — the first-run guidance is wired and
+the concept glossary has no dead links.
+
+```bash
+# Public (anon) surfaces — no sign-in needed:
+curl -sf http://localhost:3000/docs | grep -o "Using Brain from your agent"
+# Expected: the new "Start here" card title
+
+for slug in using-from-your-agent graph decisions; do
+  curl -sf "http://localhost:3000/docs/concepts/$slug" >/dev/null && echo "$slug OK"
+done
+# Expected: all three print "OK" (no 404)
+```
+
+**Day-one orientation walkthrough:**
+1. On `/docs`, the index lists `using-from-your-agent` (Start here) and `graph` +
+   `decisions` (Core concepts).
+2. Open `/docs/concepts/using-from-your-agent` → it shows the literal agent prompts
+   (check connection / create project / close & transfer / ask Oracle).
+3. Switch the locale picker EN → TH → DE → section headings translate in place; the
+   prompt `callout` text stays English in every locale; no raw `undefined` on screen.
+4. On a fresh (zero-session) account dashboard, the `AgentPromptsCard` shows copyable
+   prompts; **Copy** works; **Dismiss** persists across reload (collapses to a link).
+5. The dashboard `PulseLine` "Quality" number carries an `InfoDot` → links to the
+   vocabulary doc (which defines SQS).
+6. Every `HelpPopover` "Read more" `docHref` resolves (graph/decisions included).
+
+**Checklist:**
+- [ ] `/docs` index lists `using-from-your-agent`, `graph`, `decisions`
+- [ ] All three new concept pages render (no 404, no leaked `undefined`)
+- [ ] Locale picker switches the new pages EN/TH/DE in place; prompt text stays English
+- [ ] `AgentPromptsCard` shows for a zero-session user; copy + dismiss-persists work
+- [ ] Skills "Type" filter and dashboard "Quality" carry `InfoDot`s linking to docs
+- [ ] No `HelpPopover` `docHref` points at a non-existent concept slug
+
+---
+
 ## Sign-off
 
 ```
-Criteria passed: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7 [ ] 8 [ ] 9
+Criteria passed: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7 [ ] 8 [ ] 9 [ ] 10
 
 Date verified: _______________
 Verified by:   _______________
 Branch/commit: _______________
 ```
 
-All 9 criteria passing = External Brain is fully rebuilt and production-ready.
+All 10 criteria passing = External Brain is fully rebuilt and production-ready.
 
 ---
 
