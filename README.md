@@ -53,6 +53,9 @@ External Brain is the missing **memory substrate**:
   infrastructure. Secure-by-default auth, Bearer-gated MCP.
 - 🪶 **Quiet by default** — a clean dashboard that opens into depth only when you
   ask. Progressive disclosure, not a wall of dials.
+- 🧭 **Self-explaining** — a built-in `/docs` glossary (every concept in plain
+  English, EN/TH/DE), inline tooltips on jargon, and an in-app cheat-sheet of the
+  exact prompts to type to your agent. New users orient without leaving the app.
 - 🌐 **Multilingual** — the UI *and* the in-app docs (`/docs`) are available in
   English, Thai (ไทย), and German, switchable on every surface including the
   unauthenticated pages. (TH/DE are AI-translated and operator-reviewed.)
@@ -107,6 +110,11 @@ The installer wires the MCP server, smoke-tests the round-trip, and seeds your
 first session so the brain starts learning from day zero. Manual wiring for
 Cursor / Windsurf / Antigravity / GitHub Copilot / any MCP client:
 [docs/CLIENTS.md](./docs/CLIENTS.md).
+
+Once connected, the dashboard's **"Talk to your Brain"** card and the in-app
+**[Using Brain from your agent](./docs/USING_BRAIN.md)** page give you the literal
+prompts to drive it day-to-day ("create a project for this workspace", "transfer
+what we learned into the Brain") — each mapped to the `brain_*` tool it triggers.
 
 ---
 
