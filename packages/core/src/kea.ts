@@ -17,6 +17,7 @@ import type {
 } from "@brain/types";
 import { db, toVector } from "@brain/db";
 import { embed } from "./embedding.js";
+import { callLLMText } from "./llm.js";
 import { getLogger } from "./logger.js";
 import { writeAudit } from "./audit.js";
 import {
@@ -710,31 +711,17 @@ async function runLLM(payload: KEAInputPayload): Promise<KEAFinding[]> {
   return callOpenAI(userPrompt, model);
 }
 
+// Provider dispatch now lives in `./llm.ts` (callLLMText). These remain thin,
+// KEA-typed wrappers: same model defaults + SYSTEM_PROMPT, then parseFindings.
 async function callAnthropic(
   userPrompt: string,
   opts: { model?: string; systemPrompt?: string; maxTokens?: number } = {},
 ): Promise<KEAFinding[]> {
-  const { default: Anthropic } = await import("@anthropic-ai/sdk");
-  // Honor ANTHROPIC_BASE_URL explicitly — on Z.ai-gateway dev brains the
-  // SDK needs to be told to route through the gateway, otherwise it falls
-  // back to api.anthropic.com which won't recognize the key. The SDK does
-  // pick this up from env automatically in most versions, but passing it
-  // explicitly avoids subtle SDK-version differences.
-  const client = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY,
-    ...(process.env.ANTHROPIC_BASE_URL ? { baseURL: process.env.ANTHROPIC_BASE_URL } : {}),
-  });
-  const res = await client.messages.create({
+  const text = await callLLMText(userPrompt, {
     model: opts.model ?? "claude-haiku-4-5",
-    max_tokens: opts.maxTokens ?? 1024,
-    system: opts.systemPrompt ?? SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userPrompt }],
+    systemPrompt: opts.systemPrompt ?? SYSTEM_PROMPT,
+    maxTokens: opts.maxTokens ?? 1024,
   });
-  // Anthropic SDK 0.91+ widened `ContentBlock`; flatMap with a
-  // discriminated check is the type-safe extraction of text content.
-  const text = res.content
-    .flatMap((c) => (c.type === "text" ? [c.text] : []))
-    .join("");
   return parseFindings(text);
 }
 
@@ -743,18 +730,12 @@ async function callOpenAI(
   model: string,
   systemPrompt: string = SYSTEM_PROMPT,
 ): Promise<KEAFinding[]> {
-  const { default: OpenAI } = await import("openai");
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  const res = await client.chat.completions.create({
+  const text = await callLLMText(userPrompt, {
     model,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    response_format: { type: "json_object" },
-    max_tokens: 1024,
+    systemPrompt,
+    maxTokens: 1024,
   });
-  return parseFindings(res.choices[0]?.message.content ?? "");
+  return parseFindings(text);
 }
 
 async function callDashScope(
@@ -762,32 +743,12 @@ async function callDashScope(
   model: string,
   systemPrompt: string = SYSTEM_PROMPT,
 ): Promise<KEAFinding[]> {
-  // DashScope is OpenAI-compatible via its /compatible-mode endpoint.
-  // Guard up-front: passing undefined apiKey makes the OpenAI SDK throw
-  // a misleading "set the OPENAI_API_KEY env variable" error that
-  // sends operators chasing the wrong env var. Fail loud with the right
-  // variable name so the fix is one paste away.
-  if (!process.env.DASHSCOPE_API_KEY) {
-    throw new Error(
-      `KEA_MODEL=${model} routes to DashScope but DASHSCOPE_API_KEY is unset. ` +
-        `Either set DASHSCOPE_API_KEY in .env, or switch KEA_MODEL to a configured ` +
-        `provider (claude-haiku-4-5 needs ANTHROPIC_API_KEY; gpt-* needs OPENAI_API_KEY).`,
-    );
-  }
-  const { default: OpenAI } = await import("openai");
-  const client = new OpenAI({
-    apiKey: process.env.DASHSCOPE_API_KEY,
-    baseURL: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-  });
-  const res = await client.chat.completions.create({
+  const text = await callLLMText(userPrompt, {
     model,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    max_tokens: 1024,
+    systemPrompt,
+    maxTokens: 1024,
   });
-  return parseFindings(res.choices[0]?.message.content ?? "");
+  return parseFindings(text);
 }
 
 function parseFindings(text: string): KEAFinding[] {
