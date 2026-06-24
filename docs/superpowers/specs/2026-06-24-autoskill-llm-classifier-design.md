@@ -119,6 +119,10 @@ Returns a prompt block built from, in priority order:
      align with what they've endorsed.
    - Ranked by recency (proposals) + cosine relevance (knowledge); filled up to
      `AUTOSKILL_FEWSHOT_TOKEN_BUDGET` (default ~1500 tok).
+   - **v1 implementation note:** the first ship ranks user examples by **recency
+     only** (cheap `findMany`, no vector query — validatable without a live
+     pgvector index). Cosine relevance over the user's nearest Knowledge is a
+     fast-follow once the recency baseline is observed in shadow.
 
 **Fail-soft (hard requirement):** any query error, or a new user with zero history,
 yields the static gold block alone. Few-shot assembly **never blocks or fails** a
