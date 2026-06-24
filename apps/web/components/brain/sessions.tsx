@@ -91,8 +91,7 @@ export function Sessions() {
           lineHeight: 1.4,
         }}
       >
-        {/* TODO i18n: short subtitle — keep terse. Detail moved to (?) help popover. */}
-        Every coding task your AI tools have run
+        {t("sessions.subtitle")}
       </p>
 
       {showFilter && (

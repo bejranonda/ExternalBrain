@@ -165,8 +165,7 @@ export function Autoskill() {
             className="mono"
             style={{ fontSize: 12, color: "var(--ink-4)", marginBottom: 20 }}
           >
-            across {counts.sessionsWeek || counts.sessionsAllTime} recent sessions
-            {/* TODO i18n: short factual count line — add `autoskill.session_count` key. */}
+            {t("autoskill.session_count", { n: counts.sessionsWeek || counts.sessionsAllTime })}
           </div>
         ) : (
           <div style={{ marginBottom: 12 }} />
