@@ -237,6 +237,15 @@ services:
       KEA_MODEL: ${KEA_MODEL:-qwen3-coder}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
       AUTOSKILL_ENABLED: ${AUTOSKILL_ENABLED:-true}
+      # Autoskill LLM classifier (packages/core/src/autoskill-classifier.ts).
+      # Both flags default off → the worker makes ZERO extra LLM calls
+      # (cost-neutral). Without these passthroughs a .env override is silently
+      # ignored — the same trap as KEA_MODEL above (#212-class).
+      AUTOSKILL_LLM_CLASSIFIER: ${AUTOSKILL_LLM_CLASSIFIER:-false}
+      AUTOSKILL_SHADOW: ${AUTOSKILL_SHADOW:-false}
+      AUTOSKILL_MODEL: ${AUTOSKILL_MODEL:-}
+      AUTOSKILL_CLASSIFY_MAX: ${AUTOSKILL_CLASSIFY_MAX:-12}
+      AUTOSKILL_FEWSHOT_TOKEN_BUDGET: ${AUTOSKILL_FEWSHOT_TOKEN_BUDGET:-1500}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
