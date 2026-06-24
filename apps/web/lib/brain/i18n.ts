@@ -121,6 +121,7 @@ export const I18N = {
       follow: "Follow-up",
       copy_skill: "Copy as skill",
       placeholder: "Follow up — or ask anything about your Brain…",
+      first_placeholder: "Ask anything…",
       recent_prompts: "Your recent questions",
       starter_prompts: "Try one of these",
       inspector: "Retrieval inspector",
@@ -222,6 +223,7 @@ export const I18N = {
       // "Pattern proposals" lost the brand connection to /skills.
       title: "Skill proposals",
       queue_live: "live",
+      session_count: "across {{n}} recent sessions",
       subtitle:
         "Skills the Brain detected across your last {{n}} sessions. Apply promotes one into your Skills list; Reject teaches the Brain not to suggest it again.",
       auto_apply: "Auto-accept HIGH",
@@ -240,6 +242,7 @@ export const I18N = {
     },
     sessions: {
       title: "Sessions",
+      subtitle: "Every coding task your AI tools have run",
       all_time: "all time",
       empty_title: "No coding sessions yet",
       empty_body:
@@ -432,6 +435,7 @@ export const I18N = {
       follow: "ต่อ",
       copy_skill: "คัดลอกเป็นสกิล",
       placeholder: "ถามต่อ — หรือถามอะไรก็ได้เกี่ยวกับสมองของคุณ…",
+      first_placeholder: "ถามอะไรก็ได้…",
       recent_prompts: "คำถามล่าสุดของคุณ",
       starter_prompts: "ลองคำถามเหล่านี้",
       inspector: "ตัวตรวจการดึงข้อมูล",
@@ -523,6 +527,7 @@ export const I18N = {
     autoskill: {
       title: "ข้อเสนอออโต้สกิล",
       queue_live: "คิวสด",
+      session_count: "จาก {{n}} เซสชันล่าสุด",
       subtitle: "ตรวจพบจาก {{n}} เซสชันล่าสุด · กรองด้วยสัญญาณข้ามเซสชัน",
       auto_apply: "อนุมัติอัตโนมัติ · สูง",
       auto_apply_on: "อนุมัติอัตโนมัติ · สูง · เปิด",
@@ -540,6 +545,7 @@ export const I18N = {
     },
     sessions: {
       title: "เซสชัน",
+      subtitle: "ทุกงานเขียนโค้ดที่เครื่องมือ AI ของคุณรัน",
       all_time: "ทั้งหมด",
       empty_title: "ยังไม่มีเซสชันโค้ด",
       empty_body:
@@ -732,6 +738,7 @@ export const I18N = {
       follow: "Folge-Frage",
       copy_skill: "Als Skill kopieren",
       placeholder: "Nachhaken — oder alles über dein Gehirn fragen…",
+      first_placeholder: "Frag irgendwas…",
       recent_prompts: "Deine letzten Fragen",
       starter_prompts: "Probier eine davon",
       inspector: "Retrieval-Inspektor",
@@ -823,6 +830,7 @@ export const I18N = {
     autoskill: {
       title: "Autoskill-Vorschläge",
       queue_live: "Live-Queue",
+      session_count: "über {{n}} aktuelle Sitzungen",
       subtitle:
         "erkannt aus den letzten {{n}} Sitzungen · gefiltert nach sitzungsübergreifendem Signal",
       auto_apply: "HIGH auto-übernehmen",
@@ -841,6 +849,7 @@ export const I18N = {
     },
     sessions: {
       title: "Sitzungen",
+      subtitle: "Jede Coding-Aufgabe, die deine KI-Tools ausgeführt haben",
       all_time: "gesamt",
       empty_title: "Noch keine Coding-Sitzungen",
       empty_body:

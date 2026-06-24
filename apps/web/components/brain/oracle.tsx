@@ -237,12 +237,7 @@ export function Oracle() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={onKey}
-                // TODO(i18n): Phase R.1 hardcoded "Ask anything…" for the
-                // first-ask state — no existing i18n key matched and the
-                // brief said not to add new keys. Replace with
-                // t("oracle.first_placeholder") once that key exists in
-                // all locales (en/th/de).
-                placeholder={turns.length === 0 ? "Ask anything…" : t("oracle.placeholder")}
+                placeholder={turns.length === 0 ? t("oracle.first_placeholder") : t("oracle.placeholder")}
                 style={{ flex: 1, fontSize: 14, padding: "6px 0" }}
                 disabled={(status === "asking" || status === "streaming")}
               />
