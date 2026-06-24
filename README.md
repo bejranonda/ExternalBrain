@@ -6,6 +6,8 @@
 > and any MCP client — extracts it into reusable **skills and rules**, and
 > serves it back automatically the next time you code.
 
+<img width="1416" height="320" alt="image" src="https://github.com/user-attachments/assets/74d9c69c-145a-452d-aead-b00f8447025c" />
+
 <p>
   <a href="https://github.com/bejranonda/ExternalBrain/actions/workflows/ci.yml"><img alt="GitHub Workflow CI build status" src="https://github.com/bejranonda/ExternalBrain/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/bejranonda/ExternalBrain/stargazers"><img alt="GitHub Stars count" src="https://img.shields.io/github/stars/bejranonda/ExternalBrain?style=flat&color=gold"></a>
