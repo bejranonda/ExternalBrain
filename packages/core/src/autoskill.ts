@@ -24,6 +24,17 @@ import type {
 } from "@brain/types";
 import { db, Prisma, toVector } from "@brain/db";
 import { embed, cosineSimilarity } from "./embedding.js";
+import { getLogger } from "./logger.js";
+import {
+  classifySignals,
+  classifierEnabled,
+  decideTarget,
+  inferKnowledgeType,
+  deriveTrigger,
+  type Verdict,
+} from "./autoskill-classifier.js";
+
+const log = getLogger("autoskill");
 
 // ============================================================
 // Per-call embedding cache — collapses O(n²) to O(n) within
@@ -73,6 +84,11 @@ export async function runForSession(
   // 4. Filter for quality + durability
   const durable = resolved.filter(passesQualityFilter);
 
+  // 4b. Batch-classify the survivors in ONE LLM call (verdict map keyed by the
+  // index into `durable`). Empty/over-cap/error → missing entries, and
+  // routeSignal falls back to the heuristic per signal (never drops a signal).
+  const verdicts = await classifySignals(durable, session.userId);
+
   // 5. Route + 6. propose
   // Idempotency on retry (audit C9 / #108): before creating a proposal,
   // check whether a pending one already exists for the same
@@ -83,8 +99,9 @@ export async function runForSession(
   // retry case (sequential by pg-boss design) which is what the audit
   // identified.
   const proposals: AutoskillProposal[] = [];
-  for (const s of durable) {
-    const routed = await routeSignal(s, session.userId);
+  for (let i = 0; i < durable.length; i++) {
+    const s = durable[i]!;
+    const routed = await routeSignal(s, session.userId, verdicts.get(i));
     if (!routed) continue;
 
     const existing = await db.autoskillProposal.findFirst({
@@ -139,7 +156,7 @@ export interface Signal {
   evidence: unknown[];
 }
 
-interface ScoredSignal extends Signal {
+export interface ScoredSignal extends Signal {
   score: number;
 }
 
@@ -433,7 +450,7 @@ export function passesQualityFilter(s: ScoredSignal): boolean {
 // Step 5: routeSignal — Skill | rules | knowledge | internal_skill
 // ============================================================
 
-interface Routed {
+export interface Routed {
   target: AutoskillTarget;
   targetId?: string;
   diff: string;
@@ -444,6 +461,7 @@ interface Routed {
 async function routeSignal(
   s: ScoredSignal,
   userId: string,
+  verdict: Verdict | undefined,
 ): Promise<Routed | null> {
   // Drop LOW signals before they can reach the proposal queue. Audit C17
   // (#112): the previous threshold of `< 2` let `correction_single`
@@ -452,6 +470,7 @@ async function routeSignal(
   // < 3 per the comment in tierForScore.
   if (s.score < 3) return null;
 
+  // Skill short-circuit stays exact (embedding/tag match, upstream of the LLM).
   const skill = await findRelatedSkill(s.snippet, userId);
   if (skill && s.score >= 3) {
     return {
@@ -468,6 +487,23 @@ async function routeSignal(
     };
   }
 
+  // The keyword classifier (legacy path) is always computed: it drives behaviour
+  // when the flag is off, and is the fail-soft fallback when the flag is on but
+  // the LLM produced no verdict for this signal.
+  const heuristic = heuristicRoute(s);
+  const { routed, shadow } = decideTarget({
+    flagOn: classifierEnabled(),
+    heuristic,
+    verdict,
+    signal: s,
+  });
+  log.info({ kind: s.kind, score: s.score, ...shadow }, "autoskill.classify.shadow");
+  return routed;
+}
+
+/** The pre-LLM keyword classifier, extracted verbatim from the old routeSignal.
+ *  Keeps the score>=5 gate for the knowledge path (the LLM path widens it). */
+function heuristicRoute(s: ScoredSignal): Routed | null {
   if (isProjectConvention(s.snippet) || isSessionBehavior(s.snippet)) {
     return {
       target: "rules",
@@ -539,20 +575,8 @@ function isSessionBehavior(snippet: string): boolean {
   );
 }
 
-function inferKnowledgeType(s: ScoredSignal): KnowledgeType {
-  const t = s.snippet.toLowerCase();
-  if (/\b(don'?t|never|avoid|stop)\b/.test(t)) return "anti_principle";
-  if (/\balways\b/.test(t)) return "reflex";
-  if (/\bprefer|over\b/.test(t)) return "principle";
-  if (/\bwhen\b.*\b(then|use|prefer)\b/.test(t)) return "heuristic";
-  return "recipe";
-}
-
-function deriveTrigger(snippet: string): string {
-  const match = snippet.match(/^when\s+(.+?)[,.;]\s*(.+)$/i);
-  if (match) return match[1]!.trim();
-  return "when working in this project";
-}
+// `inferKnowledgeType` / `deriveTrigger` now live in autoskill-classifier.ts
+// (imported above) so the runtime import edge stays one-directional.
 
 // ============================================================
 // Apply (asynchronous; user-approved unless autoApplyHigh is on)
