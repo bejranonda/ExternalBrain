@@ -137,13 +137,13 @@ classification.
   `routeSignal` loop, call `classifySignals(survivors, ctx)` once and pass the
   resulting `Map` into `routeSignal`.
 - **`routeSignal` target decision becomes flag-gated:**
-  - **Flag off (default):** heuristic decides `target` exactly as today. The
-    classifier verdict is *also* computed and logged as
+  - **Flag off (default):** heuristic decides `target` exactly as today.
+    **Shadow is opt-in** (`AUTOSKILL_SHADOW`, default off) — *improvement over the
+    original design, which defaulted shadow on.* With both off, the default deploy
+    makes **zero extra LLM calls** (cost-neutral, not just behaviour-neutral).
+    With `AUTOSKILL_SHADOW=true`, the classifier verdict is computed and logged as
     `autoskill.classify.shadow { index, kind, heuristic, llm, agree }` — free
-    agreement-rate data, **no behaviour change**.
-    - (Optimisation: shadow classification can be sampled, but default is run-all so
-      the agreement data is complete. A `AUTOSKILL_SHADOW_SAMPLE` env can throttle if
-      cost matters.)
+    agreement-rate data, still **no behaviour change**.
   - **Flag on:** the verdict drives `target`. `ignore` → no proposal. `rules` /
     `knowledge` → existing builders. **Widened knowledge path (D5):** the LLM may
     return `knowledge` for a sub-`score-5` signal; the `score >= 5` shortcut remains
@@ -163,11 +163,11 @@ and each accept/reject feeds §4.3's pool — the bias self-corrects.
 
 | Env | Default | Purpose |
 |-----|---------|---------|
-| `AUTOSKILL_LLM_CLASSIFIER` | `false` | Master flag. Off = heuristic live + shadow log. On = classifier drives `target`. |
+| `AUTOSKILL_LLM_CLASSIFIER` | `false` | Master flag. On = classifier drives `target` (implies shadow). |
+| `AUTOSKILL_SHADOW` | `false` | Opt-in: classify + log agreement without acting. Both flags off = zero LLM calls. |
 | `AUTOSKILL_MODEL` | `KEA_MODEL` fallback | Model for the classifier call. |
 | `AUTOSKILL_CLASSIFY_MAX` | `12` | Max signals per batched call; overflow → heuristic. |
 | `AUTOSKILL_FEWSHOT_TOKEN_BUDGET` | `1500` | Token ceiling for user-derived few-shot. |
-| `AUTOSKILL_SHADOW_SAMPLE` | `1.0` | Fraction of survivors shadow-classified while flag off. |
 
 ## 6. Testing (keyless CI — mock the LLM seam, as `kea` tests do)
 
@@ -203,9 +203,10 @@ and each accept/reject feeds §4.3's pool — the bias self-corrects.
 
 ## 8. Risks / open questions
 
-- **Shadow cost while off** — running the classifier purely to log agreement spends
-  tokens with no behaviour change. Mitigated by `AUTOSKILL_SHADOW_SAMPLE`; operator
-  can set it to `0` to disable shadow entirely and flip straight to on.
+- **Shadow cost** — running the classifier purely to log agreement spends tokens.
+  Resolved by making shadow **opt-in** (`AUTOSKILL_SHADOW`, default off): the default
+  deploy makes no extra calls; the operator turns shadow on deliberately to gather
+  agreement data, or flips the flag straight to on.
 - **Few-shot leakage across scope** — must only pull the *acting user's* proposals /
   knowledge (respect `ownerUserId`); reuse the existing scope filter, never a global
   query. (Cross-tenant tests already guard this surface.)
