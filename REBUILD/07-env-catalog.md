@@ -145,6 +145,21 @@ based on the model name prefix and which keys are set.
 | `ORACLE_ENABLED` | `true` | `brain_ask_oracle` returns 503 `oracle_disabled` |
 | `MCP_ENABLED` | `true` | `POST /mcp` returns 503; `/health` still 200 |
 
+## Autoskill LLM classifier (v1.10.0 — optional; default off → zero extra LLM calls)
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `AUTOSKILL_LLM_CLASSIFIER` | `false` | On = an LLM decides the proposal *type* (rules/knowledge/ignore); off = keyword heuristic |
+| `AUTOSKILL_SHADOW` | `false` | On = run the classifier in shadow + log heuristic-vs-LLM agreement; **no** behaviour change |
+| `AUTOSKILL_MODEL` | (`KEA_MODEL`) | Classifier model; falls back to `KEA_MODEL`, then `qwen3-coder` |
+| `AUTOSKILL_CLASSIFY_MAX` | `12` | Max signals per batched classify call; overflow uses the heuristic |
+| `AUTOSKILL_FEWSHOT_TOKEN_BUDGET` | `1500` | Token budget for user-derived few-shot examples |
+
+These must reach the **worker** container. This guide's compose uses `env_file: ../.env`,
+so they pass through automatically; if you switch the worker to an explicit
+`environment:` allowlist (as the production compose does), you MUST list each one or
+it is silently ignored at runtime (see `docs/GUIDELINES.md §3.14`).
+
 ---
 
 ## Cost & rate limits
