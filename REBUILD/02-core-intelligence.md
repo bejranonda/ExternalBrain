@@ -60,6 +60,7 @@ packages/core/src/
   logger.ts
   errors.ts
   autoskill.ts
+  autoskill-classifier.ts     — LLM type-decision for proposals (v1.10.0)
   index.ts                    — re-exports
 packages/core/src/__tests__/  — unit tests (Vitest)
 ```
@@ -582,6 +583,27 @@ export class OracleCapExceededError extends BrainError {}
 **`autoskill.ts`**: `runForSession(sessionId, userId)` — stub is fine for Phase 2.
 Full implementation: analyze the session's events, produce `AutoskillProposal` rows.
 Mark with `confidence: "medium" | "high"`. Status starts `"pending"`.
+
+**`autoskill-classifier.ts`** (v1.10.0): the proposal's *type* decision
+(`rules` / `knowledge` / `ignore`) is made by an LLM, not keyword regexes. Keep the
+cheap deterministic stages in `autoskill.ts` (score gate, conflict dedup, the
+4-question quality filter, the embedding skill short-circuit); only the *type*
+decision for surviving signals goes to **one batched `callLLM`** (the `llm.ts` seam
+from §2.3). Build it as **pure cores** — `parseClassifierResponse`,
+`routedFromVerdict`, `decideTarget`, `buildClassifierPrompt`, `rankFewShot` — with
+the LLM call injected as `deps.call` so they unit-test keyless (§2.16). Few-shot is
+hybrid: static gold examples + the user's own resolved `AutoskillProposal` rows
+(applied = positive, rejected = ignore), ranked by recency within
+`AUTOSKILL_FEWSHOT_TOKEN_BUDGET`, fail-soft to gold-only at cold-start.
+**Fail-soft is mandatory**: any LLM error / invalid output / missing verdict falls
+back to the keyword heuristic *per signal* — a signal is never dropped. Rollout is
+flag-gated: `AUTOSKILL_LLM_CLASSIFIER` (default off) drives behaviour;
+`AUTOSKILL_SHADOW` (default off) only logs heuristic-vs-LLM agreement
+(`autoskill.classify.shadow`). Both off → zero extra LLM calls. No DB migration
+(`target` / `status` are `String` columns). Rationale: the keyword router couldn't
+judge durability, so it had to cap `knowledge` at `score>=5`; the LLM lifts recall
+on durable sub-score-5 rules without lowering precision (the quality filter stays
+the floor).
 
 ---
 
