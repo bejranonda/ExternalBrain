@@ -237,6 +237,20 @@ It supersedes the earlier monolithic `RECREATE_EXTERNAL_BRAIN.md`.
 
 ---
 
+## 0i. Autoskill LLM classifier rollout (v1.10.0 → v1.10.3, 2026-06-24)
+
+The keyword `routeSignal` type-decision graduated to an LLM classifier
+(`packages/core/src/autoskill-classifier.ts`; see `KNOWLEDGE.md §5.8`,
+`GUIDELINES.md §3.14/§4`, `APPROACH.md §4.7`). Items from the rollout:
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**Classifier vars not forwarded to the worker container.**~~ **Fixed (v1.10.2).** The classifier reads `process.env.AUTOSKILL_*`, but the worker's explicit `environment:` allowlist didn't list them — so `AUTOSKILL_LLM_CLASSIFIER` / `AUTOSKILL_SHADOW` set in `.env` were silently ignored and the feature was un-toggleable in prod. Now passed through with code-matching defaults; codified as the §3.14 env-passthrough invariant. | `deploy/docker-compose.yml` | done |
+| **Live flag off; shadow validation pending real traffic.** The classifier ships **default off**. `AUTOSKILL_SHADOW=true` is enabled on the live worker to log `autoskill.classify.shadow { heuristic, llm, agree }`; promote to `AUTOSKILL_LLM_CLASSIFIER=true` only after the agreement rate looks right on real sessions. Operator-gated (`docker compose logs -f worker \| grep classify.shadow`). | `.env` (operator) | awaiting agreement data |
+| **Few-shot ranks by recency, not cosine (v1 deferral).** The user-derived few-shot (resolved proposals + recent knowledge) is ranked by recency within `AUTOSKILL_FEWSHOT_TOKEN_BUDGET`; cosine-relevance over the user's nearest knowledge is a fast-follow once the recency baseline is observed in shadow. | `packages/core/src/autoskill-classifier.ts` | deferred (fast-follow) |
+
+---
+
 ## 0. MVP-complete open items (2026-04-29, operator action required)
 
 These are not blocking pilot but must be resolved before a second contributor joins or the platform is advertised publicly.

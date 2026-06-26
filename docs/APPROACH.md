@@ -95,7 +95,7 @@ Do **not** introduce a separate Next.js route for a surface that already lives i
 ### 4.7 "Should this be deterministic or LLM-driven?"
 Start deterministic (filter, rule, regex). Graduate to LLM when deterministic proves insufficient and evaluation confirms the LLM wins.
 
-KEA extraction is LLM-driven because deterministic keyword matching was the bottleneck in the research's Path R analysis. Autoskill classification is currently deterministic because we haven't proven LLM is worth the cost.
+KEA extraction is LLM-driven because deterministic keyword matching was the bottleneck in the research's Path R analysis. Autoskill's **type** decision (`rules` / `knowledge` / `ignore`) graduated from keyword heuristics to an LLM classifier in **v1.10.0** (`packages/core/src/autoskill-classifier.ts`) once proposal-acceptance telemetry existed to ground it — but it ships behind `AUTOSKILL_LLM_CLASSIFIER` (default off) with an `AUTOSKILL_SHADOW` mode that logs heuristic-vs-LLM agreement first, so "graduate when evaluation confirms the LLM wins" is settled by *data*, not asserted. The cheap deterministic stages (score gate, dedup, the 4-question quality filter, the embedding skill short-circuit) stay as pre-filters and the keyword path is the fail-soft fallback. Few-shot is grounded in the user's own resolved proposals (applied/rejected), so the classifier personalises and self-corrects as they review.
 
 ---
 
@@ -1379,3 +1379,41 @@ that silently breaks for Antigravity and JetBrains users.
 **Rule:** when producing a reconstruction brief for a complex system, split it by
 build-phase and checkpoint, not by document section. A phase is a unit of verifiable
 progress; a section is a unit of narrative. They are not the same thing.
+
+---
+
+## 5av. Ship the code, gate the spend; and validate the right way (2026-06-24, v1.10.x, autoskill LLM classifier)
+
+Graduating `routeSignal`'s type decision from keyword heuristics to an LLM
+classifier (§4.7) produced four method lessons worth keeping:
+
+1. **A default-off flag must be cost-neutral, not just behaviour-neutral.** The
+   classifier's shadow/observability mode (`AUTOSKILL_SHADOW`) was almost shipped
+   on-by-default "to gather agreement data." That would have spent tokens on every
+   session the moment it deployed — contradicting the "inert until you flip a flag"
+   promise. Making shadow a *separate opt-in* env (default off) means the default
+   deploy makes **zero** extra LLM calls. A flag isn't off if its observability arm
+   is on.
+
+2. **Separate the code deploy from the flag flip.** Autonomous CI/CD covers
+   shipping code; it does **not** cover a runtime decision to start spending tokens.
+   Bundling `AUTOSKILL_SHADOW=true` into the deploy was (correctly) denied by the
+   safety harness. The clean shape: deploy the code autonomously on green CI, then
+   enable the cost-incurring flag as a separate, explicitly-authorized step.
+
+3. **An env var the code reads is invisible until the container forwards it.** The
+   classifier read `process.env.AUTOSKILL_*` and `.env.example` documented them, but
+   the worker's explicit `environment:` allowlist in `docker-compose.yml` didn't list
+   them — so the feature was un-toggleable in prod and nobody would have known until
+   they tried to turn it on. Codified as the §3.14 env-passthrough invariant. The
+   same class already had a scar (`KEA_MODEL`); the lesson didn't generalize until it
+   bit twice.
+
+4. **Validate a fact the way it's actually retrieved.** A project decision taught via
+   `brain_teach_knowledge` (`scope:project`) looked "missing" when re-queried through
+   a context-free `brain_ask_oracle` — which returns only user/global scope. The teach
+   was correct; the *test* was wrong. Project-scoped knowledge surfaces through the
+   project-bound `brain_start_session` inject path by design (so decisions reach
+   teammates on that project, not a user's unrelated work). Burned an 11-minute
+   embedding-cron wait chasing a non-bug before checking the scope contract. When a
+   read "fails," confirm you queried it on the path it's meant to be read from.

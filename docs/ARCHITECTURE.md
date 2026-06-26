@@ -326,7 +326,7 @@ scope="all":
 
 | Idea | Home |
 |---|---|
-| Autoskill (Hermes-inspired) | `packages/core/src/autoskill.ts` + `AutoskillProposal` table |
+| Autoskill (Hermes-inspired) | `packages/core/src/autoskill.ts` + LLM type-classifier `autoskill-classifier.ts` (shared `llm.ts` provider dispatch) + `AutoskillProposal` table |
 | Peer Card (Honcho-inspired) | `PeerCard` table + `brain_get_user_style` tool |
 | Graph engine (Obsidian-inspired) | `packages/core/src/graph.ts` + `GraphEdge` table |
 | LiveSync bridge (CouchDB-inspired) | `apps/sync-bridge` (optional, Phase 4) |
@@ -344,7 +344,7 @@ scope="all":
    - `kea.extract` + `autoskill.run` enqueued on pg-boss.
 4. **Background.** Worker picks up jobs.
    - KEA runs LLM extraction → quality filter → dedup → persist with embeddings.
-   - Autoskill detects correction patterns → classifies → creates proposals.
+   - Autoskill detects correction patterns → classifies the type (LLM classifier behind `AUTOSKILL_LLM_CLASSIFIER`, else keyword heuristic; fail-soft) → creates proposals.
 5. **Nightly.** Evolution jobs (decay, consolidate, obsolescence, health-snapshot).
 6. **Human query.** User asks Oracle via webapp or `brain_ask_oracle` — RAG over the accumulated state, cited.
 

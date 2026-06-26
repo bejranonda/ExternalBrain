@@ -55,8 +55,9 @@ External Brain is the missing **memory layer for AI coding agents**.
 - 💬 **Grounded Oracle with citations** — ask "how did we fix the deploy bug?"
   in plain English and get an answer cited to real sessions and skills.
 - 📈 **Self-improving knowledge base** — a daily pipeline synthesizes
-  cross-session knowledge; low-value skills decay; useful ones surface. The
-  brain gets sharper the more you use it.
+  cross-session knowledge; low-value skills decay; useful ones surface; and
+  post-session **proposals** suggest new rules, increasingly tuned to what you
+  accept vs reject. The brain gets sharper the more you use it.
 - 🏠 **Self-hosted & private** — your knowledge stays in your Postgres, on your
   infrastructure. Secure-by-default auth, Bearer-gated MCP.
 - 🪶 **Clean, progressive-disclosure UI** — a quiet dashboard that opens into
