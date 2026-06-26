@@ -51,6 +51,7 @@ Every write path in `packages/core` or `packages/db` must uphold the invariants 
 11. Voucher claims are transactional (SELECT FOR UPDATE).
 12. Retrieval scoring weights require a benchmark run before change.
 13. Knowledge rows track actual usage — `usageCount`, `successCount`, `failureCount` must be bumped via the designated helpers, not direct SQL writes.
+14. **Env-var passthrough.** A new `process.env.*` read in `apps/worker`, `apps/web`, or `apps/mcp-server` MUST also be added to that service's explicit `environment:` allowlist in `deploy/docker-compose.yml` (e.g. `VAR: ${VAR:-default}`). The services use an allowlist, not `env_file`, so an unlisted var set in `.env` is **silently ignored** at runtime — the v1.10.0 autoskill classifier shipped un-toggleable in prod this way (fixed v1.10.2). Same trap as the `KEA_MODEL` passthrough note already in the compose file.
 
 Additionally, the multi-tenant invariants from `KNOWLEDGE.md §12.17–§12.24` are authoritative — every Organization, Project, MCPToken, and Knowledge mutation must pass their guards.
 
@@ -71,6 +72,8 @@ Invariant violations are bugs, not features. Fix the violation; do not loosen th
 | Visual regression | `apps/web/e2e/visual.spec.ts` (#235, scaffold) | 24 baselines: 6 surfaces × 2 viewports × 2 themes. Inert by default; gated on `PWUPDATE=1` (regenerate) or `RUN_VISUAL=1` (diff) so it doesn't flake every dev's `pnpm e2e`. Baseline PNGs land once Phase 2 (`data-volatile` masking attrs) and the e2e CI Option B (in-stack runner) are ready. |
 
 Run `pnpm turbo run test` before every commit. A red test blocks merge. If you add a pure helper (parser, scorer, renderer), add at least one test in the same PR.
+
+**Testing LLM-backed units (keyless CI).** Don't mock the provider SDK. Extract the *pure cores* (prompt build / response parse / decide) and test those directly; pass the LLM call itself as an injectable seam (`deps.call`, mirroring `ExtractOpts.judge`) so a test supplies canned output. The autoskill classifier (`autoskill-classifier.ts`) + its `llm-dispatch` test are the canonical example — every branch (parse, verdict→routed, flag/shadow, fail-soft fallback, empty-input no-call) runs in CI without an API key, because provider dispatch lives behind the shared `packages/core/src/llm.ts` `callLLMText` seam.
 
 **Anonymous-surface CI gate (v1.3.0, #1).** The `onboarding-e2e` workflow
 (`.github/workflows/onboarding-e2e.yml`) builds + boots the app and runs the
