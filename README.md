@@ -1,4 +1,4 @@
-# External Brain — Self-Hosted MCP Server for Persistent AI Coding Memory
+# External Brain > Self-Hosted MCP Server for Persistent AI Coding Memory
 
 > **Stop re-teaching your AI the same lessons.** External Brain is an open-source
 > **MCP server** that captures what you learn in every AI coding session —
