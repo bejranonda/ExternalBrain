@@ -197,6 +197,13 @@ system is built, not a performance promise. The stronger claim that the Brain
 (see `docs/VALIDATION.md`). Keep copy and docs anchored on the structural
 differentiators; don't overstate efficacy until the benchmark backs it.
 
+**The GitHub repo About + topics aren't in the repo.** They're set via `gh repo
+edit` and render on the GitHub repo page and in search results, but they're not
+version-controlled — so they can drift from the README positioning **silently**
+(no diff, no CI to catch it). Re-sync them whenever the README hook or §Why
+changes; the canonical surface list is in `GUIDELINES.md` (problem-framing
+discipline).
+
 ---
 
 ## 0e. v1.5.0 flywheel close-out (2026-06-11 → 2026-06-12)
