@@ -1417,3 +1417,17 @@ classifier (§4.7) produced four method lessons worth keeping:
    teammates on that project, not a user's unrelated work). Burned an 11-minute
    embedding-cron wait chasing a non-bug before checking the scope contract. When a
    read "fails," confirm you queried it on the path it's meant to be read from.
+
+---
+
+## 5aw. Concede the obvious, lead with the real gap — repositioning when the category moves (2026-06-27)
+
+The README's original pitch led with "AI coding tools are stateless — every session starts from zero." A year ago that was true and it landed. It isn't true anymore: Claude Code, Cursor, Copilot, and ChatGPT all ship memory now. Leading with a pain the audience knows is solved doesn't just fall flat — it signals you're a step behind the field, and a knowledgeable reader stops reading.
+
+The fix wasn't a louder hook. It was finding the pain that's *still* real once you concede the obvious one:
+
+1. **Concede what's true.** Open by granting it ("yes, AI tools have memory now"). That earns the credibility for the next sentence to land.
+2. **Find the structural gap, not the feature gap.** Built-in memory is **siloed per tool**, a **black box**, and **vendor-locked**. Those aren't features a vendor ships next quarter — they're consequences of *where the memory lives*. A structural differentiator (cross-tool, inspectable, self-hosted, owned) doesn't evaporate when the incumbents add a feature.
+3. **Tie it to a claim you can defend.** "Shared, inspectable, yours" is verifiable from the architecture. "Measurably better output" is not yet (see `VALIDATION.md`) — so the positioning rests on the structural claims and the efficacy claim stays a roadmap item, not a headline.
+
+Codified as a project decision (do-not-use the stateless framing), in `GUIDELINES.md` (problem-framing discipline), and across `README.md` §Why + FAQ and `HOW_IT_WORKS.md`. The general lesson: when the category shifts under you, re-anchor on what's structurally true and hard to copy — don't shout the old pain louder.

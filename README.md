@@ -26,6 +26,11 @@ anti-patterns), **retrieves it by semantic meaning** when you start a new task,
 and answers questions about your own codebase through a grounded **Oracle** —
 every answer cited back to the sessions and skills that support it.
 
+Unlike the memory built into each AI tool, that store is **one shared,
+inspectable layer across every MCP client** — it stays on your own
+infrastructure instead of sitting in a separate black box locked inside each
+tool.
+
 Provider-agnostic (Google Gemini, GLM, OpenAI, Anthropic Claude), runs on a
 single VM with Docker Compose, and **MIT-licensed** — fork it and build your
 own.
