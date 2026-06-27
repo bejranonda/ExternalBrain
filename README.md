@@ -1,10 +1,11 @@
-# External Brain > Self-Hosted MCP Server for Persistent AI Coding Memory
+# External Brain — One Self-Hosted Memory Across Every AI Coding Tool
 
-> **Stop re-teaching your AI the same lessons.** External Brain is an open-source
-> **MCP server** that captures what you learn in every AI coding session —
-> across **Claude Code, Cursor, Windsurf, GitHub Copilot, Google Antigravity**,
-> and any MCP client — extracts it into reusable **skills and rules**, and
-> serves it back automatically the next time you code.
+> **Your AI's memory is trapped in one tool.** Claude Code remembers one way,
+> Cursor another, GitHub Copilot shares with neither — and none of it is yours to
+> inspect or move. External Brain is **one shared, self-hosted memory across every
+> MCP tool**: it learns from your real coding sessions, you can browse and edit
+> what it knows, and it answers with citations to your own work — open source, on
+> your own infrastructure.
 
 <img width="1416" height="320" alt="image" src="https://github.com/user-attachments/assets/74d9c69c-145a-452d-aead-b00f8447025c" />
 
