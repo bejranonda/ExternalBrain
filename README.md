@@ -1,11 +1,12 @@
-# External Brain — One Self-Hosted Memory Across Every AI Coding Tool
+# External Brain — One Self-Hosted Memory Across Every AI Tool, Project, and Team
 
-> **Your AI's memory is trapped in one tool.** Claude Code remembers one way,
-> Cursor another, GitHub Copilot shares with neither — and none of it is yours to
-> inspect or move. External Brain is **one shared, self-hosted memory across every
-> MCP tool**: it learns from your real coding sessions, you can browse and edit
-> what it knows, and it answers with citations to your own work — open source, on
-> your own infrastructure.
+> **Your AI's memory is trapped — in one tool, one project, one person.** Claude
+> Code doesn't share with Cursor, a lesson learned on one repo doesn't carry to
+> the next, and your teammates each start from zero. External Brain is **one
+> shared, self-hosted knowledge layer across every MCP tool, project, and team**:
+> a skill learned once is applied everywhere it's relevant, you can inspect and
+> edit what it knows, and answers cite your own work — built for teams and
+> enterprise, on your own infrastructure.
 
 <img width="1416" height="320" alt="image" src="https://github.com/user-attachments/assets/74d9c69c-145a-452d-aead-b00f8447025c" />
 
@@ -40,24 +41,27 @@ own.
 
 ---
 
-## Why Use External Brain? — One Memory Across Every AI Coding Tool
+## Why Use External Brain? — One Memory Across Every Tool, Project, and Team
 
 Modern AI coding tools have memory now. The real problem is *where* that memory
-lives:
+lives and *how far it reaches*:
 
-- **Siloed per tool.** Claude Code remembers one way, Cursor another, GitHub
-  Copilot shares with neither. Switch tools or open a new repo and you rebuild
-  context from zero — and every teammate starts from zero too.
+- **Siloed — per tool, per project, per person.** Claude Code doesn't share with
+  Cursor or Copilot; a lesson learned on one repo doesn't carry to the next; and
+  your teammates each start from zero. Knowledge that should compound stays stuck
+  in one place.
 - **A black box.** You can't see what it kept, fix it when it's wrong, or curate
   it. You just hope it remembered the right thing.
 - **Not yours.** It's locked inside one vendor's cloud, tied to that one tool.
-  You can't inspect it, move it between tools, or truly own it.
+  You can't inspect it, move it, or share it on your terms.
 
-External Brain is the missing **memory layer that sits across all your AI coding
-tools** — one shared, inspectable, self-hosted memory you actually own. The
-hard-won context ("we use Zod not Yup", "the deploy breaks if you skip the
-migration step", "this service owns auth") is captured once, served back to
-every tool before the next session, and never leaves your own infrastructure.
+External Brain is the missing **knowledge layer that spans every AI coding tool,
+every project, and your whole team** — one shared, inspectable, self-hosted store
+you actually own. A rule captured once ("we use Zod not Yup", "the deploy breaks
+if you skip the migration step", "this service owns auth") is served back to
+every tool, on every project, for every teammate who needs it. With user /
+project / team / org scopes, it was built for **enterprise knowledge reuse** — so
+the lessons one engineer learns become the team's, not a silo's.
 
 ### Key Features
 
@@ -304,6 +308,18 @@ Skills view), grounded (the Oracle answers with citations to your real
 sessions), and **self-hosted** in your own Postgres. Use it *alongside* your
 tools' built-in memory, not instead of them: External Brain is the layer that
 makes the context portable, shared across your team, and yours.
+</details>
+
+<details>
+<summary><strong>Does knowledge carry across projects and teammates?</strong></summary>
+
+Yes — that's the point. Built-in memory is stuck on one machine for one person on
+one project. External Brain has **user / project / team / org scopes**: a rule
+learned on one repo can apply to the next, and **team/org-scoped knowledge and
+decisions are shared across everyone on the team** — a teammate's next session
+surfaces them automatically. It's designed for **enterprise knowledge reuse**, so
+the lessons one engineer learns become the team's, not a silo's. (Scope
+boundaries are strict and owner-checked; see [docs/KNOWLEDGE.md](./docs/KNOWLEDGE.md).)
 </details>
 
 <details>
