@@ -34,14 +34,24 @@ own.
 
 ---
 
-## Why Use External Brain? — The Problem with Stateless AI Coding
+## Why Use External Brain? — One Memory Across Every AI Coding Tool
 
-AI coding tools are stateless. Every new chat, every new repo, every teammate
-starts from zero — the hard-won context ("we use Zod not Yup", "the deploy
-breaks if you skip the migration step", "this service owns auth") evaporates
-when the session ends. You re-explain. The AI re-disovers. The team re-learns.
+Modern AI coding tools have memory now. The real problem is *where* that memory
+lives:
 
-External Brain is the missing **memory layer for AI coding agents**.
+- **Siloed per tool.** Claude Code remembers one way, Cursor another, GitHub
+  Copilot shares with neither. Switch tools or open a new repo and you rebuild
+  context from zero — and every teammate starts from zero too.
+- **A black box.** You can't see what it kept, fix it when it's wrong, or curate
+  it. You just hope it remembered the right thing.
+- **Not yours.** It's locked inside one vendor's cloud, tied to that one tool.
+  You can't inspect it, move it between tools, or truly own it.
+
+External Brain is the missing **memory layer that sits across all your AI coding
+tools** — one shared, inspectable, self-hosted memory you actually own. The
+hard-won context ("we use Zod not Yup", "the deploy breaks if you skip the
+migration step", "this service owns auth") is captured once, served back to
+every tool before the next session, and never leaves your own infrastructure.
 
 ### Key Features
 
@@ -278,10 +288,23 @@ configure. See [docs/SECURITY.md](./docs/SECURITY.md).
 </details>
 
 <details>
+<summary><strong>Why not just use the memory built into Claude Code or Cursor?</strong></summary>
+
+Those built-in memories are **per-tool, opaque, and vendor-hosted**: Claude
+Code's memory doesn't carry over to Cursor, you can't browse or correct what
+they store, and it lives in someone else's cloud. External Brain is **one shared
+memory across every MCP tool** — inspectable and editable (browse it in the
+Skills view), grounded (the Oracle answers with citations to your real
+sessions), and **self-hosted** in your own Postgres. Use it *alongside* your
+tools' built-in memory, not instead of them: External Brain is the layer that
+makes the context portable, shared across your team, and yours.
+</details>
+
+<details>
 <summary><strong>How is External Brain different from RAG or a vector database?</strong></summary>
 
 RAG retrieves static documents. External Brain **actively extracts, scores, and
-evolved knowledge** from your coding sessions — skills decay if unused, improve
+evolves knowledge** from your coding sessions — skills decay if unused, improve
 if applied successfully, and compound across teammates. It's a living knowledge
 base, not a document index.
 </details>
