@@ -2,6 +2,8 @@
 
 This doc defines what "knowledge" is inside the External Brain, how it's represented in storage, how it moves through the pipeline, and the invariants any implementation must respect.
 
+This knowledge is **typed, inspectable, and user-editable** by design — the property that separates External Brain from the opaque, per-tool memory built into AI coding tools ([README §Why](../README.md)). The model defined here *is* that differentiation, not just an implementation detail.
+
 > This is normative. If code disagrees with this doc, the code is wrong — raise a PR to either fix the code or amend this doc.
 >
 > **Rebuilding the system?** The implementation specs for the knowledge layer live in

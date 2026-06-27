@@ -189,6 +189,14 @@ the demonstrated multi-session + multi-project compounding and the roadmap to
 surface multi-machine (per-machine telemetry) and inter-org (a two-org pilot) as
 recorded metrics. These are capability-extension items, not defects.
 
+**Positioning leans on structural claims, not an efficacy claim.** The product's
+differentiation — *shared across every MCP tool, inspectable/editable, and
+self-hosted/owned* (README §Why) — is structurally verifiable: it's how the
+system is built, not a performance promise. The stronger claim that the Brain
+*measurably improves* AI coding output remains **unproven by a published number**
+(see `docs/VALIDATION.md`). Keep copy and docs anchored on the structural
+differentiators; don't overstate efficacy until the benchmark backs it.
+
 ---
 
 ## 0e. v1.5.0 flywheel close-out (2026-06-11 → 2026-06-12)
