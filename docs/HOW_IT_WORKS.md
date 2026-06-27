@@ -8,6 +8,8 @@
 
 External Brain is a persistent knowledge layer that sits between AI coding tools and the developer. It captures the durable rules a developer accumulates while coding — via vibe-coding sessions in Claude Code, Cursor, Windsurf, Gemini CLI, or any MCP-capable agent — and serves them back at moments of decision so that the next time you face the same problem, the AI tool already knows your team's answer. The compounding mechanic: every session contributes signal; sessions whose rules pay off in subsequent sessions get reinforced; rules that don't get reinforced fade. The product claim ("the Brain measurably improves AI coding output") is currently unproven by any published number — see [`docs/VALIDATION.md`](./VALIDATION.md) for the open methodology gap.
 
+**Why a separate layer, when AI tools already have memory?** Because that memory is trapped. It's **siloed per tool** (Claude Code's memory doesn't carry over to Cursor or Copilot, or across repos and teammates), it's a **black box** you can't inspect or correct, and it's **vendor-locked** in someone else's cloud. External Brain is one shared, inspectable, self-hosted memory that spans every MCP tool and stays yours — used *alongside* a tool's built-in memory, not instead of it.
+
 ---
 
 ## Step 0 — Where the platform runs
