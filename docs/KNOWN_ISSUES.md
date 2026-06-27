@@ -204,6 +204,13 @@ version-controlled — so they can drift from the README positioning **silently*
 changes; the canonical surface list is in `GUIDELINES.md` (problem-framing
 discipline).
 
+**Discoverability is optimised by best-practice, not measured.** The README H1,
+GitHub About, and topics are kept keyword-rich (`GUIDELINES.md` SEO / discoverability
+discipline), but no analytics tie any of it to stars, clones, or search traffic —
+it's optimisation by convention, not by data. Same honesty posture as the
+unproven-efficacy caveat above: real where it's structural (the terms are
+accurate), unproven where it's a performance claim (that they drive reach).
+
 ---
 
 ## 0e. v1.5.0 flywheel close-out (2026-06-11 → 2026-06-12)

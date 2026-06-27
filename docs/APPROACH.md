@@ -1431,3 +1431,9 @@ The fix wasn't a louder hook. It was finding the pain that's *still* real once y
 3. **Tie it to a claim you can defend.** "Shared, inspectable, yours" is verifiable from the architecture. "Measurably better output" is not yet (see `VALIDATION.md`) — so the positioning rests on the structural claims and the efficacy claim stays a roadmap item, not a headline.
 
 Codified as a project decision (do-not-use the stateless framing), in `GUIDELINES.md` (problem-framing discipline), and across `README.md` §Why + FAQ and `HOW_IT_WORKS.md`. The general lesson: when the category shifts under you, re-anchor on what's structurally true and hard to copy — don't shout the old pain louder. One surface in this set hides in plain sight: the **GitHub repo About + topics** are set via `gh repo edit`, not committed, so they drift silently if you forget — keep them in lockstep with the README hook (codified in `GUIDELINES.md` problem-framing discipline).
+
+---
+
+## 5ax. Discoverability is a maintained surface (2026-06-27)
+
+Good positioning only compounds if people find it, so the pass that sharpened the pitch also tuned discoverability: a keyword-rich README H1 + first paragraph, a GitHub About + 20 topics leading with the high-intent terms (`MCP server`, `self-hosted`, `AI coding memory`, `Claude Code`, `Cursor`, `enterprise`), descriptive image alt text, and link-in-first-comment for shared posts. Two lessons. (1) The GitHub About + topics are the easy-to-miss surface because they live in `gh`, not the repo (§5aw). (2) Optimise for the searcher who has *outgrown* built-in memory: they search "shared / self-hosted / enterprise AI memory", not "AI memory". Don't keyword-stuff — a stuffed sentence reads as machine-written, which undercuts the very positioning it is trying to rank. Codified in `GUIDELINES.md` (SEO / discoverability discipline).
