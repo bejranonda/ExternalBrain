@@ -82,8 +82,8 @@ the lessons one engineer learns become the team's, not a silo's.
   infrastructure. Secure-by-default auth, Bearer-gated MCP.
 - 👥 **Team & enterprise knowledge sharing** — user / project / team / org scopes
   mean a skill learned once is reused across other projects and teammates, with
-  shared decisions for the whole team. Built for enterprise knowledge reuse, not
-  one-person silos.
+  team-wide access to the same decisions. Built for enterprise knowledge reuse,
+  not one-person silos.
 - 🪶 **Clean, progressive-disclosure UI** — a quiet dashboard that opens into
   depth only when you ask. Not a wall of dials.
 - 🧭 **Self-explaining with built-in docs** — a built-in `/docs` glossary
@@ -304,14 +304,16 @@ configure. See [docs/SECURITY.md](./docs/SECURITY.md).
 <details>
 <summary><strong>Why not just use the memory built into Claude Code or Cursor?</strong></summary>
 
-Those built-in memories are **per-tool, opaque, and vendor-hosted**: Claude
-Code's memory doesn't carry over to Cursor, you can't browse or correct what
-they store, and it lives in someone else's cloud. External Brain is **one shared
-memory across every MCP tool** — inspectable and editable (browse it in the
-Skills view), grounded (the Oracle answers with citations to your real
-sessions), and **self-hosted** in your own Postgres. Use it *alongside* your
-tools' built-in memory, not instead of them: External Brain is the layer that
-makes the context portable, shared across your team, and yours.
+Those built-in memories are **siloed three ways: per tool, per project, and per
+person**. Claude Code's memory doesn't carry over to Cursor or Copilot, a lesson
+learned on one repo doesn't reach the next, and each teammate starts from zero.
+They're also a **black box** you can't browse or correct, and they live in
+someone else's cloud. External Brain is **one shared, inspectable, self-hosted
+knowledge layer across every MCP tool, project, and team**: browse and edit it in
+the Skills view, get grounded Oracle answers cited to your real sessions, and own
+it in your own Postgres. With user / project / team / org scopes it's built for
+enterprise knowledge reuse. Use it *alongside* your tools' built-in memory, not
+instead of them.
 </details>
 
 <details>
