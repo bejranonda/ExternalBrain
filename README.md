@@ -1,4 +1,4 @@
-# External Brain — One Self-Hosted Memory Across Every AI Tool, Project, and Team
+# External Brain — Self-Hosted AI Coding Memory Across Every Tool, Project, and Team
 
 > **Your AI's memory is trapped — in one tool, one project, one person.** Claude
 > Code doesn't share with Cursor, a lesson learned on one repo doesn't carry to
@@ -80,6 +80,10 @@ the lessons one engineer learns become the team's, not a silo's.
   accept vs reject. The brain gets sharper the more you use it.
 - 🏠 **Self-hosted & private** — your knowledge stays in your Postgres, on your
   infrastructure. Secure-by-default auth, Bearer-gated MCP.
+- 👥 **Team & enterprise knowledge sharing** — user / project / team / org scopes
+  mean a skill learned once is reused across other projects and teammates, with
+  shared decisions for the whole team. Built for enterprise knowledge reuse, not
+  one-person silos.
 - 🪶 **Clean, progressive-disclosure UI** — a quiet dashboard that opens into
   depth only when you ask. Not a wall of dials.
 - 🧭 **Self-explaining with built-in docs** — a built-in `/docs` glossary
