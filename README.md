@@ -1,11 +1,13 @@
-# External Brain — Self-Hosted AI Coding Memory Across Every Tool, Project, and Team
+# External Brain: Self-Improving, Self-Hosted AI Coding Memory Across Every Tool, Project, and Team
 
-> **Your AI's memory is trapped — in one tool, one project, one person.** Claude
+> **Your AI's memory is trapped in one tool, one project, one person.** Claude
 > Code doesn't share with Cursor, a lesson learned on one repo doesn't carry to
 > the next, and your teammates each start from zero. External Brain is **one
-> shared, self-hosted knowledge layer across every MCP tool, project, and team**:
-> a skill learned once is applied everywhere it's relevant, you can inspect and
-> edit what it knows, and answers cite your own work — built for teams and
+> shared, self-hosted knowledge layer across every MCP tool, project, and team**.
+> A skill learned once applies everywhere it's relevant, you can inspect and edit
+> what it knows, and answers cite your own work. Best of all, it improves on its
+> own: after each session it proposes new skills from what you did, so every
+> project gets sharper without anyone hand-writing rules. Built for teams and
 > enterprise, on your own infrastructure.
 
 <img width="1416" height="320" alt="image" src="https://github.com/user-attachments/assets/74d9c69c-145a-452d-aead-b00f8447025c" />
@@ -56,12 +58,17 @@ lives and *how far it reaches*:
   You can't inspect it, move it, or share it on your terms.
 
 External Brain is the missing **knowledge layer that spans every AI coding tool,
-every project, and your whole team** — one shared, inspectable, self-hosted store
+every project, and your whole team**: one shared, inspectable, self-hosted store
 you actually own. A rule captured once ("we use Zod not Yup", "the deploy breaks
 if you skip the migration step", "this service owns auth") is served back to
 every tool, on every project, for every teammate who needs it. With user /
-project / team / org scopes, it was built for **enterprise knowledge reuse** — so
+project / team / org scopes, it was built for **enterprise knowledge reuse**, so
 the lessons one engineer learns become the team's, not a silo's.
+
+And it doesn't sit still. **Autoskill** watches your sessions, proposes new skills
+it notices you reusing, reinforces the rules that pay off, and lets the weak ones
+fade. Each project gets better day by day, on its own, without anyone stopping to
+hand-write a rules file.
 
 ### Key Features
 
@@ -326,6 +333,17 @@ decisions are shared across everyone on the team** — a teammate's next session
 surfaces them automatically. It's designed for **enterprise knowledge reuse**, so
 the lessons one engineer learns become the team's, not a silo's. (Scope
 boundaries are strict and owner-checked; see [docs/KNOWLEDGE.md](./docs/KNOWLEDGE.md).)
+</details>
+
+<details>
+<summary><strong>Does External Brain improve on its own?</strong></summary>
+
+Yes. After every session, **autoskill** scans what happened, proposes new skills
+it notices you reusing, and reinforces the rules that pay off while letting unused
+ones decay. You review proposals with one click (or auto-accept the high-confidence
+ones). Each project gets sharper day by day without you stopping to hand-write a
+rules file, and a new project never starts from zero. Approval is required by
+default, so nothing changes your skills without you.
 </details>
 
 <details>
