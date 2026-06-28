@@ -71,6 +71,47 @@ telemetry-labeled fixture plus the existing KRA path). Generation uplift needs
 the task suite and an agent harness; it is the larger build, but it is the claim
 that actually backs the positioning.
 
+### Fixture-export recipe (operator-runnable)
+
+The retrieval fixture can be built from existing telemetry with no hand-labeling.
+The session prompt lives in `Session.metadata->>'prompt'` (a JSON field, not a
+column); the relevance label is the knowledge that was *injected* into sessions
+that then *succeeded*:
+
+```ts
+// Operator runs against the live DB. Prompts are real user text — anonymize, or
+// restrict to a non-client org, before publishing the fixture.
+// NOTE: packages/core/scripts is outside the tsconfig `include`, so this is NOT
+// typechecked by CI and has not been run — review before trusting it.
+const apps = await db.sessionKnowledgeApplication.findMany({
+  where: { role: "injected", session: { outcome: "success" } },
+  select: { sessionId: true, knowledgeId: true,
+            session: { select: { metadata: true } } },
+});
+const bySession = new Map<string, { query: string; relevant: string[] }>();
+for (const a of apps) {
+  const query = (a.session.metadata as { prompt?: string } | null)?.prompt?.trim();
+  if (!query) continue;                         // no stored prompt -> unusable
+  const row = bySession.get(a.sessionId) ?? { query, relevant: [] };
+  row.relevant.push(a.knowledgeId);
+  bySession.set(a.sessionId, row);
+}
+const fixture = [...bySession.values()];        // [{ query, relevant: [knowledgeId] }]
+// anonymize each query, then write JSON.
+```
+
+Output shape: `[{ "query": "...", "relevant": ["<knowledgeId>", ...] }]`.
+
+**Honesty caveats (these are why it's a first number, not the last word):**
+- It is a *proxy* label, not ground truth. "Injected into a session that
+  succeeded" approximates relevance, but a session can succeed despite an
+  irrelevant injection. It is a **weak** label, better than author opinion (the
+  bias that retired the old benchmarks), not perfect.
+- It can only reward retrieving what the system already chose to inject, so it
+  can't measure a *miss* (relevant knowledge the system never surfaced). A
+  stronger fixture later adds blind human labels on a sample.
+- Prompts contain real user text: anonymize or scope to a non-client org first.
+
 ## Invariants that survive the rewrite
 
 - Retrieval changes (`packages/core/src/kra.ts`, embedding provider, KRA
