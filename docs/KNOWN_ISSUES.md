@@ -273,6 +273,20 @@ The keyword `routeSignal` type-decision graduated to an LLM classifier
 
 ---
 
+## 0j. Flywheel repair Stage 1 — project-identity drift (2026-07-02)
+
+The flywheel-repair program (spec:
+`docs/superpowers/specs/2026-07-02-flywheel-repair-design.md`) opened with a
+diagnosis pass on the platform's own dogfood Brain. Items:
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**Free-text `projectName` silently spawns duplicate project identities.**~~ **Prevented (v1.12.0).** `brain_start_session(projectName)` / `brain_create_project` matched names only case-insensitively with trim, so agent-supplied drift like "BrainPlatform" vs "Brain Platform" created sibling projects — and project-scoped retrieval can't see knowledge filed under a sibling, silently starving injection. (The dogfood Brain accumulated **three** identities for one repo over 7 weeks before anyone looked at the project list.) `ensureNamedProject` now matches by aggressive normalization (lowercase, all non-alphanumerics stripped; all-punctuation names never match each other). | `packages/core/src/org.ts` | done (v1.12.0) |
+| **Existing fragmentation needs an operator-run merge.** `scripts/merge-duplicate-projects.sql` repairs pre-existing duplicates: dry-run by default, `-v apply=1` mutates in one transaction holding `SHARE ROW EXCLUSIVE` locks (in-DB write freeze; `MCPToken.projectId` is `onDelete: Cascade`, so an unfrozen merge could silently delete a mid-window token), `-v merge_from/-v merge_into` for genuinely differently-named merges. Requires a verified backup + explicit operator authorization (bulk `deploy_*` mutation). Validated end-to-end against a seeded postgres:16 fixture incl. `PeerCard` unique-collision handling and idempotent re-run. | `scripts/merge-duplicate-projects.sql` | awaiting operator run |
+| **Aggregate "how is my Brain doing" questions have no surface.** The Oracle retrieves semantically and cannot count — asked for 30-day session/close/learning stats it returns zero sessions and defers to SQL. The Stage-2 health panel (sessions closed-with-learnings, injection→used rate, validation coverage, duplicate-project detector) is the planned fix; the Oracle deliberately does not grow SQL-agent capabilities. | Stage-2 plan (spec §4.2) | planned (Stage 2) |
+
+---
+
 ## 0. MVP-complete open items (2026-04-29, operator action required)
 
 These are not blocking pilot but must be resolved before a second contributor joins or the platform is advertised publicly.
