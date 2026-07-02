@@ -299,9 +299,13 @@ services:
       retries: 5
 
   # Nightly pg_dump via cron → brain_backups volume. Restore: scripts/backup-restore.sh
+  # INVARIANT: this image's PG major MUST match the `db` service major
+  # (pgvector/pgvector:pg16) — pg_dump refuses to dump a newer server, which
+  # silently failed every nightly backup after the pg16 upgrade while the tag
+  # was still :15. Bump both together.
   backup:
     profiles: ["edge"]
-    image: prodrigestivill/postgres-backup-local:15
+    image: prodrigestivill/postgres-backup-local:16
     restart: unless-stopped
     depends_on:
       db:
