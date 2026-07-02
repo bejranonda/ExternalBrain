@@ -258,7 +258,7 @@ Open `https://<webapp-host>/<org>/<project>#skills`. Each row has the rule, its 
 
 Two equivalent entry points, same drill-down:
 
-- **From the Dashboard** (the landing route at `https://<webapp-host>/<org>/<project>`). The **Your recent work** panel shows the latest 6 sessions; click any row to expand it inline. No nav to `#sessions` required — added in PR #266.
+- **From the Dashboard** (the landing route at `https://<webapp-host>/<org>/<project>`). The **Your recent work** panel shows the latest 6 sessions; click any row to expand it inline. No nav to `#sessions` required — added in an early PR.
 - **From the Sessions surface** (`https://<webapp-host>/<org>/<project>#sessions`). Click any row (desktop) or tap any card (mobile) for the full session table with the same expansion.
 
 Either way, the row opens a two-column panel:
@@ -285,7 +285,7 @@ Backend contract for the curious: `GET /api/projects/:id` — see `docs/REST_API
 
 ### Switch projects without a hard reload (2026-05-23)
 
-The project switcher in the topbar (visible only when you have ≥2 projects or ≥2 orgs) refetches its list every time you open the dropdown — so a project you just created in another tab, via the CLI, or via the API shows up without a page reload. Before 2026-05-23 the dropdown only refreshed on page mount, which caused a "I created it but it's missing" surprise — fixed by PR #262.
+The project switcher in the topbar (visible only when you have ≥2 projects or ≥2 orgs) refetches its list every time you open the dropdown — so a project you just created in another tab, via the CLI, or via the API shows up without a page reload. Before 2026-05-23 the dropdown only refreshed on page mount, which caused a "I created it but it's missing" surprise — fixed by an early PR.
 
 ### Bulk reset (org-admin only)
 

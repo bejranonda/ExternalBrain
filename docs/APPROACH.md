@@ -724,15 +724,15 @@ exactly one subagent, no two subagents writing to the same file.
 
 ---
 
-## 5ai. The validate-then-aggregate cycle closed (2026-05-24, PR #266)
+## 5ai. The validate-then-aggregate cycle closed (2026-05-24, an early PR)
 
 §5ah's corollary said: ship the per-session view first, observe whether
 it gets opened, then decide if the project-level aggregate earns its
-keep. PR #263 shipped the per-session view on 2026-05-23. By 2026-05-24
+keep. An early PR shipped the per-session view on 2026-05-23. By 2026-05-24
 the signal was clear enough — the user explicitly asked for the
 project-level companion in-session ("I expect to see the list of
 projects and sessions easily; when I click, I want to see what brain
-gains and what I got") — and PR #266 landed it.
+gains and what I got") — and an early PR landed it.
 
 The shape that survived:
 
@@ -798,7 +798,7 @@ close the gap:
    performed checks but were actually wish-lists — the reader
    couldn't tell which without re-running everything.
 
-The first run of the new label on PR #260 found a real bug:
+The first run of the new label on an early PR found a real bug:
 `e2e/security.spec.ts` had hardcoded `http://localhost:3100/mcp`
 in two MCP-unauth tests, which silently failed against the deployed
 dev brain for an unknown number of weeks before the label-triggered
@@ -813,7 +813,7 @@ or an explicit "(agent could not run locally)" caveat.
 
 **Corollary: validate-before-aggregate.** The same session that
 shipped this loop change also added a per-session value drill-down
-(`GET /api/sessions/:id` + `SessionDetailPanel`, PR #263). A
+(`GET /api/sessions/:id` + `SessionDetailPanel`, an early PR). A
 project-level value summary card on the Dashboard was deliberately
 deferred — the cost of building it is low, but the cost of building
 *and then realizing the per-session view isn't getting opened* is
@@ -826,7 +826,7 @@ surface is the validation instrument.
 ## 5ag. Vocabulary drift is the third newcomer-eye finding class (2026-05-20)
 
 After §5af codified the first two patterns (decorative state, leaked
-identifiers), a fourth round (iter 31-40, PR #257) found the third:
+identifiers), a fourth round (iter 31-40, an early PR) found the third:
 **the same concept named differently across surfaces.**
 
 Examples this round caught:
@@ -863,7 +863,7 @@ different word appears, that's drift to fix.
 
 ## 5af. The newcomer-eye discipline — three iteration loops, 30 fixes (2026-05-17 → 2026-05-19)
 
-A 30-iteration sweep across PRs #254 / #255 / #256 demonstrated that
+A 30-iteration sweep across early PRs demonstrated that
 "the team can use this app" is not the same evaluator as "a first-time
 visitor with no AI background can understand this app." Each iteration
 re-read one surface as if landing cold and asked of every chip,
@@ -908,10 +908,10 @@ Every iteration of this sweep paired the code change with a probe
 that asserts the *user-facing* change, not just the source-code
 change.
 
-**Three-pass cadence.** The first pass (#254) caught the obvious
-broken-looking issues. The second pass (#255) caught redundancy and
+**Three-pass cadence.** The first pass (an early PR) caught the obvious
+broken-looking issues. The second pass (an early PR) caught redundancy and
 ambiguity that needed the first pass landed before it became
-visible. The third pass (#256, this PR) caught the entry-points —
+visible. The third pass (an early PR) caught the entry-points —
 sign-in, forgot-password, tokens settings — that the first two
 passes never opened because they assumed an already-logged-in user.
 **Each pass surfaces issues the previous one couldn't see**;
@@ -930,7 +930,7 @@ to answer.
 
 ## 5ae. Major-version config drift is invisible to unit tests (2026-05-17, Prisma 7 seed silent no-op)
 
-The 2026-05-17 sprint shipped PR #246 — a deterministic seed fixture for the e2e suite. Every CI check passed: `pnpm install --frozen-lockfile`, `prisma generate`, `turbo typecheck`, `@brain/core test`, `fresh-DB migrate · FTS`. All four gates green. The seed code itself was reviewed against the schema field-by-field. The PR merged to develop, then the dev brain auto-deployed.
+The 2026-05-17 sprint shipped an early PR — a deterministic seed fixture for the e2e suite. Every CI check passed: `pnpm install --frozen-lockfile`, `prisma generate`, `turbo typecheck`, `@brain/core test`, `fresh-DB migrate · FTS`. All four gates green. The seed code itself was reviewed against the schema field-by-field. The PR merged to develop, then the dev brain auto-deployed.
 
 On the first real run, `scripts/deploy.sh` printed:
 
@@ -955,11 +955,11 @@ Three independent issues stacked:
 
 **Defensive `|| warn` patterns require counter-probes.** Any deploy step that swallows failures with `|| warn` to keep the pipeline forward-rolling must be paired with a downstream counter check that fails noisily if the swallowed step actually mattered. For the seed, the right probe is `count(*) WHERE id LIKE 'seed_%'` — sub-second, deterministic, no dependence on any test framework. This is now part of `KNOWN_ISSUES.md`'s deploy-hazards section.
 
-**The validation chain is: did the artifact *do its job*, not did the script *exit 0*.** PR #246's tests all passed. The PR's own CI all passed. The deploy script exited 0. The artifact (a populated seed) was not produced. "CI green + deploy clean" is necessary but not sufficient evidence — the only sufficient evidence is observing the change's intended downstream effect. Re-articulates §5m and §5q from a fresh angle: the validation discipline is universal, not just relevant to KEA pipelines or migration drift.
+**The validation chain is: did the artifact *do its job*, not did the script *exit 0*.** an early PR's tests all passed. The PR's own CI all passed. The deploy script exited 0. The artifact (a populated seed) was not produced. "CI green + deploy clean" is necessary but not sufficient evidence — the only sufficient evidence is observing the change's intended downstream effect. Re-articulates §5m and §5q from a fresh angle: the validation discipline is universal, not just relevant to KEA pipelines or migration drift.
 
 **Rule:** every PR that ships a deploy-time side effect (seed, backfill, schema reset, embedding refresh, audit-row write) must include a downstream counter probe in its test plan — a one-line SQL or grep that returns YES/NO and runs in under a second. If the probe is hard to write, the side effect is probably too implicit.
 
-**Round-2 validation (same day, 2026-05-17).** With the hotfix in PR #250 staged on the bugfix branch but not yet merged, the loop re-ran `scripts/deploy.sh` against the live dev brain to test the *other* half of the rule: data already persisted from the earlier manual seed (16 knowledge rows, all embedded) survived a full image rebuild + container recreate cleanly. The deploy step printed the same `⚠️ No seed command configured` warning (expected, since develop doesn't have #250 yet) and exited 0. Lockdown audit PASSED. All 12 auth-free + auth-gated probes returned the expected status codes. Worker / mcp-server / web logs showed zero error-level lines. This validated that the *DB volume* is the right place for fixture persistence between deploys — re-running deploy.sh is a `pgvector`-safe operation and the seed step is genuinely idempotent (the broken state of the seed step on this run was a no-op, not a destructive one). The seed step's `|| warn` is exactly the right defensive posture — it failed safely. The downstream counter probe is what made the failure *visible*.
+**Round-2 validation (same day, 2026-05-17).** With the hotfix in an early PR staged on the bugfix branch but not yet merged, the loop re-ran `scripts/deploy.sh` against the live dev brain to test the *other* half of the rule: data already persisted from the earlier manual seed (16 knowledge rows, all embedded) survived a full image rebuild + container recreate cleanly. The deploy step printed the same `⚠️ No seed command configured` warning (expected, since develop doesn't have the seed command yet) and exited 0. Lockdown audit PASSED. All 12 auth-free + auth-gated probes returned the expected status codes. Worker / mcp-server / web logs showed zero error-level lines. This validated that the *DB volume* is the right place for fixture persistence between deploys — re-running deploy.sh is a `pgvector`-safe operation and the seed step is genuinely idempotent (the broken state of the seed step on this run was a no-op, not a destructive one). The seed step's `|| warn` is exactly the right defensive posture — it failed safely. The downstream counter probe is what made the failure *visible*.
 
 ---
 
@@ -969,11 +969,11 @@ The full External Brain loop closed end-to-end on 2026-05-13: a real client (the
 
 Three lessons compound out of this:
 
-1. **The strongest demonstration of a learning platform is to apply it to itself.** Most "AI memory" demos show retrieval against synthetic queries on synthetic data. This iteration produced 5 real cross-session rules from observing my actual coding work, then watched those rules shape a downstream PR's design. Without the brain's "every new feature must include an end-to-end smoke test" rule, PR #219 would have shipped with unit tests only; the rule caused me to add 3 integration tests + a manually-enqueued pg-boss job that I watched the worker process. Without the "instrument the invisible" rule, the cron's skip-on-no-new-sessions path would have been silent; the rule caused me to emit `op="kea.cross.skip"` with an explicit reason. These are non-obvious design choices that the brain made obvious.
+1. **The strongest demonstration of a learning platform is to apply it to itself.** Most "AI memory" demos show retrieval against synthetic queries on synthetic data. This iteration produced 5 real cross-session rules from observing my actual coding work, then watched those rules shape a downstream PR's design. Without the brain's "every new feature must include an end-to-end smoke test" rule, an early PR would have shipped with unit tests only; the rule caused me to add 3 integration tests + a manually-enqueued pg-boss job that I watched the worker process. Without the "instrument the invisible" rule, the cron's skip-on-no-new-sessions path would have been silent; the rule caused me to emit `op="kea.cross.skip"` with an explicit reason. These are non-obvious design choices that the brain made obvious.
 
-2. **The retrieval gap was load-bearing in a way unit tests couldn't surface.** PR #217 fixed a bug where `brain_retrieve_knowledge` without an explicit `projectId` returned an empty bundle. Every unit test of the scope-filter passed before the fix because each test set `activeProjectId` explicitly. The bug lived in the realistic-user-flow path that nothing in the test matrix exercised. The brain itself surfaced the rule that would have prevented this — **"end-to-end smoke test that exercises the real integration path"** — but only AFTER the bug had shipped, watched four iterations, and finally been triggered by a user-shaped retrieval call (mine) that didn't pass `projectId`. The lesson: even with the right rule in the brain, you still need the rule to actually FIRE at the right moment. Retrieval coverage is itself a form of test coverage.
+2. **The retrieval gap was load-bearing in a way unit tests couldn't surface.** an early PR fixed a bug where `brain_retrieve_knowledge` without an explicit `projectId` returned an empty bundle. Every unit test of the scope-filter passed before the fix because each test set `activeProjectId` explicitly. The bug lived in the realistic-user-flow path that nothing in the test matrix exercised. The brain itself surfaced the rule that would have prevented this — **"end-to-end smoke test that exercises the real integration path"** — but only AFTER the bug had shipped, watched four iterations, and finally been triggered by a user-shaped retrieval call (mine) that didn't pass `projectId`. The lesson: even with the right rule in the brain, you still need the rule to actually FIRE at the right moment. Retrieval coverage is itself a form of test coverage.
 
-3. **Dependency injection beats `vi.spyOn` for testing module wrappers in ESM.** PR #219's smoke test initially used `vi.spyOn(kea, "extractFromCrossSessions")` to stub the LLM call inside `runCrossExtractDaily`. It didn't intercept — Node's ESM module resolution binds intra-module references at load time, so the wrapper's call site reads the local function, not the namespace export. The cleanest fix is to pass the inner function as an optional parameter (`runCrossExtractDaily({ extract? })`). Production callers leave it undefined; tests pass a stub. This pattern is small, type-safe, and avoids `vi.mock`'s full-module-replacement footgun (which would make the wrapper itself impossible to test).
+3. **Dependency injection beats `vi.spyOn` for testing module wrappers in ESM.** an early PR's smoke test initially used `vi.spyOn(kea, "extractFromCrossSessions")` to stub the LLM call inside `runCrossExtractDaily`. It didn't intercept — Node's ESM module resolution binds intra-module references at load time, so the wrapper's call site reads the local function, not the namespace export. The cleanest fix is to pass the inner function as an optional parameter (`runCrossExtractDaily({ extract? })`). Production callers leave it undefined; tests pass a stub. This pattern is small, type-safe, and avoids `vi.mock`'s full-module-replacement footgun (which would make the wrapper itself impossible to test).
 
 **Rule for future iterations:** when you ship a feature that depends on a retrievable Knowledge row, exercise the retrieval path with the inputs the realistic user would pass — including the empty / default / "no context" cases that the documentation example glosses over. Persistent counters (`Knowledge.successCount`, `SessionKnowledgeApplication`) are the load-bearing diagnostic; they fail noisily when the loop breaks, where unit tests stay green because they each provide their own context.
 
@@ -1005,7 +1005,7 @@ Three lessons:
 
 1. **Logs that don't distinguish failure shapes are observability theater.** Tool calls were already logging as `op="mcp.tool"`, but `tools/list` calls logged nothing. A histogram of `op` values showed "184 opens, 0 anything-else" — which read as "auth gate is the only thing running," but was actually "184 sessions opened and never went past list-discovery." Adding `op="mcp.tools.list"` made the failure mode visible. Adding `op="mcp.session.orphan"` (close path + a 5-min sweeper) made it a first-class metric.
 
-2. **The artifact has to be exercised in the conditions it claims to fix.** PR #202's first run created an orphan Session (the very failure mode the PR was designed to detect), because a regex extracting `sessionId` from `brain_start_session`'s response didn't handle JSON-string-of-JSON quoting. "CI is green and the unit test passes" was true. "The shipped installer creates a closed Session when run against the live stack" was false. The bug surfaced only because we re-ran the audit script against the DB after running the v2 installer end-to-end and noticed `sessions_reported_outcome_last_30d` was still 0. Always run the artifact against the system it's about to ship to; treat "tests passed" as a necessary precondition, not sufficient evidence.
+2. **The artifact has to be exercised in the conditions it claims to fix.** an early PR's first run created an orphan Session (the very failure mode the PR was designed to detect), because a regex extracting `sessionId` from `brain_start_session`'s response didn't handle JSON-string-of-JSON quoting. "CI is green and the unit test passes" was true. "The shipped installer creates a closed Session when run against the live stack" was false. The bug surfaced only because we re-ran the audit script against the DB after running the v2 installer end-to-end and noticed `sessions_reported_outcome_last_30d` was still 0. Always run the artifact against the system it's about to ship to; treat "tests passed" as a necessary precondition, not sufficient evidence.
 
 3. **Installer success criterion must be behavioral, not structural.** The pre-v2 installer ended with `claude mcp list | grep brain` — which proves the local config row exists but nothing about whether the bearer reaches a tool over the user's network. The v2 installer ends with an actual JSON-RPC round-trip (`initialize` + `tools/call brain_get_user_style`) plus a `start_session → log_event → report_session_outcome` "install-ping" that lands a real Session row with `endedAt` set, giving KEA its first input. The dashboard can now distinguish a real install from a stale heartbeat without anyone reading logs.
 

@@ -173,11 +173,11 @@ Relationship rules:
 
 Cost budget: `MAX_KEA_COST_USD_PER_SESSION=0.05`. Above that the job should abort and log.
 
-**Critical: the entire pipeline gates on `brain_report_session_outcome`.** A Session with `endedAt = null` never enqueues a `kea.extract` job, so the brain never learns from it. This is the single biggest reason a deployed Brain feels "stagnant" — the operator's tokens are connecting, sessions are opening, but no client ever closes them. Diagnose via `docs/RUNBOOK.md §"Tokens connect but brain doesn't learn"` (orphan-session detector). The v2 installer (2026-05-11, PR #202) makes the first such close automatic on every install so KEA has its first input from day 0.
+**Critical: the entire pipeline gates on `brain_report_session_outcome`.** A Session with `endedAt = null` never enqueues a `kea.extract` job, so the brain never learns from it. This is the single biggest reason a deployed Brain feels "stagnant" — the operator's tokens are connecting, sessions are opening, but no client ever closes them. Diagnose via `docs/RUNBOOK.md §"Tokens connect but brain doesn't learn"` (orphan-session detector). The v2 installer (2026-05-11, an early PR) makes the first such close automatic on every install so KEA has its first input from day 0.
 
-**Second gate (2026-05-12, PR #206): KEA needs a configured LLM provider.** Even with closed sessions, `kea.extract` cannot produce Knowledge rows unless `KEA_MODEL` routes to a provider whose API key is set in the worker's env. Default `qwen3-coder` requires `DASHSCOPE_API_KEY`; `claude*` requires `ANTHROPIC_API_KEY`; everything else requires `OPENAI_API_KEY`. The `op="kea.funnel"` worker log line (`{llmFindings, filterPassed, persisted}`) is the diagnostic for "did KEA fire AND did it produce findings AND did they survive the quality filter." See `docs/MCP_TOOLS.md §"KEA provider routing"` for the routing table and `docs/RUNBOOK.md §"Why is knowledge_by_kea stuck at 0?"` for the three nested failure modes that block extraction.
+**Second gate (2026-05-12, an early PR): KEA needs a configured LLM provider.** Even with closed sessions, `kea.extract` cannot produce Knowledge rows unless `KEA_MODEL` routes to a provider whose API key is set in the worker's env. Default `qwen3-coder` requires `DASHSCOPE_API_KEY`; `claude*` requires `ANTHROPIC_API_KEY`; everything else requires `OPENAI_API_KEY`. The `op="kea.funnel"` worker log line (`{llmFindings, filterPassed, persisted}`) is the diagnostic for "did KEA fire AND did it produce findings AND did they survive the quality filter." See `docs/MCP_TOOLS.md §"KEA provider routing"` for the routing table and `docs/RUNBOOK.md §"Why is knowledge_by_kea stuck at 0?"` for the three nested failure modes that block extraction.
 
-**Cross-session KEA (2026-05-14, PR #213 + #219).** A second extraction pass that complements per-session KEA: instead of looking at one closed session in isolation, the cross-session pipeline bundles a user's last N closed sessions and asks the LLM to find patterns that REPEAT across them (≥2 sessions per finding). On dev, this lifted extraction yield from 17% (1/6 sessions producing any findings) to 50% (3 findings from a 6-session bundle). Runs daily at `0 6 * * *` UTC via the pg-boss `kea.cross_extract` queue. Idempotent: each daily run only processes users whose newest closed session is newer than their last cross-session Knowledge row — users with no new sessions log `op="kea.cross.skip"` and don't burn an LLM call. Findings are persisted with `tags: ["cross_session"]` and `sourceSessionIds` listing every contributing session for audit attribution. See `packages/core/src/kea.ts:runCrossExtractDaily`.
+**Cross-session KEA (2026-05-14, an early PR).** A second extraction pass that complements per-session KEA: instead of looking at one closed session in isolation, the cross-session pipeline bundles a user's last N closed sessions and asks the LLM to find patterns that REPEAT across them (≥2 sessions per finding). On dev, this lifted extraction yield from 17% (1/6 sessions producing any findings) to 50% (3 findings from a 6-session bundle). Runs daily at `0 6 * * *` UTC via the pg-boss `kea.cross_extract` queue. Idempotent: each daily run only processes users whose newest closed session is newer than their last cross-session Knowledge row — users with no new sessions log `op="kea.cross.skip"` and don't burn an LLM call. Findings are persisted with `tags: ["cross_session"]` and `sourceSessionIds` listing every contributing session for audit attribution. See `packages/core/src/kea.ts:runCrossExtractDaily`.
 
 **Close-capture / refine mode (2026-06-09, v1.4.0, PR #49).** A third acquisition path that inverts the mine model: the *agent* distills durable learnings in its own context — where the full session is loaded — and submits them at the one call every client reliably makes, `brain_report_session_outcome(learnings: [...])` (0–5 items shaped `{trigger, rule, rationale, type, source, confidence?}`). Semantics:
 
@@ -567,7 +567,7 @@ The discipline behind locking the vocabulary lives in `docs/APPROACH.md §5ag` �
 
 ### 12.27 Newcomer-eye copy & label discipline (2026-05-19)
 
-The user-facing copy in the webapp has a load-bearing relationship to onboarding. The 30-iteration sweep (PRs #254 / #255 / #256) established these conventions:
+The user-facing copy in the webapp has a load-bearing relationship to onboarding. The 30-iteration sweep (early PRs) established these conventions:
 
 | Where text appears | Rule |
 |---|---|
@@ -579,7 +579,7 @@ The user-facing copy in the webapp has a load-bearing relationship to onboarding
 | Empty-state copy | Pair the observation with the next step ("No sessions yet — start one from Claude Code, Cursor, or any MCP client"). Dead-end empty states leave the visitor stranded. |
 | Trend deltas (SQS chip, etc.) | Only render when ≥3 real data points + non-zero delta; format as "+0.32 trend" not "→ -1.00" (arrow + signed number is visually ambiguous). |
 
-The full per-iteration log lives in PRs #254 / #255 / #256 commit messages; the longer-form rationale is in `docs/APPROACH.md §5af`.
+The full per-iteration log lives in early PRs commit messages; the longer-form rationale is in `docs/APPROACH.md §5af`.
 
 ### 12.25 Deterministic test fixture — `prisma db seed` (2026-05-17)
 
@@ -650,7 +650,7 @@ The Sessions table has always shown counts in the `K in/out` column (skills retr
 
 **Client wiring.** `apps/web/lib/brain/use-session-detail.ts` is intentionally minimal — no SWR cache, no revalidation — because session details are inspected rarely (one user click → one fetch) and stale-while-revalidate adds complexity without benefit. `SessionDetailPanel` renders the two halves as a two-column grid that stacks on mobile via `.session-detail-grid` (a single `@media (max-width: 880px)` rule in `globals.css`). The rows in `Sessions` table become `role="button"` with Enter/Space handlers and `aria-expanded` / `aria-controls`, so keyboard users get the same drill-down.
 
-**Why this is per-session, not per-project (yet).** A project-level "value summary" card on the Dashboard ("Brain has learned N skills from this project; your sessions have used skills M times in the last 30 days") was deliberately deferred. The right time to build the aggregate is after observing whether users actually open the per-session panel — premature aggregation would just add another surface to optimize before knowing if the underlying signal lands. See `APPROACH.md §5ah` on validation-before-aggregation. **Update 2026-05-24:** PR #266 landed the aggregate after the per-session view was confirmed to land — see §12.30.
+**Why this is per-session, not per-project (yet).** A project-level "value summary" card on the Dashboard ("Brain has learned N skills from this project; your sessions have used skills M times in the last 30 days") was deliberately deferred. The right time to build the aggregate is after observing whether users actually open the per-session panel — premature aggregation would just add another surface to optimize before knowing if the underlying signal lands. See `APPROACH.md §5ah` on validation-before-aggregation. **Update 2026-05-24:** an early PR landed the aggregate after the per-session view was confirmed to land — see §12.30.
 
 ---
 
@@ -674,9 +674,9 @@ under the project by `(knowledge.id, role)`, returning two ranked lists:
 the org-shared scope, so the project roll-up does not widen disclosure.
 
 **Why now, and not at the same time as §12.29.** The per-session view
-shipped first (#263) deliberately, so we could observe whether users
+shipped first (an early PR) deliberately, so we could observe whether users
 actually opened the panel before building the aggregate. They did,
-which earned the right to ship the project-level aggregate (#266).
+which earned the right to ship the project-level aggregate (an early PR).
 The principle codified in `APPROACH.md §5ah` (validate-before-aggregate)
 held both directions: the per-session signal landed → project aggregate
 becomes load-bearing rather than speculative; if it hadn't, we'd have

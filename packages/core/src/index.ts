@@ -5,6 +5,12 @@ export * as autoskill from "./autoskill.js";
 export * as graph from "./graph.js";
 export * as evolution from "./evolution.js";
 export * as evaluation from "./evaluation.js";
+export * as retrievalBenchmark from "./retrieval-benchmark.js";
+export type {
+  BenchmarkCandidate,
+  BenchmarkCase,
+  BenchmarkResult,
+} from "./retrieval-benchmark.js";
 export * as embedding from "./embedding.js";
 export * as formatter from "./formatter.js";
 export * as exporter from "./exporter.js";

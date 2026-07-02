@@ -256,7 +256,7 @@ Closed audit findings C3-C6 / issue #106. The regression net lives in `apps/mcp-
 
 The MCP HTTP transport binds each `Mcp-Session-Id` to the bootstrap token via constant-time comparison. A request with a leaked session ID + a different valid Bearer is rejected with `401 -32001 "Session-token mismatch"`. The session UUID is no longer logged at info — only an 8-char prefix.
 
-### Server-side observability (2026-05-11, PR #202)
+### Server-side observability (2026-05-11, an early PR)
 
 The mcp-server emits structured `op="…"` log lines that distinguish probe-shaped traffic from real client work. Use them when diagnosing "tokens authenticate but nothing happens":
 
@@ -269,16 +269,16 @@ The mcp-server emits structured `op="…"` log lines that distinguish probe-shap
 | `mcp.session.close` | DELETE /mcp closes a session that had ≥1 tool call | Clean teardown |
 | `mcp.session.orphan` | A session ends (DELETE or sweeper eviction) with **zero** tool calls | Smoking gun for "token authenticates but no work happens" |
 | `mcp.session.token_mismatch` | Mid-session request with a different Bearer than the bootstrap | Audit C1 reject |
-| `kea.extract` (worker) | KEA pipeline run completed (or short-circuited) | Carries `outcome: ok\|error\|skipped_session_gone` + `items: <persisted-count>`. `skipped_session_gone` (PR #206) fires when the Session row was deleted between enqueue and process — completes the job instead of triggering a retry storm. |
-| `kea.funnel` (worker, 2026-05-12, PR #206) | Every successful `kea.extract` | Separates `llmFindings` (model output count) from `filterPassed` (quality-filter survivors) from `persisted` (final count). If `persisted=0` while `llmFindings>0`, the quality filter is the bottleneck; if `llmFindings=0` the model is producing nothing extractable from the session shape. |
-| `kea.cross.skip` (worker, 2026-05-14, PR #219) | A user has fewer than 2 new closed sessions since their last cross-session extract | The "instrument the invisible" log line for the daily cron's no-op case. Carries `reason` + `newSessionCount`. Without this, idempotent skips would be silent. |
-| `kea.cross_extract` (worker, 2026-05-14, PR #219) | Each daily `kea.cross_extract` job run | Top-level wrapper log: `outcome`, `users`, `totalPersisted`, `durMs`. |
-| `kea.cross.daily_done` (worker, 2026-05-14, PR #219) | After all users processed in a daily run | Summary: `users`, `processed`, `skipped`, `totalPersisted`, `model`. |
+| `kea.extract` (worker) | KEA pipeline run completed (or short-circuited) | Carries `outcome: ok\|error\|skipped_session_gone` + `items: <persisted-count>`. `skipped_session_gone` (an early PR) fires when the Session row was deleted between enqueue and process — completes the job instead of triggering a retry storm. |
+| `kea.funnel` (worker, 2026-05-12, an early PR) | Every successful `kea.extract` | Separates `llmFindings` (model output count) from `filterPassed` (quality-filter survivors) from `persisted` (final count). If `persisted=0` while `llmFindings>0`, the quality filter is the bottleneck; if `llmFindings=0` the model is producing nothing extractable from the session shape. |
+| `kea.cross.skip` (worker, 2026-05-14, an early PR) | A user has fewer than 2 new closed sessions since their last cross-session extract | The "instrument the invisible" log line for the daily cron's no-op case. Carries `reason` + `newSessionCount`. Without this, idempotent skips would be silent. |
+| `kea.cross_extract` (worker, 2026-05-14, an early PR) | Each daily `kea.cross_extract` job run | Top-level wrapper log: `outcome`, `users`, `totalPersisted`, `durMs`. |
+| `kea.cross.daily_done` (worker, 2026-05-14, an early PR) | After all users processed in a daily run | Summary: `users`, `processed`, `skipped`, `totalPersisted`, `model`. |
 | `autoskill.run` (worker) | Every `autoskill.run` job | Same `outcome` tri-state as `kea.extract` (`ok`/`error`/`skipped_session_gone`). |
 
 A 5-minute sweeper evicts in-memory sessions older than 30 min with `toolCalls === 0` to (a) emit the orphan log even when the client never sends DELETE, and (b) prevent the in-memory `sessions` Map from growing forever on probe-only traffic. See `apps/mcp-server/src/index.ts`.
 
-### KEA provider routing (2026-05-12, PR #206)
+### KEA provider routing (2026-05-12, an early PR)
 
 `packages/core/src/kea.ts` picks the LLM provider by `KEA_MODEL` prefix:
 
@@ -290,9 +290,9 @@ A 5-minute sweeper evicts in-memory sessions older than 30 min with `toolCalls =
 
 Default in code: `qwen3-coder`. The `worker` service in `deploy/docker-compose.yml` passes both `KEA_MODEL` and `DASHSCOPE_API_KEY` through from `.env` so operators can switch providers without a code change.
 
-Each provider's entry point (`callAnthropic`, `callDashScope`, `callOpenAI`) checks its env var explicitly — a misconfigured `KEA_MODEL` produces an actionable error naming the right variable AND the two alternative providers. Before PR #206, a missing `DASHSCOPE_API_KEY` produced a misleading "set OPENAI_API_KEY" error from the OpenAI SDK, sending operators chasing the wrong env var.
+Each provider's entry point (`callAnthropic`, `callDashScope`, `callOpenAI`) checks its env var explicitly — a misconfigured `KEA_MODEL` produces an actionable error naming the right variable AND the two alternative providers. Before an early PR, a missing `DASHSCOPE_API_KEY` produced a misleading "set OPENAI_API_KEY" error from the OpenAI SDK, sending operators chasing the wrong env var.
 
-### Bootstrap hint via `instructions` (2026-05-11, PR #202)
+### Bootstrap hint via `instructions` (2026-05-11, an early PR)
 
 The MCP `initialize` response carries an `instructions` string (MCP-spec field). Capable clients (Claude Code reads it; many SDKs ignore unknown fields) see:
 
@@ -300,7 +300,7 @@ The MCP `initialize` response carries an `instructions` string (MCP-spec field).
 
 The bootstrap call makes first-touch tool-use automatic, so the dashboard's per-token "last tool call" signal is meaningful from day 1 of a new install, not "whenever the user happens to type a brain trigger phrase."
 
-### Install-ping flow (2026-05-11, PR #202)
+### Install-ping flow (2026-05-11, an early PR)
 
 The bash installer at `/api/onboard.sh` ends with a 3-call sequence per token, immediately after `claude mcp add`:
 
