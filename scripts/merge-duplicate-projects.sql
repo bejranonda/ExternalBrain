@@ -24,6 +24,14 @@
 
 BEGIN;
 
+-- In-database write freeze for the duration of this transaction: SHARE ROW
+-- EXCLUSIVE blocks concurrent INSERT/UPDATE/DELETE on every touched table
+-- (reads still work), so no child row can appear between plan computation and
+-- the mutations (MCPToken.projectId is onDelete: Cascade — a token created
+-- mid-window would otherwise be silently deleted with its dupe project).
+LOCK TABLE "Project", "Knowledge", "Session", "MCPToken", "AuditLog", "PeerCard"
+  IN SHARE ROW EXCLUSIVE MODE;
+
 CREATE TEMP TABLE dupe_map ON COMMIT DROP AS
 WITH normed AS (
   SELECT
