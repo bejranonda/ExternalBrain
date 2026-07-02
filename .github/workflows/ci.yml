@@ -19,6 +19,23 @@ permissions:
   contents: read
 
 jobs:
+  doc-refs:
+    name: doc refs (no phantom PRs)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # `gh pr list` (the ceiling lookup) needs pull-requests: read on top of the
+    # workflow-wide contents: read.
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check public docs for phantom PR/issue references
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/check-doc-refs.sh
+
   verify:
     name: typecheck · test · build
     runs-on: ubuntu-latest
