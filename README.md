@@ -232,6 +232,7 @@ REBUILD/       Phase-by-phase vibe-coding reconstruction guide (start: REBUILD/0
 | [CLIENTS](./docs/CLIENTS.md) | Wiring Claude Code / Cursor / Windsurf / Antigravity / GitHub Copilot |
 | [USING_BRAIN](./docs/USING_BRAIN.md) | Daily workflow, trigger phrases, recipes |
 | [KNOWLEDGE](./docs/KNOWLEDGE.md) | The knowledge model (normative) |
+| [VALIDATION](./docs/VALIDATION.md) | **Does it measurably help?** — the retrieval benchmark (NDCG@5, KRA vs cosine) + the methodology, honest about what's proven vs pending |
 | [SECURITY](./docs/SECURITY.md) | Auth modes, MCP gating, threat model |
 | [DEPLOY_CHECKLIST](./docs/DEPLOY_CHECKLIST.md) | Production deploy on a public VM |
 | [CICD](./docs/CICD.md) | CI checks + the two deploy scripts, for forkers |

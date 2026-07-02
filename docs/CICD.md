@@ -11,6 +11,7 @@ infrastructure.
   you open a PR ──▶  GitHub Actions (CI)         you run a script (CD)
                      ├─ typecheck · test · build   ├─ ./scripts/dev-up.sh   (local, no TLS)
                      │  (incl. fresh-DB migrate)    └─ ./scripts/deploy.sh   (public VM, TLS)
+                     ├─ doc refs (no phantom PRs)
                      ├─ anon onboarding e2e*
                      └─ authed surfaces e2e*
                               │
@@ -33,13 +34,16 @@ A fork inherits them; they run on **your** GitHub Actions minutes.
 | Check | What it proves | Cost |
 |---|---|---|
 | **typecheck · test · build** | The monorepo type-checks, all unit/integration tests pass (against a real pgvector service), and all six packages build. The migrate step doubles as the **fresh-DB gate**: the service DB starts empty every run, so the full migration history applies front-to-back exactly like a day-zero deploy (then the FTS index DDL) — catches migration-ordering bugs unit tests can't. | ~2–3 min |
+| **doc refs (no phantom PRs)** | Runs `scripts/check-doc-refs.sh`: fails if any public doc cites a `PR #NNN` / `(#NNN)` above the repo's current PR ceiling — an unresolvable reference from the pre-open-source history. Allow-lists CSS hex, external `…cli #NNN`, and `docs/internal/**`. Standalone (no pnpm/DB). | ~5 s |
 | **anon onboarding e2e** | Builds + boots the app and runs the anonymous-surface Playwright specs (`/welcome`, install-snippet URLs, health). **Only does real work when the PR touches an onboarding/unauth surface** (`apps/web/app/{welcome,signin,forgot-password,…}`, `layout.tsx`, the locale/install code); on every other PR it skips to a green no-op in seconds. | ~2–3 min (or seconds when skipped) |
 | **authed surfaces e2e** | Boots the app in credentials mode with the seeded fixture (the env-admin maps onto seeded Alex), signs in once, and runs the signed-in suite (dashboard, sessions, skills, nav, plus a 375px
 mobile-overflow regression net). Path-gated on `apps/web/**` + `packages/{core,db}/**`. The CI app env raises `RATE_LIMIT_MCP_PER_MINUTE` — the whole suite hits `/api/*` from one IP, and the production default (200/min) trips under the burst. | ~4–5 min (or seconds when skipped) |
 
-All three are **required checks** on `main`, so a PR can't merge until they're
-green. The no-op behaviour of the e2e gates is what makes them safe to run on
-*every* PR.
+The verify + two e2e gates are **required checks** on `main`, so a PR can't
+merge until they're green. The no-op behaviour of the e2e gates is what makes
+them safe to run on *every* PR. The `doc-refs` guard also runs on every PR (it's
+seconds and standalone); add it to your branch-protection required set if you
+want phantom references to be merge-blocking as well as visible.
 
 A fourth workflow, [`prod-drift.yml`](../.github/workflows/prod-drift.yml),
 runs daily (not per-PR): it compares the deployed `/api/healthz` `version`

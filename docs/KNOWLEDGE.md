@@ -208,10 +208,16 @@ read side. Fail-soft: a retrieval error never blocks the session open.
    behalf.
 2. Embed the prompt → `queryVector`.
 3. pgvector query for top-20 candidates filtered by scope + decay > 0.3 + user match.
-4. Score each with `0.40·sim + 0.20·success + 0.15·recency + 0.15·contextFit + 0.10·confidence`.
-5. Diversify: ≤ 3 per type, ≤ 8 total, min score 0.45.
+4. Score each with `0.70·sim + 0.08·success + 0.08·recency + 0.08·contextFit + 0.06·confidence` (the live `kra.ts` `WEIGHTS`; semantic similarity dominates and the rest act as tie-breakers — see the `WEIGHTS` history comment for the pre-2026-04-23 formula and why it changed).
+5. Diversify: ≤ 3 per type, ≤ 10 total, min score 0.45.
 6. Record `SessionKnowledgeApplication(role: injected)` for each returned item.
 7. Return `{bundle, injection}` — the `injection` is a pre-formatted string ready to drop into a user message block.
+
+> **Validating this ranking.** The re-rank (steps 3–4) is what the retrieval
+> benchmark measures: `packages/core/src/retrieval-benchmark.ts` re-ranks a
+> fixture pool by this exact `scoreItem` vs a raw-cosine baseline and reports
+> NDCG@5. Any change to `WEIGHTS` should be run through it — see
+> [`docs/VALIDATION.md`](./VALIDATION.md).
 
 ---
 
