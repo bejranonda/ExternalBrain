@@ -186,6 +186,17 @@ export function slugify(text: string): string {
     || "project";
 }
 
+/**
+ * Aggressive normalization for project-identity matching: lowercase with
+ * every non-alphanumeric removed, so "Brain Platform", "BrainPlatform", and
+ * "brain-platform" are one identity. Deliberately conservative beyond that —
+ * no fuzzy matching (flywheel-repair spec §3.1). An all-punctuation name
+ * normalizes to "" and must NOT be matched on (empty ≠ empty).
+ */
+export function normalizeProjectName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 // ---------------------------------------------------------------------------
 // uniqueSlugInOrg
 // ---------------------------------------------------------------------------
@@ -339,8 +350,10 @@ export async function ensureDefaultProject(
  * supplied org). If a project with that name already exists, return it.
  * Otherwise create one with a derived unique slug.
  *
- * Name matching is case-insensitive and trims whitespace — "External Brain"
- * and "brain platform" resolve to the same project. Slug is derived from the
+ * Name matching uses `normalizeProjectName` (lowercase, all non-alphanumerics
+ * stripped) — "Brain Platform", "BrainPlatform", and "brain-platform" resolve
+ * to the same project, so agent-supplied projectName drift can't spawn
+ * duplicate identities (flywheel-repair spec §3.1). Slug is derived from the
  * trimmed name via the existing `slugify` helper and made unique via
  * `uniqueSlugInOrg`.
  *
@@ -361,17 +374,21 @@ export async function ensureNamedProject(
   const targetOrgId =
     opts?.orgId ?? (await ensurePersonalOrg(db, userId)).orgId;
 
-  // Case-insensitive name match within the org. Postgres `mode: insensitive`
-  // is supported by Prisma against String fields.
-  const existing = await db.project.findFirst({
-    where: {
-      organizationId: targetOrgId,
-      name: { equals: trimmed, mode: "insensitive" },
-    },
-    select: { id: true, slug: true },
-  });
-  if (existing) {
-    return { projectId: existing.id, slug: existing.slug, created: false };
+  // Normalized name match within the org, compared in JS — orgs hold few
+  // projects, and Prisma can't express the normalization in a `where`.
+  const wanted = normalizeProjectName(trimmed);
+  if (wanted) {
+    const candidates = await db.project.findMany({
+      where: { organizationId: targetOrgId },
+      select: { id: true, slug: true, name: true },
+    });
+    const existing = candidates.find(
+      (p: { id: string; slug: string; name: string }) =>
+        normalizeProjectName(p.name) === wanted,
+    );
+    if (existing) {
+      return { projectId: existing.id, slug: existing.slug, created: false };
+    }
   }
 
   const candidateSlug = slugify(trimmed);

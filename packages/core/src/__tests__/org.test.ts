@@ -13,6 +13,8 @@ import {
   requireOrgMember,
   isOrgOwner,
   ensureDefaultProject,
+  ensureNamedProject,
+  normalizeProjectName,
   createOrg,
   slugify,
   uniqueSlugInOrg,
@@ -240,6 +242,26 @@ function makeMock(store: Store): any {
           rows = [...rows].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
         }
         return rows[0] ?? null;
+      },
+
+      findMany: async ({
+        where,
+        select,
+      }: {
+        where: { organizationId?: string };
+        select?: Record<string, boolean>;
+      }) => {
+        let rows = store.projects;
+        if (where.organizationId) rows = rows.filter((p) => p.organizationId === where.organizationId);
+        if (!select) return rows.map((p) => ({ ...p }));
+        return rows.map((p) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const out: Record<string, any> = {};
+          for (const k of Object.keys(select)) {
+            if (select[k]) out[k] = (p as Record<string, unknown>)[k];
+          }
+          return out;
+        });
       },
 
       create: async ({
@@ -900,5 +922,119 @@ describe("ensureDefaultProject", () => {
     expect(second.projectId).toBe("proj_existing");
     // No new projects were created.
     expect(store.projects).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// normalizeProjectName + ensureNamedProject normalized matching
+// ---------------------------------------------------------------------------
+
+describe("normalizeProjectName", () => {
+  it("strips case, whitespace, and punctuation", () => {
+    expect(normalizeProjectName("Brain Platform")).toBe("brainplatform");
+    expect(normalizeProjectName("BrainPlatform")).toBe("brainplatform");
+    expect(normalizeProjectName("brain-platform!")).toBe("brainplatform");
+  });
+
+  it("keeps genuinely distinct names distinct", () => {
+    expect(normalizeProjectName("External Brain")).not.toBe(
+      normalizeProjectName("Brain Platform"),
+    );
+  });
+
+  it("returns empty string for all-punctuation input", () => {
+    expect(normalizeProjectName("--- !!!")).toBe("");
+  });
+});
+
+describe("ensureNamedProject normalized matching", () => {
+  function seededStore(): Store {
+    return {
+      orgs: [
+        {
+          id: "org_cuid_user_01",
+          slug: "personal-abc",
+          name: "Alice",
+          createdAt: BASE_DATE,
+          updatedAt: BASE_DATE,
+        },
+      ],
+      members: [
+        {
+          id: "om_01",
+          orgId: "org_cuid_user_01",
+          userId: "cuid_user_01",
+          role: "owner",
+          joinedAt: BASE_DATE,
+        },
+      ],
+      users: [makeUser()],
+      projects: [
+        {
+          id: "proj_existing",
+          organizationId: "org_cuid_user_01",
+          ownerUserId: "cuid_user_01",
+          ownerTeamId: null,
+          name: "Brain Platform",
+          slug: "brain-platform",
+          framework: null,
+          language: null,
+          createdAt: BASE_DATE,
+        },
+      ],
+    };
+  }
+
+  it("resolves 'BrainPlatform' to the existing 'Brain Platform' project", async () => {
+    const store = seededStore();
+    const db = makeMock(store);
+
+    const result = await ensureNamedProject(db, "cuid_user_01", "BrainPlatform");
+
+    expect(result.created).toBe(false);
+    expect(result.projectId).toBe("proj_existing");
+    expect(store.projects).toHaveLength(1);
+  });
+
+  it("resolves punctuation/case variants to the same project", async () => {
+    const store = seededStore();
+    const db = makeMock(store);
+
+    const result = await ensureNamedProject(db, "cuid_user_01", "  brain_platform! ");
+
+    expect(result.created).toBe(false);
+    expect(result.projectId).toBe("proj_existing");
+  });
+
+  it("still creates when no normalized match exists", async () => {
+    const store = seededStore();
+    const db = makeMock(store);
+
+    const result = await ensureNamedProject(db, "cuid_user_01", "External Brain");
+
+    expect(result.created).toBe(true);
+    expect(store.projects).toHaveLength(2);
+    expect(store.projects[1]?.name).toBe("External Brain");
+  });
+
+  it("does not unite all-punctuation names with each other via empty normalization", async () => {
+    const store = seededStore();
+    store.projects.push({
+      id: "proj_punct",
+      organizationId: "org_cuid_user_01",
+      ownerUserId: "cuid_user_01",
+      ownerTeamId: null,
+      name: "***",
+      slug: "project",
+      framework: null,
+      language: null,
+      createdAt: BASE_DATE,
+    });
+    const db = makeMock(store);
+
+    const result = await ensureNamedProject(db, "cuid_user_01", "!!!");
+
+    expect(result.created).toBe(true);
+    expect(result.projectId).not.toBe("proj_punct");
   });
 });
