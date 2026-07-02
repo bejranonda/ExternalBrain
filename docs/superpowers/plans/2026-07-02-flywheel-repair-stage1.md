@@ -138,7 +138,7 @@ Write the complete SQL (no ellipses in the real file); every table/column above 
 - [ ] **Step 3: Commit into the Task 1 PR branch** (same logical change: stop + repair duplicate projects): `feat(scripts): add operator-run duplicate-project merge script (dry-run by default)`.
 
 - [ ] **Step 4: Operator gate (STOP).** Running against prod requires: verified backup (`/api/admin/backup-status` fresh), then
-`docker compose -p deploy exec -T db psql -U "${POSTGRES_USER:-brain}" -d "${POSTGRES_DB:-brain}" < scripts/merge-duplicate-projects.sql` (dry run), review, then re-run with `-v apply=1`. **The AI does not run this** (CLAUDE.local.md rules 2/4); it hands the operator the exact commands and interprets the dry-run output with them.
+`docker compose -p deploy exec -T db psql -U "${POSTGRES_USER:-brain}" -d "${POSTGRES_DB:-brain}" < scripts/merge-duplicate-projects.sql` (dry run), review, then re-run with `-v apply=1`. The apply transaction takes `SHARE ROW EXCLUSIVE` locks on all six touched tables — an in-database write freeze — and recomputes the merge plan inside that same transaction, so concurrent writes cannot split rows between dry-run and apply (CodeRabbit #135 finding). **The AI does not run this** (CLAUDE.local.md rules 2/4); it hands the operator the exact commands and interprets the dry-run output with them.
 
 ### Task 3: Brain-first capture protocol + enforcement (operator harness, this checkout)
 

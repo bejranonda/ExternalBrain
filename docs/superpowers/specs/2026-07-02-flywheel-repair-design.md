@@ -52,9 +52,14 @@ loop work + critical bugfixes + security only.
   `Knowledge`, `Session`, and dependent rows from the two non-canonical
   projects onto the canonical one (chosen by knowledge count; the script
   reports counts and requires explicit confirmation before mutating), then
-  archives the empty projects. This is a bulk mutation against `deploy_*`
-  data: it runs only with a per-turn operator nod, after a verified backup
-  (backups healthy again as of v1.11.1).
+  **deletes** the emptied duplicate projects — the schema has no archived
+  flag, every reference is reassigned first inside the same transaction, and
+  the pre-merge backup is the rollback path. The apply pass holds
+  `SHARE ROW EXCLUSIVE` locks on every touched table (an in-database write
+  freeze) so no child row can slip in between plan computation and mutation.
+  This is a bulk mutation against `deploy_*` data: it runs only with a
+  per-turn operator nod, after a verified backup (backups healthy again as
+  of v1.11.1).
 - **Prevention: normalized name matching.** `brain_start_session
   (projectName)` and `brain_create_project` match existing projects after
   stripping case, whitespace, and punctuation — "BrainPlatform" ≡
