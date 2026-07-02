@@ -134,7 +134,7 @@ If the answer is wrong or unhelpful: click **Not helpful** under the answer. The
 
 Sometimes you want to codify a rule without waiting for KEA to extract it from a session.
 
-1. Click **Add a skill** in the top-right (formerly "Teach" — renamed in PR #257 to name the object).
+1. Click **Add a skill** in the top-right (formerly "Teach" — renamed in an early PR to name the object).
 2. Fill in:
    - **Trigger:** when does this apply? ("When scaffolding a new React form")
    - **Rule:** what should happen? ("Use react-hook-form + zod resolver. Formik is deprecated here.")

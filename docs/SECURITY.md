@@ -28,8 +28,8 @@ The v0.11.2 audit sweep (catalog #103, closed 2026-05-07) materially improved th
 - **MCP HTTP session is bound to the bootstrap token** (audit C1, PR #124). Previously a leaked `Mcp-Session-Id` plus any valid Bearer = act-as-victim. Now the transport `timingSafeEqual`s the request's Bearer to the session's stored token; mismatch returns `401 -32001 "Session-token mismatch"`. Session UUIDs are also redacted from `mcp.session.open`/`close` log lines (W4).
 - **Voucher codes are CSPRNG-generated** (audit C2, PR #116). Previously `Math.random()`; now `node:crypto.randomInt`. V8 PRNG state recovery from observed codes no longer applies.
 - **Cross-user IDOR cluster closed** (audit C3-C6, PR #117). All MCP tools that take a caller-supplied `sessionId`/`projectId` (`brain_log_event`, `brain_report_session_outcome`, `brain_teach_knowledge`, `brain_start_session`) and the web `POST /api/knowledge` validate ownership against `auth.userId` and `userCanAccessProject(...)` before mutating. Knowledge counter bumps in `brain_report_session_outcome` are scoped to `ownerUserId` so a foreign Knowledge ID is silently skipped instead of flipping its counter.
-- **Credentials sign-in timing flattened** (audits W1+W2, PR #137). Both the no-`UserCredential` and no-`User` branches now run a dummy bcrypt before returning null. Email enumeration via response-time delta no longer works.
-- **Token-route audit writes are awaited** (audit W6, PR #142). `token.create`/`token.revoke` no longer use `void writeAudit(...)` — a process restart between the response and the async insert can no longer drop the audit row.
+- **Credentials sign-in timing flattened** (audits W1+W2). Both the no-`UserCredential` and no-`User` branches now run a dummy bcrypt before returning null. Email enumeration via response-time delta no longer works.
+- **Token-route audit writes are awaited** (audit W6). `token.create`/`token.revoke` no longer use `void writeAudit(...)` — a process restart between the response and the async insert can no longer drop the audit row.
 
 The full audit catalog with closed/open status lives in #103 (BrainPlatform, private).
 

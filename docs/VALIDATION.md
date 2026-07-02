@@ -1,19 +1,36 @@
 # Validation — does the Brain improve AI coding?
 
-*Updated 2026-05-08. **This doc is a placeholder.***
+*Updated 2026-07-02.*
 
 ## Status
 
-The previous validation methodology was structured around two benchmark
-scripts (`packages/core/scripts/retrieval-benchmark.ts`,
-`packages/core/scripts/generation-uplift.ts`) that ran against the dev
-seed corpus (`packages/db/scripts/seed.ts` — the "Alex Chen" persona).
+The **retrieval benchmark harness now exists and is unit-tested** — it is no
+longer a plan. What is *not* yet published is a number from it: that requires an
+operator to export a fixture from a real corpus (recipe below) and run it. So
+the state is precise:
 
-That seed and both benchmark scripts were removed on 2026-05-08 as part
-of the "remove all fake data" sweep. The benchmarks were author-written
-against the seed they were meant to validate (acknowledged bias —
-documented in the previous version of this doc), so reinstating them
-verbatim would not be honest evidence anyway.
+- ✅ **Harness shipped** — `packages/core/src/retrieval-benchmark.ts` ranks a
+  candidate pool by the production KRA score (`kra.ts` `scoreItem`, reused
+  directly, not re-implemented) vs a raw-cosine baseline and reports mean
+  NDCG@5. Covered by `src/__tests__/retrieval-benchmark.test.ts`.
+- ✅ **Fixture export shipped** — `scripts/export-retrieval-fixture.ts` turns
+  live telemetry into a fixture with no hand-labeling.
+- ⬜ **Number not yet published** — no honest fixture has been exported from a
+  real corpus and run. Until it is, the product claim stays unproven by any
+  published number in this repo (README and HOW_IT_WORKS already say so).
+- ⬜ **Generation-uplift benchmark** — the claim that actually matters — is
+  still a design (below), not code.
+
+### The earlier attempt, and why the label changed
+
+A previous pair of scripts ran against the dev seed corpus
+(`packages/db/scripts/seed.ts` — the "Alex Chen" persona) and were removed on
+2026-05-08 in the "remove all fake data" sweep. They were author-written
+against the seed they were meant to validate (acknowledged bias), so
+reinstating them verbatim would not have been honest evidence. The harness
+shipped now fixes the *mechanism* — it re-ranks a real, telemetry-labeled pool
+— but the honesty of any number it produces still depends on the fixture being
+exported from a real corpus, not a seed.
 
 ## What needs to exist before this doc is rewritten
 
@@ -34,17 +51,37 @@ remains unproven by any published number in this repo.
 Turning the three requirements above into a runnable design. Two benchmarks,
 each engineered against the author-bias that sank the previous pair.
 
-**1. Retrieval benchmark (`retrieval-benchmark.ts`, reinstated, fixture-driven).**
-- *Fixture, not author-written.* Draw query prompts from real (anonymized)
-  production session logs. Assign relevance labels from a held-out signal rather
+**1. Retrieval benchmark — shipped (`packages/core/src/retrieval-benchmark.ts`).**
+- *Fixture, not author-written.* Query prompts are drawn from real (anonymized)
+  production session logs. Relevance labels come from a held-out signal rather
   than opinion: the knowledge rows that were actually injected
-  (`SessionKnowledgeApplication`) and then went on to a successful outcome
-  (`successCount` bump). The platform's own usage telemetry is the blind labeler,
-  so no one hand-labels the corpus they tuned.
-- *Metric.* NDCG@5, KRA (`kra.ts` `WEIGHTS`) vs a raw-cosine baseline. An earlier
-  ad-hoc run put KRA at 0.928 vs cosine 1.000; re-establish on the real fixture,
-  and if KRA still trails cosine on clean queries that is the signal to retune
-  `WEIGHTS` (see KNOWN_ISSUES, KRA-formula entry).
+  (`SessionKnowledgeApplication`, `role: "injected"`) into a session that then
+  succeeded (`session.outcome = "success"`). The platform's own usage telemetry
+  is the blind labeler, so no one hand-labels the corpus they tuned. This is a
+  *weak proxy* label — see caveats under the export recipe.
+- *Metric.* Mean NDCG@5, the production KRA ranking (`kra.ts` `scoreItem`, reused
+  by the harness so the two never drift) vs a raw-cosine baseline. An earlier
+  ad-hoc run on the retired hand-labelled seed put KRA at 0.928 vs cosine 1.000
+  (also recorded in the `kra.ts` `WEIGHTS` history); that number predates this
+  harness and does not count as evidence — the point of shipping the harness is
+  to re-establish it on a real fixture. If KRA still trails cosine on clean
+  queries, that is the signal to retune `WEIGHTS` (see KNOWN_ISSUES, KRA-formula
+  entry).
+
+*Running it (two steps — export needs the live DB, the run is offline):*
+
+```bash
+# 1. Operator, against the live DB. Prompts are real user text: anonymize the
+#    output, or scope the query to a non-client org, before publishing.
+pnpm --filter @brain/core exec tsx scripts/export-retrieval-fixture.ts > fixture.json
+
+# 2. Offline, no DB. Re-ranks each case by cosine and by KRA, prints NDCG@5.
+pnpm --filter @brain/core run benchmark:retrieval fixture.json
+```
+
+The harness math is unit-tested and typechecked in CI; the two `scripts/` files
+are entrypoints outside the tsconfig `include`, so they are *not* typechecked —
+review before trusting, as the header comment on each says.
 
 **2. Generation-uplift benchmark (`generation-uplift.ts`) — the claim that matters.**
 The honest version does not use LLM-as-judge.
@@ -73,10 +110,16 @@ that actually backs the positioning.
 
 ### Fixture-export recipe (operator-runnable)
 
-The retrieval fixture can be built from existing telemetry with no hand-labeling.
-The session prompt lives in `Session.metadata->>'prompt'` (a JSON field, not a
-column); the relevance label is the knowledge that was *injected* into sessions
-that then *succeeded*:
+This is now shipped as `scripts/export-retrieval-fixture.ts` (run it as shown
+above); the snippet below is the illustrative core of what it does. The shipped
+script additionally captures each query's real candidate pool
+(`kra.ts` `candidatesForPrompt`) so the offline harness re-ranks the exact set
+production would have ranked.
+
+The fixture is built from existing telemetry with no hand-labeling. The session
+prompt lives in `Session.metadata->>'prompt'` (a JSON field, not a column); the
+relevance label is the knowledge that was *injected* into sessions that then
+*succeeded*:
 
 ```ts
 // Operator runs against the live DB. Prompts are real user text — anonymize, or

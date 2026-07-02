@@ -12,8 +12,8 @@ Show the user what they need *right now*. Keep everything else one interaction a
 
 **What this looks like in Brain:**
 
-- The session card shows title + outcome + timestamp. It does *not* show the extracted Brain learnings, user benefits, or KEA findings inline. Those live behind a click-to-expand (PR #263, dashboard-wired in #266).
-- The project row on the dashboard shows project name + active marker. Click it to reveal "Brain helped this project / Brain learned from this project" + a one-line value summary (PR #266).
+- The session card shows title + outcome + timestamp. It does *not* show the extracted Brain learnings, user benefits, or KEA findings inline. Those live behind a click-to-expand (an early PR, dashboard-wired in #266).
+- The project row on the dashboard shows project name + active marker. Click it to reveal "Brain helped this project / Brain learned from this project" + a one-line value summary (an early PR).
 - The Oracle answer renders the response. Citations, retrieval scores, and the underlying knowledge rows are accessible but collapsed.
 - The skills panel lists skill names + a one-line purpose. Full body, frontmatter, and version history are revealed on selection.
 
@@ -37,10 +37,10 @@ Brain has a cold-start problem most apps don't: on day one, a new user has zero 
 
 **Examples from the codebase:**
 
-- Project switcher (#262): only renders when the user has ≥2 projects. One-project users never see the switcher's stale-state bugs because they never see the switcher.
-- Per-session value drill-down (#263): the expand affordance only appears on sessions that *have* a closed outcome. Sessions still in flight don't pretend they have insights to reveal.
-- Dashboard `ProjectsList` (#266): returns `null` at 0 projects; collapses to one compact row at 1 project; shows the full clickable list only at ≥2. A list of one is not a list — and a zero-state list with a "no projects yet" placeholder would train users to ignore the section.
-- Cross-session knowledge (PRs #213 / #217 / #219): the user-scope retrieval panel only surfaces once the daily `kea.cross_extract` job has produced ≥1 cross-session row.
+- Project switcher (an early PR): only renders when the user has ≥2 projects. One-project users never see the switcher's stale-state bugs because they never see the switcher.
+- Per-session value drill-down (an early PR): the expand affordance only appears on sessions that *have* a closed outcome. Sessions still in flight don't pretend they have insights to reveal.
+- Dashboard `ProjectsList` (an early PR): returns `null` at 0 projects; collapses to one compact row at 1 project; shows the full clickable list only at ≥2. A list of one is not a list — and a zero-state list with a "no projects yet" placeholder would train users to ignore the section.
+- Cross-session knowledge (early PRs): the user-scope retrieval panel only surfaces once the daily `kea.cross_extract` job has produced ≥1 cross-session row.
 
 The corollary: when you add a new feature, write down the precondition before you write the component. If you can't name a precondition, the feature isn't ready.
 
@@ -77,5 +77,5 @@ If you can answer all three in one sentence each, the change is probably scoped 
 - [`docs/GUIDELINES.md §10`](./GUIDELINES.md#10-frontend--design-system) — design tokens, i18n, state-based navigation.
 - [`docs/GUIDELINES.md §10a`](./GUIDELINES.md#10a-design-principles-when-to-show-what) — terse rulebook version of this doc.
 - [`docs/USING_BRAIN.md`](./USING_BRAIN.md) — operator-facing walkthrough showing the principles in action.
-- PRs #261 (mobile Loop 1), #262 (project switcher), #263 (per-session value) — the cluster that crystallized these rules.
-- PR #266 — the first feature whose entire shape was driven by these principles: dashboard projects + sessions value drill-down. See `APPROACH.md §5ai` for the validate-then-aggregate cycle the PR closed.
+- early PRs (mobile Loop 1, project switcher, per-session value) — the cluster that crystallized these rules.
+- an early PR — the first feature whose entire shape was driven by these principles: dashboard projects + sessions value drill-down. See `APPROACH.md §5ai` for the validate-then-aggregate cycle the PR closed.

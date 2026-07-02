@@ -96,6 +96,22 @@ export async function retrieveScored(
   return { bundle, rows };
 }
 
+/**
+ * Fetch the candidate pool for a prompt (embedding + pgvector top-N under the
+ * caller's scope), returning each candidate with its cosine similarity. This is
+ * the live-DB half the retrieval benchmark's fixture export needs — it captures
+ * the exact pool production would rank, so the offline harness re-ranks reality
+ * rather than a reconstruction. Not used on the hot path; `retrieve` inlines it.
+ */
+export async function candidatesForPrompt(
+  prompt: string,
+  context: SessionContext,
+  limit = 20,
+): Promise<Array<{ item: Knowledge; similarity: number }>> {
+  const queryVector = await embed(prompt);
+  return fetchCandidates(queryVector, context, limit);
+}
+
 // ============================================================
 // Candidate fetch — pgvector top-20 with scope + decay filters
 // ============================================================
@@ -184,10 +200,18 @@ const WEIGHTS = {
   confidence: 0.06,
 } as const;
 
-function scoreItem(
+/**
+ * The production retrieval score for one candidate. Exported so the retrieval
+ * benchmark (retrieval-benchmark.ts) ranks by the *exact* formula production
+ * uses — a re-implementation would prove nothing once WEIGHTS drift. `now` is
+ * injectable so the benchmark and its tests are deterministic (recency decay
+ * otherwise reads the wall clock).
+ */
+export function scoreItem(
   item: Knowledge,
   similarity: number,
   context: SessionContext,
+  now: number = Date.now(),
 ): number {
   // Effectiveness signal: (success + 1) / (success + failure + 2) — true
   // Laplace smoothing (additive smoothing with alpha=1). Audit R5 (#103):
@@ -208,7 +232,7 @@ function scoreItem(
 
   const ref = item.confirmedAt ?? item.createdAt;
   const daysSince =
-    (Date.now() - new Date(ref).getTime()) / 86_400_000;
+    (now - new Date(ref).getTime()) / 86_400_000;
   const recency = Math.exp(-daysSince / 90); // half-life 90 days
 
   const contextFit = calculateContextFit(item, context);

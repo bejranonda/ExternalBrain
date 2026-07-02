@@ -29,6 +29,8 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "benchmark:export": "tsx scripts/export-retrieval-fixture.ts",
+    "benchmark:retrieval": "tsx scripts/run-retrieval-benchmark.ts",
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
