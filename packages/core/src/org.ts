@@ -197,6 +197,38 @@ export function normalizeProjectName(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+export interface DuplicateProjectGroup {
+  organizationId: string;
+  normalizedName: string;
+  projects: { id: string; name: string }[];
+}
+
+/**
+ * Group projects that share a `normalizeProjectName` identity within the same
+ * organization — the drift the normalized matcher now prevents at create time.
+ * Pre-existing duplicates surface here (loop-health panel, flywheel-repair
+ * spec §4.2) until the operator runs scripts/merge-duplicate-projects.sql.
+ * All-punctuation names (normalized "") never group, mirroring the matcher.
+ */
+export function findDuplicateProjectGroups(
+  projects: { id: string; name: string; organizationId: string }[],
+): DuplicateProjectGroup[] {
+  const byKey = new Map<string, DuplicateProjectGroup>();
+  for (const p of projects) {
+    const norm = normalizeProjectName(p.name);
+    if (!norm) continue;
+    const key = `${p.organizationId} ${norm}`;
+    const group = byKey.get(key) ?? {
+      organizationId: p.organizationId,
+      normalizedName: norm,
+      projects: [],
+    };
+    group.projects.push({ id: p.id, name: p.name });
+    byKey.set(key, group);
+  }
+  return [...byKey.values()].filter((g) => g.projects.length > 1);
+}
+
 // ---------------------------------------------------------------------------
 // uniqueSlugInOrg
 // ---------------------------------------------------------------------------

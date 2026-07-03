@@ -94,6 +94,9 @@ export const I18N = {
       // "Flywheel" is jargon. "Brain health" reads in any language.
       flywheel: "Brain health",
       gate2: "all green",
+      loop_health: "Loop health",
+      loop_health_sub: "last 30 days",
+      loop_health_err: "Could not load loop-health metrics.",
       composition: "Skills by type",
       items: "items",
       headers: {
@@ -410,6 +413,9 @@ export const I18N = {
       review: "ตรวจสอบ",
       flywheel: "ฟลายวีล",
       gate2: "ผ่านทั้งหมด · เกต 2",
+      loop_health: "สุขภาพวงจรเรียนรู้",
+      loop_health_sub: "30 วันล่าสุด",
+      loop_health_err: "ไม่สามารถโหลดข้อมูลสุขภาพวงจรได้",
       composition: "องค์ประกอบความรู้",
       items: "รายการ",
       headers: {
@@ -713,6 +719,9 @@ export const I18N = {
       review: "Prüfen",
       flywheel: "Schwungrad",
       gate2: "alles grün · Gate 2",
+      loop_health: "Lernschleifen-Status",
+      loop_health_sub: "letzte 30 Tage",
+      loop_health_err: "Kennzahlen der Lernschleife konnten nicht geladen werden.",
       composition: "Wissenszusammensetzung",
       items: "Einträge",
       headers: {
