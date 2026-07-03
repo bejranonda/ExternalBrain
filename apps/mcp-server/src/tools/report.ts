@@ -172,6 +172,32 @@ export const reportSessionOutcome: ToolDef = {
         where: { id: { in: input.knowledgeUsed }, ownerUserId: auth.userId },
         data: { [counterField]: { increment: 1 } },
       });
+
+      // 3a. Persist which knowledge the agent reported as actually applied,
+      // as SessionKnowledgeApplication role "used_reported". This is the raw
+      // signal behind the loop-health injection→used rate (flywheel-repair
+      // spec §4.2) — counters alone can't answer it per-session. Owned rows
+      // only (same containment as the counter bump above); FK-safe because
+      // the id list is re-derived from the DB. Best-effort: never fail the
+      // close over telemetry.
+      try {
+        const owned = await db.knowledge.findMany({
+          where: { id: { in: input.knowledgeUsed }, ownerUserId: auth.userId },
+          select: { id: true },
+        });
+        if (owned.length > 0) {
+          await db.sessionKnowledgeApplication.createMany({
+            data: owned.map((k) => ({
+              sessionId: input.sessionId,
+              knowledgeId: k.id,
+              role: "used_reported",
+            })),
+            skipDuplicates: true,
+          });
+        }
+      } catch (err) {
+        log.warn({ err, sessionId: input.sessionId }, "used_reported persist failed (best-effort)");
+      }
     }
 
     // 3b. Also bump successCount/failureCount for Knowledge rows discovered via

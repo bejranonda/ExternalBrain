@@ -60,6 +60,8 @@ export {
   isOrgOwner,
   ensureDefaultProject,
   ensureNamedProject,
+  normalizeProjectName,
+  findDuplicateProjectGroups,
   createOrg,
   slugify,
   uniqueSlugInOrg,
@@ -74,7 +76,7 @@ export {
   getAccessibleProjectIds,
   userCanAccessProject,
 } from "./org.js";
-export type { UserProject, OrgMemberView, OrgInviteView, CreatedOrg } from "./org.js";
+export type { UserProject, OrgMemberView, OrgInviteView, CreatedOrg, DuplicateProjectGroup } from "./org.js";
 export {
   buildKnowledgeWhere,
   buildSessionWhere,

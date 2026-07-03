@@ -15,6 +15,7 @@ import {
   ensureDefaultProject,
   ensureNamedProject,
   normalizeProjectName,
+  findDuplicateProjectGroups,
   createOrg,
   slugify,
   uniqueSlugInOrg,
@@ -1036,5 +1037,34 @@ describe("ensureNamedProject normalized matching", () => {
 
     expect(result.created).toBe(true);
     expect(result.projectId).not.toBe("proj_punct");
+  });
+});
+
+describe("findDuplicateProjectGroups", () => {
+  it("groups normalized-name collisions within one org", () => {
+    const groups = findDuplicateProjectGroups([
+      { id: "p1", name: "Brain Platform", organizationId: "org1" },
+      { id: "p2", name: "BrainPlatform", organizationId: "org1" },
+      { id: "p3", name: "External Brain", organizationId: "org1" },
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.normalizedName).toBe("brainplatform");
+    expect(groups[0]?.projects.map((p) => p.id).sort()).toEqual(["p1", "p2"]);
+  });
+
+  it("does not group same-name projects across different orgs", () => {
+    const groups = findDuplicateProjectGroups([
+      { id: "p1", name: "Default", organizationId: "org1" },
+      { id: "p2", name: "Default", organizationId: "org2" },
+    ]);
+    expect(groups).toHaveLength(0);
+  });
+
+  it("never groups all-punctuation names", () => {
+    const groups = findDuplicateProjectGroups([
+      { id: "p1", name: "***", organizationId: "org1" },
+      { id: "p2", name: "!!!", organizationId: "org1" },
+    ]);
+    expect(groups).toHaveLength(0);
   });
 });
