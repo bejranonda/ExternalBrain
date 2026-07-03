@@ -23,6 +23,7 @@ export interface LoopHealthPayload {
     validatedNegative: number;
   };
   duplicateProjects: {
+    organizationId: string;
     normalizedName: string;
     names: string[];
   }[];
@@ -108,6 +109,7 @@ export async function GET(): Promise<Response> {
       duplicateProjects: findDuplicateProjectGroups(
         userProjects.map((p) => ({ id: p.id, name: p.name, organizationId: p.organizationId })),
       ).map((g) => ({
+        organizationId: g.organizationId,
         normalizedName: g.normalizedName,
         names: g.projects.map((p) => p.name),
       })),

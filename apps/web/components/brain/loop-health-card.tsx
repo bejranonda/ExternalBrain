@@ -114,7 +114,7 @@ export function LoopHealthCard() {
         {data && data.duplicateProjects.length > 0 && (
           <div style={{ fontSize: 12, color: "var(--ink-3)" }}>
             {data.duplicateProjects.map((g) => (
-              <div key={g.normalizedName}>⚠ {g.names.join(" · ")}</div>
+              <div key={`${g.organizationId}:${g.normalizedName}`}>⚠ {g.names.join(" · ")}</div>
             ))}
           </div>
         )}
