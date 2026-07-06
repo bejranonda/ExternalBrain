@@ -73,7 +73,10 @@ each engineered against the author-bias that sank the previous pair.
 ```bash
 # 1. Operator, against the live DB. Prompts are real user text: anonymize the
 #    output, or scope the query to a non-client org, before publishing.
-pnpm --filter @brain/core exec tsx scripts/export-retrieval-fixture.ts > fixture.json
+# On a multi-user live host, ALWAYS scope to your own user id so no other
+# account's prompts (client data) leave the DB:
+BENCHMARK_USER_ID=<your user id> \
+  pnpm --filter @brain/core exec tsx scripts/export-retrieval-fixture.ts > fixture.json
 
 # 2. Offline, no DB. Re-ranks each case by cosine and by KRA, prints NDCG@5.
 pnpm --filter @brain/core run benchmark:retrieval fixture.json
