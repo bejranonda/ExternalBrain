@@ -90,3 +90,45 @@ describe("backup-status heartbeat parsing", () => {
     expect(result).toMatchObject({ ok: true, lastSyncAge: 0, warn: false });
   });
 });
+
+// ── Nightly-dump age logic (mirrors readDumpStatus in the route) ────────────
+
+const DUMP_MAX_AGE = 93_600; // 26 h default
+
+function dumpStatusFromMtimes(
+  newestMtimeMs: number | null,
+  nowSeconds: number,
+): { configured: boolean; lastDumpAge: number | null; warn: boolean } {
+  if (newestMtimeMs === null) return { configured: false, lastDumpAge: null, warn: false };
+  if (newestMtimeMs === 0) return { configured: true, lastDumpAge: null, warn: true };
+  const lastDumpAge = nowSeconds - Math.floor(newestMtimeMs / 1000);
+  return { configured: true, lastDumpAge, warn: lastDumpAge > DUMP_MAX_AGE };
+}
+
+describe("backup-status nightly-dump age", () => {
+  const NOW = 1_800_000_000;
+
+  it("fresh dump (8 h ago) is ok", () => {
+    const r = dumpStatusFromMtimes((NOW - 8 * 3600) * 1000, NOW);
+    expect(r).toEqual({ configured: true, lastDumpAge: 8 * 3600, warn: false });
+  });
+
+  it("stale dump (3 days ago) warns — the v1.11.1 silent-failure state", () => {
+    const r = dumpStatusFromMtimes((NOW - 3 * 86400) * 1000, NOW);
+    expect(r.warn).toBe(true);
+    expect(r.lastDumpAge).toBe(3 * 86400);
+  });
+
+  it("exactly at the threshold does not warn; one second past does", () => {
+    expect(dumpStatusFromMtimes((NOW - DUMP_MAX_AGE) * 1000, NOW).warn).toBe(false);
+    expect(dumpStatusFromMtimes((NOW - DUMP_MAX_AGE - 1) * 1000, NOW).warn).toBe(true);
+  });
+
+  it("dumps dir present but empty = configured-and-never-succeeded → warn", () => {
+    expect(dumpStatusFromMtimes(0, NOW)).toEqual({ configured: true, lastDumpAge: null, warn: true });
+  });
+
+  it("dumps dir absent = not configured, no warn", () => {
+    expect(dumpStatusFromMtimes(null, NOW)).toEqual({ configured: false, lastDumpAge: null, warn: false });
+  });
+});

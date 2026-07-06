@@ -10,6 +10,12 @@ interface BackupStatus {
   threshold?: number;
   warn: boolean;
   message?: string;
+  dump?: {
+    configured: boolean;
+    lastDumpAge: number | null;
+    threshold: number;
+    warn: boolean;
+  };
 }
 
 function formatAge(seconds: number): string {
@@ -62,6 +68,25 @@ export function BackupStatusCard() {
     }
   }
 
+  // Nightly on-host dump line (KNOWN_ISSUES §0f follow-up: a failed pg_dump
+  // must surface here within a day, not hide in container logs for weeks).
+  let dumpDot = "var(--ink-4)";
+  let dumpValue = "Checking…";
+  if (failed) {
+    dumpValue = "Unavailable";
+  } else if (data) {
+    const dump = data.dump;
+    if (!dump || !dump.configured) {
+      dumpValue = "Not configured";
+    } else if (dump.warn) {
+      dumpDot = "var(--warn, #F5C451)";
+      dumpValue = dump.lastDumpAge != null ? `Late · ${formatAge(dump.lastDumpAge)}` : "Never succeeded";
+    } else {
+      dumpDot = "var(--ok, #67E8A0)";
+      dumpValue = dump.lastDumpAge != null ? `Dumped ${formatAge(dump.lastDumpAge)}` : "OK";
+    }
+  }
+
   return (
     <div
       style={{
@@ -75,10 +100,15 @@ export function BackupStatusCard() {
         className="mono"
         style={{ fontSize: 11, color: "var(--ink-4)", letterSpacing: "0.08em", textTransform: "uppercase" }}
       >
-        Off-host backup
+        Backups
       </div>
       <div style={{ fontSize: 18, fontWeight: 500, marginTop: 4, display: "flex", alignItems: "center", gap: 8 }}>
-        <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: "50%", background: dot, flexShrink: 0 }} />
+        <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: "50%", background: dumpDot, flexShrink: 0 }} />
+        {dumpValue}
+      </div>
+      <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>nightly pg_dump on this host</div>
+      <div style={{ fontSize: 13, marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
+        <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: "50%", background: dot, flexShrink: 0 }} />
         {value}
       </div>
       <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>{sub}</div>

@@ -92,6 +92,10 @@ services:
       # deploy so the generated `claude mcp add` URL is the public HTTPS one.
       BRAIN_PUBLIC_HOSTNAME: ${BRAIN_PUBLIC_HOSTNAME:-}
       BRAIN_MCP_PUBLIC_HOSTNAME: ${BRAIN_MCP_PUBLIC_HOSTNAME:-}
+      # Nightly-dump age alarm (KNOWN_ISSUES §0f follow-up): /api/admin/
+      # backup-status warns when the newest /data/backups/last dump is older
+      # than this (seconds). Default 26 h = daily 03:00 schedule + slack.
+      BACKUP_DUMP_MAX_AGE: ${BACKUP_DUMP_MAX_AGE:-93600}
       # Required on non-localhost deployments (any URL except 127.0.0.1 /
       # localhost) or NextAuth refuses the host header with "There was a
       # problem with the server configuration." Kept default-on because
