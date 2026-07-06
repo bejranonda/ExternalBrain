@@ -63,6 +63,14 @@ jobs:
           if [ "$DEPLOYED" = "$MAIN" ]; then
             echo "state=in_sync" >> "$GITHUB_OUTPUT"
             echo "In sync: deployed=$DEPLOYED main=$MAIN"
+          elif git rev-parse -q --verify "$DEPLOYED^{commit}" >/dev/null 2>&1 \
+            && [ -z "$(git diff --name-only "$DEPLOYED"..origin/main -- . | grep -vE '^(docs/|REBUILD/|[^/]+\.md$)')" ]; then
+            # Docs-only drift (#140 false-positive class): every file between the
+            # deployed build and main is markdown/docs — GitHub serves those from
+            # the repo directly, so nothing merged is missing from production.
+            # Treated as in-sync so the issue closes instead of nagging.
+            echo "state=in_sync" >> "$GITHUB_OUTPUT"
+            echo "Docs-only drift (deployed=$DEPLOYED main=$MAIN) — treated as in sync."
           else
             echo "state=drift" >> "$GITHUB_OUTPUT"
             echo "DRIFT: deployed=$DEPLOYED main=$MAIN"
