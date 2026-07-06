@@ -53,6 +53,10 @@ Traps seen bringing the stack up on a fresh VM, captured so you avoid them:
   `/docs/concepts/vocabulary` (in `apps/web/lib/brain/docs-content.ts`)
   is the regression net for class (3). See `docs/APPROACH.md §5af`
   (classes 1+2) and `§5ag` (class 3) for the full rationale.
+- **`docker compose exec -T` silently truncates piped stdout at 64 KiB** (exit
+  code 0, so the cut looks like success — a piped JSON export dies mid-string).
+  Write large outputs to a file inside the container and `docker compose cp`
+  them out; always validate piped-export integrity (GUIDELINES §3).
 - **GitHub silently registers an invalid-YAML workflow as trigger-less.** If a
   workflow file fails GitHub's YAML parse (e.g. a multi-line shell string in a
   `run: |` block with column-1 continuation lines — they terminate the block
@@ -194,8 +198,12 @@ differentiation — *shared across every MCP tool, inspectable/editable, and
 self-hosted/owned* (README §Why) — is structurally verifiable: it's how the
 system is built, not a performance promise. The stronger claim that the Brain
 *measurably improves* AI coding output remains **unproven by a published number**
-(see `docs/VALIDATION.md`). Keep copy and docs anchored on the structural
-differentiators; don't overstate efficacy until the benchmark backs it.
+for the end-to-end claim — the generation-uplift benchmark (#126) has not run.
+**The retrieval layer, however, now has a published number (2026-07-06,
+`docs/VALIDATION.md`): KRA NDCG@5 0.4514 vs cosine 0.3036 (+0.1478) on a real
+telemetry-labeled fixture.** Keep copy anchored on the structural
+differentiators plus the retrieval delta where relevant; don't extend it to
+an output-quality claim until #126 backs that too.
 
 **The GitHub repo About + topics aren't in the repo.** They're set via `gh repo
 edit` and render on the GitHub repo page and in search results, but they're not
@@ -282,7 +290,7 @@ diagnosis pass on the platform's own dogfood Brain. Items:
 | Issue | Where | Status |
 |---|---|---|
 | ~~**Free-text `projectName` silently spawns duplicate project identities.**~~ **Prevented (v1.12.0).** `brain_start_session(projectName)` / `brain_create_project` matched names only case-insensitively with trim, so agent-supplied drift like "BrainPlatform" vs "Brain Platform" created sibling projects — and project-scoped retrieval can't see knowledge filed under a sibling, silently starving injection. (The dogfood Brain accumulated **three** identities for one repo over 7 weeks before anyone looked at the project list.) `ensureNamedProject` now matches by aggressive normalization (lowercase, all non-alphanumerics stripped; all-punctuation names never match each other). | `packages/core/src/org.ts` | done (v1.12.0) |
-| **Existing fragmentation needs an operator-run merge.** `scripts/merge-duplicate-projects.sql` repairs pre-existing duplicates: dry-run by default, `-v apply=1` mutates in one transaction holding `SHARE ROW EXCLUSIVE` locks (in-DB write freeze; `MCPToken.projectId` is `onDelete: Cascade`, so an unfrozen merge could silently delete a mid-window token), `-v merge_from/-v merge_into` for genuinely differently-named merges. Requires a verified backup + explicit operator authorization (bulk `deploy_*` mutation). Validated end-to-end against a seeded postgres:16 fixture incl. `PeerCard` unique-collision handling and idempotent re-run. | `scripts/merge-duplicate-projects.sql` | awaiting operator run |
+| **Existing fragmentation needs an operator-run merge.** `scripts/merge-duplicate-projects.sql` repairs pre-existing duplicates: dry-run by default, `-v apply=1` mutates in one transaction holding `SHARE ROW EXCLUSIVE` locks (in-DB write freeze; `MCPToken.projectId` is `onDelete: Cascade`, so an unfrozen merge could silently delete a mid-window token), `-v merge_from/-v merge_into` for genuinely differently-named merges. Requires a verified backup + explicit operator authorization (bulk `deploy_*` mutation). Validated end-to-end against a seeded postgres:16 fixture incl. `PeerCard` unique-collision handling and idempotent re-run. **Executed against prod 2026-07-05** (operator-authorized): 14 knowledge rows, 6 sessions, 7 audit logs consolidated onto one identity; post-merge verification all zeros; `brain_list_projects` confirms a single project for the repo. | `scripts/merge-duplicate-projects.sql` | done (2026-07-05) |
 | **Aggregate "how is my Brain doing" questions have no surface.** The Oracle retrieves semantically and cannot count — asked for 30-day session/close/learning stats it returns zero sessions and defers to SQL. **Shipped (v1.13.0):** the loop-health panel (dashboard, behind the Show-everything fold) surfaces sessions closed-with-learnings, injection→used rate (accrues from v1.13.0 — `used_reported` SessionKnowledgeApplication rows), validation coverage, and a duplicate-project detector via `GET /api/dashboard/health`. The Oracle deliberately does not grow SQL-agent capabilities. | `apps/web/app/api/dashboard/health/route.ts`, `loop-health-card.tsx` | done (v1.13.0) |
 
 ---

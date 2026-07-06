@@ -6,7 +6,7 @@
 
 ## The thesis in one paragraph
 
-External Brain is a persistent knowledge layer that sits between AI coding tools and the developer. It captures the durable rules a developer accumulates while coding — via vibe-coding sessions in Claude Code, Cursor, Windsurf, Gemini CLI, or any MCP-capable agent — and serves them back at moments of decision so that the next time you face the same problem, the AI tool already knows your team's answer. The compounding mechanic: every session contributes signal; **autoskill** proposes new skills from the patterns it sees you reuse; sessions whose rules pay off get reinforced; rules that don't fade. The brain gets better on its own, so each project improves day by day without anyone stopping to hand-write a rules file. The product claim ("the Brain measurably improves AI coding output") is currently unproven by any published number — see [`docs/VALIDATION.md`](./VALIDATION.md) for the open methodology gap.
+External Brain is a persistent knowledge layer that sits between AI coding tools and the developer. It captures the durable rules a developer accumulates while coding — via vibe-coding sessions in Claude Code, Cursor, Windsurf, Gemini CLI, or any MCP-capable agent — and serves them back at moments of decision so that the next time you face the same problem, the AI tool already knows your team's answer. The compounding mechanic: every session contributes signal; **autoskill** proposes new skills from the patterns it sees you reuse; sessions whose rules pay off get reinforced; rules that don't fade. The brain gets better on its own, so each project improves day by day without anyone stopping to hand-write a rules file. The retrieval layer has its first published number (2026-07-06): the production KRA ranking beats a raw-cosine baseline by +0.148 NDCG@5 on a real, telemetry-labeled fixture — see [`docs/VALIDATION.md`](./VALIDATION.md). The stronger end-to-end claim ("the Brain measurably improves AI coding *output*") remains unproven until the generation-uplift benchmark runs; the docs deliberately don't extend the retrieval result to it.
 
 **Why a separate layer, when AI tools already have memory?** Because that memory is trapped — **per tool, per project, and per person**. Claude Code's memory doesn't carry over to Cursor or Copilot, a lesson learned on one repo doesn't reach the next, and each teammate starts from zero. It's also a **black box** you can't inspect or correct, and **vendor-locked** in someone else's cloud. External Brain is one shared, inspectable, self-hosted knowledge layer that spans every MCP tool, project, and team — with user / project / team / org scopes it was built for **enterprise knowledge reuse**, so a skill learned once becomes the team's. Use it *alongside* a tool's built-in memory, not instead of it.
 
@@ -296,7 +296,7 @@ Claude calls `brain_retrieve_knowledge({ query: "zod password reset form", conte
    ORDER BY "_similarity" DESC
    LIMIT 20
    ```
-3. For each of the top-20 candidates, computes a multi-factor score using the weights in `WEIGHTS` (tuned 2026-04-23 against the retrieval benchmark):
+3. For each of the top-20 candidates, computes a multi-factor score using the weights in `WEIGHTS` (tuned 2026-04-23; re-validated unchanged 2026-07-06 on the first real-corpus benchmark — see `docs/VALIDATION.md`):
    ```
    score = 0.70 × similarity
          + 0.08 × successRate     (0.5 floor for rules with < 3 outcomes)
