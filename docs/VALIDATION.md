@@ -1,25 +1,51 @@
 # Validation — does the Brain improve AI coding?
 
-*Updated 2026-07-02.*
+*Updated 2026-07-06.*
 
 ## Status
-
-The **retrieval benchmark harness now exists and is unit-tested** — it is no
-longer a plan. What is *not* yet published is a number from it: that requires an
-operator to export a fixture from a real corpus (recipe below) and run it. So
-the state is precise:
 
 - ✅ **Harness shipped** — `packages/core/src/retrieval-benchmark.ts` ranks a
   candidate pool by the production KRA score (`kra.ts` `scoreItem`, reused
   directly, not re-implemented) vs a raw-cosine baseline and reports mean
   NDCG@5. Covered by `src/__tests__/retrieval-benchmark.test.ts`.
 - ✅ **Fixture export shipped** — `scripts/export-retrieval-fixture.ts` turns
-  live telemetry into a fixture with no hand-labeling.
-- ⬜ **Number not yet published** — no honest fixture has been exported from a
-  real corpus and run. Until it is, the product claim stays unproven by any
-  published number in this repo (README and HOW_IT_WORKS already say so).
-- ⬜ **Generation-uplift benchmark** — the claim that actually matters — is
-  still a design (below), not code.
+  live telemetry into a fixture with no hand-labeling
+  (`BENCHMARK_USER_ID`-scoped on multi-user hosts so no other account's
+  prompts leave the DB).
+- ✅ **First retrieval number published (2026-07-06, below)** — KRA beats the
+  raw-cosine baseline by +0.148 NDCG@5 on a real, telemetry-labeled corpus.
+- ⬜ **Generation-uplift benchmark** — the claim that actually matters
+  ("the Brain improves AI coding *output*") — is still a design (below), not
+  code. **That product claim remains unproven**; the retrieval number below
+  validates the ranking layer, not end-to-end uplift.
+
+## First published run — retrieval NDCG@5 (2026-07-06)
+
+Run against the live corpus at v1.13.1, after the duplicate-project merge
+(KNOWN_ISSUES §0j) unified the fragmented project identities.
+
+| | NDCG@5 |
+|---|---|
+| Cosine baseline | 0.3036 |
+| **KRA (production ranking)** | **0.4514** |
+| Delta (KRA − cosine) | **+0.1478** |
+
+- **Fixture:** 30 cases from 30 real sessions (operator-scoped via
+  `BENCHMARK_USER_ID`; no client data touched), candidate pools of 20 from the
+  production `candidatesForPrompt` path; 24 cases scored, 6 skipped (no
+  relevant id in pool). Fixture NOT committed — it contains real session
+  prompts; only this summary is published.
+- **Label:** the weak proxy described under the methodology — knowledge
+  injected into a session that subsequently succeeded. Nobody hand-labeled
+  anything.
+- **Reading it honestly:** n is small and the labels are a weak proxy, so the
+  *absolute* numbers are not the claim — the *delta* is. The production KRA
+  weighting materially outranks raw cosine on real usage (+49% relative),
+  which is the direction the weights exist to buy (closes the re-validation
+  question in the `kra.ts` `WEIGHTS` history: on real data KRA no longer
+  trails cosine — the seed-era 0.928-vs-1.000 reading did not survive contact
+  with a real corpus). Re-run after material corpus growth; treat a delta
+  collapse as the retune signal.
 
 ### The earlier attempt, and why the label changed
 
@@ -34,17 +60,19 @@ exported from a real corpus, not a seed.
 
 ## What needs to exist before this doc is rewritten
 
-1. **A non-author-written retrieval fixture.** Either queries drawn from
-   real production session logs with relevance labels assigned blind, or
-   queries authored by someone who has not seen the corpus.
-2. **A real Knowledge corpus** populated by actual user sessions, not a
-   demo seed. The fixture and corpus must be authored independently.
+1. ~~**A non-author-written retrieval fixture.**~~ **Exists (2026-07-06):**
+   queries drawn from real production session logs, relevance labeled blind
+   by the platform's own usage telemetry (see the published run above).
+2. ~~**A real Knowledge corpus** populated by actual user sessions.~~
+   **Exists:** the published run used the live corpus (post-merge, v1.13.1),
+   authored independently of the fixture queries.
 3. **Blind human scoring** for the generation-uplift claim (Oracle with
    Brain vs. Oracle without). LLM-as-judge introduces author-bias and
-   was retired alongside the benchmark scripts.
+   was retired alongside the benchmark scripts. **Still open.**
 
-Until those exist, the product claim ("the Brain improves AI coding")
-remains unproven by any published number in this repo.
+The retrieval layer now has a published number. The **product claim**
+("the Brain improves AI coding") still hinges on requirement 3 — the
+generation-uplift benchmark — and remains unproven until that runs.
 
 ## Proposed methodology (2026-06-28) — concrete and bias-resistant
 
@@ -63,10 +91,10 @@ each engineered against the author-bias that sank the previous pair.
   by the harness so the two never drift) vs a raw-cosine baseline. An earlier
   ad-hoc run on the retired hand-labelled seed put KRA at 0.928 vs cosine 1.000
   (also recorded in the `kra.ts` `WEIGHTS` history); that number predates this
-  harness and does not count as evidence — the point of shipping the harness is
-  to re-establish it on a real fixture. If KRA still trails cosine on clean
-  queries, that is the signal to retune `WEIGHTS` (see KNOWN_ISSUES, KRA-formula
-  entry).
+  harness and does not count as evidence. **Re-established on a real fixture
+  (2026-07-06, published above): KRA 0.4514 vs cosine 0.3036 — KRA leads.**
+  If a future re-run shows KRA trailing cosine again, that is the signal to
+  retune `WEIGHTS` (see KNOWN_ISSUES, KRA-formula entry).
 
 *Running it (two steps — export needs the live DB, the run is offline):*
 
