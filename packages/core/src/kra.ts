@@ -188,9 +188,18 @@ async function fetchCandidates(
  *   - 2026-04-23 (0.7/0.08/0.08/0.08/0.06): semantic similarity dominates;
  *     the other factors act as tie-breakers between near-equivalent cosine
  *     matches. See `docs/VALIDATION.md` for the before/after numbers.
+ *   - 2026-07-06: re-validated UNCHANGED on the first real telemetry-labeled
+ *     fixture (30 cases, live corpus, v1.13.1): KRA NDCG@5 = 0.4514 vs
+ *     cosine-only = 0.3036 (+0.1478) — on real data the tie-breaker factors
+ *     help rather than hurt, so the seed-era regression did not reproduce.
+ *     Published run in `docs/VALIDATION.md`.
  *
  * When you change these, re-run the benchmark and update VALIDATION.md in
- * the same PR. A weight change that drops NDCG@5 below 0.9 is a regression.
+ * the same PR. The regression test is the DELTA, not an absolute score
+ * (absolutes depend on the fixture): a weight change that puts KRA below
+ * the cosine baseline on the current fixture is a regression. (The old
+ * "below 0.9" absolute threshold was calibrated to the retired seed
+ * fixture, where cosine scored 1.0.)
  */
 const WEIGHTS = {
   semanticSimilarity: 0.7,
