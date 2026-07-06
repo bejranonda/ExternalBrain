@@ -199,9 +199,12 @@ with a `prompt` runs this pipeline automatically and returns
 because measurement showed agent sessions never make a separate retrieval
 call (`brain_retrieve_knowledge` remains for mid-task re-query). Each injected
 row is recorded as `SessionKnowledgeApplication(role:"injected")`, and the
-close call's `knowledgeUsed` list turns those into success/failure bumps —
-the same reliable-touchpoint principle as close-capture (§7), applied to the
-read side. Fail-soft: a retrieval error never blocks the session open.
+close call's `knowledgeUsed` list turns those into success/failure bumps
+**and is persisted as `SessionKnowledgeApplication(role:"used_reported")`
+rows (v1.13.0)** — the per-session signal behind the loop-health panel's
+injection→used rate. Same reliable-touchpoint principle as close-capture
+(§7), applied to the read side. Fail-soft: a retrieval error never blocks
+the session open, and a `used_reported` persist failure never blocks the close.
 
 1. MCP client calls `brain_retrieve_knowledge({ prompt, context })` — or, in
    the primary path above, `brain_start_session` runs it on the agent's
@@ -652,7 +655,7 @@ The Sessions table has always shown counts in the `K in/out` column (skills retr
 
 **Auth invariant.** A session is readable by its owner OR by a member of the org that owns the session's project. The `OR` keeps personal sessions (no `projectId`) reachable for their owner without an org-membership probe; org-scoped sessions are reachable by all members so cross-user collaboration on a shared project surfaces the round-trip correctly. Soft-deleted Knowledge rows are filtered at the API layer — we surface what the user can act on, not what's tombstoned.
 
-**Role split is load-bearing.** `SessionKnowledgeApplication.role` has three values: `injected` (skill retrieved INTO the session by KRA), `retrieved_but_not_used` (matched but skipped — diagnostic, not user-facing), and `extracted_from` (new Knowledge KEA pulled OUT of the session). The endpoint only returns the first and third — `retrieved_but_not_used` is operator telemetry, not user-facing value. If a future surface needs the "almost-matched" set, add a separate role filter rather than overloading this response.
+**Role split is load-bearing.** `SessionKnowledgeApplication.role` has four values: `injected` (skill retrieved INTO the session by KRA), `retrieved_but_not_used` (matched but skipped — diagnostic, not user-facing), `extracted_from` (new Knowledge KEA pulled OUT of the session), and `used_reported` (v1.13.0 — the close call's `knowledgeUsed` ids, i.e. what the agent claims it actually applied; feeds the loop-health injection→used rate and is deliberately owner-scoped + FK-re-derived so a caller can't write rows against another user's knowledge). The endpoint only returns the first and third — `retrieved_but_not_used` is operator telemetry, not user-facing value. If a future surface needs the "almost-matched" set, add a separate role filter rather than overloading this response.
 
 **Client wiring.** `apps/web/lib/brain/use-session-detail.ts` is intentionally minimal — no SWR cache, no revalidation — because session details are inspected rarely (one user click → one fetch) and stale-while-revalidate adds complexity without benefit. `SessionDetailPanel` renders the two halves as a two-column grid that stacks on mobile via `.session-detail-grid` (a single `@media (max-width: 880px)` rule in `globals.css`). The rows in `Sessions` table become `role="button"` with Enter/Space handlers and `aria-expanded` / `aria-controls`, so keyboard users get the same drill-down.
 
@@ -720,7 +723,15 @@ the full clickable list for ≥2 — the earned-surface-area pattern from
 ### 12.31 MCP project management — AI-driven knowledge partitioning (v0.14.0, 2026-05-26)
 
 AI agents can now create new Brain projects on demand via `brain_create_project`
-or by passing `projectName` to `brain_start_session`. Two companion tools,
+or by passing `projectName` to `brain_start_session`. **Name matching is
+aggressively normalized (v1.12.0): lowercase with every non-alphanumeric
+stripped, so "Brain Platform", "BrainPlatform", and "brain-platform" resolve
+to one project.** Free-text matching any looser than this accretes duplicate
+identities at the rate agents rephrase names — the dogfood Brain grew three
+identities for one repo in 7 weeks, and project-scoped retrieval cannot see a
+sibling identity (repair: `scripts/merge-duplicate-projects.sql`; detection:
+the loop-health panel's duplicate-identity row). All-punctuation names
+(normalized "") never match each other. Two companion tools,
 `brain_list_projects` and `brain_get_active_project`, let the agent inspect the
 caller's projects before deciding whether to create or reuse one. This lets
 knowledge be partitioned by project from the terminal — previously, all
