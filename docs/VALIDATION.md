@@ -38,6 +38,14 @@ Run against the live corpus at v1.13.1, after the duplicate-project merge
 - **Label:** the weak proxy described under the methodology — knowledge
   injected into a session that subsequently succeeded. Nobody hand-labeled
   anything.
+- **Pool-depth follow-up (same day):** re-exporting at `BENCHMARK_POOL_SIZE=50`
+  cut the skips from 6/30 to 2/32 — most "relevant id not in pool" cases are
+  knowledge sitting at cosine ranks 21–50, below production's top-20
+  prefilter, not genuine recall misses (~6% at depth 50). KRA's lead holds at
+  the deeper pool (0.3075 vs 0.2317; both absolutes drop as harder negatives
+  enter, delta stays positive). Widening the production candidate pool is
+  tracked as [#146](https://github.com/bejranonda/ExternalBrain/issues/146)
+  for after the flywheel Stage-3 gate — measurement now, tuning later.
 - **Reading it honestly:** n is small and the labels are a weak proxy, so the
   *absolute* numbers are not the claim — the *delta* is. The production KRA
   weighting materially outranks raw cosine on real usage (+49% relative),
