@@ -16,17 +16,27 @@
  * by CI and should be reviewed before trusting it. Prompts are REAL USER TEXT —
  * anonymize the output, or restrict `WHERE` to a non-client org, before
  * publishing any fixture derived from a live host.
+ *
+ * On a multi-user host, set BENCHMARK_USER_ID to scope the export to one
+ * user's own sessions (e.g. the operator's) so no other account's prompts —
+ * client data on this project's live host — ever leave the database. The
+ * unscoped form is only appropriate on a single-user or fixture-seeded
+ * instance.
  */
 import { db } from "@brain/db";
 import { candidatesForPrompt } from "../src/kra.js";
 import type { BenchmarkCase } from "../src/retrieval-benchmark.js";
 
 const POOL_SIZE = Number(process.env.BENCHMARK_POOL_SIZE ?? 20);
+const USER_ID = process.env.BENCHMARK_USER_ID?.trim() || undefined;
 
 async function main(): Promise<void> {
   // injected-into-a-session-that-succeeded == the weak relevance label.
   const apps = await db.sessionKnowledgeApplication.findMany({
-    where: { role: "injected", session: { outcome: "success" } },
+    where: {
+      role: "injected",
+      session: { outcome: "success", ...(USER_ID ? { userId: USER_ID } : {}) },
+    },
     select: {
       sessionId: true,
       knowledgeId: true,
