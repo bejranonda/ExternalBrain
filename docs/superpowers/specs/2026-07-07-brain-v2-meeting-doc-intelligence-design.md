@@ -203,10 +203,13 @@ must be able to answer task-shaped and meeting-shaped questions:
    the meeting-miner protocol on real meetings of the running project —
    validates extraction quality and the `for:` convention with zero platform
    code, and produces test fixtures.
-2. **2026-07-17 — gate reads (#149).** Pass → build. Fail → flywheel
-   diagnosis takes priority (flywheel spec §5: do not proceed anyway); the V2
-   build waits. V2 depends on a healthy loop.
-3. **Build order, two PRs, no migrations:**
+2. **Gate interaction (amended 2026-07-07, operator instruction "continue
+   all till finish").** Code is built and merged now, **dark**: both platform
+   features ship behind default-off flags, so deployed behavior stays V1.
+   The Stage-3 gate (#149, reads 2026-07-17) governs **flag enablement**,
+   not code landing. Gate fails → flags stay off and flywheel diagnosis takes
+   priority.
+3. **Build order, two PRs (PR-2 queued directly behind PR-1), no migrations:**
    - **PR-1:** `action_item` type + addressed injection + retrieval/KEA/decay
      exclusion + tests.
    - **PR-2:** Oracle task-awareness (retrieval inclusion + deterministic
