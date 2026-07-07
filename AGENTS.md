@@ -168,6 +168,15 @@ across sessions (and it's the product's own dogfood):
    decision) that decision's id in `supersedesKnowledgeId`. Decisions are shared
    project memory: a teammate's next `brain_start_session` surfaces them, and
    they are exempt from decay (a stated fact, retired only by supersession).
+6. **Meeting & document protocols (V2.0)**: when handed a meeting transcript
+   or asked to draft/harvest standard project documents or a status report,
+   follow the matching protocol in [`docs/protocols/`](./docs/protocols/) —
+   [`meeting-miner`](./docs/protocols/meeting-miner.md) (transcript →
+   decisions + owned action items + open questions),
+   [`doc-harvest`](./docs/protocols/doc-harvest.md) /
+   [`doc-draft`](./docs/protocols/doc-draft.md) (document templates as
+   recipes), [`report-draft`](./docs/protocols/report-draft.md) (on-demand
+   status report; never scheduled, never pushed).
 
 Why this matters: rules with registered usage survive decay and rise in
 retrieval; unclosed sessions teach nothing. The loop's two halves were each
