@@ -213,6 +213,23 @@ must be able to answer task-shaped and meeting-shaped questions:
      enumeration + prompt guidance) + tests.
    Each lands via the standing PR → green-CI → release → deploy workflow.
 
+### Versioning & rollback (decision 2026-07-07)
+
+V2 is developed **on `main`** via normal short-lived feature branches — no
+long-lived `v2` branch (rejected: exits the single-main CI/CD + drift-detection
+safety net, blocks deploying V2 to the live server where the pain is, and
+accumulates merge drift while adding no rollback ability).
+
+"Easy to come back to V1" is guaranteed by three existing mechanisms instead:
+
+1. **Feature flags, default-off** (the autoskill house pattern): addressed
+   injection and Oracle task-awareness ship behind flags — returning to V1
+   behavior is flipping a flag, no redeploy.
+2. **Release tags:** V2 ships as `v2.x` releases; full return =
+   `git checkout v1.14.x && ./scripts/deploy.sh`.
+3. **The zero-migration constraint (§3)** is what makes both directions safe:
+   the database schema never leaves V1 compatibility.
+
 ## 7. Testing
 
 - **Unit:** injection query (addressing, cap, retired-exclusion); retrieval
