@@ -5,7 +5,7 @@
  * These are pure-function tests — no DB, no LLM, no embeddings.
  */
 import { describe, expect, it } from "vitest";
-import { groundednessFrom, retrievedCountsFrom, mapCitations } from "../oracle.js";
+import { groundednessFrom, retrievedCountsFrom, mapCitations, buildTaskBlock } from "../oracle.js";
 import type { RetrievedKnowledge, RetrievedSession } from "../oracle.js";
 
 // ---------------------------------------------------------------------------
@@ -313,5 +313,64 @@ describe("mapCitations — mixed knowledge and session", () => {
     const byId = new Map(citations.map((c) => [c.knowledgeId ?? c.sessionId, c]));
     expect(byId.get("k-test-id")!.meta!.knowledgeType).toBe("recipe");
     expect(byId.get("s-test-id")!.meta!.sessionOutcome).toBe("success");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildTaskBlock — V2.0 OPEN TASKS rendering (spec 2026-07-07 §4c)
+// ---------------------------------------------------------------------------
+
+describe("buildTaskBlock", () => {
+  const NOW = Date.parse("2026-07-07T12:00:00Z");
+  const daysAgo = (n: number) => new Date(NOW - n * 86_400_000);
+
+  it("renders blocker marker, kind, assignee, and staleness", () => {
+    const block = buildTaskBlock(
+      [
+        {
+          ruleText: "unblock the staging database",
+          tags: ["action-item", "blocker", "for:dev@test.local"],
+          createdAt: daysAgo(1),
+        },
+        {
+          ruleText: "who owns the auth migration?",
+          tags: ["open-question", "for:pm@test.local"],
+          createdAt: daysAgo(20),
+        },
+        {
+          ruleText: "update the runbook",
+          tags: ["action-item"],
+          createdAt: daysAgo(2),
+        },
+      ],
+      NOW,
+    );
+    const lines = block.split("\n");
+    expect(lines[0]).toBe(
+      "- [BLOCKER] (task) unblock the staging database — assignee: dev@test.local",
+    );
+    expect(lines[1]).toBe(
+      "- (open question) who owns the auth migration? — assignee: pm@test.local [stale >14d]",
+    );
+    expect(lines[2]).toBe(
+      "- (task) update the runbook — assignee: unassigned",
+    );
+  });
+
+  it("returns empty string for no tasks", () => {
+    expect(buildTaskBlock([], NOW)).toBe("");
+  });
+
+  it("14 days exactly is not stale; beyond is", () => {
+    const on = buildTaskBlock(
+      [{ ruleText: "x", tags: [], createdAt: daysAgo(14) }],
+      NOW,
+    );
+    expect(on).not.toContain("[stale >14d]");
+    const past = buildTaskBlock(
+      [{ ruleText: "x", tags: [], createdAt: daysAgo(15) }],
+      NOW,
+    );
+    expect(past).toContain("[stale >14d]");
   });
 });
