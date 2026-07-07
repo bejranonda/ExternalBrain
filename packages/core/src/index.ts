@@ -13,6 +13,8 @@ export type {
 } from "./retrieval-benchmark.js";
 export * as embedding from "./embedding.js";
 export * as formatter from "./formatter.js";
+export * as actionItems from "./action-items.js";
+export type { ActionItemRow } from "./action-items.js";
 export * as exporter from "./exporter.js";
 export { fuzzyScore } from "./fuzzy.js";
 export {
@@ -34,7 +36,7 @@ export {
 } from "./oracle-sse.js";
 export { check as rateLimitCheck, memoryStore } from "./rate-limit.js";
 export type { Bucket, Limit, Store, CheckResult } from "./rate-limit.js";
-export { envForWeb, envForMcp, envForWorker } from "./env.js";
+export { envForWeb, envForMcp, envForWorker, _resetEnvCache } from "./env.js";
 export type { WebEnv, McpEnv, WorkerEnv } from "./env.js";
 export * as cost from "./cost.js";
 export {

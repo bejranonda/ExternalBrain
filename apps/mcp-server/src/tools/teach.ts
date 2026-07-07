@@ -12,7 +12,14 @@ import {
 import type { ToolDef } from "./index.js";
 
 const inputShape = z.object({
-  type: z.enum(["reflex", "recipe", "heuristic", "principle", "anti_principle"]),
+  type: z.enum([
+    "reflex",
+    "recipe",
+    "heuristic",
+    "principle",
+    "anti_principle",
+    "action_item",
+  ]),
   trigger: z.string().min(5),
   rule: z.string().min(10),
   rationale: z.string().optional(),
@@ -28,14 +35,21 @@ const inputShape = z.object({
 export const teachKnowledge: ToolDef = {
   name: "brain_teach_knowledge",
   description:
-    "Record a piece of knowledge the user explicitly taught, OR a project DECISION / status change ('we'll use X', 'deprecate Y', 'Z owns auth'). For a decision: set scope:'project', put the rejected alternative in `instead`, add 'decision' to `tags`, and — if it reverses a prior decision — pass that decision's id as `supersedesKnowledgeId` (it is retired and replaced). Decisions become shared project memory: a teammate's next brain_start_session surfaces them. User-taught knowledge has highest confidence (1.0) and overrides KEA-extracted siblings.",
+    "Record a piece of knowledge the user explicitly taught, OR a project DECISION / status change ('we'll use X', 'deprecate Y', 'Z owns auth'). For a decision: set scope:'project', put the rejected alternative in `instead`, add 'decision' to `tags`, and — if it reverses a prior decision — pass that decision's id as `supersedesKnowledgeId` (it is retired and replaced). Decisions become shared project memory: a teammate's next brain_start_session surfaces them. For a meeting ACTION ITEM or OPEN QUESTION: type:'action_item', scope:'project', tags ['action-item'|'open-question', 'for:<assignee-email-lowercase>', 'meeting:<YYYY-MM-DD-slug>', plus 'blocker' when it blocks other work]; it is surfaced to the assignee at session start and via the Oracle, never as a rule. User-taught knowledge has highest confidence (1.0) and overrides KEA-extracted siblings.",
   inputSchema: {
     type: "object",
     required: ["type", "trigger", "rule"],
     properties: {
       type: {
         type: "string",
-        enum: ["reflex", "recipe", "heuristic", "principle", "anti_principle"],
+        enum: [
+          "reflex",
+          "recipe",
+          "heuristic",
+          "principle",
+          "anti_principle",
+          "action_item",
+        ],
       },
       trigger: { type: "string" },
       rule: { type: "string" },

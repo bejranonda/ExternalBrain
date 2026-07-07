@@ -20,6 +20,7 @@ import { db, toVector } from "@brain/db";
 import { embed } from "./embedding.js";
 import { reserveCapSlot, recordCall, DEFAULT_RESERVATION_USD, OracleCapReachedError } from "./cost.js";
 import { buildRawProjectFilterV2, buildSessionWhere } from "./scope-filter.js";
+import { RULE_TYPES_PREDICATE } from "./kra.js";
 import type { DataScope, VisibilityScopeArgs } from "./scope-filter.js";
 
 export class OracleCapExceededError extends Error {
@@ -138,7 +139,7 @@ async function buildContext(
            1 - (embedding <=> $1::vector) AS "_similarity"
     FROM "Knowledge"
     WHERE "ownerUserId" = $2
-      AND embedding IS NOT NULL${kProjectFilter}
+      AND embedding IS NOT NULL${RULE_TYPES_PREDICATE}${kProjectFilter}
     ORDER BY embedding <=> $1::vector ASC
     LIMIT 12
     `,

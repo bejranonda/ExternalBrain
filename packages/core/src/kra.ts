@@ -22,6 +22,14 @@ interface ScoredItem {
   similarity: number;
 }
 
+/**
+ * V2.0 (spec 2026-07-07): tasks are not rules — semantic retrieval must never
+ * serve `action_item` rows. Shared with oracle.ts so both semantic queries
+ * carry the identical predicate; the Oracle's OPEN TASKS block is the single
+ * deliberate (deterministic) exemption.
+ */
+export const RULE_TYPES_PREDICATE = ` AND "type" <> 'action_item'`;
+
 // ============================================================
 // Main entry
 // ============================================================
@@ -156,7 +164,7 @@ async function fetchCandidates(
     FROM "Knowledge"
     WHERE embedding IS NOT NULL
       AND "decayScore" > 0.3
-      AND "ownerUserId" = $2${projectFilter}
+      AND "ownerUserId" = $2${RULE_TYPES_PREDICATE}${projectFilter}
     ORDER BY embedding <=> $1::vector ASC
     LIMIT ${limit}
     `,

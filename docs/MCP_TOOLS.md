@@ -229,6 +229,29 @@ thin. The agent has the full session in *its own* context — close-capture asks
 it to hand over the distilled `(trigger, rule, rationale)` at the one call
 every client already makes.
 
+### Meeting action items (V2.0, 2026-07-07 — dark behind `V2_ACTION_ITEMS`)
+
+Three tool-surface additions carry the meeting-intelligence loop
+(spec `docs/superpowers/specs/2026-07-07-brain-v2-meeting-doc-intelligence-design.md`):
+
+- **`brain_teach_knowledge` accepts `type: "action_item"`** — a meeting to-do
+  or open question. Tag contract: `action-item` *or* `open-question`, plus
+  `for:<assignee-email-lowercase>`, `meeting:<YYYY-MM-DD-slug>`, and `blocker` when
+  it blocks other work. Action items are **tasks, not rules**: they are
+  excluded from semantic retrieval, KEA, and decay statistics everywhere.
+- **`brain_start_session` response may carry `openActionItems`**
+  (`{ knowledgeIds, injection }`) — the caller's open items in the session's
+  project, matched **deterministically** by the `for:` tag (never
+  embedding-matched), blockers first then oldest, capped at 10. Fail-soft
+  like `relevantKnowledge`. Deliberately writes **no**
+  `SessionKnowledgeApplication` rows — tasks must not pollute the
+  injection→used loop-health metric.
+- **`brain_report_session_outcome` accepts `resolvedActionItemIds`** (≤50) —
+  items done or obsolete are retired (soft-deleted) at close; the response
+  reports `resolvedActionItems: <count>`. Retirement is bounded to
+  `action_item` rows visible in the session's project — rule IDs and foreign
+  projects are silently ignored.
+
 ### Ownership scope (v0.11.2, extended v0.14.0)
 
 Every tool that takes a caller-supplied `sessionId`, `projectId`, or `knowledgeId` validates ownership before mutating:

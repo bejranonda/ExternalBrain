@@ -8,6 +8,8 @@ import {
   BrainError,
   kra,
   formatter,
+  actionItems,
+  envForMcp,
   getLogger,
 } from "@brain/core";
 import type { ToolDef } from "./index.js";
@@ -43,7 +45,7 @@ const inputShape = z.object({
 export const startSession: ToolDef = {
   name: "brain_start_session",
   description:
-    "Open a new coding session. Call once at the start of a coding task, save the returned `sessionId`, and pass it to every subsequent `brain_log_event` and `brain_report_session_outcome`. ALWAYS include `prompt` (the task description): the response then carries `relevantKnowledge` — rules this Brain already learned that apply to the task. APPLY them, and pass `relevantKnowledge.knowledgeIds` back as `knowledgeUsed` when you close, so the Brain learns which rules paid off. Idempotent clients should issue a fresh session per user-visible task.",
+    "Open a new coding session. Call once at the start of a coding task, save the returned `sessionId`, and pass it to every subsequent `brain_log_event` and `brain_report_session_outcome`. ALWAYS include `prompt` (the task description): the response then carries `relevantKnowledge` — rules this Brain already learned that apply to the task. APPLY them, and pass `relevantKnowledge.knowledgeIds` back as `knowledgeUsed` when you close, so the Brain learns which rules paid off. When meeting intelligence is enabled the response may also carry `openActionItems` — your open meeting to-dos; act on or resolve them via `resolvedActionItemIds` at close. Idempotent clients should issue a fresh session per user-visible task.",
   inputSchema: {
     type: "object",
     required: [],
@@ -227,10 +229,50 @@ export const startSession: ToolDef = {
       }
     }
 
+    // V2.0 (spec 2026-07-07 §4b): deterministic, addressed open-action-item
+    // block — separate from semantic relevantKnowledge, and deliberately NOT
+    // recorded as SessionKnowledgeApplication "injected" rows (tasks would
+    // pollute the injection→used loop-health metric, gate #149).
+    // FAIL-SOFT like relevantKnowledge: never block session open.
+    let openActionItems:
+      | { knowledgeIds: string[]; injection: string }
+      | undefined;
+    if (envForMcp().V2_ACTION_ITEMS) {
+      try {
+        const me = await db.user.findUnique({
+          where: { id: auth.userId },
+          select: { email: true },
+        });
+        if (me?.email) {
+          const items = await actionItems.listOpenActionItemsFor({
+            userId: auth.userId,
+            email: me.email,
+            projectId: resolvedProjectId,
+          });
+          if (items.length > 0) {
+            openActionItems = {
+              knowledgeIds: items.map((i) => i.id),
+              injection: actionItems.formatActionItemsForInjection(items),
+            };
+          }
+        }
+      } catch (err) {
+        log.warn(
+          {
+            op: "start.action_items_failed",
+            sessionId: session.id,
+            err: err instanceof Error ? err.message : String(err),
+          },
+          "start.action_items_failed (session opens without task block)",
+        );
+      }
+    }
+
     return {
       sessionId: session.id,
       startedAt: session.startedAt.toISOString(),
       ...(relevantKnowledge ? { relevantKnowledge } : {}),
+      ...(openActionItems ? { openActionItems } : {}),
     };
   },
 };

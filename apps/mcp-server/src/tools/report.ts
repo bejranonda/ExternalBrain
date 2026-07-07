@@ -8,6 +8,7 @@ import {
   validateSubmittedLearnings,
   LEARNING_EVENT_TYPE,
   MAX_LEARNINGS_PER_SESSION,
+  actionItems,
 } from "@brain/core";
 import { enqueueJob } from "../jobs.js";
 import type { ToolDef } from "./index.js";
@@ -31,6 +32,9 @@ const inputShape = z.object({
   // validateSubmittedLearnings so one malformed learning can never fail
   // the whole outcome report (spec 2026-06-09).
   learnings: z.array(z.unknown()).optional(),
+  // V2.0 (spec 2026-07-07 §4a): action items completed/obsoleted during this
+  // session — retired (soft-deleted) at close, the loop's accountability moment.
+  resolvedActionItemIds: z.array(z.string()).max(50).default([]),
 });
 
 export const reportSessionOutcome: ToolDef = {
@@ -82,6 +86,13 @@ export const reportSessionOutcome: ToolDef = {
           },
         },
       },
+      resolvedActionItemIds: {
+        type: "array",
+        items: { type: "string" },
+        maxItems: 50,
+        description:
+          "IDs from openActionItems that are now DONE or obsolete — they are retired (soft-deleted) so they stop appearing.",
+      },
     },
   },
   handler: async (raw, auth) => {
@@ -92,7 +103,7 @@ export const reportSessionOutcome: ToolDef = {
     // running session and tamper with its outcome/SQS.
     const ownedSession = await db.session.findUnique({
       where: { id: input.sessionId },
-      select: { userId: true },
+      select: { userId: true, projectId: true },
     });
     if (!ownedSession || ownedSession.userId !== auth.userId) {
       throw new BrainError({
@@ -206,6 +217,25 @@ export const reportSessionOutcome: ToolDef = {
       log.warn({ err, sessionId: input.sessionId }, "bulkBumpKnowledgeOutcome failed (best-effort)");
     });
 
+    // 3c. V2.0 (spec 2026-07-07): retire action items reported done. Bounded
+    //     to the session's project scope — resolveActionItems can only touch
+    //     type=action_item rows visible there, never rules.
+    let resolvedActionItems = 0;
+    if (input.resolvedActionItemIds.length > 0) {
+      try {
+        resolvedActionItems = await actionItems.resolveActionItems({
+          ids: input.resolvedActionItemIds,
+          userId: auth.userId,
+          projectId: ownedSession.projectId,
+        });
+      } catch (err) {
+        log.warn(
+          { err, sessionId: input.sessionId },
+          "resolveActionItems failed (best-effort — close proceeds)",
+        );
+      }
+    }
+
     // 4. Enqueue KEA + autoskill jobs via pg-boss boss.send() (audit C7).
     //    Previously raw-SQL INSERT against pgboss.job, which silently
     //    failed when the v12 schema dropped/renamed columns. Now uses the
@@ -248,6 +278,11 @@ export const reportSessionOutcome: ToolDef = {
         "brain_teach_knowledge so the next session starts smarter.";
     }
 
-    return { sqs, queued, ...(hint ? { hint } : {}) };
+    return {
+      sqs,
+      queued,
+      ...(input.resolvedActionItemIds.length > 0 ? { resolvedActionItems } : {}),
+      ...(hint ? { hint } : {}),
+    };
   },
 };
