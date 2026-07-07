@@ -42,6 +42,23 @@ Every `Knowledge` row is exactly one of:
 | `principle` | abstract value | "Prefer composition over inheritance" |
 | `anti_principle` | something to avoid | "Don't inline styles (user corrected 3×) — use Tailwind instead" |
 
+**Plus one non-rule type (V2.0, 2026-07-07):** `action_item` — a meeting
+to-do or open question. It is a **task, not a rule**, and sits outside the
+ontology's retrieval semantics:
+
+- **Tag contract:** `action-item` *or* `open-question`; assignee as
+  `for:<email-lowercase>`; origin as `meeting:<date-slug>`; `blocker` when it
+  blocks other work.
+- **Lifecycle:** open (active row) → resolved (`resolvedActionItemIds` at
+  session close soft-deletes it) → or abandoned (normal decay expires it;
+  threshold `decayScore ≤ 0.3`).
+- **Exclusion invariant:** `action_item` never appears in semantic retrieval
+  (KRA), the Oracle's semantic knowledge context, KEA output, or
+  injected-knowledge metrics (`SessionKnowledgeApplication`). The Oracle's
+  deterministic OPEN TASKS enumeration (`V2_ORACLE_TASKS`) is the single
+  deliberate exemption. Surfacing is deterministic: `for:`-tag match at
+  `brain_start_session` (flag `V2_ACTION_ITEMS`), blockers first.
+
 ### Scope
 
 | Scope | Visible to | When set |
