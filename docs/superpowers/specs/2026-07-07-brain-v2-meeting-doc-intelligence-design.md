@@ -46,8 +46,9 @@ but it does not claim software alone changes stakeholder behavior.
 1. A meeting (transcript or notes) ingested through a normal agent session
    yields: a **summary** (session close), **decisions** (existing
    decision-knowledge: `scope: "project"`, `"decision"` tag, supersession —
-   this is the "challenge the wrong claim" mechanism), and **action items**
-   assigned to people.
+   this is the "challenge the wrong claim" mechanism), **action items**
+   assigned to people, and **open questions** (unresolved points tracked
+   until a decision answers them).
 2. Developers see *their* open action items **deterministically** at every
    `brain_start_session` — addressed by identity, not retrieval-matched.
 3. Non-developers get answers through the **existing webapp Oracle** —
@@ -56,7 +57,24 @@ but it does not claim software alone changes stakeholder behavior.
    decision (2026-07-07): no email (or other push) notifications, to anyone.**
    The only channels are the harness (MCP) and the Oracle.
 4. Document knowhow is harvested as knowledge (`doc-harvest`) and reused to
-   draft the next project's free-form/wiki/repo docs (`doc-draft`).
+   draft the next project's free-form/wiki/repo docs (`doc-draft`) — this is
+   also what makes specs queryable via the Oracle.
+5. Lightweight agile visibility without a PM tool: **blockers** are flagged
+   action items (sorted first everywhere), and the Oracle can give a
+   **status overview** (recent decisions + open items + blockers + open
+   questions). Reports are **on-demand only** — an agent skill
+   (`report-draft`) composes a stakeholder report when asked; nothing is
+   scheduled or pushed (consistent with the no-email decision).
+
+### Use-case map (operator's five-pillar summary, 2026-07-07)
+
+| Pillar | Where it lands |
+|---|---|
+| Developer Productivity (Code Q&A, rule injection, onboarding, guardrails, patterns) | **Already V1** — shipped |
+| Knowledge & Decision Memory (auto-capture, decision archive, cross-team reuse) | **Already V1** — shipped |
+| Meeting Intelligence (owned actions, open-question tracking, searchable decisions, action-focused summaries) | **This spec** (goals 1–3) |
+| Project & Agile Execution (status overview, blocker tracking, queryable specs, on-demand reports) | **This spec** (goals 4–5); ART/SAFe dashboards deferred (§8) |
+| Integrations & Enterprise (GitHub/Jira/Confluence, Copilot-ready, private & compliant, multilingual) | Copilot-ready + private/compliant **already V1**; integrations + multilingual deferred (§8) |
 
 ### Non-goals (deferred, not rejected)
 
@@ -68,6 +86,8 @@ but it does not claim software alone changes stakeholder behavior.
 - Any new webapp surface
 - Email or any push notifications (operator decision 2026-07-07 — Oracle +
   harness are the only channels)
+- Scheduled/auto-pushed reports (follows from the above; reports exist only
+  on demand via the `report-draft` skill or live Oracle answers)
 
 Revisit each only if the meeting/doc loop proves itself in real use.
 
@@ -115,7 +135,12 @@ Drives any connected agent: open a session (`prompt: "meeting: <title>
   `supersedesKnowledgeId` when it reverses a prior decision;
 - each **action item**: `type: "action_item"`, tags
   `["action-item", "for:<email>", "meeting:<date-slug>"]`, `ruleText` = the
-  task, `triggerText` = context/deadline;
+  task, `triggerText` = context/deadline; add a `"blocker"` tag when the
+  item blocks other work;
+- each **open question**: same `action_item` type value (one exclusion sweep),
+  tags `["open-question", "meeting:<date-slug>"]` plus `for:<email>` when
+  someone owns finding the answer; retired when answered — ideally by the
+  decision that answers it (link via supersession);
 - close with summary + learnings.
 
 Also the completion path: when an item is done or obsolete, retire it via the
@@ -126,9 +151,10 @@ existing patch/supersede path.
 `brain_start_session` response gains an `openActionItems` block:
 
 - Query: `type = 'action_item'` AND project matches AND tags contain
-  `for:<caller's email>` AND not retired/deleted.
-- Cap ~10, oldest first; rendered by `formatter.ts` as a distinct section
-  after `relevantKnowledge`.
+  `for:<caller's email>` AND not retired/deleted (covers owned open
+  questions too — same type value).
+- Cap ~10; `blocker`-tagged items first, then oldest-first; rendered by
+  `formatter.ts` as a distinct section after `relevantKnowledge`.
 - Exclusion sweep: semantic retrieval, KEA extraction, decay statistics, and
   Oracle rule-citation paths treat `action_item` as a task, not a rule.
 
@@ -141,7 +167,9 @@ must be able to answer task-shaped and meeting-shaped questions:
   they are tasks (`for:<email>` = assignee, `meeting:<date>` = origin), not
   rules — cite them as tasks, never as learned knowledge.
 - Deterministic enumeration for the canonical questions ("open items for
-  <person>", "items open >14 days"), so answers are complete, not
+  <person>", "items open >14 days", "current blockers", "unanswered open
+  questions", "status overview" = recent decisions + open items + blockers +
+  open questions for a project), so answers are complete, not
   embedding-lucky — same query core as §4b, exposed to the Oracle.
 - No new surface: this is the existing Oracle page; non-devs sign in with
   the normal voucher flow.
@@ -154,6 +182,9 @@ must be able to answer task-shaped and meeting-shaped questions:
 - `doc-draft`: on a new project, retrieve the recipe + relevant decisions and
   draft the document (Markdown / wiki / repo docs). Fixed-layout Word/Excel
   is explicitly out of scope.
+- `report-draft`: on demand only, compose a stakeholder status report from
+  the same data the Oracle enumerates (recent decisions, open items,
+  blockers, open questions). Never scheduled, never pushed.
 
 ## 5. Security & tenancy
 
@@ -189,7 +220,8 @@ must be able to answer task-shaped and meeting-shaped questions:
   enumeration (grouping + >14-day staleness).
 - **Integration/e2e:** fixture meeting ingested → assignee's next
   `brain_start_session` carries the item → retire → gone; Oracle answers the
-  three canonical task questions correctly from the fixture; cross-tenant
+  canonical task/status questions (§4c) correctly from the fixture, including
+  blockers-first ordering and open-question resolution; cross-tenant
   leak tests for both paths.
 - **Manual:** the §6.1 dry-run doubles as extraction-prompt validation on
   real (anonymized-in-writeups) meetings.
@@ -198,7 +230,9 @@ must be able to answer task-shaped and meeting-shaped questions:
 
 | Item | Trigger to revisit |
 |---|---|
-| Jira/GitHub task sync | Action-item loop proves out but items need to live in the org tracker |
+| GitHub/Jira/Confluence integration | Action-item/doc loop proves out but artifacts need to live in the org's existing tools |
+| Multilingual (Thai) extraction & search | Non-English meeting notes/docs become a real share of inputs |
+| ART/SAFe visibility dashboards | Oracle status answers prove insufficient for release-train stakeholders |
 | Word/Excel form filling | doc-draft succeeds on free-form docs and fixed forms remain a real cost |
 | ISO/process guidance | An audit or SOP mandate arrives with a named standard |
 | Task-board UI | Non-dev consumption via Oracle proves insufficient *and* adoption evidence exists |
