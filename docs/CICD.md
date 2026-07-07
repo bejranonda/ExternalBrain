@@ -48,8 +48,12 @@ want phantom references to be merge-blocking as well as visible.
 A fourth workflow, [`prod-drift.yml`](../.github/workflows/prod-drift.yml),
 runs daily (not per-PR): it compares the deployed `/api/healthz` `version`
 against `main`'s `git describe` and keeps exactly one `prod-drift` issue open
-while they differ — closing it itself once you redeploy. Forks without a
-`BRAIN_DEPLOY_URL` secret skip it green.
+while they differ — closing it itself once you redeploy. **Docs-only drift is
+exempt** (v1.14.0): when every file between the deployed build and `main`
+matches `docs/`, `REBUILD/`, or a root `*.md`, the state counts as in-sync —
+GitHub serves those from the repo, so nothing merged is missing from
+production, and a watchdog that cries over documentation trains you to
+ignore it. Forks without a `BRAIN_DEPLOY_URL` secret skip it green.
 
 > **Why the e2e gate is path-scoped:** three user-visible bugs once shipped past
 > CI because the suite only covered signed-in behaviour. The gate closes that
