@@ -23,6 +23,7 @@ import {
   listProjectActionItems,
   resolveActionItems,
 } from "../action-items.js";
+import { RULE_TYPES_PREDICATE } from "../kra.js";
 
 const dbReachable = await db.$queryRaw`SELECT 1`
   .then(() => true)
@@ -168,6 +169,21 @@ guard("action-items (V2.0)", () => {
     expect(out).toContain("[BLOCKER] unblock the staging database — sprint planning (meeting:2026-07-07-sprint) [id: k1]");
     expect(out).toContain("[OPEN QUESTION] who owns the auth migration? [id: k2]");
     expect(formatActionItemsForInjection([])).toBe("");
+  });
+
+  it("semantic-retrieval predicate excludes action_item rows (kra + oracle share it)", async () => {
+    // Mirror the WHERE shape kra.fetchCandidates / oracle.buildContext use,
+    // minus the embedding clause (no provider in CI): the predicate alone
+    // must hide tasks from any rule query it is appended to.
+    const rows = await db.$queryRawUnsafe<Array<{ id: string }>>(
+      `SELECT id FROM "Knowledge" WHERE "ownerUserId" = $1${RULE_TYPES_PREDICATE} AND "ownerProjectId" = $2`,
+      creatorId,
+      projectId,
+    );
+    const ids = rows.map((r) => r.id);
+    expect(ids).toContain(ruleId);
+    expect(ids).not.toContain(blockerId);
+    expect(ids).not.toContain(olderId);
   });
 
   it("resolve retires only project-scoped action items; rules and foreign projects are untouched", async () => {
