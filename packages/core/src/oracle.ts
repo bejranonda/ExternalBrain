@@ -21,6 +21,7 @@ import { embed } from "./embedding.js";
 import { reserveCapSlot, recordCall, DEFAULT_RESERVATION_USD, OracleCapReachedError } from "./cost.js";
 import { buildRawProjectFilterV2, buildSessionWhere } from "./scope-filter.js";
 import { RULE_TYPES_PREDICATE } from "./kra.js";
+import { listProjectActionItems, type ActionItemRow } from "./action-items.js";
 import type { DataScope, VisibilityScopeArgs } from "./scope-filter.js";
 
 export class OracleCapExceededError extends Error {
@@ -51,6 +52,11 @@ RULES:
 5. If the user's question is off-topic (not about their coding), redirect:
    "I'm your coding Brain — I can help with questions about your patterns,
    past work, and preferences."
+6. If an OPEN TASKS block is present it is the complete, authoritative list
+   of open action items, blockers, and open questions for the project —
+   answer status questions ("what is open / blocked / unanswered / stale?")
+   from it directly, and never present a task as a learned rule. Task lines
+   carry no [^N] markers; quote them plainly.
 
 Respond in markdown with [^N] citations.`;
 
@@ -178,6 +184,29 @@ async function buildContext(
     project: s.project ? { name: s.project.name } : null,
   }));
 
+  // V2.0 (spec 2026-07-07 §4c): deterministic open-task context — complete
+  // enumeration, not embedding-lucky. Flag-gated (dark); tasks are cited as
+  // tasks, never as learned knowledge (kept out of `knowledge` so
+  // groundedness and [^K] citations are unaffected). Direct env read matches
+  // oracle.ts's existing process.env.ORACLE_MODEL style.
+  let taskBlock = "";
+  const tasksEnabled = /^(1|true|yes|on)$/i.test(
+    process.env.V2_ORACLE_TASKS ?? "",
+  );
+  if (tasksEnabled) {
+    try {
+      const tasks = await listProjectActionItems({
+        userId,
+        projectId: projectId ?? null,
+        accessibleProjectIds: visibilityArgs?.accessibleProjectIds ?? [],
+      });
+      taskBlock = buildTaskBlock(tasks);
+    } catch {
+      // Fail-soft: the Oracle answers without task context rather than 500ing.
+      taskBlock = "";
+    }
+  }
+
   const knowledgeBlock = knowledge
     .map(
       (k, i) =>
@@ -200,7 +229,7 @@ async function buildContext(
 
 RELEVANT KNOWLEDGE:
 ${knowledgeBlock || "(no knowledge matches)"}
-
+${taskBlock ? `\nOPEN TASKS (complete list for this project — authoritative for "what is open/blocked/unanswered" questions):\n${taskBlock}\n` : ""}
 RELEVANT SESSIONS:
 ${sessionBlock || "(no sessions)"}
 
@@ -214,11 +243,34 @@ ANSWER (markdown, with [^N] citations):`;
     sessions: RetrievedSession[];
     systemPromptOverride?: string;
   } = { userPrompt, knowledge, sessions };
-  if (knowledge.length === 0 && sessions.length === 0) {
+  if (knowledge.length === 0 && sessions.length === 0 && taskBlock === "") {
     result.systemPromptOverride = SYSTEM_PROMPT_NO_CONTEXT;
   }
 
   return result;
+}
+
+/**
+ * Render the OPEN TASKS prompt block (V2.0 spec §4c). Pure — exported for
+ * unit tests. One line per task: blockers marked and (via listProjectActionItems
+ * ordering) first, open questions labeled, assignee from the `for:` tag,
+ * >14-day-old items flagged stale. `now` injectable for determinism.
+ */
+export function buildTaskBlock(
+  tasks: Array<Pick<ActionItemRow, "ruleText" | "tags" | "createdAt">>,
+  now: number = Date.now(),
+): string {
+  const STALE_MS = 14 * 86_400_000;
+  return tasks
+    .map((t) => {
+      const forTag = t.tags.find((x) => x.startsWith("for:"));
+      const stale =
+        now - new Date(t.createdAt).getTime() > STALE_MS ? " [stale >14d]" : "";
+      const blocker = t.tags.includes("blocker") ? "[BLOCKER] " : "";
+      const kind = t.tags.includes("open-question") ? "open question" : "task";
+      return `- ${blocker}(${kind}) ${t.ruleText} — assignee: ${forTag ? forTag.slice(4) : "unassigned"}${stale}`;
+    })
+    .join("\n");
 }
 
 function confidenceFrom(knowledge: unknown[]): "high" | "medium" | "low" {
