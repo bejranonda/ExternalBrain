@@ -236,7 +236,7 @@ Three tool-surface additions carry the meeting-intelligence loop
 
 - **`brain_teach_knowledge` accepts `type: "action_item"`** — a meeting to-do
   or open question. Tag contract: `action-item` *or* `open-question`, plus
-  `for:<assignee-email-lowercase>`, `meeting:<date-slug>`, and `blocker` when
+  `for:<assignee-email-lowercase>`, `meeting:<YYYY-MM-DD-slug>`, and `blocker` when
   it blocks other work. Action items are **tasks, not rules**: they are
   excluded from semantic retrieval, KEA, and decay statistics everywhere.
 - **`brain_start_session` response may carry `openActionItems`**

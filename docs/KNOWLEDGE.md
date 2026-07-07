@@ -47,7 +47,7 @@ to-do or open question. It is a **task, not a rule**, and sits outside the
 ontology's retrieval semantics:
 
 - **Tag contract:** `action-item` *or* `open-question`; assignee as
-  `for:<email-lowercase>`; origin as `meeting:<date-slug>`; `blocker` when it
+  `for:<email-lowercase>`; origin as `meeting:<YYYY-MM-DD-slug>`; `blocker` when it
   blocks other work.
 - **Lifecycle:** open (active row) → resolved (`resolvedActionItemIds` at
   session close soft-deletes it) → or abandoned (normal decay expires it;
