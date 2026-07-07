@@ -19,6 +19,8 @@ const KEEP = [
   "PG_BOSS_SCHEMA",
   "KEA_ENABLED",
   "AUTOSKILL_ENABLED",
+  "V2_ACTION_ITEMS",
+  "V2_ORACLE_TASKS",
 ] as const;
 
 let saved: Partial<Record<(typeof KEEP)[number], string | undefined>>;
@@ -103,6 +105,20 @@ describe("env", () => {
       MCP_TRANSPORT: "quic",
     });
     expect(() => envForMcp()).toThrow(/MCP_TRANSPORT/);
+  });
+
+  it("V2 dark-launch flags default OFF and parse boolish", () => {
+    setEnv({ DATABASE_URL: "postgresql://x" });
+    expect(envForMcp().V2_ACTION_ITEMS).toBe(false);
+    expect(envForWeb().V2_ORACLE_TASKS).toBe(false);
+
+    setEnv({
+      DATABASE_URL: "postgresql://x",
+      V2_ACTION_ITEMS: "true",
+      V2_ORACLE_TASKS: "1",
+    });
+    expect(envForMcp().V2_ACTION_ITEMS).toBe(true);
+    expect(envForWeb().V2_ORACLE_TASKS).toBe(true);
   });
 
   it("memoizes — repeated calls return the same object", () => {

@@ -40,6 +40,9 @@ const Shared = z.object({
   EMBEDDING_BASE_URL: z.string().optional(),
   EMBEDDING_API_KEY: z.string().optional(),
   GOOGLE_GEMINI_API_KEY: z.string().optional(),
+  // V2.0 (spec 2026-07-07) — dark-launch flags, default OFF until gate #149 passes.
+  V2_ACTION_ITEMS: boolish(false),
+  V2_ORACLE_TASKS: boolish(false),
   // Wave 2: multi-replica durability.
   REDIS_URL: z.string().optional(),
   SENTRY_DSN: z.string().optional(),

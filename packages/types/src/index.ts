@@ -15,7 +15,10 @@ export type KnowledgeType =
   | "recipe"
   | "heuristic"
   | "principle"
-  | "anti_principle";
+  | "anti_principle"
+  // V2.0: meeting action items / open questions — a task, not a rule;
+  // excluded from semantic retrieval (spec 2026-07-07).
+  | "action_item";
 
 export type KnowledgeScope =
   | "global"
