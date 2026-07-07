@@ -1,0 +1,188 @@
+# Brain V2.0 — Meeting & Document Intelligence (2026-07-07)
+
+**Status:** approved design, pending implementation plan
+**Audience:** the operator + the agents working this repo
+**Build window:** after the Stage-3 flywheel gate reads on 2026-07-17 (issue
+#149); protocol/spec work only until then
+**Depends on:** flywheel-repair program (2026-07-02 spec) — a healthy loop is
+a precondition, not a nice-to-have
+
+---
+
+## 1. Problem statement
+
+The original "V2" brief listed seven expansion areas (meeting intelligence,
+PRD/document templates, kanban/PM, ISO/process compliance, admin assistance,
+agentic guardrails, Jira/GitHub integration). Grilling reduced it to **two
+live pains in the operator's own organization**, observed in the
+currently-running project (mostly-English artifacts):
+
+1. **Meetings produce artifacts nobody acts on.** Auto transcripts and
+   human-written notes exist, but: nobody reads them, no per-person to-do
+   emerges, and there is no decision memory — a claim made in a meeting that
+   later proves wrong cannot be challenged with a record.
+2. **Every project re-fills the same document set from scratch.** The
+   knowledge inside the previous project's documents (structure, conventions,
+   content decisions) evaporates at project end.
+
+Adoption reality: developers work through AI agents daily and can connect to
+the Brain; non-developers (scrum master, stakeholders — the primary consumers
+of meeting outputs) do not and will not soon. Any design requiring non-devs to
+open a new app repeats the exact failure it is trying to fix ("no one reads
+the meeting notes").
+
+Root-cause honesty: pain 1 is partly social (no accountability culture), not
+purely technical. This design lowers the friction of accountability — items
+appear where devs already work, and stale items are surfaced to stakeholders —
+but it does not claim software alone changes stakeholder behavior.
+
+## 2. Scope
+
+### Goals
+
+1. A meeting (transcript or notes) ingested through a normal agent session
+   yields: a **summary** (session close), **decisions** (existing
+   decision-knowledge: `scope: "project"`, `"decision"` tag, supersession —
+   this is the "challenge the wrong claim" mechanism), and **action items**
+   assigned to people.
+2. Developers see *their* open action items **deterministically** at every
+   `brain_start_session` — addressed by identity, not retrieval-matched.
+3. Non-developers receive a **periodic email digest** (decisions + open items
+   per assignee + stale items) with zero adoption required.
+4. Document knowhow is harvested as knowledge (`doc-harvest`) and reused to
+   draft the next project's free-form/wiki/repo docs (`doc-draft`).
+
+### Non-goals (deferred, not rejected)
+
+- Kanban / task-board UI or any task state machine
+- ISO / SOP process-compliance guidance
+- Word/Excel fixed-form generation (agent-side tooling later if needed)
+- Jira / GitHub task sync
+- Meeting bots, live capture, speech-to-text
+- Any new webapp surface
+
+Revisit each only if the meeting/doc loop proves itself in real use.
+
+## 3. Architecture — one loop, zero new entities, zero migrations
+
+A meeting is a session; its outputs are knowledge. No new Prisma models, no
+schema migration (keeps the autonomous merge→release→deploy envelope valid).
+
+```
+transcript/notes ──▶ agent session (meeting-miner skill)
+                       ├─ decisions    → brain_teach_knowledge (existing path)
+                       ├─ action items → Knowledge rows: type="action_item",
+                       │                 tags ["action-item","for:<email>","meeting:<date>"]
+                       └─ summary      → brain_report_session_outcome (existing)
+
+injection (devs):    deterministic "open action items" block in the
+                     brain_start_session response, alongside relevantKnowledge
+digest (non-devs):   pg-boss cron in apps/worker → existing email.ts
+docs:                doc-harvest + doc-draft skills over existing tool paths
+```
+
+Design decisions and their rationale:
+
+- **`action_item` is a new `type` value, not a new entity.** `Knowledge.type`
+  is a plain string column; the new value is code-only. A distinct type (vs
+  tag-only) lets semantic retrieval, KEA, decay stats, and Oracle
+  rule-citations **exclude** action items cleanly — tasks are not rules and
+  must never pollute `relevantKnowledge`.
+- **Assignee lives in a `for:<email>` tag**, resolved at injection time.
+  `ownerUserId` keeps meaning "creator" — scope-isolation logic is untouched.
+- **No status field.** Open = active row; done/obsolete = existing retire path
+  (supersession or knowledge patch); abandoned = decay expiry. No state
+  machine to build or migrate.
+
+## 4. Components
+
+### 4a. `meeting-miner` skill (protocol, no platform code)
+
+Drives any connected agent: open a session (`prompt: "meeting: <title>
+<date>"`), read the transcript/notes, extract →
+
+- each **decision**: `brain_teach_knowledge` with `scope: "project"`,
+  `"decision"` in tags, `instead` = rejected alternative,
+  `supersedesKnowledgeId` when it reverses a prior decision;
+- each **action item**: `type: "action_item"`, tags
+  `["action-item", "for:<email>", "meeting:<date-slug>"]`, `ruleText` = the
+  task, `triggerText` = context/deadline;
+- close with summary + learnings.
+
+Also the completion path: when an item is done or obsolete, retire it via the
+existing patch/supersede path.
+
+### 4b. Addressed injection (platform, `packages/core`)
+
+`brain_start_session` response gains an `openActionItems` block:
+
+- Query: `type = 'action_item'` AND project matches AND tags contain
+  `for:<caller's email>` AND not retired/deleted.
+- Cap ~10, oldest first; rendered by `formatter.ts` as a distinct section
+  after `relevantKnowledge`.
+- Exclusion sweep: semantic retrieval, KEA extraction, decay statistics, and
+  Oracle rule-citation paths treat `action_item` as a task, not a rule.
+
+### 4c. Digest job (platform, `apps/worker`)
+
+pg-boss cron, weekly by default, per-project configuration (env/admin):
+
+- Gathers since-last-digest decisions; open items grouped by assignee; items
+  open >14 days flagged stale.
+- Rendered via `email-templates.ts`, sent via existing `email.ts` to a
+  configured recipient list. One email; no login; no new surface.
+
+### 4d. Doc knowledge (protocol, no platform code)
+
+- `doc-harvest`: point an agent at a finished project's documents; it teaches
+  per-doc-type recipes (structure, conventions, embedded decisions, reusable
+  boilerplate) as `recipe` knowledge.
+- `doc-draft`: on a new project, retrieve the recipe + relevant decisions and
+  draft the document (Markdown / wiki / repo docs). Fixed-layout Word/Excel
+  is explicitly out of scope.
+
+## 5. Security & tenancy
+
+- Teammates join the existing live instance via the normal voucher flow;
+  everything is bounded by existing per-project/org scope isolation.
+- Action items carry `visibility: "project"`.
+- The operator's other projects (real client data) are untouched by
+  construction — different project scope.
+- New test obligation: cross-tenant coverage extends to `action_item` rows
+  and the digest query (a digest must never aggregate across orgs).
+
+## 6. Rollout
+
+1. **Now (freeze-safe):** this spec + implementation plan; manual dry-run of
+   the meeting-miner protocol on real meetings of the running project —
+   validates extraction quality and the `for:` convention with zero platform
+   code, and produces test fixtures.
+2. **2026-07-17 — gate reads (#149).** Pass → build. Fail → flywheel
+   diagnosis takes priority (flywheel spec §5: do not proceed anyway); the V2
+   build waits. V2 depends on a healthy loop.
+3. **Build order, two PRs, no migrations:**
+   - **PR-1:** `action_item` type + addressed injection + retrieval/KEA/decay
+     exclusion + tests.
+   - **PR-2:** digest cron + email template + per-project config + tests.
+   Each lands via the standing PR → green-CI → release → deploy workflow.
+
+## 7. Testing
+
+- **Unit:** injection query (addressing, cap, retired-exclusion); retrieval
+  exclusion of `action_item`; digest grouping + staleness flags.
+- **Integration/e2e:** fixture meeting ingested → assignee's next
+  `brain_start_session` carries the item → retire → gone; digest renders the
+  expected email from a fixture; cross-tenant leak tests for both paths.
+- **Manual:** the §6.1 dry-run doubles as extraction-prompt validation on
+  real (anonymized-in-writeups) meetings.
+
+## 8. Deferred-items register
+
+| Item | Trigger to revisit |
+|---|---|
+| Jira/GitHub task sync | Action-item loop proves out but items need to live in the org tracker |
+| Word/Excel form filling | doc-draft succeeds on free-form docs and fixed forms remain a real cost |
+| ISO/process guidance | An audit or SOP mandate arrives with a named standard |
+| Task-board UI | Non-dev consumption via digest proves insufficient *and* adoption evidence exists |
+| Meeting bots / STT | Transcript coverage gaps become the bottleneck |
+| Agentic guardrails hardening | Treated separately from V2 — it is loop work (injection policy), not expansion |
