@@ -100,7 +100,7 @@ schema migration (keeps the autonomous merge→release→deploy envelope valid).
 transcript/notes ──▶ agent session (meeting-miner skill)
                        ├─ decisions    → brain_teach_knowledge (existing path)
                        ├─ action items → Knowledge rows: type="action_item",
-                       │                 tags ["action-item","for:<email>","meeting:<date>"]
+                       │                 tags ["action-item","for:<email>","meeting:<YYYY-MM-DD-slug>"]
                        └─ summary      → brain_report_session_outcome (existing)
 
 injection (devs):    deterministic "open action items" block in the
@@ -134,11 +134,11 @@ Drives any connected agent: open a session (`prompt: "meeting: <title>
   `"decision"` in tags, `instead` = rejected alternative,
   `supersedesKnowledgeId` when it reverses a prior decision;
 - each **action item**: `type: "action_item"`, tags
-  `["action-item", "for:<email>", "meeting:<date-slug>"]`, `ruleText` = the
+  `["action-item", "for:<email>", "meeting:<YYYY-MM-DD-slug>"]`, `ruleText` = the
   task, `triggerText` = context/deadline; add a `"blocker"` tag when the
   item blocks other work;
 - each **open question**: same `action_item` type value (one exclusion sweep),
-  tags `["open-question", "meeting:<date-slug>"]` plus `for:<email>` when
+  tags `["open-question", "meeting:<YYYY-MM-DD-slug>"]` plus `for:<email>` when
   someone owns finding the answer; retired when answered — ideally by the
   decision that answers it (link via supersession);
 - close with summary + learnings.
@@ -164,7 +164,7 @@ The §4b exclusion sweep gets one deliberate exemption: the **Oracle**. It
 must be able to answer task-shaped and meeting-shaped questions:
 
 - Include `action_item` rows in Oracle retrieval, with prompt guidance that
-  they are tasks (`for:<email>` = assignee, `meeting:<date>` = origin), not
+  they are tasks (`for:<email>` = assignee, `meeting:<YYYY-MM-DD-slug>` = origin), not
   rules — cite them as tasks, never as learned knowledge.
 - Deterministic enumeration for the canonical questions ("open items for
   <person>", "items open >14 days", "current blockers", "unanswered open

@@ -214,7 +214,7 @@ export async function resolveActionItems(opts: {
 - Produces: `brain_teach_knowledge` accepts `type: "action_item"`; rows persist with `visibility` default `"project"` (schema default, no code change).
 
 - [ ] **Step 1:** Failing test (db-guarded): call `teachKnowledge.handler({ type: "action_item", trigger: "sprint planning 2026-07-07", rule: "Update the deployment runbook", scope: "project", tags: ["action-item", "for:assignee@test.local", "blocker"] }, authFor(creator))` → expect `{ id }`; row in DB has `type === "action_item"` and `visibility === "project"`. (Embedding call fails in CI env — check teach.ts: the embed happens after create; wrap expectation accordingly: if the handler throws on embed failure this test documents it; mirror how existing teach tests handle it — check `apps/mcp-server/src/__tests__/` for a teach test first and copy its guard.)
-- [ ] **Step 2:** Add `"action_item"` to the zod enum (line 15) and the JSON-schema enum (line 38). Append to the tool description: `"For a meeting ACTION ITEM or OPEN QUESTION: type:'action_item', tags ['action-item'|'open-question', 'for:<assignee-email-lowercase>', 'meeting:<date-slug>', optionally 'blocker']; it is surfaced to the assignee at session start and via the Oracle, never as a rule."`
+- [ ] **Step 2:** Add `"action_item"` to the zod enum (line 15) and the JSON-schema enum (line 38). Append to the tool description: `"For a meeting ACTION ITEM or OPEN QUESTION: type:'action_item', tags ['action-item'|'open-question', 'for:<assignee-email-lowercase>', 'meeting:<YYYY-MM-DD-slug>', optionally 'blocker']; it is surfaced to the assignee at session start and via the Oracle, never as a rule."`
 - [ ] **Step 3:** Run tests (CI), expect PASS. Commit `feat(mcp): teach accepts action_item type (meeting to-dos / open questions)`.
 
 ### Task 4: addressed injection at `brain_start_session` (flagged)
@@ -352,7 +352,7 @@ export const RULE_TYPES_PREDICATE = ` AND "type" <> 'action_item'`;
 
 **Interfaces:** none.
 
-- [ ] **Step 1:** Write the two doc sections; hand-verify every field name against the code (`openActionItems`, `resolvedActionItemIds`, `for:<email>`, `action-item`/`open-question`/`blocker`/`meeting:<date>` tags).
+- [ ] **Step 1:** Write the two doc sections; hand-verify every field name against the code (`openActionItems`, `resolvedActionItemIds`, `for:<email>`, `action-item`/`open-question`/`blocker`/`meeting:<YYYY-MM-DD-slug>` tags).
 - [ ] **Step 2:** Commit `docs: action-item contract in MCP_TOOLS + KNOWLEDGE`. Push branch, open PR-1 titled `feat: V2.0 addressed action items (dark, V2_ACTION_ITEMS)` with an honest test plan (CI-only gates noted).
 - [ ] **Step 3:** Watch `gh pr checks` until green (fix anything red: typecheck/test/build). Read CodeRabbit inline comments; address or answer each. Merge (policy B: green CI + no migration).
 
