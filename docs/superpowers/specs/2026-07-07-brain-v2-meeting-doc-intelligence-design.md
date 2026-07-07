@@ -29,7 +29,10 @@ Adoption reality: developers work through AI agents daily and can connect to
 the Brain; non-developers (scrum master, stakeholders — the primary consumers
 of meeting outputs) do not and will not soon. Any design requiring non-devs to
 open a new app repeats the exact failure it is trying to fix ("no one reads
-the meeting notes").
+the meeting notes"). The operator knowingly accepts a residual form of this
+risk: with email/push rejected (§2), non-devs consume via the existing webapp
+Oracle, which requires them to sign in and ask — non-dev Oracle adoption is
+the explicit bet of goal 3.
 
 Root-cause honesty: pain 1 is partly social (no accountability culture), not
 purely technical. This design lowers the friction of accountability — items
@@ -47,8 +50,11 @@ but it does not claim software alone changes stakeholder behavior.
    assigned to people.
 2. Developers see *their* open action items **deterministically** at every
    `brain_start_session` — addressed by identity, not retrieval-matched.
-3. Non-developers receive a **periodic email digest** (decisions + open items
-   per assignee + stale items) with zero adoption required.
+3. Non-developers get answers through the **existing webapp Oracle** —
+   "what are my open action items?", "what did we decide about X?", "which
+   items have gone stale?" — by making the Oracle task-aware. **Operator
+   decision (2026-07-07): no email (or other push) notifications, to anyone.**
+   The only channels are the harness (MCP) and the Oracle.
 4. Document knowhow is harvested as knowledge (`doc-harvest`) and reused to
    draft the next project's free-form/wiki/repo docs (`doc-draft`).
 
@@ -60,6 +66,8 @@ but it does not claim software alone changes stakeholder behavior.
 - Jira / GitHub task sync
 - Meeting bots, live capture, speech-to-text
 - Any new webapp surface
+- Email or any push notifications (operator decision 2026-07-07 — Oracle +
+  harness are the only channels)
 
 Revisit each only if the meeting/doc loop proves itself in real use.
 
@@ -77,7 +85,8 @@ transcript/notes ──▶ agent session (meeting-miner skill)
 
 injection (devs):    deterministic "open action items" block in the
                      brain_start_session response, alongside relevantKnowledge
-digest (non-devs):   pg-boss cron in apps/worker → existing email.ts
+oracle (non-devs):   existing webapp Oracle answers meeting/task questions
+                     over decisions + action items (task-aware retrieval)
 docs:                doc-harvest + doc-draft skills over existing tool paths
 ```
 
@@ -123,14 +132,19 @@ existing patch/supersede path.
 - Exclusion sweep: semantic retrieval, KEA extraction, decay statistics, and
   Oracle rule-citation paths treat `action_item` as a task, not a rule.
 
-### 4c. Digest job (platform, `apps/worker`)
+### 4c. Oracle task-awareness (platform, `packages/core`)
 
-pg-boss cron, weekly by default, per-project configuration (env/admin):
+The §4b exclusion sweep gets one deliberate exemption: the **Oracle**. It
+must be able to answer task-shaped and meeting-shaped questions:
 
-- Gathers since-last-digest decisions; open items grouped by assignee; items
-  open >14 days flagged stale.
-- Rendered via `email-templates.ts`, sent via existing `email.ts` to a
-  configured recipient list. One email; no login; no new surface.
+- Include `action_item` rows in Oracle retrieval, with prompt guidance that
+  they are tasks (`for:<email>` = assignee, `meeting:<date>` = origin), not
+  rules — cite them as tasks, never as learned knowledge.
+- Deterministic enumeration for the canonical questions ("open items for
+  <person>", "items open >14 days"), so answers are complete, not
+  embedding-lucky — same query core as §4b, exposed to the Oracle.
+- No new surface: this is the existing Oracle page; non-devs sign in with
+  the normal voucher flow.
 
 ### 4d. Doc knowledge (protocol, no platform code)
 
@@ -149,7 +163,8 @@ pg-boss cron, weekly by default, per-project configuration (env/admin):
 - The operator's other projects (real client data) are untouched by
   construction — different project scope.
 - New test obligation: cross-tenant coverage extends to `action_item` rows
-  and the digest query (a digest must never aggregate across orgs).
+  in both the injection query and Oracle answers (an Oracle answer must never
+  surface another org's tasks).
 
 ## 6. Rollout
 
@@ -163,16 +178,19 @@ pg-boss cron, weekly by default, per-project configuration (env/admin):
 3. **Build order, two PRs, no migrations:**
    - **PR-1:** `action_item` type + addressed injection + retrieval/KEA/decay
      exclusion + tests.
-   - **PR-2:** digest cron + email template + per-project config + tests.
+   - **PR-2:** Oracle task-awareness (retrieval inclusion + deterministic
+     enumeration + prompt guidance) + tests.
    Each lands via the standing PR → green-CI → release → deploy workflow.
 
 ## 7. Testing
 
 - **Unit:** injection query (addressing, cap, retired-exclusion); retrieval
-  exclusion of `action_item`; digest grouping + staleness flags.
+  exclusion of `action_item` everywhere except the Oracle; deterministic
+  enumeration (grouping + >14-day staleness).
 - **Integration/e2e:** fixture meeting ingested → assignee's next
-  `brain_start_session` carries the item → retire → gone; digest renders the
-  expected email from a fixture; cross-tenant leak tests for both paths.
+  `brain_start_session` carries the item → retire → gone; Oracle answers the
+  three canonical task questions correctly from the fixture; cross-tenant
+  leak tests for both paths.
 - **Manual:** the §6.1 dry-run doubles as extraction-prompt validation on
   real (anonymized-in-writeups) meetings.
 
@@ -183,6 +201,7 @@ pg-boss cron, weekly by default, per-project configuration (env/admin):
 | Jira/GitHub task sync | Action-item loop proves out but items need to live in the org tracker |
 | Word/Excel form filling | doc-draft succeeds on free-form docs and fixed forms remain a real cost |
 | ISO/process guidance | An audit or SOP mandate arrives with a named standard |
-| Task-board UI | Non-dev consumption via digest proves insufficient *and* adoption evidence exists |
+| Task-board UI | Non-dev consumption via Oracle proves insufficient *and* adoption evidence exists |
+| Email/push notifications | Rejected by operator decision (2026-07-07); revisit only if the operator reverses it after Oracle adoption evidence |
 | Meeting bots / STT | Transcript coverage gaps become the bottleneck |
 | Agentic guardrails hardening | Treated separately from V2 — it is loop work (injection policy), not expansion |
