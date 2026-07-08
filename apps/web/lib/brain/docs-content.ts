@@ -157,15 +157,17 @@ export const DOCS: Record<string, DocPage> = {
         ],
       },
       {
-        heading: "Five types — different shapes of knowledge",
-        body: ["Skills carry a type so retrieval can rank them appropriately:"],
+        heading: "Five rule types — plus a Decisions view",
+        body: [
+          "Skills carry a type so retrieval can rank them appropriately:",
+          "The Decisions chip in the type filter is not a sixth type — it is a view of the principle / anti-pattern skills that record a settled team choice (tagged as a decision). They carry the rejected alternative and never fade; they stay until a newer decision overturns them. \"We deploy from main only (not a develop branch).\"",
+        ],
         bullets: [
           "Recipe — concrete how-to. \"When CORS fails with credentials, echo origin from allowlist + Vary: Origin.\"",
           "Rule of thumb — a default unless a reason exists otherwise. \"Prefer react-hook-form over Formik.\"",
           "Principle — a value-driven decision. \"Performance over abstraction in the hot path.\"",
           "Reflex — automatic, fast. \"On a Prisma migration, also bump the seed file.\"",
           "Anti-pattern — what NOT to do. \"Never pass a JWT in a query string.\"",
-          "Decisions (own filter on this page) — settled team choices, recorded with the rejected alternative. They never fade; they stay until a newer decision overturns them. \"We deploy from main only (not a develop branch).\"",
         ],
       },
       {
@@ -596,15 +598,17 @@ const DOCS_DE: Record<string, DocPage> = {
         ],
       },
       {
-        heading: "Fünf Typen — verschiedene Formen von Wissen",
-        body: ["Skills tragen einen Typ, damit das Retrieval sie passend einordnen kann:"],
+        heading: "Fünf Regeltypen — plus eine Decisions-Ansicht",
+        body: [
+          "Skills tragen einen Typ, damit das Retrieval sie passend einordnen kann:",
+          "Der Decisions-Chip im Typ-Filter ist kein sechster Typ, sondern eine Ansicht der Prinzip-/Anti-Pattern-Skills, die eine beschlossene Team-Festlegung festhalten (als Decision getaggt). Sie enthalten die verworfene Alternative und verblassen nie; sie gelten, bis eine neuere Entscheidung sie ablöst. „Deploy nur von main (kein develop-Branch).“",
+        ],
         bullets: [
           "Rezept — konkrete Anleitung. „Wenn CORS mit Credentials fehlschlägt, gib den Origin aus der Allowlist zurück + Vary: Origin.“",
           "Faustregel — ein Standard, sofern kein Grund dagegen spricht. „Bevorzuge react-hook-form gegenüber Formik.“",
           "Prinzip — eine wertegetriebene Entscheidung. „Performance vor Abstraktion im Hot Path.“",
           "Reflex — automatisch, schnell. „Bei einer Prisma-Migration auch die Seed-Datei anpassen.“",
           "Anti-Pattern — was man NICHT tun sollte. „Niemals ein JWT in einem Query-String übergeben.“",
-          "Decisions (eigener Filter auf dieser Seite) — beschlossene Team-Festlegungen, samt der verworfenen Alternative. Sie verblassen nie; sie gelten, bis eine neuere Entscheidung sie ablöst. „Deploy nur von main (kein develop-Branch).“",
         ],
       },
       {
@@ -1001,15 +1005,17 @@ const DOCS_TH: Record<string, DocPage> = {
         ],
       },
       {
-        heading: "ห้าประเภท — รูปแบบความรู้ที่ต่างกัน",
-        body: ["Skill มีประเภทกำกับเพื่อให้การค้นคืนจัดอันดับได้เหมาะสม:"],
+        heading: "ห้าประเภทกฎ — พร้อมมุมมอง Decisions",
+        body: [
+          "Skill มีประเภทกำกับเพื่อให้การค้นคืนจัดอันดับได้เหมาะสม:",
+          "ชิป Decisions ในตัวกรองประเภทไม่ใช่ประเภทที่หก แต่เป็นมุมมองของ skill ประเภทหลักการ/Anti-pattern ที่บันทึกข้อสรุปของทีม (ติดแท็กว่าเป็น decision) โดยเก็บทางเลือกที่ถูกปฏิเสธไว้ด้วย และไม่มีวันจางหาย คงอยู่จนกว่าการตัดสินใจใหม่จะมาแทนที่ เช่น “deploy จาก main เท่านั้น (ไม่ใช้ branch develop)”",
+        ],
         bullets: [
           "สูตร (Recipe) — วิธีทำแบบเป็นรูปธรรม “เมื่อ CORS ล้มเหลวพร้อม credentials ให้ส่ง origin จาก allowlist กลับ + Vary: Origin”",
           "กฎทั่วไป (Rule of thumb) — ค่าตั้งต้นเว้นแต่มีเหตุผลเป็นอื่น “เลือกใช้ react-hook-form มากกว่า Formik”",
           "หลักการ (Principle) — การตัดสินใจที่ขับด้วยคุณค่า “Performance มาก่อน abstraction ในเส้นทางที่วิกฤต”",
           "รีเฟล็กซ์ (Reflex) — อัตโนมัติ รวดเร็ว “เมื่อทำ Prisma migration ให้อัปเดตไฟล์ seed ด้วย”",
           "Anti-pattern — สิ่งที่ไม่ควรทำ “อย่าส่ง JWT ใน query string เด็ดขาด”",
-          "การตัดสินใจ (Decisions — ตัวกรองแยกในหน้านี้) — ข้อสรุปของทีมที่ตกลงกันแล้ว บันทึกพร้อมทางเลือกที่ถูกปฏิเสธ ไม่มีวันจางหาย คงอยู่จนกว่าการตัดสินใจใหม่จะมาแทนที่ เช่น “deploy จาก main เท่านั้น (ไม่ใช้ branch develop)”",
         ],
       },
       {
