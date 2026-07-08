@@ -137,7 +137,7 @@ export const DOCS: Record<string, DocPage> = {
     related: ["vocabulary", "tokens", "sessions", "oracle"],
     repoDoc: {
       label: "MCP tools reference",
-      href: "https://github.com/bejranonda/BrainPlatform/blob/main/docs/MCP_TOOLS.md",
+      href: "https://github.com/bejranonda/ExternalBrain/blob/main/docs/MCP_TOOLS.md",
     },
   },
 
@@ -165,6 +165,7 @@ export const DOCS: Record<string, DocPage> = {
           "Principle — a value-driven decision. \"Performance over abstraction in the hot path.\"",
           "Reflex — automatic, fast. \"On a Prisma migration, also bump the seed file.\"",
           "Anti-pattern — what NOT to do. \"Never pass a JWT in a query string.\"",
+          "Decisions (own filter on this page) — settled team choices, recorded with the rejected alternative. They never fade; they stay until a newer decision overturns them. \"We deploy from main only (not a develop branch).\"",
         ],
       },
       {
@@ -181,7 +182,7 @@ export const DOCS: Record<string, DocPage> = {
       },
     ],
     related: ["autoskill", "oracle", "decay"],
-    repoDoc: { label: "KNOWLEDGE.md (full ontology)", href: "https://github.com/bejranonda/BrainPlatform/blob/main/docs/KNOWLEDGE.md" },
+    repoDoc: { label: "Skill types explained for everyone (tutorial 07)", href: "https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/07-skill-types-explained.md" },
   },
 
   oracle: {
@@ -211,7 +212,7 @@ export const DOCS: Record<string, DocPage> = {
       },
     ],
     related: ["skills", "decay", "groundedness"],
-    repoDoc: { label: "HOW_IT_WORKS.md · Oracle", href: "https://github.com/bejranonda/BrainPlatform/blob/main/docs/HOW_IT_WORKS.md" },
+    repoDoc: { label: "HOW_IT_WORKS.md · Oracle", href: "https://github.com/bejranonda/ExternalBrain/blob/main/docs/HOW_IT_WORKS.md" },
   },
 
   sessions: {
@@ -398,7 +399,7 @@ export const DOCS: Record<string, DocPage> = {
       },
     ],
     related: ["connection-status", "sessions"],
-    repoDoc: { label: "tutorials/04-managing-tokens.md", href: "https://github.com/bejranonda/BrainPlatform/blob/main/docs/tutorials/04-managing-tokens.md" },
+    repoDoc: { label: "tutorials/04-managing-tokens.md", href: "https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/04-managing-tokens.md" },
   },
 
   "connection-status": {
@@ -577,7 +578,7 @@ const DOCS_DE: Record<string, DocPage> = {
     related: ["vocabulary", "tokens", "sessions", "oracle"],
     repoDoc: {
       label: "MCP-Tools-Referenz",
-      href: "https://github.com/bejranonda/BrainPlatform/blob/main/docs/MCP_TOOLS.md",
+      href: "https://github.com/bejranonda/ExternalBrain/blob/main/docs/MCP_TOOLS.md",
     },
   },
 
@@ -603,6 +604,7 @@ const DOCS_DE: Record<string, DocPage> = {
           "Prinzip — eine wertegetriebene Entscheidung. „Performance vor Abstraktion im Hot Path.“",
           "Reflex — automatisch, schnell. „Bei einer Prisma-Migration auch die Seed-Datei anpassen.“",
           "Anti-Pattern — was man NICHT tun sollte. „Niemals ein JWT in einem Query-String übergeben.“",
+          "Decisions (eigener Filter auf dieser Seite) — beschlossene Team-Festlegungen, samt der verworfenen Alternative. Sie verblassen nie; sie gelten, bis eine neuere Entscheidung sie ablöst. „Deploy nur von main (kein develop-Branch).“",
         ],
       },
       {
@@ -619,7 +621,7 @@ const DOCS_DE: Record<string, DocPage> = {
       },
     ],
     related: ["autoskill", "oracle", "decay"],
-    repoDoc: { label: "KNOWLEDGE.md (full ontology)", href: "https://github.com/bejranonda/BrainPlatform/blob/main/docs/KNOWLEDGE.md" },
+    repoDoc: { label: "Skill types explained for everyone (tutorial 07)", href: "https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/07-skill-types-explained.md" },
   },
 
   oracle: {
@@ -649,7 +651,7 @@ const DOCS_DE: Record<string, DocPage> = {
       },
     ],
     related: ["skills", "decay", "groundedness"],
-    repoDoc: { label: "HOW_IT_WORKS.md · Oracle", href: "https://github.com/bejranonda/BrainPlatform/blob/main/docs/HOW_IT_WORKS.md" },
+    repoDoc: { label: "HOW_IT_WORKS.md · Oracle", href: "https://github.com/bejranonda/ExternalBrain/blob/main/docs/HOW_IT_WORKS.md" },
   },
 
   sessions: {
@@ -834,7 +836,7 @@ const DOCS_DE: Record<string, DocPage> = {
       },
     ],
     related: ["connection-status", "sessions"],
-    repoDoc: { label: "tutorials/04-managing-tokens.md", href: "https://github.com/bejranonda/BrainPlatform/blob/main/docs/tutorials/04-managing-tokens.md" },
+    repoDoc: { label: "tutorials/04-managing-tokens.md", href: "https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/04-managing-tokens.md" },
   },
 
   "connection-status": {
@@ -981,7 +983,7 @@ const DOCS_TH: Record<string, DocPage> = {
     related: ["vocabulary", "tokens", "sessions", "oracle"],
     repoDoc: {
       label: "เอกสารอ้างอิงเครื่องมือ MCP",
-      href: "https://github.com/bejranonda/BrainPlatform/blob/main/docs/MCP_TOOLS.md",
+      href: "https://github.com/bejranonda/ExternalBrain/blob/main/docs/MCP_TOOLS.md",
     },
   },
 
@@ -1007,6 +1009,7 @@ const DOCS_TH: Record<string, DocPage> = {
           "หลักการ (Principle) — การตัดสินใจที่ขับด้วยคุณค่า “Performance มาก่อน abstraction ในเส้นทางที่วิกฤต”",
           "รีเฟล็กซ์ (Reflex) — อัตโนมัติ รวดเร็ว “เมื่อทำ Prisma migration ให้อัปเดตไฟล์ seed ด้วย”",
           "Anti-pattern — สิ่งที่ไม่ควรทำ “อย่าส่ง JWT ใน query string เด็ดขาด”",
+          "การตัดสินใจ (Decisions — ตัวกรองแยกในหน้านี้) — ข้อสรุปของทีมที่ตกลงกันแล้ว บันทึกพร้อมทางเลือกที่ถูกปฏิเสธ ไม่มีวันจางหาย คงอยู่จนกว่าการตัดสินใจใหม่จะมาแทนที่ เช่น “deploy จาก main เท่านั้น (ไม่ใช้ branch develop)”",
         ],
       },
       {
@@ -1023,7 +1026,7 @@ const DOCS_TH: Record<string, DocPage> = {
       },
     ],
     related: ["autoskill", "oracle", "decay"],
-    repoDoc: { label: "KNOWLEDGE.md (full ontology)", href: "https://github.com/bejranonda/BrainPlatform/blob/main/docs/KNOWLEDGE.md" },
+    repoDoc: { label: "Skill types explained for everyone (tutorial 07)", href: "https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/07-skill-types-explained.md" },
   },
 
   oracle: {
@@ -1053,7 +1056,7 @@ const DOCS_TH: Record<string, DocPage> = {
       },
     ],
     related: ["skills", "decay", "groundedness"],
-    repoDoc: { label: "HOW_IT_WORKS.md · Oracle", href: "https://github.com/bejranonda/BrainPlatform/blob/main/docs/HOW_IT_WORKS.md" },
+    repoDoc: { label: "HOW_IT_WORKS.md · Oracle", href: "https://github.com/bejranonda/ExternalBrain/blob/main/docs/HOW_IT_WORKS.md" },
   },
 
   sessions: {
@@ -1238,7 +1241,7 @@ const DOCS_TH: Record<string, DocPage> = {
       },
     ],
     related: ["connection-status", "sessions"],
-    repoDoc: { label: "tutorials/04-managing-tokens.md", href: "https://github.com/bejranonda/BrainPlatform/blob/main/docs/tutorials/04-managing-tokens.md" },
+    repoDoc: { label: "tutorials/04-managing-tokens.md", href: "https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/04-managing-tokens.md" },
   },
 
   "connection-status": {
@@ -1348,8 +1351,8 @@ const DOCS_CHROME: Record<Lang, DocsChrome> = {
     helpBrokenMid: " or ",
     helpBrokenLink2: "file an issue",
     helpBrokenPost: ".",
-    helpRunbookPre: "Operator / production runbook: ",
-    helpRunbookLink: "RUNBOOK.md",
+    helpRunbookPre: "Operator / production checklist: ",
+    helpRunbookLink: "DEPLOY_CHECKLIST.md",
     helpRunbookPost: ".",
     allConcepts: "← all concepts",
     whereYouSee: "Where you see this",
@@ -1378,7 +1381,7 @@ const DOCS_CHROME: Record<Lang, DocsChrome> = {
     helpBrokenLink2: "แจ้งปัญหา (issue)",
     helpBrokenPost: "",
     helpRunbookPre: "คู่มือผู้ดูแล / การใช้งานจริง: ",
-    helpRunbookLink: "RUNBOOK.md",
+    helpRunbookLink: "DEPLOY_CHECKLIST.md",
     helpRunbookPost: "",
     allConcepts: "← แนวคิดทั้งหมด",
     whereYouSee: "คุณเห็นสิ่งนี้ที่ไหน",
@@ -1406,8 +1409,8 @@ const DOCS_CHROME: Record<Lang, DocsChrome> = {
     helpBrokenMid: " oder ",
     helpBrokenLink2: "melde ein Issue",
     helpBrokenPost: ".",
-    helpRunbookPre: "Betreiber- / Produktions-Runbook: ",
-    helpRunbookLink: "RUNBOOK.md",
+    helpRunbookPre: "Betreiber- / Produktions-Checkliste: ",
+    helpRunbookLink: "DEPLOY_CHECKLIST.md",
     helpRunbookPost: ".",
     allConcepts: "← alle Konzepte",
     whereYouSee: "Wo du das siehst",

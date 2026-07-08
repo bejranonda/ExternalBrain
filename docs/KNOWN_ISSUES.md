@@ -311,6 +311,19 @@ behavior is v1.14-identical until the operator enables them.
 
 ---
 
+## 0l. Docs-hub integration audit (2026-07-08, v2.0.3)
+
+Triggered by the tutorials review: audited how every manual/tutorial is reached
+from the README, the docs indexes, and the deployed webapp's `/docs` hub.
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**Webapp docs hub pointed at the pre-rename repo.**~~ 18 absolute GitHub URLs in the in-app `/docs` hub and the concepts registry (all three locales) still said `bejranonda/BrainPlatform` after the repo became `ExternalBrain` — every "browse full docs / tutorials / troubleshooting / file an issue" link in the deployed product 404'd. Class lesson: after a repo rename, grep the whole tree for the old absolute URL — relative links survive renames, absolute ones don't. | `apps/web/app/docs/page.tsx`, `apps/web/lib/brain/docs-content.ts` | fixed (v2.0.3) |
+| ~~**Docs hub linked gitignored `docs/RUNBOOK.md`.**~~ The "operator runbook" item pointed at an author-only file that isn't in the public tree (dead even with the right repo). Retargeted to the public `docs/DEPLOY_CHECKLIST.md`, labels updated in EN/TH/DE. | same files | fixed (v2.0.3) |
+| ~~**Skills concept page omitted the Decisions filter; tutorials invisible from the root README.**~~ The in-app skills concept now lists the Decisions filter (all locales) and deep-links tutorial 07; root README gained a tutorials row; END_USER count corrected to seven guides. | `docs-content.ts`, `README.md`, `docs/END_USER.md` | fixed (v2.0.3) |
+
+---
+
 ## 0. MVP-complete open items (2026-04-29, operator action required)
 
 These are not blocking pilot but must be resolved before a second contributor joins or the platform is advertised publicly.

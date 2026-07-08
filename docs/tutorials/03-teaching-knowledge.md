@@ -145,5 +145,6 @@ dashboard; they don't appear in the Oracle's context.
 
 ## Next
 
+- **[Tutorial 07 — Skill types, explained](./07-skill-types-explained.md):** what Recipe / Rule of thumb / Principle / Reflex / Anti-pattern / Decisions actually mean, in plain language with everyday examples — the deep version of the type table above.
 - **[Tutorial 04 — Token scope + management](./04-managing-tokens.md):** scope a token to a single project so a contractor / temporary team member only sees the relevant slice of your Brain.
 - **[Tutorial 05 — Exporting rules](./05-exporting-rules.md):** drop your accumulated rules into a project's `.claude/` / `.cursor/` / `AGENTS.md`.

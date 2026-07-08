@@ -40,7 +40,7 @@ export default function DocsIndex() {
         {c.indexIntro}{" "}
         {c.indexHandbookPre}
         <a
-          href="https://github.com/bejranonda/BrainPlatform/tree/main/docs"
+          href="https://github.com/bejranonda/ExternalBrain/tree/main/docs"
           target="_blank"
           rel="noopener"
           style={{ color: "var(--accent-text)", textDecoration: "underline" }}
@@ -144,7 +144,7 @@ export default function DocsIndex() {
           <li>
             {c.helpTutorialsPre}
             <a
-              href="https://github.com/bejranonda/BrainPlatform/tree/main/docs/tutorials"
+              href="https://github.com/bejranonda/ExternalBrain/tree/main/docs/tutorials"
               target="_blank"
               rel="noopener"
               style={{ color: "var(--accent-text)" }}
@@ -156,7 +156,7 @@ export default function DocsIndex() {
           <li>
             {c.helpBrokenPre}
             <a
-              href="https://github.com/bejranonda/BrainPlatform/blob/main/docs/tutorials/06-troubleshooting.md"
+              href="https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/06-troubleshooting.md"
               target="_blank"
               rel="noopener"
               style={{ color: "var(--accent-text)" }}
@@ -165,7 +165,7 @@ export default function DocsIndex() {
             </a>
             {c.helpBrokenMid}
             <a
-              href="https://github.com/bejranonda/BrainPlatform/issues/new"
+              href="https://github.com/bejranonda/ExternalBrain/issues/new"
               target="_blank"
               rel="noopener"
               style={{ color: "var(--accent-text)" }}
@@ -177,7 +177,7 @@ export default function DocsIndex() {
           <li>
             {c.helpRunbookPre}
             <a
-              href="https://github.com/bejranonda/BrainPlatform/blob/main/docs/RUNBOOK.md"
+              href="https://github.com/bejranonda/ExternalBrain/blob/main/docs/DEPLOY_CHECKLIST.md"
               target="_blank"
               rel="noopener"
               style={{ color: "var(--accent-text)" }}
