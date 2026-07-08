@@ -33,7 +33,8 @@ Visual diagrams live in [`assets/illustrations/`](./assets/illustrations/). Each
 
 | Doc | What it covers |
 |---|---|
-| [MCP_TOOLS.md](./MCP_TOOLS.md) | The 8 `brain_*` MCP tools + 4 resources, with typical client flow |
+| [MCP_TOOLS.md](./MCP_TOOLS.md) | The `brain_*` MCP tools + resources, with typical client flow |
+| [protocols/](./protocols/meeting-miner.md) | Agent protocols (V2.0): meeting-miner · doc-harvest · doc-draft · report-draft |
 | [REST_API.md](./REST_API.md) | REST endpoints for webapp + integrators |
 | [NAVIGATION.md](./NAVIGATION.md) | Webapp navigation surfaces + zero-error iteration process |
 | [WIRING.md](./WIRING.md) | How a GUI surface connects to the backend (4-file contract, view types, mock fallback) |

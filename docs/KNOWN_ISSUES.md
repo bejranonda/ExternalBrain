@@ -296,6 +296,21 @@ diagnosis pass on the platform's own dogfood Brain. Items:
 
 ---
 
+## 0k. V2.0 meeting & document intelligence — dark launch (2026-07-07, v2.0.0)
+
+V2.0 (spec: `docs/superpowers/specs/2026-07-07-brain-v2-meeting-doc-intelligence-design.md`)
+shipped **dark**: the code is deployed but both flags default off, so runtime
+behavior is v1.14-identical until the operator enables them.
+
+| Issue | Where | Status |
+|---|---|---|
+| **Flags off until the Stage-3 gate ([#149](https://github.com/bejranonda/ExternalBrain/issues/149)) passes.** `V2_ACTION_ITEMS` (addressed open-action-item block at `brain_start_session` + `resolvedActionItemIds` at close) and `V2_ORACLE_TASKS` (Oracle OPEN TASKS context) are `boolish(false)`. The gate (reads 2026-07-17) governs *flag enablement*, not code landing. Enable: add both `="true"` to `.env` + `./scripts/reload.sh mcp-server web`. Rollback: flip flags off, or redeploy `v1.14.0` (the whole range is migration-free — the DB is compatible in both directions). | `packages/core/src/env.ts`, `.env` | waiting (gate 2026-07-17) |
+| **Teach path is live regardless of flags.** `brain_teach_knowledge(type:"action_item")` works today — the protocols under `docs/protocols/` are usable now; the flags only gate the *surfacing* (injection + Oracle). Dry-running meeting-miner on real meetings before flag-enable is the intended validation. | `docs/protocols/meeting-miner.md` | by design |
+| **Webapp renders `action_item` rows generically.** Knowledge lists show them as raw `chip k-action_item` (default styling) and the dashboard composition panel ignores unknown types (no crash, just uncounted). A task-aware presentation is deliberately deferred (spec §8: no new webapp surfaces in V2.0). | `apps/web/components/brain/dashboard.tsx` | accepted (deferred) |
+| **Non-dev Oracle adoption is the untested bet.** Meeting outputs for scrum masters/stakeholders are consumed via the signed-in Oracle (operator decision: no email/push, ever). Extraction quality is dry-run-testable; whether non-devs actually *ask* is not — validate with a real stakeholder in the first week after flag-enable (spec §1 names this residual risk). | spec §1 goal 3 | open |
+
+---
+
 ## 0. MVP-complete open items (2026-04-29, operator action required)
 
 These are not blocking pilot but must be resolved before a second contributor joins or the platform is advertised publicly.

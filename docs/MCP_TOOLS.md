@@ -23,12 +23,12 @@ Mint a token at `/settings/tokens`. After mint, the wizard generates the exact i
 
 | # | Name | When to call | Returns |
 |---|---|---|---|
-| 1 | `brain_start_session` | ONCE at the start of a coding task. Accepts optional `projectName` to file the session under a project (creating it on demand). | `{ sessionId, startedAt, relevantKnowledge? }` — save `sessionId`; apply `relevantKnowledge` (inject-at-open, see below) |
+| 1 | `brain_start_session` | ONCE at the start of a coding task. Accepts optional `projectName` to file the session under a project (creating it on demand). | `{ sessionId, startedAt, relevantKnowledge?, openActionItems? }` — save `sessionId`; apply `relevantKnowledge` (inject-at-open, see below); `openActionItems` = your meeting to-dos (V2.0, flag-gated) |
 | 2 | `brain_create_project` | Before work on a new codebase / client, when you want an explicit, audit-friendly create | `{ projectId, slug, created }` |
 | 3 | `brain_list_projects` | Before `brain_create_project`, to avoid duplicates; or to surface a "switch project?" prompt | `{ projects: [...] }` |
 | 4 | `brain_get_active_project` | Before `brain_start_session`, to verify the default destination matches the user's intent | `{ project: {...} \| null }` |
 | 5 | `brain_retrieve_knowledge` | BEFORE generating code | `{ bundle, injection }` — typed items + pre-formatted injection string |
-| 6 | `brain_report_session_outcome` | AFTER user accepts/rejects | `{ sqs, queued, hint? }` — `hint` is the ask-back nudge on a learning-less close (see below) |
+| 6 | `brain_report_session_outcome` | AFTER user accepts/rejects | `{ sqs, queued, resolvedActionItems?, hint? }` — `hint` is the ask-back nudge on a learning-less close (see below); `resolvedActionItems` counts retired meeting to-dos (V2.0) |
 | 7 | `brain_teach_knowledge` | when user says "remember …" | `{ id, confidence: 1.0 }` |
 | 8 | `brain_get_user_style` | when scaffolding new files | `{ peerCard, reflexes }` |
 | 9 | `brain_ask_oracle` | "how did I solve X?" | `{ answer, citations, ... }` |
