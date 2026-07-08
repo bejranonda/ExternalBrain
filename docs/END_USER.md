@@ -6,7 +6,7 @@ This is for you if someone else (IT, a teammate, the project maintainer) gave yo
 
 Five minutes to first benefit. No terminal commands except the one-line config paste for your AI coding tool.
 
-> **Looking for hands-on, step-by-step walkthroughs?** Start at [`tutorials/`](./tutorials/README.md) — six focused guides covering install, the Oracle, teaching knowledge, token scope, exporting rules, and troubleshooting. The doc you're reading now is the orientation; the tutorials are the actual practice.
+> **Looking for hands-on, step-by-step walkthroughs?** Start at [`tutorials/`](./tutorials/README.md) — seven focused guides covering install, the Oracle, teaching knowledge, token scope, exporting rules, troubleshooting, and a plain-language explainer of the skill types (no technical background needed). The doc you're reading now is the orientation; the tutorials are the actual practice.
 
 ---
 

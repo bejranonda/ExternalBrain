@@ -232,6 +232,7 @@ REBUILD/       Phase-by-phase vibe-coding reconstruction guide (start: REBUILD/0
 |---|---|
 | [EVIDENCE](./docs/EVIDENCE.md) | **Does it actually help?** — the capture→retrieve loop demonstrated on a real instance |
 | [QUICKSTART](./docs/QUICKSTART.md) | Zero to a running instance |
+| [tutorials/](./docs/tutorials/README.md) | End-user tutorials 01–07: getting started → Oracle → teaching → tokens → exporting → troubleshooting → skill types for non-tech readers |
 | [HOW_IT_WORKS](./docs/HOW_IT_WORKS.md) | End-to-end mental model with examples |
 | [ARCHITECTURE](./docs/ARCHITECTURE.md) | System design, layers, data flow |
 | [MCP_TOOLS](./docs/MCP_TOOLS.md) | The `brain_*` MCP tools + resources |
