@@ -66,7 +66,15 @@ In priority order:
 ## 4. Heuristics for common choices
 
 ### 4.1 "Should this be a new knowledge type?"
-Almost certainly no. Use `tags` or `scope` instead. See `GUIDELINES.md §10`.
+Almost certainly no. Use `tags` or `scope` instead. See `GUIDELINES.md §11`.
+
+One precedent for the exception (V2.0, 2026-07-07): `action_item` was added as
+a type *value* — not a new entity, no migration — because it is a **non-rule**
+(a task) that must be *excluded* from every rule surface (retrieval, KEA,
+decay stats, injection metrics). A distinct value made the exclusion one
+predicate; tags would have leaked tasks into semantic retrieval. The test
+remains: if the new kind participates in rule semantics, use tags/scope; only
+something that must be *carved out* of rule semantics earns a type value.
 
 ### 4.2 "Should this be in core or in an app?"
 If two apps need it, it's in `core`. If one app needs it, it's in that app. If you're not sure, start in the app; move to `core` when a second app needs it.

@@ -338,13 +338,25 @@ Casual shorthand for these three together: **"deceptively simple"** — the surf
 
 ## 11. Adding a new knowledge type
 
-Do not. The 5-category ontology is deliberate and research-backed. If a new category is truly needed:
+Do not. The 5-category **rule** ontology is deliberate and research-backed. If a new category is truly needed:
 
 1. Propose in a PR that amends `docs/KNOWLEDGE.md §2` and `research/knowledge/08-knowledge-ontology.md`.
 2. Discuss with reviewers before writing code.
 3. Migration: backfill existing knowledge; update KEA prompt; update KRA formula; update formatter.
 
 A new type is a cross-cutting change — expect 15+ files touched.
+
+**The one shipped exception (V2.0, 2026-07-07): non-rule type values.**
+`action_item` (meeting to-dos / open questions) was added as a type *value* on
+the existing string column — no entity, no migration — precisely because it is
+NOT a rule and must be excluded from rule semantics. If you ever add another
+non-rule value, its mandatory sweep is the inverse of step 3: **exclude** it
+from KRA semantic retrieval and the Oracle's semantic context (share
+`RULE_TYPES_PREDICATE` in `kra.ts`), keep it out of the KEA/learnings enums,
+and never record its injections as `SessionKnowledgeApplication` rows
+(loop-health metric purity). Surfacing must be deterministic (tag/field
+match), never embedding-scored. See `docs/KNOWLEDGE.md §2` and the spec
+`docs/superpowers/specs/2026-07-07-brain-v2-meeting-doc-intelligence-design.md`.
 
 ---
 

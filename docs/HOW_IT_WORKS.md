@@ -396,6 +396,40 @@ Over weeks:
 
 ---
 
+## Step 8b — Meetings join the loop (V2.0, flag-gated)
+
+The same loop that captures coding sessions can ingest **meetings** (spec:
+`docs/superpowers/specs/2026-07-07-brain-v2-meeting-doc-intelligence-design.md`;
+dark behind `V2_ACTION_ITEMS` / `V2_ORACLE_TASKS` until enabled — see
+`KNOWN_ISSUES §0k`).
+
+Bob pastes Monday's sprint-planning transcript into his agent and points it at
+`docs/protocols/meeting-miner.md`. The agent opens a normal session and
+teaches, via the existing tools:
+
+- **Decisions** — `principle` rows with the `decision` tag and supersession;
+  when someone later claims the opposite, the Oracle cites the record.
+- **Action items / open questions** — `type: "action_item"` rows, addressed
+  with a `for:<email>` tag. These are **tasks, not rules**: they are excluded
+  from semantic retrieval, KEA, and decay stats everywhere.
+
+Surfacing is deterministic, not embedding-scored:
+
+- Charlie's next `brain_start_session` carries an `openActionItems` block —
+  *his* items, blockers first. When one is done he passes its id back as
+  `resolvedActionItemIds` at close, and it retires.
+- Anyone (including the scrum master, signed into the webapp) can ask the
+  Oracle "what's open / blocked / unanswered?" — the OPEN TASKS block is the
+  complete enumeration, with `[stale >14d]` flags on the forgotten ones.
+
+Document knowledge rides the same machinery: `doc-harvest` mines a finished
+project's documents into per-doc-type `recipe` rows; `doc-draft` retrieves
+them plus the project's decisions to draft the next project's documents.
+No email, no push, no task board — the harness and the Oracle are the only
+channels (operator decision, 2026-07-07).
+
+---
+
 ## Step 9 — Multi-tenant collaboration
 
 A few weeks in, bob's company hires charlie. Bob (org owner) goes to `/settings/org` → invites `charlie@acme.com`. Same flow as Step 2. Charlie joins the Acme org as a `member`.

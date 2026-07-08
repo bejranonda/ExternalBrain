@@ -181,6 +181,13 @@ what we learned into the Brain") — each mapped to the `brain_*` tool it trigge
    semantic search, and decays the stale ones.
 4. **Anytime**, ask the **Oracle** in plain language and get grounded, cited
    answers from your own knowledge.
+5. **Meetings too (V2.0, experimental — off by default):** feed a transcript
+   through the [meeting-miner protocol](./docs/protocols/meeting-miner.md) and
+   decisions (with supersession), per-person action items, and open questions
+   land in the same knowledge loop. Enabling the `V2_ACTION_ITEMS` /
+   `V2_ORACLE_TASKS` flags surfaces them: assignees see their open items at
+   session start, and the Oracle answers "what's open / blocked / unanswered?"
+   from a complete task list.
 
 Full walkthrough with examples: **[docs/HOW_IT_WORKS.md](./docs/HOW_IT_WORKS.md)**.
 
@@ -232,6 +239,7 @@ REBUILD/       Phase-by-phase vibe-coding reconstruction guide (start: REBUILD/0
 | [CLIENTS](./docs/CLIENTS.md) | Wiring Claude Code / Cursor / Windsurf / Antigravity / GitHub Copilot |
 | [USING_BRAIN](./docs/USING_BRAIN.md) | Daily workflow, trigger phrases, recipes |
 | [KNOWLEDGE](./docs/KNOWLEDGE.md) | The knowledge model (normative) |
+| [protocols/](./docs/protocols/meeting-miner.md) | Agent protocols (V2.0): meeting-miner · doc-harvest · doc-draft · report-draft |
 | [VALIDATION](./docs/VALIDATION.md) | **Does it measurably help?** — first published number (2026-07-06): retrieval NDCG@5 0.45 vs 0.30 cosine baseline on a real corpus; generation-uplift still pending, honestly tracked |
 | [SECURITY](./docs/SECURITY.md) | Auth modes, MCP gating, threat model |
 | [DEPLOY_CHECKLIST](./docs/DEPLOY_CHECKLIST.md) | Production deploy on a public VM |
