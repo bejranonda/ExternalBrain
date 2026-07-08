@@ -18,6 +18,7 @@ first — they cover the server side.
 | Issue a token scoped to a specific organization or project | [04 — Token scope + management](./04-managing-tokens.md) | 10 min |
 | Export your accumulated rules into a project's `.claude/` / `.cursor/` / `AGENTS.md` | [05 — Exporting rules](./05-exporting-rules.md) | 5 min |
 | Diagnose "the Brain doesn't seem to be helping" | [06 — Troubleshooting](./06-troubleshooting.md) | as needed |
+| Understand the skill types (Recipe, Rule of thumb, Reflex…) — no tech background needed | [07 — Skill types, explained](./07-skill-types-explained.md) | 10 min |
 
 ## Big picture in one paragraph
 
