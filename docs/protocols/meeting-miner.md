@@ -54,7 +54,11 @@ else — do not teach general observations as rules from a meeting.
 
    Map spoken names to emails via the project's member list; if you cannot
    resolve an owner, ask the user rather than guessing. Emails must be
-   lowercase — addressing is an exact tag match.
+   lowercase — addressing is an exact tag match. **Use the assignee's Brain
+   account email** (the address they sign into this Brain with — see the org
+   member list in the webapp), which may differ from their work/external
+   email; a `for:` tag with the wrong address matches nobody and the item
+   never surfaces.
 
 5. **Extract open questions** — raised but unresolved points:
 

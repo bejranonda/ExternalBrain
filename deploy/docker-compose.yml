@@ -176,6 +176,7 @@ services:
       # offline without losing /health. Read at request time.
       MCP_ENABLED: ${MCP_ENABLED:-true}
       V2_ACTION_ITEMS: ${V2_ACTION_ITEMS:-false}
+      V2_ORACLE_TASKS: ${V2_ORACLE_TASKS:-false}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
