@@ -204,11 +204,18 @@ must be able to answer task-shaped and meeting-shaped questions:
    validates extraction quality and the `for:` convention with zero platform
    code, and produces test fixtures.
 2. **Gate interaction (amended 2026-07-07, operator instruction "continue
-   all till finish").** Code is built and merged now, **dark**: both platform
-   features ship behind default-off flags, so deployed behavior stays V1.
-   The Stage-3 gate (#149, reads 2026-07-17) governs **flag enablement**,
-   not code landing. Gate fails → flags stay off and flywheel diagnosis takes
-   priority.
+   all till finish"; re-amended 2026-07-09, operator decision "do not wait
+   till 17.07").** Code was built and merged dark (default-off flags,
+   deployed behavior V1-identical). Flag enablement was originally coupled
+   to the Stage-3 gate (#149) as a conservative measure; on 2026-07-09 the
+   operator decoupled it, on the strength of the §6.1 prod dry-run (all six
+   contract points passed) and the mid-window gate preview (87%/87% vs
+   60%/40%), plus: cost-neutral features, metric pollution impossible by
+   construction, instant flag rollback. **Flags are enabled on the reference
+   instance from 2026-07-09** (compose defaults stay `false` for forkers).
+   The #149 gate still governs the **Stage-3 flywheel actions** (file-memory
+   shrink, generation-uplift #126, pool widening #146) — those wait for the
+   official 2026-07-17 reading regardless.
 3. **Build order, two PRs (PR-2 queued directly behind PR-1), no migrations:**
    - **PR-1:** `action_item` type + addressed injection + retrieval/KEA/decay
      exclusion + tests.

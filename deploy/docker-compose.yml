@@ -127,6 +127,7 @@ services:
       # Operator kill-switch (#56 gap 3) — flip to "false" to take Oracle
       # offline without blocking the rest of the app. Read at request time.
       ORACLE_ENABLED: ${ORACLE_ENABLED:-true}
+      V2_ORACLE_TASKS: ${V2_ORACLE_TASKS:-false}
       RATE_LIMIT_ORACLE_PER_DAY: ${RATE_LIMIT_ORACLE_PER_DAY:-100}
       RATE_LIMIT_KEA_PER_HOUR: ${RATE_LIMIT_KEA_PER_HOUR:-60}
       RATE_LIMIT_MCP_PER_MINUTE: ${RATE_LIMIT_MCP_PER_MINUTE:-200}
@@ -174,6 +175,7 @@ services:
       # Operator kill-switch (#56 gap 3) — flip to "false" to take MCP
       # offline without losing /health. Read at request time.
       MCP_ENABLED: ${MCP_ENABLED:-true}
+      V2_ACTION_ITEMS: ${V2_ACTION_ITEMS:-false}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
