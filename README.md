@@ -181,13 +181,14 @@ what we learned into the Brain") — each mapped to the `brain_*` tool it trigge
    semantic search, and decays the stale ones.
 4. **Anytime**, ask the **Oracle** in plain language and get grounded, cited
    answers from your own knowledge.
-5. **Meetings too (V2.0, experimental — off by default):** feed a transcript
-   through the [meeting-miner protocol](./docs/protocols/meeting-miner.md) and
-   decisions (with supersession), per-person action items, and open questions
-   land in the same knowledge loop. Enabling the `V2_ACTION_ITEMS` /
-   `V2_ORACLE_TASKS` flags surfaces them: assignees see their open items at
-   session start, and the Oracle answers "what's open / blocked / unanswered?"
-   from a complete task list.
+5. **Meetings too (V2.0):** feed a transcript through the
+   [meeting-miner protocol](./docs/protocols/meeting-miner.md) and decisions
+   (with supersession), per-person action items, and open questions land in
+   the same knowledge loop. Assignees see their open items at session start;
+   the Oracle answers "what's open / blocked / unanswered?" from a complete
+   task list. Behind `V2_ACTION_ITEMS` / `V2_ORACLE_TASKS` flags — default
+   off for a fresh self-host, so `git clone` still gives you plain V1
+   behavior; opt in by setting both `="true"`.
 
 Full walkthrough with examples: **[docs/HOW_IT_WORKS.md](./docs/HOW_IT_WORKS.md)**.
 
