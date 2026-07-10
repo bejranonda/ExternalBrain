@@ -101,6 +101,16 @@ test.describe("security posture — positive path", () => {
 });
 
 test.describe("security posture — negative path", () => {
+  // Force a clean, unauthenticated context regardless of which CI project
+  // (or local run) wires these tests in. authed-e2e.yml's "chromium" project
+  // applies a pre-authenticated storageState to every test by default — a
+  // page-based test in THIS block that assumed anonymity would either
+  // silently pass without testing anything (already-signed-in visitors
+  // don't hit the guard) or fail confusingly (a form that isn't there
+  // because the app already redirected past /signin). request-context tests
+  // (MCP transport, below) are unaffected — they never carry page cookies.
+  test.use({ storageState: { cookies: [], origins: [] } });
+
   test("MCP HTTP transport refuses an unauthenticated call", async () => {
     const ctx = await pwRequest.newContext();
     try {
