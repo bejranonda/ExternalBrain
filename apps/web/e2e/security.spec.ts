@@ -155,4 +155,39 @@ test.describe("security posture — negative path", () => {
     await expect(page.getByText("HTTP 401")).toHaveCount(0);
   });
 
+  test("sign-in with a backslash callbackUrl does not redirect off-origin (CodeRabbit finding, PR #164)", async ({
+    page,
+  }) => {
+    // Regression: safeRedirect() originally only rejected "//" and "://".
+    // The WHATWG URL parser's relative-slash state treats "/" and "\"
+    // interchangeably when detecting a new authority for special schemes,
+    // so "/\evil.example.com" resolves identically to "//evil.example.com"
+    // — both hand "evil.example.com" to the parser as the new host. A real
+    // credentials login is required to observe the actual post-signIn()
+    // navigation target (NextAuth's own redirect callback is what resolves
+    // the string — mocking it would not prove anything).
+    test.skip(
+      !process.env["E2E_ADMIN_PASSWORD"],
+      "Authenticated spec — set E2E_ADMIN_PASSWORD (see e2e/auth.setup.ts).",
+    );
+    const username =
+      process.env["E2E_ADMIN_USERNAME"] ?? process.env["ADMIN_USERNAME"] ?? "";
+    const password = process.env["E2E_ADMIN_PASSWORD"] ?? "";
+
+    await page.goto("/signin?callbackUrl=%2F%5Cevil.example.com");
+    await page.fill('input[name="username"]', username);
+    await page.fill('input[name="password"]', password);
+    await page.getByRole("button", { name: /^sign in$/i }).click();
+
+    await page.waitForURL((url) => !url.pathname.startsWith("/signin"), {
+      timeout: 20_000,
+    });
+
+    const expectedHost = new URL(
+      process.env["E2E_BASE_URL"] ?? "http://localhost:3000",
+    ).host;
+    const finalUrl = new URL(page.url());
+    expect(finalUrl.host).toBe(expectedHost);
+    expect(finalUrl.host).not.toContain("evil.example.com");
+  });
 });

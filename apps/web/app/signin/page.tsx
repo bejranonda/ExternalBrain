@@ -33,7 +33,20 @@ interface Props {
  */
 function safeRedirect(raw: string | undefined): string {
   if (!raw) return "/";
-  if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("://")) return "/";
+  // Reject backslashes anywhere, not just a leading "//" or "://" — the
+  // WHATWG URL parser's relative-slash state treats "/" and "\"
+  // interchangeably when detecting a new authority for special schemes
+  // (http/https), so "/\evil.com" resolves identically to "//evil.com":
+  // both hand "evil.com" to the parser as the new host. CodeRabbit review
+  // finding (PR #164) — this app has no legitimate route with a backslash.
+  if (
+    !raw.startsWith("/") ||
+    raw.startsWith("//") ||
+    raw.includes("://") ||
+    raw.includes("\\")
+  ) {
+    return "/";
+  }
   return raw;
 }
 
