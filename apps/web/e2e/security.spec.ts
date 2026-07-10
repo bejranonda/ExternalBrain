@@ -139,4 +139,20 @@ test.describe("security posture — negative path", () => {
     const res = await page.goto("/signin");
     expect(res?.status() ?? 0).toBeLessThan(500);
   });
+
+  test("anonymous visitor to /settings/tokens is redirected to sign-in, not shown a broken 401 page", async ({
+    page,
+  }) => {
+    // Regression for the first-time-user review finding (2026-07-10):
+    // /settings had no layout-level auth guard, so an anonymous visitor got
+    // a 200 with a fully-rendered "Create token" form whose data fetches
+    // silently 401'd — rendering the literal string "HTTP 401" in place of
+    // content. The welcome page's own "Get a token →" link walks straight
+    // into this for a genuine first-time visitor.
+    await page.goto("/settings/tokens");
+    await page.waitForLoadState("networkidle");
+    expect(page.url()).toContain("/signin");
+    await expect(page.getByText("HTTP 401")).toHaveCount(0);
+  });
+
 });

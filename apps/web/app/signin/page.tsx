@@ -15,7 +15,26 @@ import { LocalePicker } from "@/components/brain/locale-picker";
 export const dynamic = "force-dynamic";
 
 interface Props {
-  searchParams: Promise<{ error?: string; voucher?: string; invite?: string; mode?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    voucher?: string;
+    invite?: string;
+    mode?: string;
+    callbackUrl?: string;
+    next?: string;
+  }>;
+}
+
+/**
+ * Restrict post-login redirect to a same-origin relative path. Both `next`
+ * (welcome-flow.tsx) and `callbackUrl` (settings/layout.tsx, Auth.js's own
+ * convention) are accepted; without this validation a client-supplied
+ * absolute/protocol-relative URL would be an open redirect after sign-in.
+ */
+function safeRedirect(raw: string | undefined): string {
+  if (!raw) return "/";
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("://")) return "/";
+  return raw;
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -78,6 +97,7 @@ export default async function SignIn({ searchParams }: Props) {
   const errorKey = params.error ?? "";
   const errorMessage = ERROR_MESSAGES[errorKey] ?? (errorKey ? "Sign-in failed. Try again." : "");
   const inviteToken = params.invite ?? "";
+  const postLoginRedirect = safeRedirect(params.callbackUrl ?? params.next);
 
   // Dev-shim mode (no real auth configured, ALLOW_DEV_AUTH=true): the shell
   // resolves the dev user as "the first User row", so it only works once a
@@ -529,7 +549,7 @@ export default async function SignIn({ searchParams }: Props) {
                     await signIn("admin-credentials", {
                       username,
                       password,
-                      redirectTo: "/",
+                      redirectTo: postLoginRedirect,
                     });
                   } catch (err) {
                     // NextAuth throws NEXT_REDIRECT on success — don't catch those.
@@ -604,7 +624,7 @@ export default async function SignIn({ searchParams }: Props) {
                       path: "/",
                     });
                   }
-                  await signIn("github", { redirectTo: "/" });
+                  await signIn("github", { redirectTo: postLoginRedirect });
                 }}
                 style={credentialsAllowed ? { marginTop: 24, paddingTop: 20, borderTop: "1px dashed var(--line, #23242c)" } : {}}
               >
