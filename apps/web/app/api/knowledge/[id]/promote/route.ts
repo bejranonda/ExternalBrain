@@ -37,6 +37,20 @@ export async function POST(
       return Response.json({ error: "forbidden" }, { status: 403 });
     }
 
+    // V2 security (review 2026-07-10, finding 1): action items are tasks
+    // addressed to people inside ONE project — the project boundary is their
+    // isolation line by spec. Org promotion would broadcast meeting content
+    // (assignee, task text) into every other project's Oracle task block.
+    if (row.type === "action_item") {
+      return Response.json(
+        {
+          error: "invalid_type",
+          hint: "Action items are project-bound tasks and cannot be promoted to org visibility.",
+        },
+        { status: 422 },
+      );
+    }
+
     const rowWithVisibility = row as typeof row & { visibility: string; originProjectId: string | null };
 
     if (rowWithVisibility.visibility !== "project") {

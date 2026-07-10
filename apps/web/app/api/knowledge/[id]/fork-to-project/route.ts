@@ -58,6 +58,19 @@ export async function POST(
       return Response.json({ error: "not_found" }, { status: 404 });
     }
 
+    // V2 security (review 2026-07-10, finding 1): tasks never travel across
+    // projects — mirrors the promote guard; belt and suspenders since an
+    // org-visible action_item should no longer exist at all.
+    if (source.type === "action_item") {
+      return Response.json(
+        {
+          error: "invalid_type",
+          hint: "Action items are project-bound tasks and cannot be forked to another project.",
+        },
+        { status: 422 },
+      );
+    }
+
     const sourceWithVis = source as typeof source & {
       visibility: string;
       originProjectId: string | null;

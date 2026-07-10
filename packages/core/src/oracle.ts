@@ -195,10 +195,11 @@ async function buildContext(
   );
   if (tasksEnabled) {
     try {
+      // Active project only — tasks never travel via org visibility
+      // (V2 security review 2026-07-10, finding 1).
       const tasks = await listProjectActionItems({
         userId,
         projectId: projectId ?? null,
-        accessibleProjectIds: visibilityArgs?.accessibleProjectIds ?? [],
       });
       taskBlock = buildTaskBlock(tasks);
     } catch {
