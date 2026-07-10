@@ -242,6 +242,29 @@ Nightly `pg_dump` runs in the `backup` compose service; archives land in the `br
 Manual snapshot: `./scripts/backup-restore.sh backup`
 Restore: `./scripts/backup-restore.sh restore <timestamp>`
 
+**Restore drill (do this periodically — a backup that has never been restored
+is a hope, not a backup):** copy the latest nightly dump out of the backup
+container, restore it into an isolated throwaway container, and compare row
+counts against prod. Isolated containers are always safe — never restore over
+the live DB as a "test". Reference procedure (first executed 2026-07-10,
+zero errors, all embeddings intact):
+
+```bash
+docker cp deploy-backup-1:/backups/last/brain-latest.sql.gz /tmp/drill.sql.gz
+docker run -d --name brain-restore-drill -e POSTGRES_USER=brain \
+  -e POSTGRES_PASSWORD=drill -e POSTGRES_DB=brain pgvector/pgvector:pg16
+docker cp /tmp/drill.sql.gz brain-restore-drill:/tmp/dump.sql.gz
+docker exec brain-restore-drill sh -c \
+  'gunzip -c /tmp/dump.sql.gz | psql -U brain -d brain -q'   # expect 0 ERRORs
+# spot-check: row counts vs prod, and embeddings survived:
+docker exec brain-restore-drill psql -U brain -d brain -c \
+  'SELECT count(*) FROM "Knowledge" WHERE embedding IS NOT NULL;'
+docker rm -f brain-restore-drill && rm /tmp/drill.sql.gz    # clean up the data copy!
+```
+
+Use the `pgvector/pgvector:pg16` image (plain `postgres:16` lacks the
+`vector` extension and the restore will error on the embedding column).
+
 ### Monitoring
 
 - `/api/healthz` — liveness. Hit from your uptime monitor.

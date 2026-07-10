@@ -353,8 +353,12 @@ NOT a rule and must be excluded from rule semantics. If you ever add another
 non-rule value, its mandatory sweep is the inverse of step 3: **exclude** it
 from KRA semantic retrieval and the Oracle's semantic context (share
 `RULE_TYPES_PREDICATE` in `kra.ts`), keep it out of the KEA/learnings enums,
-and never record its injections as `SessionKnowledgeApplication` rows
-(loop-health metric purity). Surfacing must be deterministic (tag/field
+never record its injections as `SessionKnowledgeApplication` rows
+(loop-health metric purity), **and block it from the visibility-travel paths
+— promote, fork-to-project, and any org-scoped serving query** (the
+2026-07-10 security review found `action_item` rows could be org-promoted and
+leak meeting content into every project's Oracle; for non-rules the isolation
+line is the project, full stop). Surfacing must be deterministic (tag/field
 match), never embedding-scored. See `docs/KNOWLEDGE.md §2` and the spec
 `docs/superpowers/specs/2026-07-07-brain-v2-meeting-doc-intelligence-design.md`.
 

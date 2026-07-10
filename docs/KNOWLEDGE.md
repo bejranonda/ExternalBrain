@@ -58,6 +58,11 @@ ontology's retrieval semantics:
   deterministic OPEN TASKS enumeration (`V2_ORACLE_TASKS`) is the single
   deliberate exemption. Surfacing is deterministic: `for:`-tag match at
   `brain_start_session` (flag `V2_ACTION_ITEMS`), blockers first.
+- **Containment invariant (2026-07-10):** action items never cross the
+  project boundary by any path — promote-to-org and fork-to-project reject
+  them (422), and every task query is hard-bounded to the active project
+  regardless of org visibility. Their text is also injected with
+  untrusted-content framing (it is authored by other project members).
 
 ### Scope
 
