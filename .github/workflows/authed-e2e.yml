@@ -162,12 +162,20 @@ jobs:
           # a cold CI boot exceeding the 10s .skills-list wait (the surface
           # renders no .skills-list while loading). beforeEach now allows 30s
           # for that first load; warm loads are <1s.
+          # security.spec.ts joined the gate 2026-07-10: previously wired
+          # into NEITHER e2e workflow, so its tests (including the two new
+          # regressions in this same PR — the /settings auth-guard bug and
+          # the safeRedirect() backslash open-redirect) had never actually
+          # run in CI despite existing in the repo. Its "negative path"
+          # describe block forces its own clean storageState (test.use), so
+          # it's safe alongside this project's default pre-authenticated one.
           pnpm --filter @brain/web exec playwright test --project=chromium --retries=1 \
             "web/e2e/dashboard.spec.ts" \
             "web/e2e/sessions.spec.ts" \
             "web/e2e/skills.spec.ts" \
             "web/e2e/mobile-overflow.spec.ts" \
-            "web/e2e/nav.spec.ts"
+            "web/e2e/nav.spec.ts" \
+            "web/e2e/security.spec.ts"
           RC=$?
           kill "$APP_PID" 2>/dev/null || true
           exit $RC

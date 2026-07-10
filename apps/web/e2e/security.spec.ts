@@ -101,6 +101,16 @@ test.describe("security posture — positive path", () => {
 });
 
 test.describe("security posture — negative path", () => {
+  // Force a clean, unauthenticated context regardless of which CI project
+  // (or local run) wires these tests in. authed-e2e.yml's "chromium" project
+  // applies a pre-authenticated storageState to every test by default — a
+  // page-based test in THIS block that assumed anonymity would either
+  // silently pass without testing anything (already-signed-in visitors
+  // don't hit the guard) or fail confusingly (a form that isn't there
+  // because the app already redirected past /signin). request-context tests
+  // (MCP transport, below) are unaffected — they never carry page cookies.
+  test.use({ storageState: { cookies: [], origins: [] } });
+
   test("MCP HTTP transport refuses an unauthenticated call", async () => {
     const ctx = await pwRequest.newContext();
     try {
@@ -138,5 +148,56 @@ test.describe("security posture — negative path", () => {
     // without a 5xx.
     const res = await page.goto("/signin");
     expect(res?.status() ?? 0).toBeLessThan(500);
+  });
+
+  test("anonymous visitor to /settings/tokens is redirected to sign-in, not shown a broken 401 page", async ({
+    page,
+  }) => {
+    // Regression for the first-time-user review finding (2026-07-10):
+    // /settings had no layout-level auth guard, so an anonymous visitor got
+    // a 200 with a fully-rendered "Create token" form whose data fetches
+    // silently 401'd — rendering the literal string "HTTP 401" in place of
+    // content. The welcome page's own "Get a token →" link walks straight
+    // into this for a genuine first-time visitor.
+    await page.goto("/settings/tokens");
+    await page.waitForLoadState("networkidle");
+    expect(page.url()).toContain("/signin");
+    await expect(page.getByText("HTTP 401")).toHaveCount(0);
+  });
+
+  test("sign-in with a backslash callbackUrl does not redirect off-origin (CodeRabbit finding, PR #164)", async ({
+    page,
+  }) => {
+    // Regression: safeRedirect() originally only rejected "//" and "://".
+    // The WHATWG URL parser's relative-slash state treats "/" and "\"
+    // interchangeably when detecting a new authority for special schemes,
+    // so "/\evil.example.com" resolves identically to "//evil.example.com"
+    // — both hand "evil.example.com" to the parser as the new host. A real
+    // credentials login is required to observe the actual post-signIn()
+    // navigation target (NextAuth's own redirect callback is what resolves
+    // the string — mocking it would not prove anything).
+    test.skip(
+      !process.env["E2E_ADMIN_PASSWORD"],
+      "Authenticated spec — set E2E_ADMIN_PASSWORD (see e2e/auth.setup.ts).",
+    );
+    const username =
+      process.env["E2E_ADMIN_USERNAME"] ?? process.env["ADMIN_USERNAME"] ?? "";
+    const password = process.env["E2E_ADMIN_PASSWORD"] ?? "";
+
+    await page.goto("/signin?callbackUrl=%2F%5Cevil.example.com");
+    await page.fill('input[name="username"]', username);
+    await page.fill('input[name="password"]', password);
+    await page.getByRole("button", { name: /^sign in$/i }).click();
+
+    await page.waitForURL((url) => !url.pathname.startsWith("/signin"), {
+      timeout: 20_000,
+    });
+
+    const expectedHost = new URL(
+      process.env["E2E_BASE_URL"] ?? "http://localhost:3000",
+    ).host;
+    const finalUrl = new URL(page.url());
+    expect(finalUrl.host).toBe(expectedHost);
+    expect(finalUrl.host).not.toContain("evil.example.com");
   });
 });
