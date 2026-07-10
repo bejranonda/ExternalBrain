@@ -340,6 +340,20 @@ Post-flag-enable hardening sweep. Items:
 
 ---
 
+## 0n. First-time-user review (2026-07-10)
+
+Cold, no-background review of the live webapp (unauthenticated Playwright + code audit — this checkout has no path to mint a test account under single-admin Credentials mode, which has no self-registration; a signed-in pass needs the operator to hand over a voucher/session cookie per the carve-out in `CLAUDE.local.md`).
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**Critical: `/settings/*` had no server-side auth guard.**~~ Unlike `/admin` and the main app shell (`[orgSlug]/[projectSlug]`), which both redirect anonymous visitors, `/settings` pages were bare client components. An anonymous visitor clicking the welcome page's own "Get a token →" link landed on a fully-rendered, functional-*looking* "Create token" form whose data fetches silently 401'd — rendering the literal string `HTTP 401` where a token row should be. New `apps/web/app/settings/layout.tsx` mirrors `admin/layout.tsx`'s guard (minus the admin-role check); regression test added. | `apps/web/app/settings/layout.tsx` | fixed (v2.1.3) |
+| ~~**`callbackUrl`/`next` were accepted at `/signin` but silently discarded.**~~ Both sign-in server actions hardcoded `redirectTo: "/"` regardless of the query param — a pre-existing bug, not new. Affected the welcome page's own `next=/welcome` link (a first-time user who signs in mid-onboarding was unexpectedly dumped on the dashboard instead of returned to their step) and the main app shell's existing `callbackUrl=/org/project` usage. Fixed with a same-origin-validated `safeRedirect()` (open-redirect guard: must start with `/`, reject `//` and `://`). Not independently e2e-tested — CI's dev-shim auth mode has no credentials form to submit; the 4-line allowlist was reviewed by inspection instead. | `apps/web/app/signin/page.tsx` | fixed (v2.1.3) |
+| ~~**Skills concept page: forward reference.**~~ The Decisions-clarification paragraph named "principle / anti-pattern" skills before those terms were defined in the bullet list rendered after it (`body[]` renders before `bullets[]`) — unresolvable for a true first-time reader. Split into two sections (EN/DE/TH) so terms are introduced before being referenced. | `apps/web/lib/brain/docs-content.ts` | fixed (v2.1.3) |
+| **Investigated, confirmed benign:** `net::ERR_ABORTED` on docs concept-page RSC prefetches in the Playwright harness (all ten pages return 200 on direct fetch — the harness navigated away before an unused hover-prefetch completed); a stale local screenshot showing old invite-only sign-in copy (verified against current source — only one copy variant exists today; the screenshot predated a copy change). | — | not a bug |
+| **Known imprecision (accepted, not fixed):** the `/settings` guard always bounces back to `/settings/tokens` after sign-in, not the specific sub-page (e.g. `/settings/org`) the anonymous visitor tried to reach — layouts don't see the request pathname without a `middleware.ts`, which is more than this narrow case warrants. One extra click, not a broken state. | `apps/web/app/settings/layout.tsx` | accepted |
+
+---
+
 ## 0. MVP-complete open items (2026-04-29, operator action required)
 
 These are not blocking pilot but must be resolved before a second contributor joins or the platform is advertised publicly.
