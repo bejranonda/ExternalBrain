@@ -16,6 +16,7 @@
 - **Flag default OFF**: `MEETING_UPLOAD_ENABLED`, `boolish(false)` in `packages/core/src/env.ts`'s `WebExtra` block. Deployed behavior must be byte-identical to today until the operator flips it.
 - **Any new env var MUST also be added to `deploy/docker-compose.yml`'s `web` service `environment:` allowlist** — `.env` alone is silently ignored at runtime. This exact mistake shipped once already on this V2 program (2026-07-09) and is now a standing GUIDELINES/KNOWN_ISSUES lesson; do not repeat it.
 - **Semantic retrieval is owner-scoped in this codebase** (`kra.ts`'s `fetchCandidates`, Oracle's `buildContext` — both hard-filter `ownerUserId = caller`). Decisions are shared team knowledge; a supersession search MUST NOT reuse those owner-scoped functions as-is — see Task 5.
+- **A `for:<email>` tag on an `action_item` row must be server-validated against real org membership before persisting** (CodeRabbit finding, 2026-07-14). The spec's stated guarantee — "the `for:` tag is exactly as trustworthy as one an agent would produce reading the same member list" — is false unless the server enforces it; client-side dropdown state is tamper-able, and an unvalidated LLM guess reaching the tag unconfirmed defeats the whole reason the "dropdown, not free text" design choice was made. See Task 1.
 - **This app is a single-page shell with hash-based surface switching**, not per-surface Next.js routes — `apps/web/lib/brain/routes.ts`'s `ROUTES` array + `apps/web/components/brain/app.tsx`'s `screens` object, not a new `app/meetings/page.tsx`.
 - **Webapp code has no unit-test convention** (confirmed: no `*.test.ts` files under `apps/web`) — webapp verification is Playwright e2e only, and CI wires e2e specs via an **explicit file list** in `.github/workflows/*.yml`, not a glob. A spec existing in the repo is not evidence it runs (this bit a previous PR in this same program on 2026-07-10) — Task 8 must confirm the new spec is actually invoked, not just exist.
 - Package boundary: `types → db → core → (mcp-server | web | worker)`.
@@ -28,10 +29,12 @@
 
 **Files:**
 - Modify: `apps/web/app/api/knowledge/route.ts`
+- Modify: `packages/core/src/knowledge-stats.ts` (`supersedeKnowledge` gains an optional project constraint — see Step 3)
 - Test: `apps/web/app/api/knowledge/route.test.ts` (new — first unit test file for this route; mirror the db-guard pattern from `packages/core/src/__tests__/action-items.test.ts`)
+- Test: `packages/core/src/__tests__/knowledge-supersede.test.ts` (extend — this file already exists, read it first)
 
 **Interfaces:**
-- Produces: `POST /api/knowledge` accepts `type: "action_item"` in `createSchema`; accepts optional `supersedesKnowledgeId: string`, which calls `supersedeKnowledge(db, { newId, supersededId, userId })` from `@brain/core` after creation, mirroring `apps/mcp-server/src/tools/teach.ts`'s existing MCP behavior.
+- Produces: `POST /api/knowledge` accepts `type: "action_item"` in `createSchema`; accepts optional `supersedesKnowledgeId: string`, which calls `supersedeKnowledge(db, { newId, supersededId, userId, projectId })` from `@brain/core` inside a `$transaction` with the create, mirroring (and slightly hardening beyond) `apps/mcp-server/src/tools/teach.ts`'s existing MCP behavior. `action_item` rows additionally get their `for:<email>` tag validated against real org membership before persisting (Step 3b).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -155,27 +158,241 @@ const createSchema = z.object({
 });
 ```
 
-Add `supersedeKnowledge` to the existing `@brain/core` import list in this file, then after the existing `db.knowledge.create({...})` call (before the `writeAudit` call), insert:
+**CodeRabbit finding (valid, fixed here):** `supersedeKnowledge` only checks
+`ownerUserId`, not project — a caller could pass a `supersedesKnowledgeId`
+belonging to a DIFFERENT project the same user owns knowledge in, silently
+retiring an unrelated row. This is a pre-existing gap shared with the MCP
+`brain_teach_knowledge` tool (`apps/mcp-server/src/tools/teach.ts` calls the
+same function the same unguarded way) — fix it at the source
+(`packages/core/src/knowledge-stats.ts`) so both callers benefit, rather than
+duplicating a project check only in the new REST path. Also wrap the create +
+supersede sequence in one transaction — as separately-committed writes, a
+failure between them would leave the new row live without retiring the old
+one, defeating the whole point of supersession (the Oracle would then cite
+both).
+
+In `packages/core/src/knowledge-stats.ts`, change `supersedeKnowledge`'s
+signature to accept an optional project constraint:
 
 ```typescript
-    if (body.supersedesKnowledgeId) {
-      await supersedeKnowledge(db, {
-        newId: row.id,
-        supersededId: body.supersedesKnowledgeId,
-        userId,
+export async function supersedeKnowledge(
+  db: PrismaClient,
+  args: { newId: string; supersededId: string; userId: string; projectId?: string },
+): Promise<boolean> {
+  const target = await db.knowledge.findFirst({
+    where: {
+      id: args.supersededId,
+      ownerUserId: args.userId,
+      deletedAt: null,
+      ...(args.projectId ? { ownerProjectId: args.projectId } : {}),
+    },
+    select: { id: true, ownerUserId: true },
+  });
+  if (!target) return false;
+  await db.knowledge.update({
+    where: { id: args.supersededId },
+    data: { deletedAt: new Date() },
+  });
+  await db.knowledge.update({
+    where: { id: args.newId },
+    data: { parentKnowledgeId: args.supersededId },
+  });
+  return true;
+}
+```
+
+Add a test in `packages/core/src/__tests__/knowledge-supersede.test.ts` (this
+file already exists — read it first) confirming a `projectId` mismatch
+returns `false` and does not retire the foreign-project row.
+
+In `apps/web/app/api/knowledge/route.ts`, add `supersedeKnowledge` to the
+existing `@brain/core` import list, then replace the `db.knowledge.create({...})`
+call with a transaction that creates and (conditionally) supersedes atomically:
+
+```typescript
+    const row = await db.$transaction(async (tx) => {
+      const created = await tx.knowledge.create({
+        data: {
+          type: body.type,
+          scope: body.scope,
+          ownerUserId: userId,
+          ownerProjectId: resolvedProjectId,
+          triggerText: body.triggerText,
+          ruleText: body.ruleText,
+          rationale: body.rationale ?? null,
+          tags: body.tags,
+          confidence: body.confidence,
+          extractedBy: "user",
+        },
       });
+      if (body.supersedesKnowledgeId) {
+        await supersedeKnowledge(tx, {
+          newId: created.id,
+          supersededId: body.supersedesKnowledgeId,
+          userId,
+          projectId: resolvedProjectId ?? undefined,
+        });
+      }
+      return created;
+    });
+```
+
+**Verify before finalizing (not confirmed during planning):** Prisma's
+`$transaction` callback param (`tx`) is typed as `Prisma.TransactionClient`,
+which is narrower than the full `PrismaClient` type (`$transaction`,
+`$connect`, `$disconnect` are absent from it) — passing `tx` into
+`supersedeKnowledge`'s `db: PrismaClient` parameter may fail to typecheck.
+No existing call site in this codebase passes `tx` into a separately-defined
+shared function (checked `vouchers.ts`'s `$transaction` usage — it only
+calls `tx.*` inline, never delegates `tx` onward). If it doesn't typecheck,
+either loosen `supersedeKnowledge`'s `db` param type to accept
+`PrismaClient | Prisma.TransactionClient` (narrow to the subset of methods
+it actually calls: `knowledge.findFirst`/`knowledge.update`), or inline the
+supersede logic directly in the route's transaction callback instead of
+calling the shared function. Confirm via a real `tsc` run in CI on the
+first push of this task — do not assume either direction.
+
+- [ ] **Step 3b: validate `for:<email>` tags against real org membership**
+
+**CodeRabbit finding (valid, fixed here):** an unvalidated `for:` tag lets a
+client submit an action item addressed to any string, defeating the "dropdown
+of real members, never free text" design decision. Enforce it server-side —
+client dropdown state is not a trust boundary.
+
+Add a failing test first, appended to the same `describe` block in
+`route.test.ts`:
+
+```typescript
+  it("rejects a for: tag whose email is not a member of the resolved project's org", async () => {
+    const req = new Request("http://test.local/api/knowledge", {
+      method: "POST",
+      body: JSON.stringify({
+        type: "action_item",
+        triggerText: "t",
+        ruleText: "task for a stranger",
+        tags: ["action-item", "for:not-a-member@test.local"],
+        ownerProjectId: projectId,
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
+
+  it("accepts a for: tag whose email IS a real org member", async () => {
+    const org = await db.project.findUniqueOrThrow({ where: { id: projectId }, select: { organizationId: true } });
+    const member = await db.user.create({
+      data: { email: `real-member-${randomBytes(6).toString("hex")}@test.local` },
+      select: { id: true, email: true },
+    });
+    created.userIds.push(member.id);
+    await db.organizationMember.create({
+      data: { orgId: org.organizationId, userId: member.id, role: "member" },
+    });
+
+    const req = new Request("http://test.local/api/knowledge", {
+      method: "POST",
+      body: JSON.stringify({
+        type: "action_item",
+        triggerText: "t",
+        ruleText: "task for a real member",
+        tags: ["action-item", `for:${member.email}`],
+        ownerProjectId: projectId,
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { item: { id: string } };
+    created.knowledgeIds.push(body.item.id);
+  });
+```
+
+Run: expect FAIL — no validation exists yet, the first test gets `201` instead
+of the expected `400`.
+
+Implement in `apps/web/app/api/knowledge/route.ts`: add `listOrgMembers` to
+the `@brain/core` import list. After `resolvedProjectId` is settled (both
+branches of the existing if/else) and before the `$transaction` call from
+Step 3, insert:
+
+```typescript
+    if (body.type === "action_item") {
+      const forTag = body.tags.find((t) => t.startsWith("for:"));
+      if (forTag) {
+        const assigneeEmail = forTag.slice(4).toLowerCase();
+        const project = await db.project.findUnique({
+          where: { id: resolvedProjectId },
+          select: { organizationId: true },
+        });
+        const members = project ? await listOrgMembers(db, project.organizationId) : [];
+        const isMember = members.some((m) => m.email.toLowerCase() === assigneeEmail);
+        if (!isMember) {
+          return Response.json(
+            {
+              error: {
+                code: "INVALID_ASSIGNEE",
+                message: `${assigneeEmail} is not a member of this project's organization.`,
+              },
+            },
+            { status: 400 },
+          );
+        }
+      }
     }
 ```
 
+(This runs for every `action_item` teach call through this REST path, not
+just meeting-extraction-originated ones — correct, since the invariant
+should hold universally, matching the note added to Global Constraints.)
+
+- [ ] **Step 3c: close the same gap on the MCP tool.** `supersedeKnowledge`'s
+new `projectId` param (Step 3) is optional — omitting it preserves the old,
+unguarded behavior, which means `apps/mcp-server/src/tools/teach.ts`'s
+existing `supersedesKnowledgeId` handling (its own call to
+`supersedeKnowledge`, same shared function) is still exposed to the
+cross-project retirement gap unless it's updated too. Since the fix is a
+one-line addition using data the handler already has in scope
+(`resolvedProjectId`, resolved earlier in the same function for the new
+row's own `ownerProjectId`), do it now rather than leave half the fix in
+place. In `apps/mcp-server/src/tools/teach.ts`, change:
+
+```typescript
+      await supersedeKnowledge(db, {
+        newId: row.id,
+        supersededId: input.supersedesKnowledgeId,
+        userId: auth.userId,
+      });
+```
+
+to:
+
+```typescript
+      await supersedeKnowledge(db, {
+        newId: row.id,
+        supersededId: input.supersedesKnowledgeId,
+        userId: auth.userId,
+        projectId: resolvedProjectId ?? undefined,
+      });
+```
+
+(Verify `resolvedProjectId`'s exact variable name against the current file
+before editing — read the full function, not just this excerpt, since it
+may have been renamed since this plan was written.) This MCP-tool fix is
+unrelated to the webapp feature this plan builds but shares the exact code
+path being hardened in this same task — landing it here avoids leaving a
+known, just-identified gap open in shipped code. No new test required
+beyond Step 3b's; `knowledge-supersede.test.ts`'s project-mismatch case
+already exercises `supersedeKnowledge` directly, which is what both callers
+now share.
+
 - [ ] **Step 4: Run test to verify it passes**
 
-Push and check CI. Expected: PASS.
+Push and check CI. Expected: PASS (all four tests in this file).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/web/app/api/knowledge/route.ts apps/web/app/api/knowledge/route.test.ts
-git commit -m "feat(web): POST /api/knowledge accepts action_item + supersedesKnowledgeId"
+git add apps/web/app/api/knowledge/route.ts apps/web/app/api/knowledge/route.test.ts packages/core/src/knowledge-stats.ts packages/core/src/__tests__/knowledge-supersede.test.ts apps/mcp-server/src/tools/teach.ts
+git commit -m "feat(web): POST /api/knowledge accepts action_item + supersedesKnowledgeId (transactional, project-scoped, membership-validated)"
 ```
 
 ---
@@ -237,16 +454,17 @@ In the `GET` handler, after the existing `const type = url.searchParams.get("typ
     const tagPrefix = url.searchParams.get("tagPrefix");
 ```
 
-Find where `baseWhere` (from `buildKnowledgeWhereV2`) is combined with the `type` filter into the final Prisma `where` clause passed to `db.knowledge.findMany`. Wrap it in an `AND` array that conditionally includes a tag-prefix filter. Prisma's `Json`/array `tags` field (`String[]`) supports `hasSome`, but a prefix match needs raw filtering since Prisma has no "array element startsWith" operator — fetch candidate rows via the existing where clause, then filter by prefix in application code (the endpoint already caps `limit` at 500, so this is a bounded, cheap in-memory filter, not a scale concern):
+Find where `baseWhere` (from `buildKnowledgeWhereV2`) is combined with the `type` filter into the final Prisma `where` clause passed to `db.knowledge.findMany`. Prisma's `String[]` `tags` field has no "array element startsWith" operator, so the prefix match happens in application code — but **CodeRabbit correctly caught that filtering after `take: limit` silently drops older matches** (the newest `limit` rows might contain none of the tag-matching ones at all). Fix: when `tagPrefix` is present, fetch a larger bounded candidate pool *without* the response-facing `limit`, filter by prefix, *then* slice to `limit` for the actual response — never apply the caller-facing limit before the prefix filter:
 
 ```typescript
+    const CANDIDATE_POOL_CAP = 2000; // bounded scan ceiling when tag-filtering; independent of the response `limit`
     let rows = await db.knowledge.findMany({
       where: finalWhere, // existing variable name — verify against the file
       orderBy: [{ createdAt: "desc" }],
-      take: limit,
+      take: tagPrefix ? CANDIDATE_POOL_CAP : limit,
     });
     if (tagPrefix) {
-      rows = rows.filter((r) => r.tags.some((t) => t.startsWith(tagPrefix)));
+      rows = rows.filter((r) => r.tags.some((t) => t.startsWith(tagPrefix))).slice(0, limit);
     }
 ```
 
@@ -514,10 +732,20 @@ export function buildExtractionPrompt(transcript: string): string {
   return `MEETING TRANSCRIPT:\n${transcript}\n\nExtract now.`;
 }
 
+// CodeRabbit finding (valid, fixed here): the original predicates only
+// checked trigger/rule, while their TYPE claimed rationale/instead/
+// assigneeGuessEmail/blocker/kind were validated too — a malformed LLM
+// response (e.g. assigneeGuessEmail: 123) would pass isValidActionItem,
+// then `.toLowerCase()` on that number inside the webapp's teachActionItem
+// (Task 8) would throw. Every optional field's runtime type is now checked
+// before the predicate returns true, matching what the type signature claims.
 function isValidDecision(d: unknown): d is { trigger: string; rule: string; rationale?: string; instead?: string } {
   if (typeof d !== "object" || d === null) return false;
   const r = d as Record<string, unknown>;
-  return typeof r["trigger"] === "string" && typeof r["rule"] === "string";
+  if (typeof r["trigger"] !== "string" || typeof r["rule"] !== "string") return false;
+  if (r["rationale"] !== undefined && typeof r["rationale"] !== "string") return false;
+  if (r["instead"] !== undefined && typeof r["instead"] !== "string") return false;
+  return true;
 }
 
 function isValidActionItem(
@@ -525,7 +753,11 @@ function isValidActionItem(
 ): a is { trigger: string; rule: string; assigneeGuessEmail?: string | null; blocker?: boolean; kind?: string } {
   if (typeof a !== "object" || a === null) return false;
   const r = a as Record<string, unknown>;
-  return typeof r["trigger"] === "string" && typeof r["rule"] === "string";
+  if (typeof r["trigger"] !== "string" || typeof r["rule"] !== "string") return false;
+  if (r["assigneeGuessEmail"] !== undefined && r["assigneeGuessEmail"] !== null && typeof r["assigneeGuessEmail"] !== "string") return false;
+  if (r["blocker"] !== undefined && typeof r["blocker"] !== "boolean") return false;
+  if (r["kind"] !== undefined && typeof r["kind"] !== "string") return false;
+  return true;
 }
 
 export function parseExtractionResponse(raw: string): ExtractedMeeting {
@@ -926,36 +1158,86 @@ git commit -m "feat(web): POST /api/meetings/extract — flag-gated, rate-limite
 - Modify: `apps/web/components/brain/app.tsx`
 - Modify: `apps/web/components/brain/shell.tsx`
 - Modify: `apps/web/lib/brain/i18n.ts`
+- Modify: `apps/web/app/api/me/route.ts`
 
 **Interfaces:**
-- Consumes: nothing new yet (component itself is Task 8) — this task adds the *route slot* so Task 8's component has somewhere to render.
-- Produces: `Route` type includes `"meetings"`; keyboard shortcut `8`; nav rail entries (desktop + mobile) visible only when a capability check passes (see below).
+- Consumes: `envForWeb().MEETING_UPLOAD_ENABLED` from `@brain/core` (server-side, inside `/api/me`'s route handler only — this flag must never be bundled into client JS).
+- Produces: `Route` type includes `"meetings"`; keyboard shortcut `8`; `GET /api/me`'s response gains `capabilities: { meetingUploadEnabled: boolean }`; nav rail entries (desktop + mobile) render **only** when that capability is true.
 
 - [ ] **Step 1:** In `apps/web/lib/brain/routes.ts`, add `"meetings"` to the `ROUTES` array and `"8": "meetings"` to `KEY_MAP`.
 
 - [ ] **Step 2:** In `apps/web/components/brain/app.tsx`, add `import { Meetings } from "./meetings";` (component created in Task 8 — this import will fail to resolve until then; acceptable within one feature branch, not across a merge) and add `meetings: <Meetings />,` to the `screens` object.
 
-- [ ] **Step 3:** In `apps/web/components/brain/shell.tsx`, find both nav-item arrays (the desktop one starting `{ id: "dashboard", ... }` around the `Rail` component, and the second one for the mobile/bottom-nav variant). Add to each, after the `decisions` entry:
+- [ ] **Step 3: expose the flag to the client.** **CodeRabbit finding (valid, fixed here):** the original version of this task added the nav entry unconditionally — with the flag default-off, every visitor would see a "Meetings" nav item whose endpoint 503s the moment they click it. Exactly the class of bug fixed on 2026-07-10 (a surface that looks functional but silently isn't). `MEETING_UPLOAD_ENABLED` is a server-only env var (`envForWeb()`); it has to reach client-rendered nav through an API response, not a bundled env var. Reuse `/api/me` — it's already fetched once by `shell.tsx`'s `useMe()` hook on mount, so this adds zero new network calls.
+
+  In `apps/web/app/api/me/route.ts`, import `envForWeb` from `@brain/core` and add to the response body:
 
 ```typescript
-    { id: "meetings", label: t("nav.meetings"), icon: "meetings", kbd: "8",
-      hint: t("nav.hints.meetings") },
+    return Response.json({
+      user: { /* ...existing fields... */ },
+      capabilities: {
+        meetingUploadEnabled: envForWeb().MEETING_UPLOAD_ENABLED,
+      },
+    });
 ```
 
-(Match the exact object shape already used by sibling entries in each array — some use `kbd`, confirm the mobile array's entries do or don't before copying that field verbatim.)
+  (Splice this into the existing `return Response.json({...})` — do not restructure the existing `user` shape.)
 
-- [ ] **Step 4:** Check whether `icon: "meetings"` needs a corresponding SVG/icon-map entry (grep `shell.tsx` or a sibling icons file for how `icon: "decisions"` resolves to a rendered glyph) and add one following the same pattern — reuse an existing generic icon (e.g. the same glyph as "sessions" or a simple document icon) rather than commissioning new art for a v1 flagged-off feature.
+- [ ] **Step 4: gate the nav rendering.** In `apps/web/components/brain/shell.tsx`, extend `useMe()`'s returned view type and fetch handling to also capture `capabilities`:
 
-- [ ] **Step 5:** In `apps/web/lib/brain/i18n.ts`, find the EN block's `dashboard: "Dashboard",` line and the corresponding `hints: { dashboard: ... }` sub-object. Add `meetings: "Meetings",` and a hint string to the EN block, and matching entries to the DE and TH blocks (grep each block for `decisions:` as the insertion anchor — it's the most recently added nav entry and will be physically adjacent in all three blocks).
+```typescript
+function useMe(): { name: string; tenant: string; initials: string; meetingUploadEnabled: boolean } {
+  const [view, setView] = useState<{ name: string; tenant: string; initials: string; meetingUploadEnabled: boolean }>(
+    { name: "—", tenant: "Personal", initials: "··", meetingUploadEnabled: false },
+  );
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/me", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: {
+        user?: { name?: string | null; email?: string | null; teams?: Array<{ name: string }> } | null;
+        capabilities?: { meetingUploadEnabled?: boolean };
+      } | null) => {
+        if (cancelled || !d?.user) return;
+        const u = d.user;
+        const name = u.name?.trim() || u.email?.split("@")[0] || "Signed in";
+        const initials =
+          (u.name?.trim().split(/\s+/).map((p) => p[0]).join("").slice(0, 2)
+            || u.email?.slice(0, 2)
+            || "··").toUpperCase();
+        const tenant = u.teams?.[0]?.name ?? "Personal";
+        setView({ name, tenant, initials, meetingUploadEnabled: d.capabilities?.meetingUploadEnabled === true });
+      })
+      .catch(() => {/* keep placeholder */});
+    return () => { cancelled = true; };
+  }, []);
+  return view;
+}
+```
 
-- [ ] **Step 6: Commit**
+  Then find both nav-item arrays (the desktop one starting `{ id: "dashboard", ... }` around the `Rail` component, and the second one for the mobile/bottom-nav variant) — both live inside the component(s) that already call `useMe()`. Build the nav array conditionally instead of as a static literal:
+
+```typescript
+    ...(meetingUploadEnabled
+      ? [{ id: "meetings", label: t("nav.meetings"), icon: "meetings", kbd: "8",
+           hint: t("nav.hints.meetings") }]
+      : []),
+```
+
+  spliced into each array at the same position (after the `decisions` entry) using array spread rather than a bare object literal. Apply this to **both** the desktop and mobile arrays — a partial fix that gates only one is the exact shape of bug this fix exists to prevent. (Match the exact object shape already used by sibling entries — some use `kbd`, confirm the mobile array's entries do or don't before copying that field verbatim.)
+
+- [ ] **Step 5:** Check whether `icon: "meetings"` needs a corresponding SVG/icon-map entry (grep `shell.tsx` or a sibling icons file for how `icon: "decisions"` resolves to a rendered glyph) and add one following the same pattern — reuse an existing generic icon (e.g. the same glyph as "sessions" or a simple document icon) rather than commissioning new art for a v1 flagged-off feature.
+
+- [ ] **Step 6:** In `apps/web/lib/brain/i18n.ts`, find the EN block's `dashboard: "Dashboard",` line and the corresponding `hints: { dashboard: ... }` sub-object. Add `meetings: "Meetings",` and a hint string to the EN block, and matching entries to the DE and TH blocks (grep each block for `decisions:` as the insertion anchor — it's the most recently added nav entry and will be physically adjacent in all three blocks).
+
+- [ ] **Step 7: Commit**
 
 ```bash
-git add apps/web/lib/brain/routes.ts apps/web/components/brain/app.tsx apps/web/components/brain/shell.tsx apps/web/lib/brain/i18n.ts
-git commit -m "feat(web): wire meetings surface into the shell (route, nav, i18n)"
+git add apps/web/lib/brain/routes.ts apps/web/components/brain/app.tsx apps/web/components/brain/shell.tsx apps/web/lib/brain/i18n.ts apps/web/app/api/me/route.ts
+git commit -m "feat(web): wire meetings surface into the shell (route, nav, i18n) — flag-gated via /api/me capabilities"
 ```
 
-(No isolated test for this task — it's glue code verified by Task 8's e2e spec, which needs the nav entry to exist to navigate to the surface at all.)
+(No isolated unit test for this task — the flag-gating is glue code verified two ways: manually with the flag on/off locally, and by Task 8's e2e spec, which needs both the nav entry AND the flag on to navigate to the surface at all — the spec's own `test.skip` already only runs when `MEETING_UPLOAD_ENABLED=true`, which now doubles as proof the nav entry must be visible in that state for the test to pass.)
 
 ---
 
@@ -977,7 +1259,7 @@ git commit -m "feat(web): wire meetings surface into the shell (route, nav, i18n
 ```typescript
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useT } from "@/lib/brain/i18n";
 
 interface DecisionCandidate {
@@ -1016,6 +1298,8 @@ export function Meetings() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ExtractResponse | null>(null);
   const [taught, setTaught] = useState<Set<number>>(new Set());
+  const [teaching, setTeaching] = useState<Set<number>>(new Set());
+  const [cardErrors, setCardErrors] = useState<Record<number, string>>({});
   const [decisionSupersedeConfirmed, setDecisionSupersedeConfirmed] = useState<Set<number>>(new Set());
   const [actionItemAssignee, setActionItemAssignee] = useState<Record<number, string>>({});
 
@@ -1041,6 +1325,23 @@ export function Meetings() {
       }
       setResult(data);
       setMode("review");
+      // CodeRabbit finding (valid, fixed here): pre-select the LLM's
+      // assigneeGuessEmail ONLY when it matches a real member's email —
+      // otherwise leave the item unassigned. Without this, a hallucinated
+      // or mistyped guess that never matches any dropdown <option> could
+      // still be silently submitted as the for: tag if the user never
+      // manually touches the dropdown, undermining the whole point of
+      // "dropdown, not free text." The dropdown is now the ONLY source of
+      // a submitted assignee — there is no raw-guess fallback at submit
+      // time (see teachActionItem below).
+      const memberEmails = new Set(data.members.map((m) => m.email.toLowerCase()));
+      const preSelected: Record<number, string> = {};
+      data.actionItems.forEach((a, i) => {
+        if (a.assigneeGuessEmail && memberEmails.has(a.assigneeGuessEmail.toLowerCase())) {
+          preSelected[i] = a.assigneeGuessEmail.toLowerCase();
+        }
+      });
+      setActionItemAssignee(preSelected);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Extraction failed.");
     } finally {
@@ -1050,48 +1351,77 @@ export function Meetings() {
 
   const meetingTag = `meeting:${meetingDate}`;
 
-  async function teachDecision(index: number): Promise<void> {
-    if (!result) return;
-    const d = result.decisions[index]!;
-    const supersedes = decisionSupersedeConfirmed.has(index) ? d.supersedes : null;
+  // Server-side validation (Task 1, Step 3b) is the real trust boundary for
+  // the for: tag; this client fallback only produces a readable message
+  // instead of a raw 400 body when it's rejected.
+  async function postKnowledge(payload: Record<string, unknown>): Promise<{ ok: true } | { ok: false; message: string }> {
     const res = await fetch("/api/knowledge", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        type: "principle",
-        scope: "project",
-        triggerText: d.triggerText,
-        ruleText: d.ruleText,
-        rationale: d.rationale || undefined,
-        tags: ["decision", meetingTag],
-        ...(supersedes ? { supersedesKnowledgeId: supersedes.id } : {}),
-      }),
+      body: JSON.stringify(payload),
     });
-    if (res.ok) setTaught((prev) => new Set(prev).add(index));
+    if (res.ok) return { ok: true };
+    const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+    return { ok: false, message: body?.error?.message ?? `Teach failed (${res.status})` };
+  }
+
+  async function teachDecision(index: number): Promise<void> {
+    if (!result) return;
+    setTeaching((prev) => new Set(prev).add(index));
+    setCardErrors((prev) => { const next = { ...prev }; delete next[index]; return next; });
+    const d = result.decisions[index]!;
+    const supersedes = decisionSupersedeConfirmed.has(index) ? d.supersedes : null;
+    // CodeRabbit finding (valid, fixed here): the original version only
+    // acted on res.ok, silently doing nothing on failure — the spec's own
+    // §4c error-handling section promises "inline error on just that
+    // card," which this now delivers.
+    const outcome = await postKnowledge({
+      type: "principle",
+      scope: "project",
+      triggerText: d.triggerText,
+      ruleText: d.ruleText,
+      rationale: d.rationale || undefined,
+      tags: ["decision", meetingTag],
+      ...(supersedes ? { supersedesKnowledgeId: supersedes.id } : {}),
+    });
+    setTeaching((prev) => { const next = new Set(prev); next.delete(index); return next; });
+    if (outcome.ok) {
+      setTaught((prev) => new Set(prev).add(index));
+    } else {
+      setCardErrors((prev) => ({ ...prev, [index]: outcome.message }));
+    }
   }
 
   async function teachActionItem(index: number): Promise<void> {
     if (!result) return;
+    const offsetIndex = 1000 + index; // shares the taught/teaching/cardErrors Sets with decisions
+    setTeaching((prev) => new Set(prev).add(offsetIndex));
+    setCardErrors((prev) => { const next = { ...prev }; delete next[offsetIndex]; return next; });
     const a = result.actionItems[index]!;
-    const assignee = actionItemAssignee[index] ?? a.assigneeGuessEmail ?? "";
+    // No raw-guess fallback here — actionItemAssignee[index] is either a
+    // dropdown-confirmed real member email (pre-selected in handleExtract,
+    // or hand-picked by the reviewer) or empty/unassigned. Never the
+    // unvalidated a.assigneeGuessEmail directly.
+    const assignee = actionItemAssignee[index] ?? "";
     const tags = [
       a.kind === "open-question" ? "open-question" : "action-item",
       meetingTag,
       ...(a.blocker ? ["blocker"] : []),
       ...(assignee ? [`for:${assignee.toLowerCase()}`] : []),
     ];
-    const res = await fetch("/api/knowledge", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        type: "action_item",
-        scope: "project",
-        triggerText: a.triggerText,
-        ruleText: a.ruleText,
-        tags,
-      }),
+    const outcome = await postKnowledge({
+      type: "action_item",
+      scope: "project",
+      triggerText: a.triggerText,
+      ruleText: a.ruleText,
+      tags,
     });
-    if (res.ok) setTaught((prev) => new Set(prev).add(1000 + index)); // offset to share the Set with decisions
+    setTeaching((prev) => { const next = new Set(prev); next.delete(offsetIndex); return next; });
+    if (outcome.ok) {
+      setTaught((prev) => new Set(prev).add(offsetIndex));
+    } else {
+      setCardErrors((prev) => ({ ...prev, [offsetIndex]: outcome.message }));
+    }
   }
 
   return (
@@ -1146,31 +1476,36 @@ export function Meetings() {
                   Replaces: "{d.supersedes.ruleText}"
                 </label>
               )}
-              <button onClick={() => teachDecision(i)} disabled={taught.has(i)}>
-                {taught.has(i) ? "✓ Taught" : "Teach"}
+              {cardErrors[i] && <div role="alert">{cardErrors[i]}</div>}
+              <button onClick={() => teachDecision(i)} disabled={taught.has(i) || teaching.has(i)}>
+                {taught.has(i) ? "✓ Taught" : teaching.has(i) ? "Teaching…" : cardErrors[i] ? "Retry" : "Teach"}
               </button>
             </div>
           ))}
 
           <h2>Action Items &amp; Open Questions</h2>
-          {result.actionItems.map((a, i) => (
-            <div key={i} data-testid={`action-item-card-${i}`}>
-              {a.blocker && <span>BLOCKER</span>}
-              <p>{a.ruleText}</p>
-              <select
-                value={actionItemAssignee[i] ?? a.assigneeGuessEmail ?? ""}
-                onChange={(e) => setActionItemAssignee((prev) => ({ ...prev, [i]: e.target.value }))}
-              >
-                <option value="">— unassigned —</option>
-                {result.members.map((m) => (
-                  <option key={m.email} value={m.email}>{m.name ?? m.email}</option>
-                ))}
-              </select>
-              <button onClick={() => teachActionItem(i)} disabled={taught.has(1000 + i)}>
-                {taught.has(1000 + i) ? "✓ Taught" : "Teach"}
-              </button>
-            </div>
-          ))}
+          {result.actionItems.map((a, i) => {
+            const offsetIndex = 1000 + i;
+            return (
+              <div key={i} data-testid={`action-item-card-${i}`}>
+                {a.blocker && <span>BLOCKER</span>}
+                <p>{a.ruleText}</p>
+                <select
+                  value={actionItemAssignee[i] ?? ""}
+                  onChange={(e) => setActionItemAssignee((prev) => ({ ...prev, [i]: e.target.value }))}
+                >
+                  <option value="">— unassigned —</option>
+                  {result.members.map((m) => (
+                    <option key={m.email} value={m.email}>{m.name ?? m.email}</option>
+                  ))}
+                </select>
+                {cardErrors[offsetIndex] && <div role="alert">{cardErrors[offsetIndex]}</div>}
+                <button onClick={() => teachActionItem(i)} disabled={taught.has(offsetIndex) || teaching.has(offsetIndex)}>
+                  {taught.has(offsetIndex) ? "✓ Taught" : teaching.has(offsetIndex) ? "Teaching…" : cardErrors[offsetIndex] ? "Retry" : "Teach"}
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -1182,14 +1517,23 @@ export function Meetings() {
 function MeetingHistory() {
   const [rows, setRows] = useState<Array<{ id: string; ruleText: string; tags: string[] }> | null>(null);
 
-  useState(() => {
+  // CodeRabbit finding (valid, fixed here): the original version ran this
+  // fetch inside a useState lazy initializer, which executes during render
+  // — a side effect in render is unsound under Strict Mode / concurrent
+  // rendering. useEffect is the correct place for a mount-time fetch, and
+  // res.ok is now checked before parsing so a non-2xx response degrades to
+  // the empty-history state instead of throwing on non-JSON error bodies.
+  useEffect(() => {
+    let cancelled = false;
     fetch("/api/knowledge?tagPrefix=meeting%3A")
-      .then((r) => r.json())
-      .then((data: { items: Array<{ id: string; body: string; tags: string[] }> }) =>
-        setRows(data.items.map((i) => ({ id: i.id, ruleText: i.body, tags: i.tags }))),
-      )
-      .catch(() => setRows([]));
-  });
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((data: { items: Array<{ id: string; body: string; tags: string[] }> }) => {
+        if (cancelled) return;
+        setRows(data.items.map((i) => ({ id: i.id, ruleText: i.body, tags: i.tags })));
+      })
+      .catch(() => { if (!cancelled) setRows([]); });
+    return () => { cancelled = true; };
+  }, []);
 
   if (rows === null) return <p>Loading…</p>;
   if (rows.length === 0) return <p>No meetings imported yet.</p>;
@@ -1259,22 +1603,25 @@ git commit -m "feat(web): meetings surface — paste/review/history UI + flag-ga
 **Files:**
 - Modify: `docs/protocols/meeting-miner.md`
 - Modify: `docs/REST_API.md`
+- Modify: `docs/MCP_TOOLS.md`
 - Modify: `docs/KNOWN_ISSUES.md`
 - Modify: `docs/GUIDELINES.md`
 
 - [ ] **Step 1:** In `docs/protocols/meeting-miner.md`, add one paragraph near the top: the `/meetings` webapp surface (flag-gated, `MEETING_UPLOAD_ENABLED`) is now an alternative front door running the same underlying teach calls this protocol describes — useful without an agent handy, or for a single quick import.
 
-- [ ] **Step 2:** In `docs/REST_API.md`, document `POST /api/meetings/extract` (request/response shape from Task 6) and the two `POST`/`GET /api/knowledge` extensions from Tasks 1–2 (`action_item` type, `supersedesKnowledgeId`, `tagPrefix`).
+- [ ] **Step 2:** In `docs/REST_API.md`, document `POST /api/meetings/extract` (request/response shape from Task 6) and the two `POST`/`GET /api/knowledge` extensions from Tasks 1–2 (`action_item` type, `supersedesKnowledgeId`, `tagPrefix`, and the new `for:` tag membership validation).
 
-- [ ] **Step 3:** In `docs/KNOWN_ISSUES.md`, add an entry under a new `§0o` (following the `§0n` numbering from the 2026-07-10 first-time-user review): this feature closes the exact gap `§0n`'s "Known imprecision" and the operator's 2026-07-12 live question both surfaced — record it as done, flag-gated, with the enable steps (env var + compose allowlist, per the standing lesson).
+- [ ] **Step 3: `docs/MCP_TOOLS.md`.** **CodeRabbit finding (valid, fixed here):** the spec's §4d explicitly required both `docs/MCP_TOOLS.md` and `docs/REST_API.md` to be updated; this task originally listed only the latter. Document the `supersedeKnowledge` project-scoping hardening from Task 1 Step 3c (`brain_teach_knowledge`'s `supersedesKnowledgeId` behavior is now also project-checked, not just owner-checked) — this is the one genuine MCP-tool-visible change from this plan.
 
-- [ ] **Step 4:** In `docs/GUIDELINES.md` §7, add one line to the existing "semantic retrieval is owner-scoped" principle (already recorded from the 2026-07-10 security review) noting `findSupersessionCandidates` as the second precedent for a deliberately project-wide (not owner-scoped) query, alongside `action-items.ts`.
+- [ ] **Step 4:** In `docs/KNOWN_ISSUES.md`, add an entry under a new `§0o` (following the `§0n` numbering from the 2026-07-10 first-time-user review): this feature closes the exact gap `§0n`'s "Known imprecision" and the operator's 2026-07-12 live question both surfaced — record it as done, flag-gated, with the enable steps (env var + compose allowlist, per the standing lesson). Also record the pre-merge CodeRabbit review pass on the spec+plan PR (#165) as a precedent: catching cross-project supersede, silent teach failures, unvalidated assignee emails, and a React anti-pattern at the *planning* stage, before any code existed, is cheaper than catching them in a second review pass on already-written code — worth deliberately requesting this kind of review on future plan documents, not just finished diffs.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5:** In `docs/GUIDELINES.md` §7, add one line to the existing "semantic retrieval is owner-scoped" principle (already recorded from the 2026-07-10 security review) noting `findSupersessionCandidates` as the second precedent for a deliberately project-wide (not owner-scoped) query, alongside `action-items.ts`.
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add docs/protocols/meeting-miner.md docs/REST_API.md docs/KNOWN_ISSUES.md docs/GUIDELINES.md
-git commit -m "docs: sweep for meeting-transcript-upload (protocol note, REST_API, KNOWN_ISSUES, GUIDELINES)"
+git add docs/protocols/meeting-miner.md docs/REST_API.md docs/MCP_TOOLS.md docs/KNOWN_ISSUES.md docs/GUIDELINES.md
+git commit -m "docs: sweep for meeting-transcript-upload (protocol note, REST_API, MCP_TOOLS, KNOWN_ISSUES, GUIDELINES)"
 ```
 
 ---
@@ -1291,6 +1638,7 @@ git commit -m "docs: sweep for meeting-transcript-upload (protocol note, REST_AP
 
 ## Self-Review
 
-- **Spec coverage:** §2 goal 1 (extract 3 kinds) → Task 4; §2 goal 2 (review before commit) → Task 8's review-mode UI; §2 goal 3 (existing teach path) → Tasks 1, 8; §2 goal 4 (history, no new persistence) → Tasks 2, 8; §3 architecture (stateless, Approach B) → Tasks 4–8 collectively; §4a–4c components → Tasks 4, 6, 7–8 respectively; §4d docs → Task 9; §5 security (project-scoped, rate-limited) → Tasks 5–6; §6 rollout (flag off, no migration, compose allowlist) → Task 3, Task 10; §7 testing → each task's own test step + Task 8 Step 4's CI-wiring verification. No gaps found.
-- **Placeholder scan:** none — every step has real, complete code. Three explicit "verify before finalizing" notes (Tasks 5, 6, 8) are not placeholders; they're honest flags where full context wasn't confirmed during planning (a function signature two layers deep, a response-shape field name) — each names exactly what to check and why, which is the required behavior when a plan author hasn't verified every transitive dependency firsthand.
-- **Type consistency:** `ExtractedDecision`/`ExtractedActionItem`/`ExtractedMeeting` (Task 4) match the shapes consumed in Task 6's route and Task 8's component; `SupersessionCandidate` (Task 5) matches the `supersedes` field Task 6 attaches and Task 8 renders; `action_item`/`supersedesKnowledgeId` (Task 1) match exactly what Task 8's `teachDecision`/`teachActionItem` send. Checked consistent.
+- **Spec coverage:** §2 goal 1 (extract 3 kinds) → Task 4; §2 goal 2 (review before commit) → Task 8's review-mode UI; §2 goal 3 (existing teach path) → Tasks 1, 8; §2 goal 4 (history, no new persistence) → Tasks 2, 8; §3 architecture (stateless, Approach B) → Tasks 4–8 collectively; §4a–4c components → Tasks 4, 6, 7–8 respectively; §4d docs → Task 9 (now genuinely both `MCP_TOOLS.md` and `REST_API.md`, matching the spec); §5 security (project-scoped, rate-limited, **and now server-validated assignee membership + project-scoped supersession**) → Tasks 1, 5–6; §6 rollout (flag off, no migration, compose allowlist, **and now actually gated in the nav, not just the backend**) → Task 3, Task 7, Task 10; §7 testing → each task's own test step + Task 8 Step 4's CI-wiring verification. No gaps found.
+- **Placeholder scan:** none — every step has real, complete code. Explicit "verify before finalizing" notes (Tasks 1, 5, 6, 8) are not placeholders; they're honest flags where full context wasn't confirmed during planning (a function signature two layers deep, a response-shape field name, a Prisma transaction-client typing question) — each names exactly what to check and why.
+- **Type consistency:** `ExtractedDecision`/`ExtractedActionItem`/`ExtractedMeeting` (Task 4) match the shapes consumed in Task 6's route and Task 8's component (open questions folded into `ExtractedActionItem.kind`, reconciled against the spec); `SupersessionCandidate` (Task 5) matches the `supersedes` field Task 6 attaches and Task 8 renders; `action_item`/`supersedesKnowledgeId` (Task 1) match exactly what Task 8's `teachDecision`/`teachActionItem` send. Checked consistent.
+- **Independent review pass (2026-07-14, pre-implementation):** CodeRabbit reviewed this plan document (and the spec) on PR #165 before any code existed — 10 findings, 8 valid and fixed inline above, 1 (spec/plan `openQuestions` inconsistency) reconciled by updating the spec rather than the plan, 1 (history query missing an explicit `scope=project` param) verified against the live route source and found **not applicable** — `GET /api/knowledge`'s `dataScope` already defaults to `"project"` when no `scope` param is passed, confirmed by reading `apps/web/app/api/knowledge/route.ts` directly rather than accepting the claim. Fixing all of this at the plan stage — before Task 1's first line of real code is written — is the whole point of a written plan surviving a review pass: every one of these would otherwise have been caught later, in already-shipped code, at higher cost.

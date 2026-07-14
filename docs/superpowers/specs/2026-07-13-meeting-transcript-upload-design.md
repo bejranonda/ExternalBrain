@@ -81,7 +81,11 @@ POST /api/meetings/extract   (flag-gated: MEETING_UPLOAD_ENABLED)
         │  stateless — nothing persisted yet
         │  1. pure prompt-build (packages/core/src/meeting-extract.ts)
         │  2. callLLMText — existing provider dispatch, no new LLM plumbing
-        │  3. pure response-parse → { decisions[], actionItems[], openQuestions[] }
+        │  3. pure response-parse → { decisions[], actionItems[] }
+        │     (open questions are actionItems with kind:"open-question" —
+        │     see §4a; combined during implementation planning to avoid a
+        │     near-duplicate type + UI path for two structurally identical
+        │     shapes distinguished only by a rendering label)
         │  4. per decision: kra semantic search scoped to this project's
         │     decision-tagged Knowledge → attach a supersession suggestion
         │  5. attach the project's member list (existing
@@ -123,11 +127,19 @@ seam pattern (`docs/GUIDELINES.md` §4, "Testing LLM-backed units"):
   — thin orchestration; `opts.call` is the injectable seam a unit test
   supplies canned output through, exactly like `ExtractOpts.judge` in
   `kea.ts`.
-- `ExtractedMeeting = { decisions: ExtractedDecision[]; actionItems: ExtractedActionItem[]; openQuestions: ExtractedOpenQuestion[] }`
+- `ExtractedMeeting = { decisions: ExtractedDecision[]; actionItems: ExtractedActionItem[] }`
   with each item shaped to match what the review UI and the teach call
   need directly (trigger/rule/rationale/instead for decisions;
   rule/trigger/assigneeGuess for action items) — no separate "domain
-  model" translation layer.
+  model" translation layer. **Open questions are `ExtractedActionItem`s
+  with `kind: "open-question"`**, not a third array — they share every
+  field (trigger, rule, optional assignee) with action items and differ
+  only in how the review UI labels the card and which teach-time tag
+  (`open-question` vs `action-item`) gets applied. Reconciled here during
+  implementation planning (2026-07-14) after this section and the plan
+  disagreed; keeping one combined shape avoids a near-duplicate
+  type/route/UI path for something that's a label, not a different kind
+  of data.
 
 ### 4b. `POST /api/meetings/extract` (new)
 
