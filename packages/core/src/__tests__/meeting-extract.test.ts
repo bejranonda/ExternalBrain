@@ -64,9 +64,9 @@ describe("extractMeeting", () => {
     return {
       calls,
       deps: {
-        anthropic: async (p) => { calls.push(`anthropic:${p.length}`); return response; },
-        openai: async (p) => { calls.push(`openai:${p.length}`); return response; },
-        dashscope: async (p) => { calls.push(`dashscope:${p.length}`); return response; },
+        anthropic: async (p, opts) => { calls.push(`anthropic:${p.length}`); return response; },
+        openai: async (p, model, systemPrompt, maxTokens, jsonObject) => { calls.push(`openai:${p.length}`); return response; },
+        dashscope: async (p, model, systemPrompt, maxTokens) => { calls.push(`dashscope:${p.length}`); return response; },
       },
     };
   }
