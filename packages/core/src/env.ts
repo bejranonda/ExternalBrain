@@ -60,6 +60,7 @@ const WebExtra = z.object({
   RATE_LIMIT_ORACLE_PER_DAY: intFrom(100),
   RATE_LIMIT_KEA_PER_HOUR: intFrom(60),
   RATE_LIMIT_MCP_PER_MINUTE: intFrom(200),
+  RATE_LIMIT_MEETING_EXTRACT_PER_DAY: intFrom(20),
   // NextAuth v5 — all three must be set for real auth. See `authConfigured()`.
   AUTH_GITHUB_ID: z.string().optional(),
   AUTH_GITHUB_SECRET: z.string().optional(),
@@ -88,6 +89,10 @@ const WebExtra = z.object({
   // chain or to take Oracle offline for a fix without blocking the rest
   // of the app. KEA / autoskill / MCP have their own switches.
   ORACLE_ENABLED: boolish(true),
+  // V2.0 meeting-transcript-upload webapp surface (spec 2026-07-13) — dark
+  // until the operator flips it. New LLM-cost-incurring surface, decoupled
+  // from the rest of V2 (which is deterministic/zero-cost).
+  MEETING_UPLOAD_ENABLED: boolish(false),
 });
 
 const McpExtra = z.object({

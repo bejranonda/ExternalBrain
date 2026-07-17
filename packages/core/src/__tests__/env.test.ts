@@ -13,6 +13,7 @@ const KEEP = [
   "RATE_LIMIT_ORACLE_PER_DAY",
   "RATE_LIMIT_KEA_PER_HOUR",
   "RATE_LIMIT_MCP_PER_MINUTE",
+  "RATE_LIMIT_MEETING_EXTRACT_PER_DAY",
   "MCP_TRANSPORT",
   "MCP_SERVER_HTTP_PORT",
   "BRAIN_MCP_TOKEN",
@@ -21,6 +22,7 @@ const KEEP = [
   "AUTOSKILL_ENABLED",
   "V2_ACTION_ITEMS",
   "V2_ORACLE_TASKS",
+  "MEETING_UPLOAD_ENABLED",
 ] as const;
 
 let saved: Partial<Record<(typeof KEEP)[number], string | undefined>>;
@@ -119,6 +121,20 @@ describe("env", () => {
     });
     expect(envForMcp().V2_ACTION_ITEMS).toBe(true);
     expect(envForWeb().V2_ORACLE_TASKS).toBe(true);
+  });
+
+  it("meeting-upload flags default off / rate-limited", () => {
+    setEnv({ DATABASE_URL: "postgresql://x" });
+    expect(envForWeb().MEETING_UPLOAD_ENABLED).toBe(false);
+    expect(envForWeb().RATE_LIMIT_MEETING_EXTRACT_PER_DAY).toBe(20);
+
+    setEnv({
+      DATABASE_URL: "postgresql://x",
+      MEETING_UPLOAD_ENABLED: "true",
+      RATE_LIMIT_MEETING_EXTRACT_PER_DAY: "5",
+    });
+    expect(envForWeb().MEETING_UPLOAD_ENABLED).toBe(true);
+    expect(envForWeb().RATE_LIMIT_MEETING_EXTRACT_PER_DAY).toBe(5);
   });
 
   it("memoizes — repeated calls return the same object", () => {
