@@ -9,6 +9,7 @@ function mockDb(superseded: { id: string; ownerUserId: string } | null) {
   return { db, findFirst, update };
 }
 
+
 describe("supersedeKnowledge", () => {
   it("retires the predecessor and links the successor when owned by the user", async () => {
     const { db, update } = mockDb({ id: "old", ownerUserId: "u1" });
@@ -41,5 +42,35 @@ describe("supersedeKnowledge", () => {
     });
     expect(linked).toBe(false);
     expect(update).not.toHaveBeenCalled();
+  });
+
+  it("includes ownerProjectId in the lookup when projectId is passed (2026-07-14 hardening)", async () => {
+    const { db, findFirst } = mockDb({ id: "old", ownerUserId: "u1" });
+    await supersedeKnowledge(db, {
+      newId: "new",
+      supersededId: "old",
+      userId: "u1",
+      projectId: "proj-a",
+    });
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "old",
+          ownerUserId: "u1",
+          ownerProjectId: "proj-a",
+        }),
+      }),
+    );
+  });
+
+  it("omits ownerProjectId from the lookup when projectId is not passed (back-compat)", async () => {
+    const { db, findFirst } = mockDb({ id: "old", ownerUserId: "u1" });
+    await supersedeKnowledge(db, {
+      newId: "new",
+      supersededId: "old",
+      userId: "u1",
+    });
+    const call = findFirst.mock.calls[0]?.[0] as { where: Record<string, unknown> };
+    expect(call.where).not.toHaveProperty("ownerProjectId");
   });
 });

@@ -2,7 +2,13 @@ import { db } from "@brain/db";
 import { z } from "zod";
 import { authErrorResponse, getCurrentUserId } from "@/lib/brain/auth";
 import { getActiveProject } from "@/lib/brain/active-project";
-import { buildKnowledgeWhereV2, writeAudit, getAccessibleProjectIds, userCanAccessProject } from "@brain/core";
+import {
+  buildKnowledgeWhereV2,
+  writeAudit,
+  getAccessibleProjectIds,
+  userCanAccessProject,
+  listOrgMembers,
+} from "@brain/core";
 import type { DataScope } from "@brain/core";
 import { toKnowledgeItemView } from "@/lib/brain/views";
 
@@ -11,6 +17,13 @@ export async function GET(req: Request): Promise<Response> {
     const userId = await getCurrentUserId();
     const url = new URL(req.url);
     const type = url.searchParams.get("type");
+    // No array-element-startsWith operator in Prisma's query DSL for String[]
+    // columns, so this filters in application code after fetch. Applied
+    // AFTER the DB query returns but BEFORE the response-facing `limit` is
+    // enforced (see below) — filtering after limit would silently drop
+    // older matching rows whenever the newest `limit` rows happen not to
+    // carry the prefix (2026-07-14 review finding).
+    const tagPrefix = url.searchParams.get("tagPrefix");
     const scopeParam = url.searchParams.get("scope");
     // "all" is the data-scope opt-out; anything else is treated as a knowledge-row
     // scope filter (e.g. ?scope=user) — not as the data-scope toggle.
@@ -69,6 +82,24 @@ export async function GET(req: Request): Promise<Response> {
         ? ([{ createdAt: "desc" as const }])
         : ([{ confidence: "desc" as const }, { lastUsedAt: "desc" as const }]);
 
+    if (tagPrefix) {
+      // Bounded candidate pool independent of the response-facing `limit` —
+      // fetch first, filter by prefix, THEN slice to `limit`. `total` in
+      // this branch reflects the filtered count so pagination UI (if any
+      // caller relies on it) isn't misleading.
+      const CANDIDATE_POOL_CAP = 2000;
+      const candidates = await db.knowledge.findMany({
+        where: finalWhere as never,
+        orderBy,
+        take: CANDIDATE_POOL_CAP,
+      });
+      const filtered = candidates.filter((r) => r.tags.some((t) => t.startsWith(tagPrefix)));
+      return Response.json({
+        items: filtered.slice(0, limit).map(toKnowledgeItemView),
+        total: filtered.length,
+      });
+    }
+
     const [rows, total] = await Promise.all([
 
       db.knowledge.findMany({
@@ -76,7 +107,7 @@ export async function GET(req: Request): Promise<Response> {
         orderBy,
         take: limit,
       }),
-       
+
       db.knowledge.count({ where: finalWhere as never }),
     ]);
 
@@ -90,7 +121,7 @@ export async function GET(req: Request): Promise<Response> {
 }
 
 const createSchema = z.object({
-  type: z.enum(["recipe", "heuristic", "principle", "reflex", "anti_principle"]),
+  type: z.enum(["recipe", "heuristic", "principle", "reflex", "anti_principle", "action_item"]),
   triggerText: z.string().min(1),
   ruleText: z.string().min(1),
   rationale: z.string().nullable().optional(),
@@ -98,6 +129,7 @@ const createSchema = z.object({
   scope: z.enum(["user", "project", "team", "global"]).default("user"),
   confidence: z.number().min(0).max(1).default(0.7),
   ownerProjectId: z.string().optional(),
+  supersedesKnowledgeId: z.string().optional(),
 });
 
 export async function POST(req: Request): Promise<Response> {
@@ -124,20 +156,83 @@ export async function POST(req: Request): Promise<Response> {
       resolvedProjectId = active.projectId;
     }
 
-    const row = await db.knowledge.create({
-      data: {
-        type: body.type,
-        scope: body.scope,
-        ownerUserId: userId,
-        ownerProjectId: resolvedProjectId,
-        triggerText: body.triggerText,
-        ruleText: body.ruleText,
-        rationale: body.rationale ?? null,
-        tags: body.tags,
-        confidence: body.confidence,
-        extractedBy: "user",
-      },
+    // A for:<email> tag addresses an action item to a specific person — the
+    // whole point of using a dropdown of real project members (rather than
+    // free text) at teach time is defeated if the server doesn't also check
+    // it. Client state is not a trust boundary (2026-07-14 review finding).
+    if (body.type === "action_item") {
+      const forTag = body.tags.find((t) => t.startsWith("for:"));
+      if (forTag) {
+        const assigneeEmail = forTag.slice(4).toLowerCase();
+        const project = await db.project.findUnique({
+          where: { id: resolvedProjectId },
+          select: { organizationId: true },
+        });
+        const members = project ? await listOrgMembers(db, project.organizationId) : [];
+        const isMember = members.some((m) => m.email.toLowerCase() === assigneeEmail);
+        if (!isMember) {
+          return Response.json(
+            {
+              error: {
+                code: "INVALID_ASSIGNEE",
+                message: `${assigneeEmail} is not a member of this project's organization.`,
+              },
+            },
+            { status: 400 },
+          );
+        }
+      }
+    }
+
+    // Create + (optional) supersede happen in one transaction: as separately
+    // committed writes, a failure between them would leave the new row live
+    // without retiring the old one — defeating the point of supersession,
+    // since the Oracle would then cite both (2026-07-14 review finding).
+    // Supersede logic is inlined here (not calling the shared
+    // supersedeKnowledge helper) so this stays inside the transaction using
+    // `tx` directly, without depending on tx's type being assignable to
+    // supersedeKnowledge's plain-PrismaClient parameter.
+    const row = await db.$transaction(async (tx) => {
+      const created = await tx.knowledge.create({
+        data: {
+          type: body.type,
+          scope: body.scope,
+          ownerUserId: userId,
+          ownerProjectId: resolvedProjectId,
+          triggerText: body.triggerText,
+          ruleText: body.ruleText,
+          rationale: body.rationale ?? null,
+          tags: body.tags,
+          confidence: body.confidence,
+          extractedBy: "user",
+        },
+      });
+
+      if (body.supersedesKnowledgeId) {
+        const target = await tx.knowledge.findFirst({
+          where: {
+            id: body.supersedesKnowledgeId,
+            ownerUserId: userId,
+            deletedAt: null,
+            ...(resolvedProjectId ? { ownerProjectId: resolvedProjectId } : {}),
+          },
+          select: { id: true },
+        });
+        if (target) {
+          await tx.knowledge.update({
+            where: { id: target.id },
+            data: { deletedAt: new Date() },
+          });
+          await tx.knowledge.update({
+            where: { id: created.id },
+            data: { parentKnowledgeId: target.id },
+          });
+        }
+      }
+
+      return created;
     });
+
     void writeAudit({
       actorUserId: userId,
       action: "knowledge.create",
