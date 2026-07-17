@@ -1,9 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeAll, afterAll } from "vitest";
+import { randomBytes } from "node:crypto";
+import { db } from "@brain/db";
 import type { LLMDeps } from "../llm.js";
+import { ensureDefaultProject } from "../org.js";
 import {
   buildExtractionPrompt,
   parseExtractionResponse,
   extractMeeting,
+  findSupersessionCandidates,
 } from "../meeting-extract.js";
 
 describe("buildExtractionPrompt", () => {
@@ -77,5 +81,115 @@ describe("extractMeeting", () => {
     const out = await extractMeeting("a transcript", "qwen3-coder", deps);
     expect(calls[0]).toMatch(/^dashscope:/);
     expect(out).toEqual({ decisions: [], actionItems: [] });
+  });
+});
+
+// ============================================================
+// findSupersessionCandidates — DB-guarded, project-wide search.
+// ============================================================
+
+const dbReachable2 = await db.$queryRaw`SELECT 1`.then(() => true).catch(() => false);
+const guard2 = dbReachable2 ? describe : describe.skip;
+
+// The real embed() throws EMBEDDING_NO_PROVIDER without a configured API
+// key, which CI does not have (same constraint kea-refine.test.ts and
+// kea-decision-route.test.ts document for kea.ts's judge/mine/persist).
+// findSupersessionCandidates takes the same optional deps-injection seam
+// extractMeeting above already uses for callLLMText: a fixed vector stands
+// in for a real provider call so the test exercises the real SQL/scope
+// shape without needing an embedding key.
+const FIXED_VECTOR = new Array(1536).fill(0.001);
+const fixedEmbed = async (_text: string): Promise<number[]> => FIXED_VECTOR;
+
+guard2("findSupersessionCandidates — project-wide, not owner-scoped", () => {
+  const created = { userIds: [] as string[], knowledgeIds: [] as string[] };
+  let creatorId: string;
+  let otherUserId: string;
+  let projectId: string;
+  let otherProjectDecisionId: string;
+  let sameProjectByOtherUserId: string;
+
+  beforeAll(async () => {
+    creatorId = (
+      await db.user.create({
+        data: { email: `sup-a-${randomBytes(6).toString("hex")}@test.local` },
+        select: { id: true },
+      })
+    ).id;
+    otherUserId = (
+      await db.user.create({
+        data: { email: `sup-b-${randomBytes(6).toString("hex")}@test.local` },
+        select: { id: true },
+      })
+    ).id;
+    created.userIds.push(creatorId, otherUserId);
+    projectId = (await ensureDefaultProject(db, creatorId)).projectId;
+    const otherProjectId = (await ensureDefaultProject(db, otherUserId)).projectId;
+
+    // A decision taught by a DIFFERENT user, in the SAME project — this is
+    // the case owner-scoped search (kra.candidatesForPrompt) would miss.
+    const row = await db.knowledge.create({
+      data: {
+        type: "principle",
+        scope: "project",
+        ownerUserId: otherUserId,
+        ownerProjectId: projectId,
+        triggerText: "reporting store choice",
+        ruleText: "use plain postgres for reporting",
+        tags: ["decision"],
+        confidence: 1.0,
+        extractedBy: "user",
+      },
+      select: { id: true },
+    });
+    sameProjectByOtherUserId = row.id;
+    created.knowledgeIds.push(row.id);
+    await db.$executeRawUnsafe(
+      `UPDATE "Knowledge" SET embedding = $1::vector WHERE id = $2`,
+      `[${new Array(1536).fill(0.001).join(",")}]`,
+      row.id,
+    );
+
+    const foreign = await db.knowledge.create({
+      data: {
+        type: "principle",
+        scope: "project",
+        ownerUserId: otherUserId,
+        ownerProjectId: otherProjectId,
+        triggerText: "unrelated",
+        ruleText: "an unrelated foreign-project decision",
+        tags: ["decision"],
+        confidence: 1.0,
+        extractedBy: "user",
+      },
+      select: { id: true },
+    });
+    otherProjectDecisionId = foreign.id;
+    created.knowledgeIds.push(foreign.id);
+    await db.$executeRawUnsafe(
+      `UPDATE "Knowledge" SET embedding = $1::vector WHERE id = $2`,
+      `[${new Array(1536).fill(0.001).join(",")}]`,
+      foreign.id,
+    );
+  });
+
+  afterAll(async () => {
+    await db.knowledge.deleteMany({ where: { id: { in: created.knowledgeIds } } }).catch(() => {});
+    for (const uid of created.userIds) await db.user.delete({ where: { id: uid } }).catch(() => {});
+    await db.$disconnect().catch(() => {});
+  });
+
+  it("finds a decision taught by a DIFFERENT user in the same project, and excludes a foreign project's decision", async () => {
+    const candidates = await findSupersessionCandidates(
+      {
+        ruleText: "use postgres with timescale for reporting",
+        projectId,
+        userId: creatorId,
+      },
+      fixedEmbed,
+    );
+    const ids = candidates.map((c) => c.id);
+    expect(ids).toContain(sameProjectByOtherUserId);
+    expect(ids).not.toContain(otherProjectDecisionId);
   });
 });

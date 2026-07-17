@@ -9,7 +9,10 @@
  * /api/meetings/extract route) owns turning confirmed items into Knowledge
  * rows via the existing teach path — this module only extracts + parses.
  */
+import { db, toVector } from "@brain/db";
 import { callLLMText, type LLMDeps } from "./llm.js";
+import { embed } from "./embedding.js";
+import { buildRawProjectFilterV2 } from "./scope-filter.js";
 
 export interface ExtractedDecision {
   triggerText: string;
@@ -132,4 +135,83 @@ export async function extractMeeting(
     deps as LLMDeps, // callLLMText's default param covers the production (deps=undefined) call site
   );
   return parseExtractionResponse(text);
+}
+
+export interface SupersessionCandidate {
+  id: string;
+  ruleText: string;
+  similarity: number;
+}
+
+/**
+ * Search for existing decisions this extracted decision might replace —
+ * DELIBERATELY project-wide, not owner-scoped. kra.ts's fetchCandidates and
+ * Oracle's buildContext both hard-filter `ownerUserId = caller`, which is
+ * correct for personal rule retrieval but wrong here: decisions are shared
+ * team knowledge, and the decision being superseded may have been taught by
+ * any project member, not just the person reviewing this extraction. See
+ * GUIDELINES §7 / the 2026-07-10 security-review lesson: cross-user
+ * features must be designed on deterministic/explicit-scope paths, not by
+ * reusing an owner-scoped retrieval function.
+ *
+ * `opts.userId` is the caller reviewing the extraction (the API route has
+ * one from auth) — NOT an owner filter on the result set. It is threaded
+ * through to `buildRawProjectFilterV2` because that helper's project-scope
+ * branch (scope-filter.ts's `buildRawProjectFilterV2`, `activeProjectId`
+ * set) still binds a `userId` SQL param even with no org context: the
+ * `("ownerProjectId" IS NULL AND "ownerUserId" = $pUser)` legacy fallback
+ * clause (personal pre-Phase-4 rows), and — once `accessibleProjectIds` is
+ * non-empty — a `visibility = 'private'` clause too (so a caller's own
+ * private decisions in this project stay visible to them). Neither clause
+ * restricts the *other* branches: any `visibility = 'project'` row scoped
+ * to `projectId` — the default visibility, and what a taught decision gets
+ * — matches regardless of who owns it, which is what keeps this search
+ * genuinely project-wide. Passing an empty-string placeholder for `userId`
+ * instead would bind a value no real user has, silently (if harmlessly,
+ * for the common case) breaking the legacy/private fallback clauses.
+ *
+ * `embedFn` mirrors the `deps`-injection seam `extractMeeting` above already
+ * uses for `callLLMText`: the real `embed()` throws `EMBEDDING_NO_PROVIDER`
+ * without a configured API key, which CI does not have, so DB-integration
+ * tests inject a fixed vector here instead of calling a real provider.
+ */
+export async function findSupersessionCandidates(
+  opts: {
+    ruleText: string;
+    projectId: string;
+    userId: string;
+    accessibleProjectIds?: string[];
+    limit?: number;
+  },
+  embedFn: (text: string) => Promise<number[]> = embed,
+): Promise<SupersessionCandidate[]> {
+  const vec = toVector(await embedFn(opts.ruleText));
+  const { sql: projectFilter, params: projectParams } = buildRawProjectFilterV2(
+    {
+      userId: opts.userId,
+      activeProjectId: opts.projectId,
+      activeOrgId: null,
+      accessibleProjectIds: opts.accessibleProjectIds ?? [],
+      scope: "project",
+    },
+    2,
+  );
+  const limit = Math.max(1, Math.min(50, Math.trunc(opts.limit ?? 5)));
+  const rows = await db.$queryRawUnsafe<
+    Array<{ id: string; ruleText: string; _similarity: number }>
+  >(
+    `
+    SELECT id, "ruleText", 1 - (embedding <=> $1::vector) AS "_similarity"
+    FROM "Knowledge"
+    WHERE embedding IS NOT NULL
+      AND "deletedAt" IS NULL
+      AND 'decision' = ANY(tags)
+      ${projectFilter}
+    ORDER BY embedding <=> $1::vector ASC
+    LIMIT ${limit}
+    `,
+    vec,
+    ...projectParams,
+  );
+  return rows.map((r) => ({ id: r.id, ruleText: r.ruleText, similarity: r._similarity }));
 }

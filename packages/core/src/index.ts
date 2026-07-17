@@ -16,7 +16,7 @@ export * as formatter from "./formatter.js";
 export * as actionItems from "./action-items.js";
 export type { ActionItemRow } from "./action-items.js";
 export * as meetingExtract from "./meeting-extract.js";
-export type { ExtractedMeeting, ExtractedDecision, ExtractedActionItem } from "./meeting-extract.js";
+export type { ExtractedMeeting, ExtractedDecision, ExtractedActionItem, SupersessionCandidate } from "./meeting-extract.js";
 export * as exporter from "./exporter.js";
 export { fuzzyScore } from "./fuzzy.js";
 export {
