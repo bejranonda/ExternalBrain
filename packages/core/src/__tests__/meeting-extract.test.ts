@@ -60,6 +60,29 @@ describe("parseExtractionResponse", () => {
     expect(out.actionItems).toHaveLength(1);
     expect(out.actionItems[0]!.ruleText).toBe("valid one");
   });
+
+  it("drops an action item with a kind outside the real union instead of silently relabeling it", () => {
+    const raw = JSON.stringify({
+      decisions: [],
+      actionItems: [
+        { trigger: "t", rule: "valid one", assigneeGuessEmail: null, blocker: false, kind: "action-item" },
+        { trigger: "t", rule: "invalid kind value", assigneeGuessEmail: null, blocker: false, kind: "task" },
+      ],
+    });
+    const out = parseExtractionResponse(raw);
+    expect(out.actionItems).toHaveLength(1);
+    expect(out.actionItems[0]!.ruleText).toBe("valid one");
+  });
+
+  it("still accepts an action item with kind omitted (defaults to action-item)", () => {
+    const raw = JSON.stringify({
+      decisions: [],
+      actionItems: [{ trigger: "t", rule: "no kind given", assigneeGuessEmail: null, blocker: false }],
+    });
+    const out = parseExtractionResponse(raw);
+    expect(out.actionItems).toHaveLength(1);
+    expect(out.actionItems[0]!.kind).toBe("action-item");
+  });
 });
 
 describe("extractMeeting", () => {

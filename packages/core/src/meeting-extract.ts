@@ -77,13 +77,29 @@ function isValidDecision(d: unknown): d is { trigger: string; rule: string; rati
 
 function isValidActionItem(
   a: unknown,
-): a is { trigger: string; rule: string; assigneeGuessEmail?: string | null; blocker?: boolean; kind?: string } {
+): a is {
+  trigger: string;
+  rule: string;
+  assigneeGuessEmail?: string | null;
+  blocker?: boolean;
+  kind?: "action-item" | "open-question";
+} {
   if (typeof a !== "object" || a === null) return false;
   const r = a as Record<string, unknown>;
   if (typeof r["trigger"] !== "string" || typeof r["rule"] !== "string") return false;
   if (r["assigneeGuessEmail"] !== undefined && r["assigneeGuessEmail"] !== null && typeof r["assigneeGuessEmail"] !== "string") return false;
   if (r["blocker"] !== undefined && typeof r["blocker"] !== "boolean") return false;
-  if (r["kind"] !== undefined && typeof r["kind"] !== "string") return false;
+  // Reject any `kind` outside the real union rather than silently coercing
+  // it — the prior `typeof === "string"` check let e.g. "task" pass, which
+  // parseExtractionResponse's mapping below then relabels to "action-item"
+  // instead of dropping (2026-07-17 CodeRabbit finding).
+  if (
+    r["kind"] !== undefined &&
+    r["kind"] !== "action-item" &&
+    r["kind"] !== "open-question"
+  ) {
+    return false;
+  }
   return true;
 }
 
