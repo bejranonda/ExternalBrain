@@ -1,4 +1,5 @@
 import { db } from "@brain/db";
+import type { Knowledge } from "@brain/db";
 import { z } from "zod";
 import { authErrorResponse, getCurrentUserId } from "@/lib/brain/auth";
 import { getActiveProject } from "@/lib/brain/active-project";
@@ -77,23 +78,38 @@ export async function GET(req: Request): Promise<Response> {
     // flips to createdAt-desc so the dashboard's LatestInsight card can ask
     // for "the newest extracted row" without a separate endpoint.
     const sortParam = url.searchParams.get("sort");
+    // `id` is appended as a final tiebreaker so paginated `skip`/`take`
+    // batches below (the tagPrefix branch) are stable across queries — ties
+    // on confidence/lastUsedAt/createdAt without a unique tiebreaker could
+    // otherwise reorder between batches and skip or duplicate a row.
     const orderBy =
       sortParam === "recent"
-        ? ([{ createdAt: "desc" as const }])
-        : ([{ confidence: "desc" as const }, { lastUsedAt: "desc" as const }]);
+        ? ([{ createdAt: "desc" as const }, { id: "asc" as const }])
+        : ([{ confidence: "desc" as const }, { lastUsedAt: "desc" as const }, { id: "asc" as const }]);
 
     if (tagPrefix) {
-      // Bounded candidate pool independent of the response-facing `limit` —
-      // fetch first, filter by prefix, THEN slice to `limit`. `total` in
-      // this branch reflects the filtered count so pagination UI (if any
-      // caller relies on it) isn't misleading.
-      const CANDIDATE_POOL_CAP = 2000;
-      const candidates = await db.knowledge.findMany({
-        where: finalWhere as never,
-        orderBy,
-        take: CANDIDATE_POOL_CAP,
-      });
-      const filtered = candidates.filter((r) => r.tags.some((t) => t.startsWith(tagPrefix)));
+      // A single hard-capped candidate pool (the prior approach) silently
+      // drops a matching row that falls past the pool boundary. Page through
+      // bounded batches instead, accumulating tag-prefix matches, so a real
+      // match is found regardless of where it falls — while still capping
+      // total work at BATCH_SIZE * MAX_BATCHES rows scanned, not truly
+      // unbounded (trading one DoS risk for another on a large table) —
+      // same "bounded, not unbounded" philosophy as the original
+      // CANDIDATE_POOL_CAP (2026-07-14/17 CodeRabbit finding, flagged
+      // twice). `total` reflects matches found within that scan ceiling.
+      const BATCH_SIZE = 2000;
+      const MAX_BATCHES = 10; // ceiling: 20,000 rows scanned, worst case
+      const filtered: Knowledge[] = [];
+      for (let batch = 0; batch < MAX_BATCHES; batch++) {
+        const rows = await db.knowledge.findMany({
+          where: finalWhere as never,
+          orderBy,
+          skip: batch * BATCH_SIZE,
+          take: BATCH_SIZE,
+        });
+        filtered.push(...rows.filter((r) => r.tags.some((t) => t.startsWith(tagPrefix))));
+        if (rows.length < BATCH_SIZE) break; // exhausted the table
+      }
       return Response.json({
         items: filtered.slice(0, limit).map(toKnowledgeItemView),
         total: filtered.length,
@@ -162,6 +178,9 @@ export async function POST(req: Request): Promise<Response> {
       if (!assigneeCheck.ok) {
         return Response.json(assigneeCheck.body, { status: assigneeCheck.status });
       }
+      // Persist the canonicalized (lowercased for:) tags, not the caller's
+      // possibly mixed-case originals.
+      body.tags = assigneeCheck.tags;
     }
 
     // Create + (optional) supersede happen in one transaction: as separately
@@ -204,7 +223,11 @@ export async function POST(req: Request): Promise<Response> {
             where: { id: target.id },
             data: { deletedAt: new Date() },
           });
-          await tx.knowledge.update({
+          // Return the UPDATED row, not the pre-update `created` — otherwise
+          // the 201 response body shows a stale `parentKnowledgeId: null`
+          // even though the DB row (and every subsequent read) has it set
+          // (2026-07-17 CodeRabbit finding).
+          return await tx.knowledge.update({
             where: { id: created.id },
             data: { parentKnowledgeId: target.id },
           });

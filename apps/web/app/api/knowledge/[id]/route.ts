@@ -9,7 +9,7 @@ import { validateForTagAssignee } from "@/lib/brain/assignee-validation";
  * Knowledge rows are semantically immutable once created (KNOWLEDGE.md §5.1).
  * PATCH only accepts metadata fields. To change trigger/rule/rationale, fork.
  */
-const IMMUTABLE_FIELDS = ["ruleText", "triggerText", "rationale"] as const;
+const IMMUTABLE_FIELDS = ["ruleText", "triggerText", "rationale", "instead"] as const;
 
 const patchSchema = z
   .object({
@@ -86,6 +86,9 @@ export async function PATCH(
       if (!assigneeCheck.ok) {
         return Response.json(assigneeCheck.body, { status: assigneeCheck.status });
       }
+      // Persist the canonicalized (lowercased for:) tags, not the caller's
+      // possibly mixed-case originals.
+      patch.tags = assigneeCheck.tags;
     }
 
     const data: Record<string, unknown> = {};
@@ -169,6 +172,7 @@ export async function POST(
         triggerText: src.triggerText,
         ruleText: body.overrides.ruleText ?? src.ruleText,
         rationale: src.rationale,
+        instead: src.instead,
         tags: src.tags,
         confidence: Math.max(0.5, src.confidence - 0.1),
         extractedBy: "user",
