@@ -7,10 +7,10 @@ import {
   writeAudit,
   getAccessibleProjectIds,
   userCanAccessProject,
-  listOrgMembers,
 } from "@brain/core";
 import type { DataScope } from "@brain/core";
 import { toKnowledgeItemView } from "@/lib/brain/views";
+import { validateForTagAssignee } from "@/lib/brain/assignee-validation";
 
 export async function GET(req: Request): Promise<Response> {
   try {
@@ -156,31 +156,10 @@ export async function POST(req: Request): Promise<Response> {
       resolvedProjectId = active.projectId;
     }
 
-    // A for:<email> tag addresses an action item to a specific person — the
-    // whole point of using a dropdown of real project members (rather than
-    // free text) at teach time is defeated if the server doesn't also check
-    // it. Client state is not a trust boundary (2026-07-14 review finding).
     if (body.type === "action_item") {
-      const forTag = body.tags.find((t) => t.startsWith("for:"));
-      if (forTag) {
-        const assigneeEmail = forTag.slice(4).toLowerCase();
-        const project = await db.project.findUnique({
-          where: { id: resolvedProjectId },
-          select: { organizationId: true },
-        });
-        const members = project ? await listOrgMembers(db, project.organizationId) : [];
-        const isMember = members.some((m) => m.email.toLowerCase() === assigneeEmail);
-        if (!isMember) {
-          return Response.json(
-            {
-              error: {
-                code: "INVALID_ASSIGNEE",
-                message: `${assigneeEmail} is not a member of this project's organization.`,
-              },
-            },
-            { status: 400 },
-          );
-        }
+      const assigneeCheck = await validateForTagAssignee(body.tags, resolvedProjectId);
+      if (!assigneeCheck.ok) {
+        return Response.json(assigneeCheck.body, { status: assigneeCheck.status });
       }
     }
 

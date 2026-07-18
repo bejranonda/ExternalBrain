@@ -3,6 +3,7 @@ import { z } from "zod";
 import { authErrorResponse, getCurrentUserId } from "@/lib/brain/auth";
 import { toKnowledgeItemView } from "@/lib/brain/views";
 import { writeAudit } from "@brain/core";
+import { validateForTagAssignee } from "@/lib/brain/assignee-validation";
 
 /**
  * Knowledge rows are semantically immutable once created (KNOWLEDGE.md §5.1).
@@ -74,6 +75,19 @@ export async function PATCH(
       );
     }
     const patch = patchSchema.parse(raw);
+
+    // Mirror POST /api/knowledge's for:<email> membership check (route.ts's
+    // validateForTagAssignee) — without it, an action_item row's tags could
+    // be PATCHed to an arbitrary for: assignee that was never validated
+    // against org membership, bypassing the check entirely at create time
+    // (2026-07-17 final-review finding I3).
+    if (patch.tags !== undefined && check.row.type === "action_item") {
+      const assigneeCheck = await validateForTagAssignee(patch.tags, check.row.ownerProjectId);
+      if (!assigneeCheck.ok) {
+        return Response.json(assigneeCheck.body, { status: assigneeCheck.status });
+      }
+    }
+
     const data: Record<string, unknown> = {};
     if (patch.tags !== undefined) data.tags = patch.tags;
     if (patch.scope !== undefined) data.scope = patch.scope;
