@@ -368,7 +368,13 @@ defaults `false` in `env.ts` and in the compose `environment:` allowlist —
 `.env` alone is ignored at runtime, the same trap `§0k` already recorded. An
 operator enables it with `MEETING_UPLOAD_ENABLED="true"` in `.env`, then a
 redeploy (or `./scripts/reload.sh web mcp-server`) so the compose allowlist
-picks it up.
+picks it up. **Merged and deployed 2026-07-18 as v2.2.0** on the reference
+instance; flag confirmed `false` post-deploy — behavior is byte-identical
+to v2.1.3 until an operator opts in. An operator also needs a working model
+before enabling: `MEETING_EXTRACT_MODEL`/`DASHSCOPE_API_KEY` are in the
+compose allowlist for the `qwen3-coder` default, or override
+`MEETING_EXTRACT_MODEL` to a model backed by a key `web` already has
+(`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`GOOGLE_GEMINI_API_KEY`).
 
 | Issue | Where | Status |
 |---|---|---|
