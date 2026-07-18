@@ -66,7 +66,15 @@ export function Meetings() {
   const t = useT();
   const [mode, setMode] = useState<"paste" | "review" | "history">("paste");
   const [transcript, setTranscript] = useState("");
-  const [meetingDate, setMeetingDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [meetingDate, setMeetingDate] = useState(() => {
+    // Local calendar date, not UTC — `toISOString()` shifts to UTC first,
+    // showing the wrong date near midnight in timezones behind/ahead of it.
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ExtractResponse | null>(null);
@@ -99,6 +107,16 @@ export function Meetings() {
         );
         return;
       }
+      // Reset per-card state from any PRIOR extraction — otherwise a new
+      // result's cards at the same index-derived keys (`d-0`, `a-0`, …)
+      // inherit stale taught/error/teaching state from a previous
+      // transcript, e.g. a brand-new decision at index 0 rendering as
+      // "✓ Taught" without ever being submitted (2026-07-17 CodeRabbit
+      // finding).
+      setTaught(new Set());
+      setTeaching(new Set());
+      setCardErrors({});
+      setDecisionSupersedeConfirmed(new Set());
       setResult(data);
       setMode("review");
       // Pre-select the LLM's assigneeGuessEmail ONLY when it matches a real
@@ -126,11 +144,21 @@ export function Meetings() {
   // for the for: tag; this client fallback only produces a readable message
   // instead of a raw error body when it's rejected.
   async function postKnowledge(payload: Record<string, unknown>): Promise<{ ok: true } | { ok: false; message: string }> {
-    const res = await fetch("/api/knowledge", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    let res: Response;
+    try {
+      res = await fetch("/api/knowledge", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      // fetch() itself rejects on a network-level failure (offline, CORS,
+      // DNS) — not an HTTP error status, so the `res.ok` branch below never
+      // runs. Without this, the rejection would propagate uncaught to
+      // teachDecision/teachActionItem, which don't wrap this call in their
+      // own try/catch (2026-07-17 CodeRabbit finding).
+      return { ok: false, message: "Network error — check your connection and try again." };
+    }
     if (res.ok) return { ok: true };
     // If the route ever returns a bare-string error (authErrorResponse's
     // AuthError/ZodError branches), `.message` on a string is just an
