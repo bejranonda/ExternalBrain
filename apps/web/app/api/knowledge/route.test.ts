@@ -184,6 +184,27 @@ guard("POST /api/knowledge — action_item + supersedesKnowledgeId + assignee va
     created.knowledgeIds.push(body.item.id);
   });
 
+  it("persists `instead` on create, mirroring how `rationale` is already handled", async () => {
+    const req = new Request("http://test.local/api/knowledge", {
+      method: "POST",
+      body: JSON.stringify({
+        type: "principle",
+        triggerText: "reporting store choice",
+        ruleText: "use postgres with timescale",
+        rationale: "time-bucketed queries",
+        instead: "plain postgres",
+        tags: ["decision"],
+        ownerProjectId: projectId,
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { item: { id: string } };
+    created.knowledgeIds.push(body.item.id);
+    const row = await db.knowledge.findUniqueOrThrow({ where: { id: body.item.id } });
+    expect(row.instead).toBe("plain postgres");
+  });
+
   it("GET ?tagPrefix=meeting: returns only tagged rows, without dropping older matches past the response limit", async () => {
     const tagged = await db.knowledge.create({
       data: {

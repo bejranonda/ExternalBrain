@@ -156,6 +156,7 @@ export function Meetings() {
       triggerText: d.triggerText,
       ruleText: d.ruleText,
       rationale: d.rationale || undefined,
+      instead: d.instead || undefined,
       tags: ["decision", meetingTag],
       ...(supersedes ? { supersedesKnowledgeId: supersedes.id } : {}),
     });
