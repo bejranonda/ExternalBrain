@@ -92,7 +92,7 @@ Retrieval failure never breaks a coding session. Extraction failure never breaks
 The only hard-fail paths: auth, scope enforcement, invariant violations.
 
 ### 4.6 "Should this be a new top-level route or a surface in the shell?"
-The webapp is a client-side SPA mounted at `/` (`apps/web/app/page.tsx`). The six surfaces (Dashboard, Oracle, Skills, Graph, Autoskill, Sessions) are **state**, not routes — they're selected through `ROUTES` in `apps/web/lib/brain/routes.ts` and reflected in the URL hash for deep links. A new surface means:
+The webapp is a client-side SPA mounted at `/` (`apps/web/app/page.tsx`). The eight surfaces (Dashboard, Oracle, Skills, Graph, Decisions, Autoskill, Sessions, Meetings) are **state**, not routes — they're selected through `ROUTES` in `apps/web/lib/brain/routes.ts` and reflected in the URL hash for deep links. A new surface means:
 1. Add it to `ROUTES` and `KEY_MAP` in `routes.ts`.
 2. Add its labels to the three language dictionaries in `lib/brain/i18n.ts`.
 3. Add its component under `components/brain/` and register it in `components/brain/app.tsx`.
@@ -1496,3 +1496,27 @@ Three small shipments with one shared theme — instruments that tell the truth 
 **Classify a miss before diagnosing it — one variable at a time.** The published benchmark run skipped 6 of 30 cases ("relevant id not in pool"), which could read as an embeddings problem. One env-var re-run (`BENCHMARK_POOL_SIZE=50`) classified it: skips fell to 2/32, so most misses are knowledge at cosine ranks 21–50 — below production's top-20 prefilter — not absent from retrieval. KRA's lead holds at depth 50 (absolutes drop as harder negatives enter; compare deltas across pool sizes, never absolutes). The production lever (widen the pool) is deliberately parked as #146 until the Stage-3 gate: the freeze distinguishes *measuring* (always allowed) from *tuning* (earned).
 
 **A gate without a baseline invites motivated reading.** Stage 3's criteria (≥60% closed-with-learnings, ≥40% injection→used, rolling 2 weeks) get their first honest reading 2026-07-17 ([issue #149](https://github.com/bejranonda/ExternalBrain/issues/149)). The baseline was recorded now — honest-window 75%/75% at n=4, with the caveat that pre-v1.13.0 sessions can't carry the used signal — so July's number lands against a fixed reference instead of a vibe. One scheduling honesty note banked along the way: the harness's in-session cron cannot survive to a date ten days out, and a reminder that *looks* automated but silently evaporates is worse than a visible one — the durable instruments here are the issue tracker plus session memory.
+
+## 5bd. A written plan is a review surface in its own right (2026-07-13 → 2026-07-17, meeting-transcript-upload)
+
+The meeting-transcript-upload spec+plan PR (#165) carried complete draft
+code for every task, not just prose — so it went through CodeRabbit review
+as a *document*, before Task 1 had written a single line of implementation.
+It found four real bugs sitting in the plan's own code sketches: a
+supersede path checking ownership but not project, a silent-failure mode
+where a rejected teach call could leave the review UI with no visible
+error, an assignee email trusted from client dropdown state with no
+server-side re-check, and a React list keyed on array index. All four got
+folded into the plan and shipped correct from Task 1 onward — none needed a
+second review pass to (re-)discover them once code existed (see
+`KNOWN_ISSUES.md §0o` for the issue-log framing of the same pass).
+
+The lesson generalizes past this one PR: **when a plan document includes
+draft code, review the plan like you'd review the diff.** The cost of a
+finding is lowest before any code exists to hold it in place; a plan that
+only gets prose-reviewed (architecture, sequencing, scope) while its
+embedded code sketches go unreviewed until "the real PR" is deferring the
+cheap half of the review to the point where it's expensive. Worth
+deliberately requesting this class of review on future plan documents that
+carry inline implementation, not leaving it to whichever reviewer happens
+to read the code blocks in passing.
