@@ -197,6 +197,18 @@ export async function findSupersessionCandidates(
     2,
   );
   const limit = Math.max(1, Math.min(50, Math.trunc(opts.limit ?? 5)));
+  // buildRawProjectFilterV2's empty-accessibleProjectIds branch (the one this
+  // route always hits — see this function's doc comment) bundles `private`
+  // into the SAME clause as `project`, with no owner check:
+  // `("visibility" IN ('project','private') AND "ownerProjectId" = $proj)`.
+  // That's correct for that helper's other callers (kra.ts, oracle.ts, which
+  // pre-filter by ownerUserId elsewhere) but wrong here, since this query is
+  // deliberately NOT owner-scoped: a teammate's explicitly `private` decision
+  // would leak as a supersession candidate for anyone else in the project.
+  // Excluded locally, without touching the shared helper other callers rely
+  // on, by binding one more parameter after `projectParams` for the caller's
+  // own id (2026-07-17 final-review finding I2).
+  const callerParam = `$${2 + projectParams.length}`;
   const rows = await db.$queryRawUnsafe<
     Array<{ id: string; ruleText: string; _similarity: number }>
   >(
@@ -207,11 +219,13 @@ export async function findSupersessionCandidates(
       AND "deletedAt" IS NULL
       AND 'decision' = ANY(tags)
       ${projectFilter}
+      AND NOT ("visibility" = 'private' AND "ownerUserId" != ${callerParam})
     ORDER BY embedding <=> $1::vector ASC
     LIMIT ${limit}
     `,
     vec,
     ...projectParams,
+    opts.userId,
   );
   return rows.map((r) => ({ id: r.id, ruleText: r.ruleText, similarity: r._similarity }));
 }

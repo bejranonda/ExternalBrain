@@ -192,4 +192,42 @@ guard2("findSupersessionCandidates — project-wide, not owner-scoped", () => {
     expect(ids).toContain(sameProjectByOtherUserId);
     expect(ids).not.toContain(otherProjectDecisionId);
   });
+
+  it("excludes another user's private-visibility decision in the same project, while still including their project-visibility one (I2)", async () => {
+    const privateRow = await db.knowledge.create({
+      data: {
+        type: "principle",
+        scope: "project",
+        visibility: "private",
+        ownerUserId: otherUserId,
+        ownerProjectId: projectId,
+        triggerText: "reporting store choice, kept private",
+        ruleText: "use plain postgres for reporting (private note)",
+        tags: ["decision"],
+        confidence: 1.0,
+        extractedBy: "user",
+      },
+      select: { id: true },
+    });
+    created.knowledgeIds.push(privateRow.id);
+    await db.$executeRawUnsafe(
+      `UPDATE "Knowledge" SET embedding = $1::vector WHERE id = $2`,
+      `[${new Array(1536).fill(0.001).join(",")}]`,
+      privateRow.id,
+    );
+
+    const candidates = await findSupersessionCandidates(
+      {
+        ruleText: "use postgres with timescale for reporting",
+        projectId,
+        userId: creatorId,
+      },
+      fixedEmbed,
+    );
+    const ids = candidates.map((c) => c.id);
+    expect(ids).not.toContain(privateRow.id);
+    // Sibling project-visibility row from the same other user must still
+    // surface — proves this doesn't collapse the project-wide search.
+    expect(ids).toContain(sameProjectByOtherUserId);
+  });
 });
