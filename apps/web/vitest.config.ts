@@ -15,6 +15,13 @@ export default defineConfig({
     include: ["app/api/**/*.test.ts"],
     environment: "node",
     globals: false,
+    // `@/auth` calls NextAuth(...) at module scope, and next-auth@5's
+    // internals import `next/server` — unresolvable under vitest's plain
+    // Node ESM resolution (no Next.js bundler in the loop). Every route
+    // test that transitively imports `@/lib/brain/auth` (which imports
+    // from `@/auth`) needs this short-circuited, so it's global setup
+    // rather than a per-file incantation. See vitest.setup.ts.
+    setupFiles: ["./vitest.setup.ts"],
   },
   resolve: {
     alias: {
