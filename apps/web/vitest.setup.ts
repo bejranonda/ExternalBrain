@@ -34,3 +34,26 @@ vi.mock("@/auth", () => ({
   signOut: vi.fn(),
   auth: vi.fn(async () => null),
 }));
+
+/**
+ * `next/headers`'s `cookies()` relies on Next's request-scoped
+ * AsyncLocalStorage context, which doesn't exist when a route handler is
+ * invoked directly as a plain function from a vitest test (as every
+ * app/api/**\/*.test.ts file here does) — it throws "cookies was called
+ * outside a request scope". `getActiveProject` (apps/web/lib/brain/active-project.ts)
+ * calls it unconditionally to check for a `bp_active_project` cookie before
+ * falling back to the caller's first/default project — exactly the
+ * no-cookie-set path every existing route test already exercises (none of
+ * them set that cookie). Mock only `cookies`; every other `next/headers`
+ * export (e.g. `headers()`) stays real via `importOriginal`, for any future
+ * route test that needs it.
+ */
+vi.mock("next/headers", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/headers")>();
+  return {
+    ...actual,
+    cookies: vi.fn(async () => ({
+      get: vi.fn(() => undefined),
+    })),
+  };
+});
