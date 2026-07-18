@@ -70,9 +70,12 @@ export function Meetings() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ExtractResponse | null>(null);
-  const [taught, setTaught] = useState<Set<number>>(new Set());
-  const [teaching, setTeaching] = useState<Set<number>>(new Set());
-  const [cardErrors, setCardErrors] = useState<Record<number, string>>({});
+  // Decision and action-item cards share these three maps, keyed by
+  // `d-${index}` / `a-${index}` — string prefixes make collisions between
+  // the two lists statically impossible (no more `1000 +` offset trick).
+  const [taught, setTaught] = useState<Set<string>>(new Set());
+  const [teaching, setTeaching] = useState<Set<string>>(new Set());
+  const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
   const [decisionSupersedeConfirmed, setDecisionSupersedeConfirmed] = useState<Set<number>>(new Set());
   const [actionItemAssignee, setActionItemAssignee] = useState<Record<number, string>>({});
 
@@ -138,10 +141,11 @@ export function Meetings() {
 
   async function teachDecision(index: number): Promise<void> {
     if (!result) return;
-    setTeaching((prev) => new Set(prev).add(index));
+    const key = `d-${index}`;
+    setTeaching((prev) => new Set(prev).add(key));
     setCardErrors((prev) => {
       const next = { ...prev };
-      delete next[index];
+      delete next[key];
       return next;
     });
     const d = result.decisions[index]!;
@@ -157,23 +161,23 @@ export function Meetings() {
     });
     setTeaching((prev) => {
       const next = new Set(prev);
-      next.delete(index);
+      next.delete(key);
       return next;
     });
     if (outcome.ok) {
-      setTaught((prev) => new Set(prev).add(index));
+      setTaught((prev) => new Set(prev).add(key));
     } else {
-      setCardErrors((prev) => ({ ...prev, [index]: outcome.message }));
+      setCardErrors((prev) => ({ ...prev, [key]: outcome.message }));
     }
   }
 
   async function teachActionItem(index: number): Promise<void> {
     if (!result) return;
-    const offsetIndex = 1000 + index; // shares the taught/teaching/cardErrors Sets with decisions
-    setTeaching((prev) => new Set(prev).add(offsetIndex));
+    const key = `a-${index}`; // shares the taught/teaching/cardErrors maps with decisions; the "a-" prefix keeps the keyspaces disjoint
+    setTeaching((prev) => new Set(prev).add(key));
     setCardErrors((prev) => {
       const next = { ...prev };
-      delete next[offsetIndex];
+      delete next[key];
       return next;
     });
     const a = result.actionItems[index]!;
@@ -197,13 +201,13 @@ export function Meetings() {
     });
     setTeaching((prev) => {
       const next = new Set(prev);
-      next.delete(offsetIndex);
+      next.delete(key);
       return next;
     });
     if (outcome.ok) {
-      setTaught((prev) => new Set(prev).add(offsetIndex));
+      setTaught((prev) => new Set(prev).add(key));
     } else {
-      setCardErrors((prev) => ({ ...prev, [offsetIndex]: outcome.message }));
+      setCardErrors((prev) => ({ ...prev, [key]: outcome.message }));
     }
   }
 
@@ -299,47 +303,50 @@ export function Meetings() {
                 <p style={{ fontSize: 13, color: "var(--ink-3)" }}>No decisions found.</p>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {result.decisions.map((d, i) => (
-                    <div
-                      key={i}
-                      data-testid={`decision-card-${i}`}
-                      className="panel"
-                      style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}
-                    >
-                      <p style={{ margin: 0, fontSize: 14, color: "var(--ink)" }}>{d.ruleText}</p>
-                      {d.instead && (
-                        <p style={{ margin: 0, fontSize: 12, color: "var(--ink-3)" }}>Not: {d.instead}</p>
-                      )}
-                      {d.supersedes && (
-                        <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 12, color: "var(--ink-2)" }}>
-                          <input
-                            type="checkbox"
-                            checked={decisionSupersedeConfirmed.has(i)}
-                            onChange={(e) =>
-                              setDecisionSupersedeConfirmed((prev) => {
-                                const next = new Set(prev);
-                                if (e.target.checked) next.add(i);
-                                else next.delete(i);
-                                return next;
-                              })
-                            }
-                          />
-                          <span>Replaces: &ldquo;{d.supersedes.ruleText}&rdquo;</span>
-                        </label>
-                      )}
-                      {cardErrors[i] && <div role="alert" style={alertStyle}>{cardErrors[i]}</div>}
-                      <div>
-                        <button
-                          type="button"
-                          className="btn btn-primary"
-                          onClick={() => void teachDecision(i)}
-                          disabled={taught.has(i) || teaching.has(i)}
-                        >
-                          {taught.has(i) ? "✓ Taught" : teaching.has(i) ? "Teaching…" : cardErrors[i] ? "Retry" : "Teach"}
-                        </button>
+                  {result.decisions.map((d, i) => {
+                    const key = `d-${i}`;
+                    return (
+                      <div
+                        key={i}
+                        data-testid={`decision-card-${i}`}
+                        className="panel"
+                        style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}
+                      >
+                        <p style={{ margin: 0, fontSize: 14, color: "var(--ink)" }}>{d.ruleText}</p>
+                        {d.instead && (
+                          <p style={{ margin: 0, fontSize: 12, color: "var(--ink-3)" }}>Not: {d.instead}</p>
+                        )}
+                        {d.supersedes && (
+                          <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 12, color: "var(--ink-2)" }}>
+                            <input
+                              type="checkbox"
+                              checked={decisionSupersedeConfirmed.has(i)}
+                              onChange={(e) =>
+                                setDecisionSupersedeConfirmed((prev) => {
+                                  const next = new Set(prev);
+                                  if (e.target.checked) next.add(i);
+                                  else next.delete(i);
+                                  return next;
+                                })
+                              }
+                            />
+                            <span>Replaces: &ldquo;{d.supersedes.ruleText}&rdquo;</span>
+                          </label>
+                        )}
+                        {cardErrors[key] && <div role="alert" style={alertStyle}>{cardErrors[key]}</div>}
+                        <div>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={() => void teachDecision(i)}
+                            disabled={taught.has(key) || teaching.has(key)}
+                          >
+                            {taught.has(key) ? "✓ Taught" : teaching.has(key) ? "Teaching…" : cardErrors[key] ? "Retry" : "Teach"}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -351,7 +358,7 @@ export function Meetings() {
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {result.actionItems.map((a, i) => {
-                    const offsetIndex = 1000 + i;
+                    const key = `a-${i}`;
                     return (
                       <div
                         key={i}
@@ -401,9 +408,9 @@ export function Meetings() {
                             ))}
                           </select>
                         </div>
-                        {cardErrors[offsetIndex] && (
+                        {cardErrors[key] && (
                           <div role="alert" style={alertStyle}>
-                            {cardErrors[offsetIndex]}
+                            {cardErrors[key]}
                           </div>
                         )}
                         <div>
@@ -411,13 +418,13 @@ export function Meetings() {
                             type="button"
                             className="btn btn-primary"
                             onClick={() => void teachActionItem(i)}
-                            disabled={taught.has(offsetIndex) || teaching.has(offsetIndex)}
+                            disabled={taught.has(key) || teaching.has(key)}
                           >
-                            {taught.has(offsetIndex)
+                            {taught.has(key)
                               ? "✓ Taught"
-                              : teaching.has(offsetIndex)
+                              : teaching.has(key)
                                 ? "Teaching…"
-                                : cardErrors[offsetIndex]
+                                : cardErrors[key]
                                   ? "Retry"
                                   : "Teach"}
                           </button>
