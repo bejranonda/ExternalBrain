@@ -140,6 +140,7 @@ export const teachKnowledge: ToolDef = {
         newId: row.id,
         supersededId: input.supersedesKnowledgeId,
         userId: auth.userId,
+        projectId: resolvedProjectId ?? undefined,
       });
     }
     // Measurement (APPROACH §1.3): split decision capture out of generic teach.

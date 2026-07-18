@@ -33,15 +33,26 @@ export async function bulkBumpKnowledgeUsage(
 /**
  * Retire a superseded decision and link its successor (spec 2026-06-16 §5).
  * Reuses parentKnowledgeId lineage; soft-deletes the predecessor so KRA stops
- * serving it. Ownership-checked. Returns false (no throw) when the target is
- * missing or not owned — capture of the new decision must never fail on this.
+ * serving it. Ownership-checked, and — since 2026-07-14 — optionally
+ * project-checked too: without `args.projectId`, a caller could retire a row
+ * from a DIFFERENT project the same user happens to own knowledge in.
+ * `projectId` is optional so pre-existing callers keep their current
+ * behavior; new callers (the REST teach path, the meeting-upload feature)
+ * should always pass it. Returns false (no throw) when the target is
+ * missing, not owned, or (when checked) in the wrong project — capture of
+ * the new decision must never fail on this.
  */
 export async function supersedeKnowledge(
   db: PrismaClient,
-  args: { newId: string; supersededId: string; userId: string },
+  args: { newId: string; supersededId: string; userId: string; projectId?: string },
 ): Promise<boolean> {
   const target = await db.knowledge.findFirst({
-    where: { id: args.supersededId, ownerUserId: args.userId, deletedAt: null },
+    where: {
+      id: args.supersededId,
+      ownerUserId: args.userId,
+      deletedAt: null,
+      ...(args.projectId ? { ownerProjectId: args.projectId } : {}),
+    },
     select: { id: true, ownerUserId: true },
   });
   if (!target) return false;

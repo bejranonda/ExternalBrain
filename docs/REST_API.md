@@ -281,12 +281,38 @@ See `KNOWLEDGE.md §12.30` for the normative contract.
 ## Knowledge
 
 ```
-GET    /api/knowledge?scope&type&framework&limit        list
+GET    /api/knowledge?scope&type&framework&limit&tagPrefix   list
 POST   /api/knowledge                                    create (user-taught = confidence 1.0)
 PATCH  /api/knowledge/:id                                edit (creates new version)
 DELETE /api/knowledge/:id                                soft-delete
 POST   /api/knowledge/retrieve                           same as MCP brain_retrieve_knowledge
 ```
+
+**`?tagPrefix` on GET /api/knowledge.** Filters to rows with at least one tag
+starting with the given prefix (e.g. `?tagPrefix=for:alice@acme.test` for one
+person's action items). No array-`startsWith` operator exists in Prisma's
+query DSL for `String[]` columns, so this is applied in application code
+against a candidate pool of up to 2000 rows (same sort/scope filters as
+usual) — filtered by prefix, *then* sliced to `?limit`; `total` in this
+branch reflects the filtered count, not the raw pool. Combine with
+`?type=action_item` for the common case of "this person's open tasks".
+
+**`type: "action_item"` on POST /api/knowledge.** The type enum now includes
+`action_item` (meeting to-dos / open questions — `KNOWLEDGE.md §2`,
+`GUIDELINES.md §11`). When `type: "action_item"` and one of `tags` matches
+`for:<email>`, the server re-validates that email against the resolved
+project's org member list and returns `400 { error: { code:
+"INVALID_ASSIGNEE" } }` if it isn't a member — the assignee dropdown is
+client state, not a trust boundary.
+
+**`supersedesKnowledgeId` on POST /api/knowledge.** Optional body field. When
+present, the new row's creation and the target's retirement (soft-delete +
+`parentKnowledgeId` link to the new row) happen inside one transaction — a
+partial failure between the two writes would otherwise leave both the old
+and new decision live, which the Oracle would then cite side by side. The
+target must be owned by the caller, not already deleted, and — when the new
+row resolves to a project — in that same `ownerProjectId`; a non-matching id
+is silently ignored (the create still succeeds, just without a supersession).
 
 **`?scope` on GET /api/knowledge.** This parameter is overloaded:
 - `?scope=all` — data-scope opt-out: show all knowledge owned by the current user across all projects (not just the active project).
@@ -326,6 +352,41 @@ Creates a project-local copy of an org-visible Knowledge row.
 - **Error 403** if user is not a member of the org
 
 Both endpoints write an audit row (`knowledge.promote` / `knowledge.fork_to_project`).
+
+## Meetings (dark, `MEETING_UPLOAD_ENABLED`)
+
+```text
+POST   /api/meetings/extract                             extract decisions + action items from a transcript
+```
+Stateless — does **not** write to the database. The caller reviews the
+extracted items client-side and confirms them individually through
+`POST /api/knowledge` (above); this route only extracts and enriches.
+- **Flag:** `503 { error: { code: "NOT_ENABLED" } }` when
+  `MEETING_UPLOAD_ENABLED` is false (compose default — dark by design, this
+  is a new LLM-cost-incurring surface).
+- **Auth:** signed-in member of the active project's org (`requireOrgMember`).
+- **Rate limit:** `RATE_LIMIT_MEETING_EXTRACT_PER_DAY` (default 20) per user
+  per rolling 24h; `429 { error: { code: "RATE_LIMITED" } }` over the cap.
+- **Body:** `{ transcript: string }` (1–50,000 chars).
+- **Response `200`:**
+  ```json
+  {
+    "decisions": [{ "triggerText", "ruleText", "rationale", "instead",
+                     "supersedes": { "id", "ruleText", "similarity" } | null }],
+    "actionItems": [{ "triggerText", "ruleText", "assigneeGuessEmail",
+                       "blocker", "kind": "action-item" | "open-question" }],
+    "members": [{ "email", "name" }]
+  }
+  ```
+  `supersedes` is the top project-wide semantic match (if any) against
+  existing `decision`-tagged Knowledge — deliberately not owner-scoped, since
+  the decision being reversed may have been taught by any project member
+  (see `GUIDELINES.md §7`). Looked up per-decision and fails soft to `null`
+  (e.g. `EMBEDDING_NO_PROVIDER` on a deployment without an embedding key) so
+  one lookup failure never sinks the whole extraction. `members` is the org
+  member list, for the assignee picker — `for:<email>` tags on the
+  confirming `POST /api/knowledge` call must match one of these emails (see
+  above).
 
 ## Skills
 

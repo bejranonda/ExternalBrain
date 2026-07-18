@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BottomNav, CmdK, Rail, Topbar, type Counts } from "./shell";
+import { BottomNav, CmdK, Rail, Topbar, useMe, type Counts } from "./shell";
 import { Tweaks } from "./tweaks";
 import { Dashboard } from "./dashboard";
 import { Oracle } from "./oracle";
@@ -10,6 +10,7 @@ import { Graph } from "./graph";
 import { Autoskill } from "./autoskill";
 import { Sessions } from "./sessions";
 import { Decisions } from "./decisions";
+import { Meetings } from "./meetings";
 import { LangContext } from "@/lib/brain/i18n";
 import { KEY_MAP, useRoute } from "@/lib/brain/routes";
 import { useTweaks } from "@/lib/brain/tweaks";
@@ -30,6 +31,7 @@ export function BrainApp() {
   const [userOpen, setUserOpen] = useState(false);
   const [tweaks, setTweaks] = useTweaks();
   const liveCounts = useCounts();
+  const me = useMe();
   useJargonTipReveal();
 
   const counts: Counts = {
@@ -90,6 +92,7 @@ export function BrainApp() {
     autoskill: <Autoskill />,
     sessions: <Sessions />,
     decisions: <Decisions />,
+    meetings: <Meetings />,
   } as const;
 
   return (
@@ -102,6 +105,7 @@ export function BrainApp() {
           route={route}
           setRoute={setRoute}
           counts={counts}
+          me={me}
           onUser={() => setUserOpen((v) => !v)}
           collapsed={tweaks.railCollapsed}
           onToggleCollapse={() => setTweaks({ railCollapsed: !tweaks.railCollapsed })}
@@ -122,7 +126,7 @@ export function BrainApp() {
           <div className="content">{screens[route]}</div>
         </div>
       </div>
-      <BottomNav route={route} setRoute={setRoute} counts={counts} />
+      <BottomNav route={route} setRoute={setRoute} counts={counts} me={me} />
       <CmdK open={cmdOpen} onClose={() => setCmdOpen(false)} go={setRoute} />
       <Tweaks open={tweakOpen} state={tweaks} onChange={setTweaks} />
       <TeachModal

@@ -8,21 +8,38 @@ import type { Route } from "@/lib/brain/routes";
 import { OrgProjectSwitcher } from "./org-project-switcher";
 import { APP_VERSION, RELEASES_URL } from "@/lib/brain/version";
 
+export interface MeView {
+  name: string;
+  tenant: string;
+  initials: string;
+  meetingUploadEnabled: boolean;
+}
+
 /**
  * Lightweight viewer-name accessor for the rail footer. Mirrors the fetch in
  * UserMenu but without the side menu state — kept inline to avoid pulling
- * the menu's open/close machinery into the always-mounted nav rail. The
- * /api/me endpoint is cached HTTP-side so duplicate fetches are cheap.
+ * the menu's open/close machinery into the always-mounted nav rail.
+ *
+ * The `/api/me` fetch below is `cache: "no-store"` — a genuine uncached
+ * network+DB round trip, NOT free to call twice. `Rail` and `BottomNav` are
+ * both unconditionally mounted on every page load (visibility is CSS-media
+ * gated, not conditional JS rendering), so this hook must be called exactly
+ * ONCE — in `BrainApp` — with the result threaded into both via `NavProps`,
+ * the same pattern `counts`/`useCounts()` already follows. Do not mount a
+ * second `useMe()` in a nav component; share the parent's result instead.
  */
-function useMe(): { name: string; tenant: string; initials: string } {
-  const [view, setView] = useState<{ name: string; tenant: string; initials: string }>(
-    { name: "—", tenant: "Personal", initials: "··" },
+export function useMe(): MeView {
+  const [view, setView] = useState<MeView>(
+    { name: "—", tenant: "Personal", initials: "··", meetingUploadEnabled: false },
   );
   useEffect(() => {
     let cancelled = false;
     fetch("/api/me", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { user?: { name?: string | null; email?: string | null; teams?: Array<{ name: string }> } } | null) => {
+      .then((d: {
+        user?: { name?: string | null; email?: string | null; teams?: Array<{ name: string }> } | null;
+        capabilities?: { meetingUploadEnabled?: boolean };
+      } | null) => {
         if (cancelled || !d?.user) return;
         const u = d.user;
         const name = u.name?.trim() || u.email?.split("@")[0] || "Signed in";
@@ -31,7 +48,7 @@ function useMe(): { name: string; tenant: string; initials: string } {
             || u.email?.slice(0, 2)
             || "··").toUpperCase();
         const tenant = u.teams?.[0]?.name ?? "Personal";
-        setView({ name, tenant, initials });
+        setView({ name, tenant, initials, meetingUploadEnabled: d.capabilities?.meetingUploadEnabled === true });
       })
       .catch(() => {/* keep placeholder */});
     return () => { cancelled = true; };
@@ -71,6 +88,8 @@ interface NavProps {
   route: Route;
   setRoute: (r: Route) => void;
   counts: Counts;
+  /** Single `useMe()` result, lifted to `BrainApp` and shared — see the useMe() docstring. */
+  me: MeView;
   onUser?: () => void;
   /** Rail labels-by-default collapse toggle (#4). Desktop rail only. */
   collapsed?: boolean;
@@ -94,7 +113,7 @@ interface NavItem {
   hint: string;
 }
 
-function useNavItems(counts: Counts): NavItem[] {
+function useNavItems(counts: Counts, meetingUploadEnabled: boolean): NavItem[] {
   const t = useT();
   return [
     { id: "dashboard", label: t("nav.dashboard"), icon: "dashboard", kbd: "1",
@@ -108,6 +127,13 @@ function useNavItems(counts: Counts): NavItem[] {
       hint: t("nav.hints.graph") },
     { id: "decisions", label: t("nav.decisions"), icon: "decisions", kbd: "7",
       hint: t("nav.hints.decisions") },
+    // Flag-gated (CodeRabbit finding, 2026-07-10 bug class): only render
+    // the nav entry when the server-reported capability is on, so nobody
+    // sees a "Meetings" link whose endpoint 503s.
+    ...(meetingUploadEnabled
+      ? [{ id: "meetings" as const, label: t("nav.meetings"), icon: "meetings" as const, kbd: "8",
+           hint: t("nav.hints.meetings") }]
+      : []),
     { id: "autoskill", label: t("nav.autoskill"), icon: "autoskill", kbd: "5",
       count: { value: counts.proposals, kind: "queue" },
       hint: t("nav.hints.autoskill") },
@@ -169,10 +195,9 @@ function RailNavItem({
   );
 }
 
-export function Rail({ route, setRoute, counts, onUser, collapsed, onToggleCollapse }: NavProps) {
+export function Rail({ route, setRoute, counts, me, onUser, collapsed, onToggleCollapse }: NavProps) {
   const t = useT();
-  const items = useNavItems(counts);
-  const me = useMe();
+  const items = useNavItems(counts, me.meetingUploadEnabled);
   const env = useEnvLabel();
   const railHint = collapsed ? "hover to peek labels" : "labels shown";
 
@@ -273,11 +298,16 @@ export function Rail({ route, setRoute, counts, onUser, collapsed, onToggleColla
   );
 }
 
-export function BottomNav({ route, setRoute, counts }: NavProps) {
+export function BottomNav({ route, setRoute, counts, me }: NavProps) {
   const t = useT();
+  // `me` is threaded from BrainApp (single useMe() call, same pattern as
+  // `counts`/useCounts()) rather than mounted here a second time — see the
+  // useMe() docstring for why a duplicate mount is a real, uncached cost.
   // Six items so mobile users can reach every primary surface — earlier
   // versions omitted Sessions, leaving phones with no path to it short of
-  // the topbar crumb. Items mirror the desktop rail.
+  // the topbar crumb. Items mirror the desktop rail. (No "decisions" entry
+  // here — mobile never had one — so "meetings" is spliced at the same
+  // source-order position it holds on desktop: right before "autoskill".)
   const items: Array<NavItem & { badge?: number; hint: string }> = [
     { id: "dashboard", label: t("nav.dashboard"), icon: "dashboard",
       hint: t("nav.hints.dashboard") },
@@ -287,6 +317,11 @@ export function BottomNav({ route, setRoute, counts }: NavProps) {
       hint: t("nav.hints.skills") },
     { id: "graph", label: t("nav.graph"), icon: "graph",
       hint: t("nav.hints.graph") },
+    // Flag-gated, same rule as the desktop rail — see useNavItems().
+    ...(me.meetingUploadEnabled
+      ? [{ id: "meetings" as const, label: t("nav.meetings"), icon: "meetings" as const,
+           hint: t("nav.hints.meetings") }]
+      : []),
     { id: "autoskill", label: t("nav.autoskill"), icon: "autoskill",
       badge: counts.proposals,
       hint: t("nav.hints.autoskill") },
@@ -380,6 +415,7 @@ export function Topbar({
     autoskill: [{ label: t("nav.autoskill"), to: "autoskill" }],
     sessions: [{ label: t("nav.sessions"), to: "sessions" }],
     decisions: [{ label: t("nav.decisions"), to: "decisions" }],
+    meetings: [{ label: t("nav.meetings"), to: "meetings" }],
   };
   const crumbs = crumbsMap[route];
 

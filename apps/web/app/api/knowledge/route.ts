@@ -1,16 +1,30 @@
 import { db } from "@brain/db";
+import type { Knowledge } from "@brain/db";
 import { z } from "zod";
 import { authErrorResponse, getCurrentUserId } from "@/lib/brain/auth";
 import { getActiveProject } from "@/lib/brain/active-project";
-import { buildKnowledgeWhereV2, writeAudit, getAccessibleProjectIds, userCanAccessProject } from "@brain/core";
+import {
+  buildKnowledgeWhereV2,
+  writeAudit,
+  getAccessibleProjectIds,
+  userCanAccessProject,
+} from "@brain/core";
 import type { DataScope } from "@brain/core";
 import { toKnowledgeItemView } from "@/lib/brain/views";
+import { validateForTagAssignee } from "@/lib/brain/assignee-validation";
 
 export async function GET(req: Request): Promise<Response> {
   try {
     const userId = await getCurrentUserId();
     const url = new URL(req.url);
     const type = url.searchParams.get("type");
+    // No array-element-startsWith operator in Prisma's query DSL for String[]
+    // columns, so this filters in application code after fetch. Applied
+    // AFTER the DB query returns but BEFORE the response-facing `limit` is
+    // enforced (see below) — filtering after limit would silently drop
+    // older matching rows whenever the newest `limit` rows happen not to
+    // carry the prefix (2026-07-14 review finding).
+    const tagPrefix = url.searchParams.get("tagPrefix");
     const scopeParam = url.searchParams.get("scope");
     // "all" is the data-scope opt-out; anything else is treated as a knowledge-row
     // scope filter (e.g. ?scope=user) — not as the data-scope toggle.
@@ -64,10 +78,43 @@ export async function GET(req: Request): Promise<Response> {
     // flips to createdAt-desc so the dashboard's LatestInsight card can ask
     // for "the newest extracted row" without a separate endpoint.
     const sortParam = url.searchParams.get("sort");
+    // `id` is appended as a final tiebreaker so paginated `skip`/`take`
+    // batches below (the tagPrefix branch) are stable across queries — ties
+    // on confidence/lastUsedAt/createdAt without a unique tiebreaker could
+    // otherwise reorder between batches and skip or duplicate a row.
     const orderBy =
       sortParam === "recent"
-        ? ([{ createdAt: "desc" as const }])
-        : ([{ confidence: "desc" as const }, { lastUsedAt: "desc" as const }]);
+        ? ([{ createdAt: "desc" as const }, { id: "asc" as const }])
+        : ([{ confidence: "desc" as const }, { lastUsedAt: "desc" as const }, { id: "asc" as const }]);
+
+    if (tagPrefix) {
+      // A single hard-capped candidate pool (the prior approach) silently
+      // drops a matching row that falls past the pool boundary. Page through
+      // bounded batches instead, accumulating tag-prefix matches, so a real
+      // match is found regardless of where it falls — while still capping
+      // total work at BATCH_SIZE * MAX_BATCHES rows scanned, not truly
+      // unbounded (trading one DoS risk for another on a large table) —
+      // same "bounded, not unbounded" philosophy as the original
+      // CANDIDATE_POOL_CAP (2026-07-14/17 CodeRabbit finding, flagged
+      // twice). `total` reflects matches found within that scan ceiling.
+      const BATCH_SIZE = 2000;
+      const MAX_BATCHES = 10; // ceiling: 20,000 rows scanned, worst case
+      const filtered: Knowledge[] = [];
+      for (let batch = 0; batch < MAX_BATCHES; batch++) {
+        const rows = await db.knowledge.findMany({
+          where: finalWhere as never,
+          orderBy,
+          skip: batch * BATCH_SIZE,
+          take: BATCH_SIZE,
+        });
+        filtered.push(...rows.filter((r) => r.tags.some((t) => t.startsWith(tagPrefix))));
+        if (rows.length < BATCH_SIZE) break; // exhausted the table
+      }
+      return Response.json({
+        items: filtered.slice(0, limit).map(toKnowledgeItemView),
+        total: filtered.length,
+      });
+    }
 
     const [rows, total] = await Promise.all([
 
@@ -76,7 +123,7 @@ export async function GET(req: Request): Promise<Response> {
         orderBy,
         take: limit,
       }),
-       
+
       db.knowledge.count({ where: finalWhere as never }),
     ]);
 
@@ -90,14 +137,16 @@ export async function GET(req: Request): Promise<Response> {
 }
 
 const createSchema = z.object({
-  type: z.enum(["recipe", "heuristic", "principle", "reflex", "anti_principle"]),
+  type: z.enum(["recipe", "heuristic", "principle", "reflex", "anti_principle", "action_item"]),
   triggerText: z.string().min(1),
   ruleText: z.string().min(1),
   rationale: z.string().nullable().optional(),
+  instead: z.string().nullable().optional(),
   tags: z.array(z.string()).default([]),
   scope: z.enum(["user", "project", "team", "global"]).default("user"),
   confidence: z.number().min(0).max(1).default(0.7),
   ownerProjectId: z.string().optional(),
+  supersedesKnowledgeId: z.string().optional(),
 });
 
 export async function POST(req: Request): Promise<Response> {
@@ -124,20 +173,70 @@ export async function POST(req: Request): Promise<Response> {
       resolvedProjectId = active.projectId;
     }
 
-    const row = await db.knowledge.create({
-      data: {
-        type: body.type,
-        scope: body.scope,
-        ownerUserId: userId,
-        ownerProjectId: resolvedProjectId,
-        triggerText: body.triggerText,
-        ruleText: body.ruleText,
-        rationale: body.rationale ?? null,
-        tags: body.tags,
-        confidence: body.confidence,
-        extractedBy: "user",
-      },
+    if (body.type === "action_item") {
+      const assigneeCheck = await validateForTagAssignee(body.tags, resolvedProjectId);
+      if (!assigneeCheck.ok) {
+        return Response.json(assigneeCheck.body, { status: assigneeCheck.status });
+      }
+      // Persist the canonicalized (lowercased for:) tags, not the caller's
+      // possibly mixed-case originals.
+      body.tags = assigneeCheck.tags;
+    }
+
+    // Create + (optional) supersede happen in one transaction: as separately
+    // committed writes, a failure between them would leave the new row live
+    // without retiring the old one — defeating the point of supersession,
+    // since the Oracle would then cite both (2026-07-14 review finding).
+    // Supersede logic is inlined here (not calling the shared
+    // supersedeKnowledge helper) so this stays inside the transaction using
+    // `tx` directly, without depending on tx's type being assignable to
+    // supersedeKnowledge's plain-PrismaClient parameter.
+    const row = await db.$transaction(async (tx) => {
+      const created = await tx.knowledge.create({
+        data: {
+          type: body.type,
+          scope: body.scope,
+          ownerUserId: userId,
+          ownerProjectId: resolvedProjectId,
+          triggerText: body.triggerText,
+          ruleText: body.ruleText,
+          rationale: body.rationale ?? null,
+          instead: body.instead ?? null,
+          tags: body.tags,
+          confidence: body.confidence,
+          extractedBy: "user",
+        },
+      });
+
+      if (body.supersedesKnowledgeId) {
+        const target = await tx.knowledge.findFirst({
+          where: {
+            id: body.supersedesKnowledgeId,
+            ownerUserId: userId,
+            deletedAt: null,
+            ...(resolvedProjectId ? { ownerProjectId: resolvedProjectId } : {}),
+          },
+          select: { id: true },
+        });
+        if (target) {
+          await tx.knowledge.update({
+            where: { id: target.id },
+            data: { deletedAt: new Date() },
+          });
+          // Return the UPDATED row, not the pre-update `created` — otherwise
+          // the 201 response body shows a stale `parentKnowledgeId: null`
+          // even though the DB row (and every subsequent read) has it set
+          // (2026-07-17 CodeRabbit finding).
+          return await tx.knowledge.update({
+            where: { id: created.id },
+            data: { parentKnowledgeId: target.id },
+          });
+        }
+      }
+
+      return created;
     });
+
     void writeAudit({
       actorUserId: userId,
       action: "knowledge.create",

@@ -3,12 +3,13 @@ import { z } from "zod";
 import { authErrorResponse, getCurrentUserId } from "@/lib/brain/auth";
 import { toKnowledgeItemView } from "@/lib/brain/views";
 import { writeAudit } from "@brain/core";
+import { validateForTagAssignee } from "@/lib/brain/assignee-validation";
 
 /**
  * Knowledge rows are semantically immutable once created (KNOWLEDGE.md §5.1).
  * PATCH only accepts metadata fields. To change trigger/rule/rationale, fork.
  */
-const IMMUTABLE_FIELDS = ["ruleText", "triggerText", "rationale"] as const;
+const IMMUTABLE_FIELDS = ["ruleText", "triggerText", "rationale", "instead"] as const;
 
 const patchSchema = z
   .object({
@@ -74,6 +75,22 @@ export async function PATCH(
       );
     }
     const patch = patchSchema.parse(raw);
+
+    // Mirror POST /api/knowledge's for:<email> membership check (route.ts's
+    // validateForTagAssignee) — without it, an action_item row's tags could
+    // be PATCHed to an arbitrary for: assignee that was never validated
+    // against org membership, bypassing the check entirely at create time
+    // (2026-07-17 final-review finding I3).
+    if (patch.tags !== undefined && check.row.type === "action_item") {
+      const assigneeCheck = await validateForTagAssignee(patch.tags, check.row.ownerProjectId);
+      if (!assigneeCheck.ok) {
+        return Response.json(assigneeCheck.body, { status: assigneeCheck.status });
+      }
+      // Persist the canonicalized (lowercased for:) tags, not the caller's
+      // possibly mixed-case originals.
+      patch.tags = assigneeCheck.tags;
+    }
+
     const data: Record<string, unknown> = {};
     if (patch.tags !== undefined) data.tags = patch.tags;
     if (patch.scope !== undefined) data.scope = patch.scope;
@@ -155,6 +172,7 @@ export async function POST(
         triggerText: src.triggerText,
         ruleText: body.overrides.ruleText ?? src.ruleText,
         rationale: src.rationale,
+        instead: src.instead,
         tags: src.tags,
         confidence: Math.max(0.5, src.confidence - 0.1),
         extractedBy: "user",

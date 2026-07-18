@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 
 export type IconName =
-  | "brain" | "dashboard" | "oracle" | "skills" | "graph" | "autoskill" | "sessions" | "decisions"
+  | "brain" | "dashboard" | "oracle" | "skills" | "graph" | "autoskill" | "sessions" | "decisions" | "meetings"
   | "search" | "settings" | "notifications" | "plus" | "chevR" | "chevD"
   | "arrowUp" | "arrowR" | "sparkle" | "check" | "x" | "clock" | "file" | "link"
   | "cite" | "filter" | "sort" | "more" | "bolt" | "branch" | "bookmark" | "copy"
@@ -45,6 +45,15 @@ const paths: Record<IconName, ReactNode> = {
     </>
   ),
   decisions: <path d="M3 8.5l3 3 6.5-7" />,
+  // Reuses the "file" glyph (transcripts are documents) rather than
+  // commissioning new art for a v1 flagged-off feature — distinct from
+  // "sessions" so the two don't read as the same nav entry.
+  meetings: (
+    <>
+      <path d="M3 2h6l3 3v9H3z" />
+      <path d="M9 2v3h3" />
+    </>
+  ),
   search: (
     <>
       <circle cx="7" cy="7" r="4" />

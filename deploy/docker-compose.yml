@@ -128,6 +128,17 @@ services:
       # offline without blocking the rest of the app. Read at request time.
       ORACLE_ENABLED: ${ORACLE_ENABLED:-true}
       V2_ORACLE_TASKS: ${V2_ORACLE_TASKS:-false}
+      MEETING_UPLOAD_ENABLED: ${MEETING_UPLOAD_ENABLED:-false}
+      RATE_LIMIT_MEETING_EXTRACT_PER_DAY: ${RATE_LIMIT_MEETING_EXTRACT_PER_DAY:-20}
+      # Same routing/allowlist trap as worker's KEA_MODEL below: the route
+      # defaults to qwen3-coder (DashScope) for cost reasons, and without
+      # this passthrough a .env override of either var is silently ignored.
+      # Operator must set DASHSCOPE_API_KEY here (not just under worker:) or
+      # override MEETING_EXTRACT_MODEL to a model backed by a key web already
+      # has (ANTHROPIC_API_KEY/OPENAI_API_KEY/GOOGLE_GEMINI_API_KEY, above)
+      # before flipping MEETING_UPLOAD_ENABLED — see KNOWN_ISSUES §0o.
+      MEETING_EXTRACT_MODEL: ${MEETING_EXTRACT_MODEL:-}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
       RATE_LIMIT_ORACLE_PER_DAY: ${RATE_LIMIT_ORACLE_PER_DAY:-100}
       RATE_LIMIT_KEA_PER_HOUR: ${RATE_LIMIT_KEA_PER_HOUR:-60}
       RATE_LIMIT_MCP_PER_MINUTE: ${RATE_LIMIT_MCP_PER_MINUTE:-200}

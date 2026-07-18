@@ -9,6 +9,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "test": "vitest run",
     "clean": "rm -rf .next .turbo",
     "e2e": "playwright test",
     "e2e:install": "playwright install chromium"
@@ -39,6 +40,7 @@
     "globals": "^14.0.0",
     "tailwindcss": "^4.2.4",
     "typescript": "^6.0.0",
-    "typescript-eslint": "^8.0.0"
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^4.0.0"
   }
 }

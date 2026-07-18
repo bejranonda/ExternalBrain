@@ -81,6 +81,9 @@ hand-write a rules file.
   context *before* the model generates, by meaning, not keyword match.
 - 💬 **Grounded Oracle with citations** — ask "how did we fix the deploy bug?"
   in plain English and get an answer cited to real sessions and skills.
+- 📝 **Meeting transcript → decisions & action items** — paste a transcript
+  and review/confirm the decisions, owned action items, and open questions
+  it surfaced. Flag-gated (`MEETING_UPLOAD_ENABLED`), off by default.
 - 📈 **Self-improving knowledge base** — a daily pipeline synthesizes
   cross-session knowledge; low-value skills decay; useful ones surface; and
   post-session **proposals** suggest new rules, increasingly tuned to what you
@@ -182,13 +185,16 @@ what we learned into the Brain") — each mapped to the `brain_*` tool it trigge
 4. **Anytime**, ask the **Oracle** in plain language and get grounded, cited
    answers from your own knowledge.
 5. **Meetings too (V2.0):** feed a transcript through the
-   [meeting-miner protocol](./docs/protocols/meeting-miner.md) and decisions
+   [meeting-miner protocol](./docs/protocols/meeting-miner.md) (agentic) or
+   paste it straight into the `/meetings` webapp surface (no agent required
+   — flag-gated `MEETING_UPLOAD_ENABLED`, off by default) and decisions
    (with supersession), per-person action items, and open questions land in
    the same knowledge loop. Assignees see their open items at session start;
    the Oracle answers "what's open / blocked / unanswered?" from a complete
-   task list. Behind `V2_ACTION_ITEMS` / `V2_ORACLE_TASKS` flags — default
-   off for a fresh self-host, so `git clone` still gives you plain V1
-   behavior; opt in by setting both `="true"`.
+   task list. Surfacing is behind `V2_ACTION_ITEMS` / `V2_ORACLE_TASKS` flags
+   — default off for a fresh self-host, so `git clone` still gives you plain
+   V1 behavior; opt in by setting both `V2_ACTION_ITEMS="true"` and
+   `V2_ORACLE_TASKS="true"`.
 
 Full walkthrough with examples: **[docs/HOW_IT_WORKS.md](./docs/HOW_IT_WORKS.md)**.
 

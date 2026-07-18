@@ -355,6 +355,29 @@ Cold, no-background review of the live webapp (unauthenticated Playwright + code
 
 ---
 
+## 0o. Meeting-transcript upload — shipped dark (2026-07-17)
+
+Closes the exact gap `§0n`'s "Known imprecision" row left open and the
+operator's 2026-07-12 live question both pointed at: is there a path into
+the Brain for someone with a transcript and no agent handy? `POST
+/api/meetings/extract` plus the `/meetings` webapp surface (paste a
+transcript, review the extracted decisions and action items, confirm each
+individually through the existing `POST /api/knowledge` path) now exist end
+to end. Ships **dark**, matching `§0k`'s pattern: `MEETING_UPLOAD_ENABLED`
+defaults `false` in `env.ts` and in the compose `environment:` allowlist —
+`.env` alone is ignored at runtime, the same trap `§0k` already recorded. An
+operator enables it with `MEETING_UPLOAD_ENABLED="true"` in `.env`, then a
+redeploy (or `./scripts/reload.sh web mcp-server`) so the compose allowlist
+picks it up.
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**No non-agent path into the Brain from a meeting.**~~ `docs/protocols/meeting-miner.md` required an AI agent in the loop; a scrum master or stakeholder holding a transcript with no MCP client had no way in. `/meetings` now runs the identical `brain_teach_knowledge` calls behind a paste → review → confirm flow, rate-limited and flag-gated. | `apps/web/app/api/meetings/extract/route.ts`, `apps/web/components/brain/meetings.tsx` | done, dark |
+| **Plan-stage CodeRabbit review paid for itself before any code existed.** The spec+plan PR (#165) carried complete draft code for every task, so it was reviewable as a document, not just as prose — the review caught a cross-project supersede gap, a silent-teach-failure path, unvalidated assignee emails, and a React list-key anti-pattern, all before Task 1 started. Fixing a finding in a plan is cheaper than fixing it in a second review pass on code and tests already built around the bug. Worth deliberately requesting this class of review on future plan documents, not only on finished diffs. | PR #165 | precedent |
+| **`rateLimitCheck`'s get-then-set is not atomic (deferred, not fixed here).** CodeRabbit review (2026-07-18) on this PR: concurrent requests from the same caller can both read the pre-increment count before either writes back, letting a burst exceed `RATE_LIMIT_MEETING_EXTRACT_PER_DAY` (and any other caller of the same helper — Oracle's `RATE_LIMIT_ORACLE_PER_DAY`, KEA's hourly limit — predates this feature). Fixing it needs an atomic consume primitive in both the Redis and in-memory stores (`packages/core/src/rate-limit.ts`), a cross-cutting change to shared infrastructure several features already depend on — out of scope for this branch. Revisit if a real burst is observed abusing the daily LLM-cost caps; until then the non-atomic check is a soft, not hard, limit. | `packages/core/src/rate-limit.ts` | deferred |
+
+---
+
 ## 0. MVP-complete open items (2026-04-29, operator action required)
 
 These are not blocking pilot but must be resolved before a second contributor joins or the platform is advertised publicly.
