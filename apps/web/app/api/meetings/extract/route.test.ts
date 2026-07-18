@@ -144,6 +144,59 @@ guard("POST /api/meetings/extract", () => {
     );
   });
 
+  it("returns 400 (not 500) when the request body is not valid JSON", async () => {
+    delete process.env["REDIS_URL"];
+    process.env["MEETING_UPLOAD_ENABLED"] = "true";
+    process.env["RATE_LIMIT_MEETING_EXTRACT_PER_DAY"] = "50";
+    _resetEnvCache();
+
+    const req = new Request("http://test.local/api/meetings/extract", {
+      method: "POST",
+      body: "{not valid json",
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe("INVALID_REQUEST");
+  });
+
+  it("caps supersession enrichment at 20 decisions, but keeps every extracted decision in the response", async () => {
+    delete process.env["REDIS_URL"];
+    process.env["MEETING_UPLOAD_ENABLED"] = "true";
+    process.env["RATE_LIMIT_MEETING_EXTRACT_PER_DAY"] = "50";
+    _resetEnvCache();
+
+    const manyDecisions = Array.from({ length: 25 }, (_, i) => ({
+      triggerText: `trigger ${i}`,
+      ruleText: `decision ${i}`,
+      rationale: "r",
+      instead: "i",
+    }));
+
+    const extractMeetingMock = vi.mocked(meetingExtract.extractMeeting);
+    const findCandidatesMock = vi.mocked(meetingExtract.findSupersessionCandidates);
+    // Reset call counts — these mocks are shared across tests in this file
+    // (no global clearMocks configured) and the happy-path test above
+    // already called findCandidatesMock once.
+    extractMeetingMock.mockClear();
+    findCandidatesMock.mockClear();
+    extractMeetingMock.mockResolvedValue({ decisions: manyDecisions, actionItems: [] });
+    findCandidatesMock.mockResolvedValue([]);
+
+    const req = new Request("http://test.local/api/meetings/extract", {
+      method: "POST",
+      body: JSON.stringify({ transcript: "a meeting with an unusually large decision list" }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+
+    const body = (await res.json()) as { decisions: Array<{ supersedes: unknown }> };
+    expect(body.decisions).toHaveLength(25);
+    expect(findCandidatesMock).toHaveBeenCalledTimes(20);
+    expect(body.decisions.slice(20).every((d) => d.supersedes === null)).toBe(true);
+    expect(body.decisions.slice(0, 20).every((d) => d.supersedes === null)).toBe(true); // mock resolves []
+  });
+
   it("returns 429 when the daily meeting-extract limit is already exhausted", async () => {
     // Redis unset so both this test and the route resolve to the same
     // in-memory fallback Store singleton (apps/web/lib/brain/rate-limit-store.ts).

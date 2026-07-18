@@ -44,7 +44,19 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     const userId = await getCurrentUserId();
-    const body = bodySchema.parse(await req.json());
+    let json: unknown;
+    try {
+      json = await req.json();
+    } catch {
+      // A raw SyntaxError from req.json() isn't a ZodError, so without this
+      // it falls through to authErrorResponse's generic catch-all as a 500
+      // instead of a proper 400 (2026-07-17 CodeRabbit finding).
+      return Response.json(
+        { error: { code: "INVALID_REQUEST", message: "Request body must be valid JSON." } },
+        { status: 400 },
+      );
+    }
+    const body = bodySchema.parse(json);
     const { projectId, orgId } = await getActiveProject(userId);
 
     // Any member may read the member list (matches GET /api/orgs/:orgId/members);
@@ -74,8 +86,18 @@ export async function POST(req: Request): Promise<Response> {
     const model = process.env["MEETING_EXTRACT_MODEL"] || process.env["KEA_MODEL"] || "qwen3-coder";
     const extracted = await meetingExtract.extractMeeting(body.transcript, model);
 
+    // Bounds worst-case cost/latency of this LLM-embedding-backed enrichment
+    // step for an unusually large decision list — each entry is a separate
+    // embedding-provider call via an unrestricted Promise.all (2026-07-17
+    // CodeRabbit finding). 20 is clearly generous for a real meeting; every
+    // extracted decision still appears in the response, just without a
+    // `supersedes` hint beyond the cap, rather than being dropped.
+    const SUPERSESSION_ENRICHMENT_CAP = 20;
     const decisionsWithSupersession = await Promise.all(
-      extracted.decisions.map(async (d) => {
+      extracted.decisions.map(async (d, i) => {
+        if (i >= SUPERSESSION_ENRICHMENT_CAP) {
+          return { ...d, supersedes: null };
+        }
         // Fail soft per-decision (e.g. EMBEDDING_NO_PROVIDER on a deployment
         // without an embedding key configured) — a supersession-lookup outage
         // shouldn't sink the whole extraction.
