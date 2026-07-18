@@ -65,8 +65,13 @@ export async function POST(req: Request): Promise<Response> {
     // Same provider-model-selection convention as kea.ts / autoskill-classifier.ts
     // (KEA_MODEL / AUTOSKILL_MODEL): read directly from process.env, not the
     // envForWeb() schema — this var is deliberately not a validated deployment
-    // setting, just an override knob.
-    const model = process.env["MEETING_EXTRACT_MODEL"] ?? process.env["KEA_MODEL"] ?? "qwen3-coder";
+    // setting, just an override knob. Deliberately `||`, not `??`: compose's
+    // `${MEETING_EXTRACT_MODEL:-}` passthrough sets an empty string (not
+    // undefined) in the container when the operator hasn't overridden it,
+    // and `??` treats "" as present — it would never fall through to
+    // KEA_MODEL/the default. autoskill-classifier.ts's identical `??` chain
+    // has the same latent gap; out of scope for this branch to fix there too.
+    const model = process.env["MEETING_EXTRACT_MODEL"] || process.env["KEA_MODEL"] || "qwen3-coder";
     const extracted = await meetingExtract.extractMeeting(body.transcript, model);
 
     const decisionsWithSupersession = await Promise.all(
