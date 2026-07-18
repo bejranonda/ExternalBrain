@@ -355,7 +355,7 @@ Both endpoints write an audit row (`knowledge.promote` / `knowledge.fork_to_proj
 
 ## Meetings (dark, `MEETING_UPLOAD_ENABLED`)
 
-```
+```text
 POST   /api/meetings/extract                             extract decisions + action items from a transcript
 ```
 Stateless — does **not** write to the database. The caller reviews the

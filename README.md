@@ -193,7 +193,8 @@ what we learned into the Brain") — each mapped to the `brain_*` tool it trigge
    the Oracle answers "what's open / blocked / unanswered?" from a complete
    task list. Surfacing is behind `V2_ACTION_ITEMS` / `V2_ORACLE_TASKS` flags
    — default off for a fresh self-host, so `git clone` still gives you plain
-   V1 behavior; opt in by setting both `="true"`.
+   V1 behavior; opt in by setting both `V2_ACTION_ITEMS="true"` and
+   `V2_ORACLE_TASKS="true"`.
 
 Full walkthrough with examples: **[docs/HOW_IT_WORKS.md](./docs/HOW_IT_WORKS.md)**.
 

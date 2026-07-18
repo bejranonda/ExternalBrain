@@ -11,7 +11,7 @@ else — do not teach general observations as rules from a meeting.
 
 The `/meetings` webapp surface (flag-gated, `MEETING_UPLOAD_ENABLED`, default
 off) is an alternative front door onto the same underlying
-`brain_teach_knowledge` calls this protocol describes: paste a transcript,
+`brain_teach_knowledge` calls described by this protocol: paste a transcript,
 review the extracted decisions and action items, and confirm them
 individually. Useful when there's no agent handy, or for a single quick
 import — it doesn't replace this protocol for an agent already in the loop.
