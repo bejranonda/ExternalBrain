@@ -63,6 +63,17 @@ ontology's retrieval semantics:
   them (422), and every task query is hard-bounded to the active project
   regardless of org visibility. Their text is also injected with
   untrusted-content framing (it is authored by other project members).
+- **Assignee-validation invariant (2026-07-17).** Every `for:<email>` tag on
+  an `action_item` row is checked server-side against real org membership
+  before persisting — on every path that can set the tag, not just the
+  `/meetings` UI's dropdown (create via `POST /api/knowledge`, and edit via
+  `PATCH /api/knowledge/[id]`, share one helper,
+  `apps/web/lib/brain/assignee-validation.ts`). Client dropdown state was
+  never the trust boundary. A request with multiple `for:` tags has every one
+  validated, not just the first, and the persisted tags are canonicalized to
+  lowercase — `packages/core/src/action-items.ts`'s `for:`-tag lookup is an
+  exact-match filter, so an unnormalized case would silently never surface
+  the item to its assignee even though it "validated."
 
 ### Scope
 
@@ -151,7 +162,8 @@ Each reset writes an `AuditLog` row (`action: "knowledge.reset"`). See
 ## 5. Invariants (enforce at write time)
 
 1. **Immutability.** A persisted `Knowledge` row is not edited in place. Changes create a new row with `parentKnowledgeId` pointing back.
-   - **Enforcement (2026-04-21):** `PATCH /api/knowledge/[id]` rejects any body field in `{ruleText, triggerText, rationale}` with `409 immutable_field`. Only metadata (`tags`, `scope`, `confidence`) is patchable. The Skills UI "Save" button now forks on edit — the parent is retained for history, the fork gets a lower starting confidence and is auto-selected.
+   - **Enforcement (2026-04-21):** `PATCH /api/knowledge/[id]` rejects any body field in `{ruleText, triggerText, rationale, instead}` with `409 immutable_field` (`instead` added 2026-07-17 alongside its REST-creatable-field support, below, to close the gap between MCP and REST parity). Only metadata (`tags`, `scope`, `confidence`) is patchable. The Skills UI "Save" button now forks on edit — the parent is retained for history, the fork gets a lower starting confidence and is auto-selected. Forking also copies `instead` onto the new row, matching `rationale`.
+   - **Explicit supersession (2026-07-17, meeting-transcript-upload).** `POST /api/knowledge` accepts an optional `supersedesKnowledgeId`: inside the same transaction as the create, the target row is soft-deleted and the new row's `parentKnowledgeId` is set to it — a one-call version of the general pattern above, for the case where a reviewer explicitly confirms "this replaces that" (e.g. a meeting-extracted decision superseding an earlier one). `supersedeKnowledge()` (`packages/core/src/knowledge-stats.ts`) checks the target is owned by the caller **and**, when a project is resolvable, that it belongs to the same project — a caller cannot silently retire a same-owner row in an unrelated project by guessing its id. Both callers (`POST /api/knowledge` and the MCP `brain_teach_knowledge` tool) share this check.
 2. **Provenance.** `sourceSessionIds` or `extractedBy` must be non-empty. Orphan knowledge cannot exist.
 3. **Scope boundary.** A query in user scope X cannot return knowledge in a different user's `user` scope. Enforced at the ORM layer (every query filters by `ownerUserId` / `ownerTeamId`).
 4. **Embedding required for retrievability.** Rows without an embedding are not returned by KRA. The worker runs `embeddings.backfill` every 10 minutes (`apps/worker/src/backfill-embeddings.ts`); any row older than 15 minutes with `embedding IS NULL AND deletedAt IS NULL` is a bug. One-shot replay: `pnpm --filter @brain/worker backfill:embeddings`.
