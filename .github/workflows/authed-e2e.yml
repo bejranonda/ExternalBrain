@@ -175,7 +175,8 @@ jobs:
             "web/e2e/skills.spec.ts" \
             "web/e2e/mobile-overflow.spec.ts" \
             "web/e2e/nav.spec.ts" \
-            "web/e2e/security.spec.ts"
+            "web/e2e/security.spec.ts" \
+            "web/e2e/meetings.spec.ts"
           RC=$?
           kill "$APP_PID" 2>/dev/null || true
           exit $RC
