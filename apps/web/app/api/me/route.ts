@@ -1,4 +1,5 @@
 import { db } from "@brain/db";
+import { envForWeb } from "@brain/core";
 import { authErrorResponse, getCurrentUserId } from "@/lib/brain/auth";
 
 export async function GET(): Promise<Response> {
@@ -31,6 +32,9 @@ export async function GET(): Promise<Response> {
           name: tm.team.name,
           role: tm.role,
         })),
+      },
+      capabilities: {
+        meetingUploadEnabled: envForWeb().MEETING_UPLOAD_ENABLED,
       },
     });
   } catch (err) {

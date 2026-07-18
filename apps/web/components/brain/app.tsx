@@ -10,6 +10,7 @@ import { Graph } from "./graph";
 import { Autoskill } from "./autoskill";
 import { Sessions } from "./sessions";
 import { Decisions } from "./decisions";
+import { Meetings } from "./meetings";
 import { LangContext } from "@/lib/brain/i18n";
 import { KEY_MAP, useRoute } from "@/lib/brain/routes";
 import { useTweaks } from "@/lib/brain/tweaks";
@@ -90,6 +91,7 @@ export function BrainApp() {
     autoskill: <Autoskill />,
     sessions: <Sessions />,
     decisions: <Decisions />,
+    meetings: <Meetings />,
   } as const;
 
   return (
