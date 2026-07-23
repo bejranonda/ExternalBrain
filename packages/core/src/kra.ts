@@ -30,6 +30,17 @@ interface ScoredItem {
  */
 export const RULE_TYPES_PREDICATE = ` AND "type" <> 'action_item'`;
 
+/**
+ * pgvector prefilter depth for the candidate pool the ranker re-ranks.
+ * Widened 20 -> 50 (#146, post-Stage-3-gate): the 2026-07-06 pool-depth
+ * analysis found most "relevant id missing from benchmark pool" cases sat at
+ * cosine ranks 21-50 (production's old top-20 cutoff), not genuine recall
+ * misses (~6% at depth 50) — see docs/VALIDATION.md. Re-evaluate this
+ * constant when the corpus grows an order of magnitude (bigger index scan
+ * per session open).
+ */
+const CANDIDATE_POOL_SIZE = 50;
+
 // ============================================================
 // Main entry
 // ============================================================
@@ -65,7 +76,11 @@ export async function retrieveScored(
   maxItems = 10,
 ): Promise<{ bundle: KnowledgeBundle; rows: ScoredRetrievalRow[] }> {
   const queryVector = await embed(prompt);
-  const candidates = await fetchCandidates(queryVector, context, 20);
+  const candidates = await fetchCandidates(
+    queryVector,
+    context,
+    CANDIDATE_POOL_SIZE,
+  );
 
   const scored: ScoredItem[] = candidates.map((c) => ({
     item: c.item,
@@ -114,7 +129,7 @@ export async function retrieveScored(
 export async function candidatesForPrompt(
   prompt: string,
   context: SessionContext,
-  limit = 20,
+  limit = CANDIDATE_POOL_SIZE,
 ): Promise<Array<{ item: Knowledge; similarity: number }>> {
   const queryVector = await embed(prompt);
   return fetchCandidates(queryVector, context, limit);
