@@ -39,7 +39,7 @@ export const RULE_TYPES_PREDICATE = ` AND "type" <> 'action_item'`;
  * constant when the corpus grows an order of magnitude (bigger index scan
  * per session open).
  */
-const CANDIDATE_POOL_SIZE = 50;
+export const CANDIDATE_POOL_SIZE = 50;
 
 // ============================================================
 // Main entry

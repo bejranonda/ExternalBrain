@@ -24,13 +24,15 @@
  * instance.
  */
 import { db } from "@brain/db";
-import { candidatesForPrompt } from "../src/kra.js";
+import { candidatesForPrompt, CANDIDATE_POOL_SIZE } from "../src/kra.js";
 import type { BenchmarkCase } from "../src/retrieval-benchmark.js";
 
-// Default mirrors kra.ts CANDIDATE_POOL_SIZE (widened 20 -> 50 by #146) so an
-// unscoped export matches what production actually ranks; override to
-// re-probe a different depth.
-const POOL_SIZE = Number(process.env.BENCHMARK_POOL_SIZE ?? 50);
+// Default mirrors kra.ts's own CANDIDATE_POOL_SIZE (imported, not duplicated,
+// per CodeRabbit's review on #168) so an unscoped export can't silently drift
+// from what production actually ranks; override to re-probe a different depth.
+const POOL_SIZE = Number(
+  process.env.BENCHMARK_POOL_SIZE ?? CANDIDATE_POOL_SIZE,
+);
 const USER_ID = process.env.BENCHMARK_USER_ID?.trim() || undefined;
 
 async function main(): Promise<void> {
