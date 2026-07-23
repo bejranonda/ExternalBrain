@@ -248,7 +248,7 @@ REBUILD/       Phase-by-phase vibe-coding reconstruction guide (start: REBUILD/0
 | [USING_BRAIN](./docs/USING_BRAIN.md) | Daily workflow, trigger phrases, recipes |
 | [KNOWLEDGE](./docs/KNOWLEDGE.md) | The knowledge model (normative) |
 | [protocols/](./docs/protocols/meeting-miner.md) | Agent protocols (V2.0): meeting-miner · doc-harvest · doc-draft · report-draft |
-| [VALIDATION](./docs/VALIDATION.md) | **Does it measurably help?** — first published number (2026-07-06): retrieval NDCG@5 0.45 vs 0.30 cosine baseline on a real corpus; generation-uplift still pending, honestly tracked |
+| [VALIDATION](./docs/VALIDATION.md) | **Does it measurably help?** — retrieval NDCG@5 0.45 vs 0.30 cosine baseline (2026-07-06); first generation-uplift read (2026-07-23): +33.3pp test pass-rate, n=6, small and honestly caveated |
 | [SECURITY](./docs/SECURITY.md) | Auth modes, MCP gating, threat model |
 | [DEPLOY_CHECKLIST](./docs/DEPLOY_CHECKLIST.md) | Production deploy on a public VM |
 | [CICD](./docs/CICD.md) | CI checks + the two deploy scripts, for forkers |
