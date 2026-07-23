@@ -244,7 +244,7 @@ the session open, and a `used_reported` persist failure never blocks the close.
    the primary path above, `brain_start_session` runs it on the agent's
    behalf.
 2. Embed the prompt → `queryVector`.
-3. pgvector query for top-20 candidates filtered by scope + decay > 0.3 + user match.
+3. pgvector query for top-50 candidates filtered by scope + decay > 0.3 + user match (widened from top-20 by [#146](https://github.com/bejranonda/ExternalBrain/issues/146), post-Stage-3-gate — see `kra.ts`'s `CANDIDATE_POOL_SIZE`).
 4. Score each with `0.70·sim + 0.08·success + 0.08·recency + 0.08·contextFit + 0.06·confidence` (the live `kra.ts` `WEIGHTS`; semantic similarity dominates and the rest act as tie-breakers — see the `WEIGHTS` history comment for the pre-2026-04-23 formula and why it changed).
 5. Diversify: ≤ 3 per type, ≤ 10 total, min score 0.45.
 6. Record `SessionKnowledgeApplication(role: injected)` for each returned item.
