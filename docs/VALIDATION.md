@@ -1,6 +1,6 @@
 # Validation — does the Brain improve AI coding?
 
-*Updated 2026-07-06.*
+*Updated 2026-07-23.*
 
 ## Status
 
@@ -14,10 +14,11 @@
   prompts leave the DB).
 - ✅ **First retrieval number published (2026-07-06, below)** — KRA beats the
   raw-cosine baseline by +0.148 NDCG@5 on a real, telemetry-labeled corpus.
-- ⬜ **Generation-uplift benchmark** — the claim that actually matters
-  ("the Brain improves AI coding *output*") — is still a design (below), not
-  code. **That product claim remains unproven**; the retrieval number below
-  validates the ranking layer, not end-to-end uplift.
+- ✅ **Generation-uplift benchmark — first read published (2026-07-23,
+  below)**: +33.3pp test pass-rate (control 4/6, treatment 6/6, n=6, 0
+  regressions). Positive, but n=6 is small and the task suite under-tests
+  "well-known" utilities — see `packages/core/generation-uplift/RESULTS.md`
+  for the full honest read, including where injection made no difference.
 
 ## First published run — retrieval NDCG@5 (2026-07-06)
 
@@ -59,6 +60,33 @@ Run against the live corpus at v1.13.1, after the duplicate-project merge
   with a real corpus). Re-run after material corpus growth; treat a delta
   collapse as the retune signal.
 
+## First published run — generation uplift (2026-07-23)
+
+Executed issue #126 after the Stage-3 gate passed (#149). Full design,
+per-task results, and honesty caveats live in
+`packages/core/generation-uplift/README.md` (pre-registration, committed
+before any run) and `RESULTS.md` (the read). Summary:
+
+| | Pass rate (n=6) |
+|---|---|
+| Control (no injected knowledge) | 4/6 (66.7%) |
+| Treatment (Brain-injected knowledge) | 6/6 (100%) |
+| Paired difference | **+33.3pp, 0 regressions** |
+
+- **Positive, small-n, first read.** Two of six tasks flipped from fail to
+  pass when a short "relevant knowledge" block was injected (a debounce
+  utility gaining a `.cancel()` method; a byte-formatter throwing `RangeError`
+  on negative input instead of returning a garbage string); the other four
+  tied at 100% because the base model already handled those specific edge
+  cases correctly from training, independent of injection.
+- **Reading it honestly:** this validates the generation-uplift *mechanism*
+  (does knowing a non-obvious convention up front change output) on generic,
+  corpus-independent tasks — not an end-to-end replay of production's KRA
+  retrieval, and not a statistically powered result at n=6. See
+  `RESULTS.md`'s "Reading it honestly" section for the full caveats,
+  including a grading-mechanics substitution (no local vitest available;
+  `harness/grade.ts` re-implements the same assertions with `node:assert`).
+
 ### The earlier attempt, and why the label changed
 
 A previous pair of scripts ran against the dev seed corpus
@@ -78,13 +106,20 @@ exported from a real corpus, not a seed.
 2. ~~**A real Knowledge corpus** populated by actual user sessions.~~
    **Exists:** the published run used the live corpus (post-merge, v1.13.1),
    authored independently of the fixture queries.
-3. **Blind human scoring** for the generation-uplift claim (Oracle with
-   Brain vs. Oracle without). LLM-as-judge introduces author-bias and
-   was retired alongside the benchmark scripts. **Still open.**
+3. ~~**An objective (no-LLM-judge) generation-uplift read.**~~ **First read
+   published (2026-07-23):** a pre-registered, six-task suite with executable
+   tests (`packages/core/generation-uplift/`), test pass-rate control vs.
+   Brain-injected, graded mechanically — see below. **Blind human pairwise
+   scoring** (the doc's original optional-secondary path, for tasks that lack
+   executable tests) remains undone; not needed while the test-based read is
+   available, but would strengthen a future re-run on tasks that can't ship
+   ground-truth tests.
 
-The retrieval layer now has a published number. The **product claim**
-("the Brain improves AI coding") still hinges on requirement 3 — the
-generation-uplift benchmark — and remains unproven until that runs.
+The retrieval layer and the generation-uplift mechanism both now have a
+published number. The **product claim** ("the Brain improves AI coding") has
+one small-n indicative data point in its favor (below) — promising, not
+proven; a larger and/or production-fixture-based re-run is the natural next
+step, not a new requirement.
 
 ## Proposed methodology (2026-06-28) — concrete and bias-resistant
 
@@ -126,8 +161,12 @@ The harness math is unit-tested and typechecked in CI; the two `scripts/` files
 are entrypoints outside the tsconfig `include`, so they are *not* typechecked —
 review before trusting, as the header comment on each says.
 
-**2. Generation-uplift benchmark (`generation-uplift.ts`) — the claim that matters.**
-The honest version does not use LLM-as-judge.
+**2. Generation-uplift benchmark — the claim that matters.**
+**First read published 2026-07-23** — implemented as a pre-registered task
+suite + harness under `packages/core/generation-uplift/` (not a single
+`generation-uplift.ts` script as originally sketched; see that directory's
+`README.md` and `RESULTS.md` for the actual design and result). The honest
+version does not use LLM-as-judge.
 - *Tasks with ground truth.* A held-out set of coding tasks that ship with
   executable tests (a small internal suite, or a public set such as
   SWE-bench-lite), authored independently of the corpus.
@@ -147,9 +186,10 @@ corpus, the "improves AI coding" claim stays explicitly unproven (the README and
 HOW_IT_WORKS already say so).
 
 **Where to start.** The retrieval benchmark is the cheap first number (a
-telemetry-labeled fixture plus the existing KRA path). Generation uplift needs
-the task suite and an agent harness; it is the larger build, but it is the claim
-that actually backs the positioning.
+telemetry-labeled fixture plus the existing KRA path); the generation-uplift
+task suite + harness (`packages/core/generation-uplift/`) is the larger build,
+and it is the claim that actually backs the positioning — both now have a
+first published number (above and below).
 
 ### Fixture-export recipe (operator-runnable)
 
