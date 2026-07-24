@@ -1540,11 +1540,13 @@ used (75%). Both clear. But the mid-window preview on 07-10 had read 87% — so
 the honest framing is "passing, with a thinner margin than the preview
 suggested," not "comfortably passing."
 
-**Report the split, not just the aggregate.** Per-project, the window was 11/11
-closed sessions from BrainPlatform's own construction work (91% with learnings)
-and *zero* from the three external repos where the Brain-first protocol had been
-installed on 07-07. The aggregate cleared the bar on the strength of the
-platform dogfooding itself. That's not nothing — it's real usage — but it is
+**Report the split, not just the aggregate.** Per-project, the 16 closed
+sessions were 11 from BrainPlatform's own construction work (10 with learnings,
+91%), 4 from a V2 dry-run fixture project (learning-less by design), 1 stray in
+`Default` — and *zero* from the three external repos where the Brain-first
+protocol had been installed on 07-07. So the headline 10-of-16 (62.5%) is
+really 10-of-11 on the platform's own dogfooding, pulled toward the bar by 5
+sessions that were never going to teach anything. That's not nothing — it's real usage — but it is
 emphatically not the "does this help on an independent workload" evidence the
 gate was meant to produce. The reading was published with that caveat leading,
 and the go/no-go was escalated rather than auto-proceeded: **a metric clearing a
