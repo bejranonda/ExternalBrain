@@ -294,9 +294,9 @@ Claude calls `brain_retrieve_knowledge({ query: "zod password reset form", conte
        OR ("ownerProjectId" IS NULL AND "ownerUserId" = $userId)
      )
    ORDER BY "_similarity" DESC
-   LIMIT 20
+   LIMIT 50   -- kra.ts CANDIDATE_POOL_SIZE (was 20 before v2.3.0/#146)
    ```
-3. For each of the top-20 candidates, computes a multi-factor score using the weights in `WEIGHTS` (tuned 2026-04-23; re-validated unchanged 2026-07-06 on the first real-corpus benchmark — see `docs/VALIDATION.md`):
+3. For each of the top-50 candidates, computes a multi-factor score using the weights in `WEIGHTS` (tuned 2026-04-23; re-validated unchanged 2026-07-06 on the first real-corpus benchmark — see `docs/VALIDATION.md`):
    ```
    score = 0.70 × similarity
          + 0.08 × successRate     (0.5 floor for rules with < 3 outcomes)
