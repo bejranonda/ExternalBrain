@@ -1520,3 +1520,85 @@ cheap half of the review to the point where it's expensive. Worth
 deliberately requesting this class of review on future plan documents that
 carry inline implementation, not leaving it to whichever reviewer happens
 to read the code blocks in passing.
+
+## 5be. Passing your own gate is the easy part; the honest reading is the work (2026-07-21 → 2026-07-23, v2.3.0, Stage 3)
+
+Stage 3 of the flywheel-repair program was criteria-gated on the loop-health
+panel: ≥60% of sessions closed-with-learnings AND ≥40% injection→used over a
+rolling two weeks. The gate came due 2026-07-17 and then sat unread for four
+days — the first lesson is banal and worth stating anyway: **a gate with a due
+date and no owner is a gate that doesn't fire.** The issue tracker held it, but
+nothing pulled it.
+
+**Recompute the window relative to today, not to the due date.** Read on
+2026-07-21, the rolling 14 days (07-07 → 07-21) fell *entirely* after the
+v1.13.0 instrumentation went live — a cleaner window than the due-date reading
+would have produced, since that one would still have straddled the
+pre-instrumentation period. Being late accidentally improved the evidence. The
+numbers: 16 opened / 16 closed / 10 with learnings (62.5%) and 16 injected / 12
+used (75%). Both clear. But the mid-window preview on 07-10 had read 87% — so
+the honest framing is "passing, with a thinner margin than the preview
+suggested," not "comfortably passing."
+
+**Report the split, not just the aggregate.** Per-project, the 16 closed
+sessions were 11 from BrainPlatform's own construction work (10 with learnings,
+91%), 4 from a V2 dry-run fixture project (learning-less by design), 1 stray in
+`Default` — and *zero* from the three external repos where the Brain-first
+protocol had been installed on 07-07. So the headline 10-of-16 (62.5%) is
+really 10-of-11 on the platform's own dogfooding, pulled toward the bar by 5
+sessions that were never going to teach anything. That's not nothing — it's real usage — but it is
+emphatically not the "does this help on an independent workload" evidence the
+gate was meant to produce. The reading was published with that caveat leading,
+and the go/no-go was escalated rather than auto-proceeded: **a metric clearing a
+threshold is not the same as a decision, especially when the next step
+(shrinking file memory) removes a safety net.** The operator chose to proceed on
+platform-only evidence; that choice is now recorded as a decision with its
+justification, so a future session doesn't re-litigate it or mistake it for an
+automatic consequence of the number.
+
+**The mirror was aspirational.** Stage 3's first action was shrinking
+`MEMORY.md` to a bootstrap stub, on the premise that the Brain was already
+primary and file memory merely mirrored it. Auditing each entry against the
+Brain before deleting the index found that premise was partly false: several
+entries that *looked* like settled, load-bearing guardrails — "never commit real
+client names," "the dev deployment holds real client data," "single-server,
+single-main" — returned *not enough context* from the Oracle. They had been
+written to file memory and never taught. Shrinking first and verifying later
+would have silently destroyed live safety rails. The rule: **before collapsing a
+mirror into its source, verify the source actually contains what the mirror
+claims.** The gaps were backfilled, then the stub was written.
+
+**Design the control arm so it can actually fail.** The generation-uplift
+benchmark (#126) pits an agent with injected knowledge against the same agent
+without it, graded by executable tests. Drafting the six tasks, one was caught
+before any run: `safeJsonParse`'s edge case had been framed as "must never
+throw," which a plain try/catch already satisfies for every input — the control
+arm would have passed trivially and produced a meaningless tie. Reframed to
+"non-string input must return the fallback without attempting to parse" (which
+exploits `JSON.parse`'s surprising string-coercion), the naive implementation
+genuinely fails. **Hand-run the naive implementation through every assertion
+before trusting a benchmark's negative arm**; a task where the control can't
+lose measures nothing.
+
+**A positive result still gets its non-effects published.** Treatment 6/6 vs
+control 4/6 — +33.3pp, zero regressions, n=6. Two tasks flipped; four tied at
+100% because the base model already knew those conventions from training. The
+tempting write-up reports the delta. The honest one reports that **four of six
+tasks showed no effect at all**, and says why that's the more informative half:
+this suite under-differentiates on textbook utilities and over-differentiates on
+idiosyncratic house conventions — which is a fair picture of when a Brain
+actually earns its keep, and simultaneously an argument that n=6 on generic
+tasks undersells the production case. Both halves are in
+`packages/core/generation-uplift/RESULTS.md`. Pre-registering the task list and
+metric in a commit *before* the first run is what makes that claim checkable
+rather than assertable; so is committing all twelve raw agent outputs.
+
+**Deviations get disclosed, not smoothed over.** The pre-registered tests were
+written for vitest; no vitest was installable in the checkout (Node 18, no
+pnpm) and the deployed worker container had `tsx` but not vitest either. Rather
+than quietly restate the result, the substitution — a `node:assert` harness
+re-implementing the identical assertions, real timers instead of fake ones — is
+documented as a deviation in both `README.md` and `RESULTS.md`, with the
+original spec files committed so anyone with a working toolchain can re-grade
+the same outputs. A benchmark's credibility lives in its disclosed deltas from
+its own protocol.

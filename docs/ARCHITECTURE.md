@@ -334,7 +334,7 @@ scope="all":
 ## Data flow (a single session, end to end)
 
 1. **Session start.** Client calls `brain_retrieve_knowledge({ prompt, context })`.
-   - KRA embeds prompt, fetches top-20 pgvector matches, scores with multi-factor formula, diversifies, returns bundle.
+   - KRA embeds prompt, fetches top-50 pgvector matches (`kra.ts` `CANDIDATE_POOL_SIZE`; was 20 before v2.3.0), scores with multi-factor formula, diversifies to ≤10, returns bundle.
    - `formatter.formatForInjection(bundle)` produces a ready-to-inject string.
    - `SessionKnowledgeApplication` row written with `role: injected`.
 2. **During session.** Client calls `brain_log_event(...)` for every file create/modify/reject/build-attempt/correction.
