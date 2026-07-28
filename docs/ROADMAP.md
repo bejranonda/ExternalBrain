@@ -112,7 +112,16 @@ Three measurements, from cheapest to most expensive:
 2. ✅ **Generation uplift with/without injection.** Superseded the 2026-04-24 Oracle-rubric attempt, which stalled because it needed ~1 hour of human blind-scoring that never happened. Issue #126 replaced the rubric with **executable tests** (pass/fail, no rater): pre-registered task suite in `packages/core/generation-uplift/README.md`, results in `RESULTS.md` — control 4/6, treatment 6/6, **+33.3pp, 0 regressions** (2026-07-23). Small-n and corpus-independent by design; see `docs/VALIDATION.md` for the caveats and the next step (a larger and/or production-fixture-based re-run).
 3. ⏳ **End-to-end SQS trend from real coding sessions.** Requires beta users and ≥ 4 weeks of telemetry. Downstream of #2 passing; no point instrumenting SQS on an unproven flywheel.
 
-Deliverables shipped: `packages/core/src/retrieval-benchmark.ts` (+ the `scripts/run-retrieval-benchmark.ts` / `export-retrieval-fixture.ts` pair), `packages/core/generation-uplift/` (pre-registration, task suite, grading harness, results), `docs/VALIDATION.md`, and the CI benchmark-doc coherence gate that refuses PRs which edit retrieval code without updating the validation numbers. Must be re-runnable after any KRA / KEA change.
+Deliverables shipped: `packages/core/src/retrieval-benchmark.ts` (+ the `scripts/run-retrieval-benchmark.ts` / `export-retrieval-fixture.ts` pair), `packages/core/generation-uplift/` (pre-registration, task suite, grading harness, results), and `docs/VALIDATION.md`. Must be re-runnable after any KRA / KEA change.
+
+**Not shipped, despite what this line used to claim:** a "CI benchmark-doc
+coherence gate that refuses PRs which edit retrieval code without updating the
+validation numbers". No such workflow or step exists — `.github/workflows/`
+runs `doc-refs`, `verify`, and the two e2e suites, none of which look at
+retrieval code or `VALIDATION.md`. So nothing mechanically stops a `kra.ts`
+weight change from landing with stale published numbers; that coupling is
+currently operator discipline only. Either build the gate or keep this stated
+as a gap — it was listed among shipped deliverables until 2026-07-28.
 
 ## Deferred items (not blocked, just explicit)
 
