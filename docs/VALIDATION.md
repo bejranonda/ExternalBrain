@@ -19,6 +19,13 @@
   regressions). Positive, but n=6 is small and the task suite under-tests
   "well-known" utilities — see `packages/core/generation-uplift/RESULTS.md`
   for the full honest read, including where injection made no difference.
+- ✅ **Suite 2 — corpus-dependent tasks, live-KRA injection (2026-07-28,
+  below)**: +40pp (control 3/5, treatment 5/5, n=5, 0 regressions). More
+  importantly it identifies *where* injection pays: the two flips were
+  **locally arbitrary** conventions (a workspace subpath; a build-pipeline
+  quirk), and all three ties were conventions that coincide with general good
+  practice the base model already had. See
+  `packages/core/generation-uplift/suite-2/RESULTS.md`.
 
 ## First published run — retrieval NDCG@5 (2026-07-06)
 
@@ -86,6 +93,46 @@ before any run) and `RESULTS.md` (the read). Summary:
   `RESULTS.md`'s "Reading it honestly" section for the full caveats,
   including a grading-mechanics substitution (no local vitest available;
   `harness/grade.ts` re-implements the same assertions with `node:assert`).
+
+## Second published run — suite 2, corpus-dependent + live KRA (2026-07-28)
+
+Suite 1 measured the injection *mechanism*: generic utility tasks with a
+hand-written injected block. Suite 2 changes both variables — tasks whose correct
+answer is only derivable from BrainPlatform convention, and a treatment block
+taken **verbatim from the live KRA path** rather than authored. That makes it a
+test of retrieval and generation together. Pre-registration committed before any
+run (`packages/core/generation-uplift/suite-2/README.md`).
+
+| | Convention applied (n=5) |
+|---|---|
+| Control | 3/5 (60%) |
+| **Treatment (live-KRA)** | **5/5 (100%)** |
+| Paired difference | **+40pp, 0 regressions** |
+
+- **The aggregate is not the interesting part.** The two flips were conventions
+  that are *locally arbitrary* and cannot be derived from expertise: the
+  `@brain/core/format-relative` subpath (control hand-rolled its own formatter —
+  exactly the divergence v0.15.0 consolidated away), and `force-dynamic` on an
+  env-reading server component (control emitted **no** static-rendering opt-out of
+  any kind — the v0.14.0 bug verbatim). All three ties were conventions that
+  coincide with general good practice: the control arm reached for
+  `x-forwarded-host` unprompted, mount-gated its `window` read, and used `{count}`
+  placeholders without being told.
+- **So injection pays off where the convention is arbitrary, and ties where it is
+  good craft.** That predicts where capture effort has the highest return — local
+  arbitrariness (package paths, build-pipeline quirks, project decisions), not
+  general engineering practice. Suite 1's ties had the same cause, so two
+  independent suites now agree on the mechanism.
+- **Reading it honestly:** n=5; grading is static assertion over emitted source
+  (weaker than suite 1's executable tests, pre-registered as such); isolation was
+  instruction-enforced and every control pass was checked for contamination (none
+  found — no repo identifiers in any control output). **Most important caveat:**
+  the five rules were verified retrievable from a project-scoped session *before*
+  the run, to control for the scope-filter defect in `KNOWN_ISSUES §0p` / #174.
+  Roughly half the corpus is invisible to a project-scoped session until that is
+  resolved, so **a run against the uncurated corpus would score lower.** This
+  number describes the Brain with its known retrieval defect controlled for, not
+  the Brain as a user experiences it today.
 
 ### The earlier attempt, and why the label changed
 
