@@ -57,42 +57,53 @@ async function ensureRedis(): Promise<RedisClientType | null> {
   return redisReady ? client : null;
 }
 
+// Single in-memory fallback shared across calls so that a brief Redis
+// outage keeps consistent state within this process.
+const fallback = memoryStore();
+
+/**
+ * Redis-side counter bump, run as one script so no other client can observe
+ * the pre-increment value. `INCR` creates the key at 1, and only the caller
+ * that created it arms the window TTL — which also makes Redis reap the key,
+ * so nothing has to sweep expired buckets. `PTTL` rides along in the same
+ * script so the caller learns the window end Redis actually holds rather
+ * than assuming its own clock agrees.
+ */
+const INCREMENT_SCRIPT = `
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+  redis.call('PEXPIRE', KEYS[1], ARGV[1])
+end
+return {count, redis.call('PTTL', KEYS[1])}
+`;
+
 function redisStore(client: RedisClientType): Store {
   const prefix = "bp:ratelimit:";
   return {
-    async get(key: string): Promise<Bucket | undefined> {
+    async increment(key: string, windowMs: number, now: number): Promise<Bucket> {
+      const window = Math.max(1, Math.ceil(windowMs));
       try {
-        const raw = await client.get(prefix + key);
-        if (!raw) return undefined;
-        const parsed = JSON.parse(raw) as Bucket;
-        if (
-          typeof parsed.count !== "number" ||
-          typeof parsed.resetAt !== "number"
-        ) {
-          return undefined;
-        }
-        return parsed;
-      } catch {
-        return undefined;
-      }
-    },
-    async set(key: string, bucket: Bucket, ttlMs: number): Promise<void> {
-      try {
-        // `PX` sets the TTL in milliseconds so Redis auto-expires the key
-        // once the rate-limit window elapses. One less thing to reap.
-        await client.set(prefix + key, JSON.stringify(bucket), {
-          PX: Math.max(1, Math.ceil(ttlMs)),
+        const reply: unknown = await client.eval(INCREMENT_SCRIPT, {
+          keys: [prefix + key],
+          arguments: [String(window)],
         });
+        if (!Array.isArray(reply) || typeof reply[0] !== "number") {
+          return fallback.increment(key, windowMs, now);
+        }
+        // PTTL reports -1 (key has no expiry) or -2 (key vanished) only if
+        // something outside this script touched the key; trust our own window
+        // rather than surfacing a nonsense resetAt.
+        const ttlMs = typeof reply[1] === "number" ? reply[1] : -1;
+        return { count: reply[0], resetAt: ttlMs > 0 ? now + ttlMs : now + window };
       } catch {
-        /* best-effort — fall through to next request */
+        // Redis unreachable mid-request. Degrade to the per-process limiter —
+        // same posture as the `error` handler above: limit independently
+        // rather than 500, but never let the request through uncounted.
+        return fallback.increment(key, windowMs, now);
       }
     },
   };
 }
-
-// Single in-memory fallback shared across calls so that a brief Redis
-// outage keeps consistent state within this process.
-const fallback = memoryStore();
 
 export async function getRateLimitStore(): Promise<Store> {
   const client = await ensureRedis();
