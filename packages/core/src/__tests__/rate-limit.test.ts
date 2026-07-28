@@ -1,22 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { check, memoryStore, type Bucket, type Limit, type Store } from "../rate-limit.js";
-
-function inspectingStore(): Store & { map: Map<string, Bucket> } {
-  const map = new Map<string, Bucket>();
-  return {
-    map,
-    get: async (k) => map.get(k),
-    set: async (k, b) => {
-      map.set(k, b);
-    },
-  };
-}
+import { check, memoryStore, type Limit } from "../rate-limit.js";
 
 const LIMIT: Limit = { name: "oracle", max: 3, windowMs: 60_000 };
 
 describe("rate-limit check", () => {
   it("allows the first request and remaining = max - 1", async () => {
-    const store = inspectingStore();
+    const store = memoryStore();
     const r = await check(store, "ip1", LIMIT, 1_000);
     expect(r.ok).toBe(true);
     expect(r.remaining).toBe(2);
@@ -24,7 +13,7 @@ describe("rate-limit check", () => {
   });
 
   it("blocks the (max+1)th request in the same window", async () => {
-    const store = inspectingStore();
+    const store = memoryStore();
     for (let i = 0; i < 3; i++) await check(store, "ip1", LIMIT, 1_000);
     const blocked = await check(store, "ip1", LIMIT, 1_500);
     expect(blocked.ok).toBe(false);
@@ -32,7 +21,7 @@ describe("rate-limit check", () => {
   });
 
   it("scopes buckets by (limit.name, client key)", async () => {
-    const store = inspectingStore();
+    const store = memoryStore();
     await check(store, "ip1", LIMIT, 0);
     await check(store, "ip1", LIMIT, 0);
     const otherIp = await check(store, "ip2", LIMIT, 0);
@@ -45,7 +34,7 @@ describe("rate-limit check", () => {
   });
 
   it("resets the bucket once the window elapses", async () => {
-    const store = inspectingStore();
+    const store = memoryStore();
     await check(store, "ip1", LIMIT, 0);
     await check(store, "ip1", LIMIT, 0);
     await check(store, "ip1", LIMIT, 0);
@@ -56,7 +45,7 @@ describe("rate-limit check", () => {
   });
 
   it("clamps remaining to 0 when over the limit", async () => {
-    const store = inspectingStore();
+    const store = memoryStore();
     for (let i = 0; i < 5; i++) await check(store, "ip1", LIMIT, 0);
     const last = await check(store, "ip1", LIMIT, 0);
     expect(last.ok).toBe(false);
@@ -68,5 +57,26 @@ describe("rate-limit check", () => {
     const r = await check(store, "ip1", LIMIT, 0);
     expect(r.ok).toBe(true);
     expect(r.remaining).toBe(2);
+  });
+
+  it("counts every request in a concurrent burst, not just one", async () => {
+    // The abuse case: an attacker keeps requests in flight so no write lands
+    // before the next read. A get-then-set store lets all six observe the same
+    // pre-increment count, so the bucket advances by one and the burst is
+    // repeatable forever. Only `max` may pass.
+    const store = memoryStore();
+    const burst = await Promise.all(
+      Array.from({ length: 6 }, () => check(store, "ip1", LIMIT, 0)),
+    );
+    expect(burst.filter((r) => r.ok)).toHaveLength(LIMIT.max);
+  });
+
+  it("keeps the window closed across successive bursts", async () => {
+    const store = memoryStore();
+    await Promise.all(Array.from({ length: 6 }, () => check(store, "ip1", LIMIT, 0)));
+    const second = await Promise.all(
+      Array.from({ length: 6 }, () => check(store, "ip1", LIMIT, 100)),
+    );
+    expect(second.filter((r) => r.ok)).toHaveLength(0);
   });
 });

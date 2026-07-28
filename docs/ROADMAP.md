@@ -14,16 +14,53 @@
 
 ## Phase 1 — Core Brain (weeks 5-12)
 
-- [ ] KEA end-to-end with Qwen3-Coder (cheap) and Claude Haiku 4.5 (fallback).
-- [ ] KRA with the multi-factor formula + diversification.
-- [ ] Outcome feedback loop in `brain_report_session_outcome`.
-- [ ] SQS computation + `/api/admin/brain-health` dashboard.
+- [x] KEA end-to-end. The model is a configurable route rather than the fixed
+      pair planned here (`KEA_MODEL`, `packages/core/src/kea.ts`): `glm-4.5`,
+      `glm-4.5-air` (current default), `glm-4.5-flash`, `qwen3-coder`, and
+      `claude-haiku-4-5` all dispatch, so both models named above are reachable
+      by config.
+- [x] KRA with the multi-factor formula + diversification — five weighted
+      factors (semantic similarity, success rate, recency decay, context fit,
+      confidence) in `packages/core/src/kra.ts`'s `WEIGHTS`, followed by
+      `diversify()`. Weights were re-tuned against the benchmark fixture; see
+      `docs/VALIDATION.md`.
+- [x] Outcome feedback loop in `brain_report_session_outcome` (confidence
+      updates + `learnings` capture at close).
+- [x] SQS computation (`packages/core/src/evaluation.ts`, surfaced per-session
+      via `/api/sessions/[id]` and on the dashboard).
+- [ ] Brain-health dashboard **as specced here** (`/api/admin/brain-health`)
+      was never built. What exists instead is `/api/dashboard/health` +
+      `loop-health-card.tsx` — the flywheel-repair loop-health panel (capture,
+      injection→used, corpus validation, duplicate projects), which answers the
+      "is the loop alive" question this row was for. Close this row or rescope
+      it; do not build a second panel by mistake.
 - [x] Evolution jobs scheduled in worker (decay, consolidate, obsolescence, health-snapshot).
 - [x] Embedding backfill job (one-shot + pg-boss 10-min schedule).
 - [x] Knowledge immutability guard (`PATCH` rejects semantic-core edits; fork-on-edit in UI).
 - [x] Rate limiting on `/api/*` via Next.js proxy.
 - [x] Oracle streaming (SSE).
-- [ ] **Gate 1**: simulate 100 sessions via test harness; SQS trends up; retrieval NDCG@5 > 0.5 on a labeled benchmark. If not, **stop and investigate** before Phase 2.
+- [ ] **Gate 1** — open, and the retrieval clause is **stated in units the
+      evidence can't answer**. This row asks for absolute NDCG@5 > 0.5 on a
+      labeled benchmark. What `docs/VALIDATION.md` publishes: 1.000 on the
+      author-written fixture (which VALIDATION itself disclaims as a floor
+      test), 0.4514 on the real-corpus fixture at candidate-pool 20, and
+      **0.3075 at pool 50 — the depth production now runs** since
+      [#146](https://github.com/bejranonda/ExternalBrain/issues/146). Read
+      literally, the shipping configuration sits below this gate's 0.5 and
+      below Phase 1's 0.4 red flag. Read in context it does not, because
+      (a) the labels are a weak proxy (injected-then-session-succeeded, nobody
+      hand-labeled), and (b) NDCG@5 *mechanically* falls as the pool deepens
+      and harder negatives enter — which is why VALIDATION's claim is the
+      **delta** over cosine (+0.1478 at pool 20; still positive, 0.3075 vs
+      0.2317, at pool 50), not the absolute. **Action: restate this gate as a
+      delta-over-baseline threshold, or commit to a hand-labeled fixture that
+      can carry an absolute.** Comparing a pool-50 absolute against a
+      threshold written for a hand-labeled benchmark is a category error in
+      whichever direction it's read.
+      The gate's other two clauses have simply not been run: no 100-session
+      simulation harness exists, and the SQS trend needs real telemetry over
+      time rather than a synthetic burst. Phase 2 shipped regardless —
+      recorded here as a knowingly-taken risk, not a passed gate.
 
 ## Phase 2 — MCP + Webapp (weeks 13-18)
 
@@ -71,11 +108,11 @@ Before any new surface or integration, prove the product thesis: **does the Brai
 
 Three measurements, from cheapest to most expensive:
 
-1. ✅ **Retrieval quality on a labelled benchmark.** Shipped 2026-04-23 as `packages/core/scripts/retrieval-benchmark.ts`. Current reading on the 20-query fixture: KRA NDCG@5 = **1.000**, Recall@10 = 1.000, MRR = 1.000 — matches cosine-only after the weight re-tune. Well above the Phase-1 red-flag (0.4) and exit gate (0.5). **Caveat:** fixture is author-written, so these numbers are a floor test; see `docs/VALIDATION.md §"Honest bias audit"`.
-2. 🟡 **Oracle answer correctness with/without injection.** Harness shipped 2026-04-23. **First real run completed 2026-04-24** (40 calls, ~41K tokens, <$0.10 on Z.ai GLM 5.1; artifact at `benchmarks/uplift-first-run.jsonl`). Qualitative signal unambiguous — with-Brain cites user rules; without-Brain refuses to invent. **Still blocks the full claim** until a human blind-scores the 20 pairs on the 0-3 rubric. ~1 hour of rater time.
+1. ✅ **Retrieval quality on a labelled benchmark.** Shipped 2026-04-23; the scorer lives in `packages/core/src/retrieval-benchmark.ts`, driven by `packages/core/scripts/run-retrieval-benchmark.ts` (fixtures exported by `export-retrieval-fixture.ts`). Two readings, and the difference between them is the point: on the **author-written** 20-query fixture KRA NDCG@5 = **1.000** (Recall@10 = 1.000, MRR = 1.000) — a floor test, not evidence, per `docs/VALIDATION.md §"Honest bias audit"`. On the **real-corpus** fixture: **0.4514** at candidate-pool 20 and **0.3075** at pool 50 (production's depth since #146), each beating the cosine baseline by a positive delta (+0.1478 / +0.0758). Absolutes fall as the pool deepens; the delta is the claim. See Gate 1 above for why this can't be read against an absolute threshold.
+2. ✅ **Generation uplift with/without injection.** Superseded the 2026-04-24 Oracle-rubric attempt, which stalled because it needed ~1 hour of human blind-scoring that never happened. Issue #126 replaced the rubric with **executable tests** (pass/fail, no rater): pre-registered task suite in `packages/core/generation-uplift/README.md`, results in `RESULTS.md` — control 4/6, treatment 6/6, **+33.3pp, 0 regressions** (2026-07-23). Small-n and corpus-independent by design; see `docs/VALIDATION.md` for the caveats and the next step (a larger and/or production-fixture-based re-run).
 3. ⏳ **End-to-end SQS trend from real coding sessions.** Requires beta users and ≥ 4 weeks of telemetry. Downstream of #2 passing; no point instrumenting SQS on an unproven flywheel.
 
-Deliverables shipped: `retrieval-benchmark.ts`, `generation-uplift.ts`, `docs/VALIDATION.md`, and the CI benchmark-doc coherence gate that refuses PRs which edit retrieval code without updating the validation numbers. Must be re-runnable after any KRA / KEA change.
+Deliverables shipped: `packages/core/src/retrieval-benchmark.ts` (+ the `scripts/run-retrieval-benchmark.ts` / `export-retrieval-fixture.ts` pair), `packages/core/generation-uplift/` (pre-registration, task suite, grading harness, results), `docs/VALIDATION.md`, and the CI benchmark-doc coherence gate that refuses PRs which edit retrieval code without updating the validation numbers. Must be re-runnable after any KRA / KEA change.
 
 ## Deferred items (not blocked, just explicit)
 

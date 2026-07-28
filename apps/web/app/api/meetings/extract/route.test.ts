@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll, afterAll, vi } from "vitest";
 import { randomBytes } from "node:crypto";
 import { db } from "@brain/db";
-import { ensureDefaultProject, meetingExtract, _resetEnvCache } from "@brain/core";
+import { ensureDefaultProject, meetingExtract, rateLimitCheck, _resetEnvCache } from "@brain/core";
 import * as authLib from "@/lib/brain/auth";
 import { getRateLimitStore } from "@/lib/brain/rate-limit-store";
 import { POST } from "./route.js";
@@ -205,14 +205,19 @@ guard("POST /api/meetings/extract", () => {
     process.env["RATE_LIMIT_MEETING_EXTRACT_PER_DAY"] = "1";
     _resetEnvCache();
 
-    // Pre-seed the bucket at the limit so the request short-circuits on the
+    // Burn the single allowed call so the request short-circuits on the
     // rate-limit check BEFORE reaching the (unmockable-without-keys) LLM
-    // extraction call — bucketKey format is `${limit.name}:${clientKey}`
-    // (packages/core/src/rate-limit.ts's `check()`); this route's
-    // `meetingExtractLimit()` uses name "meeting-extract" and clientKey is
-    // the caller's userId.
+    // extraction call. Consumed through the public primitive rather than by
+    // writing a bucket directly, so the test doesn't encode the store's
+    // internal representation — only that this route limits on
+    // ("meeting-extract", userId).
     const store = await getRateLimitStore();
-    await store.set(`meeting-extract:${userId}`, { count: 1, resetAt: Date.now() + 60_000 }, 60_000);
+    await rateLimitCheck(
+      store,
+      userId,
+      { name: "meeting-extract", max: 1, windowMs: 24 * 60 * 60 * 1000 },
+      Date.now(),
+    );
 
     const req = new Request("http://test.local/api/meetings/extract", {
       method: "POST",
