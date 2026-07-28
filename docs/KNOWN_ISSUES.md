@@ -384,6 +384,27 @@ compose allowlist for the `qwen3-coder` default, or override
 
 ---
 
+## 0p. Corpus capture gap + scope-filter blindness (2026-07-28)
+
+Found while building the second generation-uplift suite (#126 follow-up). That
+suite's treatment arm takes its injected block from the **live KRA path** rather
+than a hand-written file — the change you make when you want to measure the
+product instead of the mechanism. The first probe returned a null, and chasing
+it produced two defects and one measurement.
+
+**Method (reproducible).** Ask a well-formed technical question whose answer is a
+documented repo rule, via both `brain_start_session(projectName:
+"BrainPlatform")` (the production path) and `brain_retrieve_knowledge`
+(unscoped), then compare what comes back.
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**Hard-won repo rules were never taught to the Brain.**~~ **Partially closed (2026-07-28).** A probe of three documented rules found two absent from the corpus entirely: the `force-dynamic` rule (§10) and the package-boundary rule — each with a class-of-bug entry here and real debugging cost behind it. The Oracle said so outright: *"isn't captured in your current knowledge base."* Only the `#418` mount-gate rule was present. **This is a capture gap, not a retrieval gap** — proven by teaching `force-dynamic` and re-running the *identical* prompt, which then ranked it **first**. KRA ranked it correctly the moment it existed. Nine rules were backfilled from GUIDELINES §9/§10 and AGENTS.md. **The rest of GUIDELINES/KNOWN_ISSUES has not been swept** — the docs remain the de facto memory for pre-Stage-1 lessons. | `docs/GUIDELINES.md`, the Brain corpus | partially done |
+| **`scope: "user"` knowledge is invisible outside the project it was captured in — 117 rows affected.** Both `buildKnowledgeWhere` and `buildRawProjectFilter` (the pgvector path that `kra.ts` and `oracle.ts` actually use) resolve visibility as `ownerProjectId = $activeProject OR (ownerProjectId IS NULL AND ownerUserId = $user)`. **The `scope` column is never consulted.** A row with `scope: "user"` and a non-null `ownerProjectId` therefore matches neither arm and is filtered out — even though `scope: "user"` is `brain_teach_knowledge`'s *default* and reads as "follows the user". (`Knowledge.visibility` is a separate Phase-4 field and does not govern this path.) **Measured impact, same prompt both arms:** unscoped retrieval ranked `cmqpqemoh…` — trigger *"Adding a user-facing concept or glossary page to the External Brain webapp"*, 100% success over 11 uses — **first, at 0.9009 similarity**. The project-scoped session path did not return it at all, injecting a tangential i18n rule instead. **Scale:** 101 active items in `Default` vs 100 in `Brain Platform`; 117 rows repo-wide are `scope='user'` with a non-null project. Roughly half the corpus is invisible to a `BrainPlatform` session. **Not fixed here** — the fix is a design call with real blast radius (honour `scope` in the filter, vs. null out `ownerProjectId` on user-scope rows as a data repair) and it changes what every user sees. Note the duplicate-project detector cannot surface this: it looks for *normalized name collisions*, and `Brain Platform` vs `Default` will never collide. | `packages/core/src/scope-filter.ts:64-75,155-168`; `kra.ts:172` | open — needs a design call |
+| ~~**`.env.example` claimed compose provides Redis; it does not.**~~ **Doc fixed (2026-07-28).** The comment read *"Production docker-compose provides `redis://redis:6379`"*, but `deploy/docker-compose.yml` only passes the value through (`REDIS_URL: ${REDIS_URL:-}`). Consequence on the reference instance: a healthy `deploy-redis-1` container has been up for weeks with **nothing connected to it**, and rate-limit state lives in an in-process Map. Correct on a single replica, but it resets on every deploy / `reload.sh web`, silently clearing daily caps such as `RATE_LIMIT_MEETING_EXTRACT_PER_DAY`. It also means the pre-2026-07-28 get-then-set race (§0o) was a **live production** bypass, not a dev-only concern. **The operator must still set `REDIS_URL` in the live `.env`** — a gitignored file no PR can reach. | `.env.example`, live `.env` | doc fixed; operator action pending |
+
+---
+
 ## 0. MVP-complete open items (2026-04-29, operator action required)
 
 These are not blocking pilot but must be resolved before a second contributor joins or the platform is advertised publicly.
