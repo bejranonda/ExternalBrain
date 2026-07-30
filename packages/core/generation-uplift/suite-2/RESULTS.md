@@ -182,3 +182,26 @@ caveat, not a formality.
    or +20pp (strict) against the carried-forward control.
 3. It remains n=5, statically graded, with the arms sampled at different times.
    Two readings agreeing is worth more than either alone, but neither is powered.
+
+### Independent confirmation of the strict grade, and one thing it surfaced
+
+CodeRabbit reviewed the uncurated artifacts on PR #178 and — reading the file
+cold, without the pre-registration in front of it — flagged
+`'oracle.status.retrieved.one': '1 item retrieved'` as violating "no count ever
+lives inside a dictionary string". That is an **independent arrival at the strict
+reading**, which is worth more than my own grade agreeing with itself. It does not
+settle the question (the ICU `one`-category argument still stands), but it does
+mean the strict reading is the one a reviewer reaches unprompted.
+
+It also surfaced a difference the pre-registered assertion does not cover: the
+**curated** run returned an `oracle.status.empty` key before building any segment
+when `retrievedCount === 0`; the **uncurated** run dropped that early return and
+renders `"0 items retrieved"` instead. This is a genuine qualitative regression
+between the two runs. It is **outside the pre-registered metric** (which asks only
+about baked numbers), so it does **not** change the 5/5 or 4/5 score — recorded
+here rather than folded into the number, because moving the goalposts after seeing
+the output is the exact failure pre-registration exists to prevent.
+
+Both artifacts were left **unmodified**. They are evidence of what the run
+produced; editing them to satisfy a review would falsify the experiment. See
+`tasks/README.md`.
