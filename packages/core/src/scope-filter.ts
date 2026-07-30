@@ -180,6 +180,24 @@ export interface VisibilityScopeArgs {
   /** All project IDs in the active org that this user can access. */
   accessibleProjectIds: string[];
   scope: "project" | "all";
+  /**
+   * Opt in to letting the caller's own `scope: 'user' | 'global'` rows reach
+   * across project boundaries (#174). Default `false` — this MUST stay opt-in.
+   *
+   * Personal-rule retrieval (`kra.ts`, `oracle.ts`) wants it: without it, a
+   * rule taught by `brain_teach_knowledge` (whose `scope` defaults to `"user"`)
+   * from inside a project is invisible from every other project, which is the
+   * "the brain has knowledge but retrieval returns nothing" symptom.
+   *
+   * Other callers deliberately do NOT want it, and enabling it for them would
+   * breach reviewed boundaries: `action-items.ts` treats the project edge as
+   * the isolation line for tasks (2026-07-10 review, finding 1), and
+   * `meeting-extract.ts`'s supersession search is intentionally project-wide
+   * and NOT owner-scoped, so widening would drag the caller's other projects'
+   * decisions into a shared team surface. Per GUIDELINES §7: give cross-scope
+   * behaviour an explicit path instead of quietly changing a shared helper.
+   */
+  includeUserScopeAcrossProjects?: boolean;
 }
 
 /**
@@ -204,6 +222,17 @@ export function buildKnowledgeWhereV2(args: VisibilityScopeArgs): object {
     AND: [{ ownerProjectId: null }, { ownerUserId: userId }],
   };
 
+  // Rows whose declared scope is cross-project follow the user, wherever the
+  // writing session happened to be. Without this, `scope:'user'` rows written
+  // from inside a project (brain_teach_knowledge's default) are invisible from
+  // every other project — the symptom "the brain has knowledge but retrieval
+  // returns nothing". Stays pinned to ownerUserId: cross-project reach must
+  // never become cross-user reach.
+  const crossProject = args.includeUserScopeAcrossProjects === true;
+  const userScopeBranch = {
+    AND: [{ scope: { in: ["user", "global"] } }, { ownerUserId: userId }],
+  };
+
   if (scope === "all") {
     const orClauses: object[] = [];
 
@@ -221,6 +250,7 @@ export function buildKnowledgeWhereV2(args: VisibilityScopeArgs): object {
         AND: [{ visibility: "private" }, { ownerUserId: userId }],
       },
       legacyBranch,
+      ...(crossProject ? [userScopeBranch] : []),
     );
 
     return {
@@ -259,6 +289,7 @@ export function buildKnowledgeWhereV2(args: VisibilityScopeArgs): object {
   }
 
   orClauses.push(legacyBranch);
+  if (crossProject) orClauses.push(userScopeBranch);
 
   return {
     AND: [
@@ -284,6 +315,7 @@ export function buildRawProjectFilterV2(
   startParam: number,
 ): { sql: string; params: (string | null)[] } {
   const { userId, activeProjectId, accessibleProjectIds, scope } = args;
+  const userScopeSql = args.includeUserScopeAcrossProjects === true ? "" : null;
 
   if (scope === "all") {
     if (accessibleProjectIds.length === 0) {
@@ -339,7 +371,11 @@ export function buildRawProjectFilterV2(
     // No org context — only this project's rows + personal.
     const sql = ` AND "deletedAt" IS NULL AND (
       ("visibility" IN ('project','private') AND "ownerProjectId" = ${pProject})
-      OR ("ownerProjectId" IS NULL AND "ownerUserId" = ${pUser})
+      OR ("ownerProjectId" IS NULL AND "ownerUserId" = ${pUser})${
+      userScopeSql === null
+        ? ""
+        : `\n      OR (scope IN ('user', 'global') AND "ownerUserId" = ${pUser})`
+    }
     )`;
     return { sql, params: [activeProjectId, userId] };
   }
@@ -352,7 +388,11 @@ export function buildRawProjectFilterV2(
     ("visibility" = 'project' AND "ownerProjectId" = ${pProject})
     OR ("visibility" = 'private' AND "ownerUserId" = ${pUser} AND "ownerProjectId" = ${pProject})
     OR ("visibility" = 'org' AND "ownerProjectId" IN (${inPlaceholders}))
-    OR ("ownerProjectId" IS NULL AND "ownerUserId" = ${pUser})
+    OR ("ownerProjectId" IS NULL AND "ownerUserId" = ${pUser})${
+    userScopeSql === null
+      ? ""
+      : `\n    OR (scope IN ('user', 'global') AND "ownerUserId" = ${pUser})`
+  }
   )`;
 
   return {

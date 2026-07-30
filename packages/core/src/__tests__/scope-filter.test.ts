@@ -9,6 +9,7 @@ import {
   buildSessionWhere,
   buildProposalWhere,
   buildRawProjectFilter,
+  buildRawProjectFilterV2,
 } from "../scope-filter.js";
 
 const USER = "user_abc";
@@ -166,5 +167,76 @@ describe("buildRawProjectFilter", () => {
   it('scope="project" SQL includes NULL check for ownerProjectId', () => {
     const { sql } = buildRawProjectFilter(USER, PROJECT, "project", 1);
     expect(sql).toContain("IS NULL");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildRawProjectFilterV2 — the filter kra.ts / oracle.ts actually use
+// ---------------------------------------------------------------------------
+
+describe("buildRawProjectFilterV2 — cross-project reach of user-scope rows", () => {
+  const args = (
+    activeProjectId: string | null,
+    accessible: string[] = [],
+    optIn = false,
+  ) => ({
+    userId: USER,
+    activeProjectId,
+    activeOrgId: null,
+    accessibleProjectIds: accessible,
+    scope: "project" as const,
+    includeUserScopeAcrossProjects: optIn,
+  });
+
+  const USER_SCOPE = /scope IN \('user',\s*'global'\)/;
+
+  // The no-active-project branch got this unconditionally on 2026-05-12 after
+  // 5/5 retrieval misses traced to it. Pins the precedent.
+  it("always admits scope=user/global rows when there is no active project", () => {
+    expect(buildRawProjectFilterV2(args(null), 3).sql).toMatch(USER_SCOPE);
+  });
+
+  // Default MUST stay closed: action-items.ts and meeting-extract.ts rely on
+  // the project edge holding (2026-07-10 review finding 1; 2026-07-17 I2).
+  it("does NOT widen under an active project unless opted in", () => {
+    expect(buildRawProjectFilterV2(args(PROJECT), 3).sql).not.toMatch(USER_SCOPE);
+    expect(buildRawProjectFilterV2(args(PROJECT, ["proj_other"]), 3).sql).not.toMatch(
+      USER_SCOPE,
+    );
+  });
+
+  it("admits scope=user/global rows when opted in, no org context", () => {
+    expect(buildRawProjectFilterV2(args(PROJECT, [], true), 3).sql).toMatch(
+      USER_SCOPE,
+    );
+  });
+
+  it("admits scope=user/global rows when opted in, with org context", () => {
+    const { sql } = buildRawProjectFilterV2(args(PROJECT, ["proj_other"], true), 3);
+    expect(sql).toMatch(USER_SCOPE);
+  });
+
+  // Cross-tenant guard: widening project REACH must never widen user reach.
+  // The user-scope disjunct sits inside an OR, so it has to carry its own
+  // ownerUserId predicate — an outer AND would not constrain the other arms.
+  it("pins the opted-in disjunct to ownerUserId itself", () => {
+    for (const a of [args(PROJECT, [], true), args(PROJECT, ["proj_other"], true)]) {
+      const { sql } = buildRawProjectFilterV2(a, 3);
+      const line = sql.split("\n").find((l) => USER_SCOPE.test(l)) ?? "";
+      expect(line).toContain('"ownerUserId"');
+    }
+  });
+
+  // The no-project branch reaches the same guarantee differently: its whole
+  // fragment is gated by a top-level `AND "ownerUserId" = $n` before the OR.
+  it("constrains ownerUserId at the top level in the no-project branch", () => {
+    const { sql } = buildRawProjectFilterV2(args(null), 3);
+    expect(sql).toMatch(/AND\s+"ownerUserId"\s*=\s*\$\d+\s+AND\s+\(/);
+  });
+
+  it("params are unchanged by the opt-in (no new bind slots)", () => {
+    const off = buildRawProjectFilterV2(args(PROJECT, ["proj_other"]), 3);
+    const on = buildRawProjectFilterV2(args(PROJECT, ["proj_other"], true), 3);
+    expect(on.params).toEqual(off.params);
   });
 });

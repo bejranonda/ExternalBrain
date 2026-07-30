@@ -158,6 +158,12 @@ async function fetchCandidates(
       activeOrgId: context.orgId ?? null,
       accessibleProjectIds,
       scope: dataScope,
+      // #174 — personal rules follow the user across projects. Without this a
+      // `scope:'user'` row (brain_teach_knowledge's default) written from
+      // inside one project is invisible from every other, which starved
+      // injection: ~half the corpus was unreachable from a project-scoped
+      // session. Opt-in per call site; still pinned to ownerUserId.
+      includeUserScopeAcrossProjects: true,
     },
     3,
   );
