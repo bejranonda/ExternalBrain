@@ -135,6 +135,11 @@ async function buildContext(
     activeOrgId: visibilityArgs?.activeOrgId ?? null,
     accessibleProjectIds: visibilityArgs?.accessibleProjectIds ?? [],
     scope: dataScope,
+    // #174 — same opt-in as kra.ts: the Oracle answers from the user's own
+    // rules, so a `scope:'user'` row must not be hidden just because it was
+    // taught from inside a different project. Still pinned to ownerUserId,
+    // and this query already hard-filters `WHERE "ownerUserId" = $2`.
+    includeUserScopeAcrossProjects: true,
   };
   const { sql: kProjectFilter, params: kProjectParams } = buildRawProjectFilterV2(visArgs, 3);
 
