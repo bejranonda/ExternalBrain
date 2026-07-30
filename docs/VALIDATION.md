@@ -123,6 +123,15 @@ run (`packages/core/generation-uplift/suite-2/README.md`).
   arbitrariness (package paths, build-pipeline quirks, project decisions), not
   general engineering practice. Suite 1's ties had the same cause, so two
   independent suites now agree on the mechanism.
+- **Second reading (2026-07-30, uncurated).** Re-run after #174 shipped, with
+  **no curation** — the first honest measurement of the product as a user meets
+  it. Treatment held at **5/5 lenient / 4/5 strict** against the carried-forward
+  3/5 control. The formerly-invisible docs recipe now occupies a slot in *every*
+  injected block, yet each task's own rule still ranked **#1**: the corpus
+  widening bought recall **without measurable precision loss**, which was the
+  open question. Task 5 is a genuine grading-judgment case (an ICU `one`-category
+  key containing a literal `1`) — reported both ways rather than resolved after
+  the fact; it is the static-grading weakness the pre-registration predicted.
 - **Reading it honestly:** n=5; grading is static assertion over emitted source
   (weaker than suite 1's executable tests, pre-registered as such); isolation was
   instruction-enforced and every control pass was checked for contamination (none

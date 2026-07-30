@@ -97,3 +97,88 @@ Task prompts, injected blocks (verbatim) and both arms' emitted files are the
 inputs; the grading assertions are in the per-task table above. Live KRA output is
 not reproducible over time — the corpus changes, decay and usage counts move
 rankings — so the retrieved blocks are recorded here rather than regenerated.
+
+---
+
+# Second reading — uncurated corpus, post-#174 (2026-07-30)
+
+The first reading carried one caveat above all others: the five rules were
+**verified retrievable before the run**, to control for the scope-filter defect
+that hid roughly half the corpus from a project-scoped session. That control was
+necessary then — without it a null could not distinguish "the knowledge didn't
+help" from "the knowledge wasn't visible" — but it meant the number described the
+Brain with a known defect controlled for, not the Brain as a user meets it.
+
+**#174 is now fixed and deployed (v2.5.0).** Corpus reach for a `Brain Platform`
+session went 104 → 141 rows. So this re-run needs no curation: it is the first
+honest measurement of the product as it actually behaves.
+
+Same pre-registered task list, same prompts, same metric — a re-run, not a redesign.
+
+## What changed in the injected blocks
+
+Every one of the five treatment blocks now carries `cmqpqemoh…` — the
+docs-content recipe that was invisible before the fix — occupying one of five
+slots **regardless of topic relevance**. It is high-confidence with a long usage
+record, so it now competes globally. That is the dilution risk of widening
+recall, and it is exactly what this re-run was for.
+
+**It did not cost anything measurable.** Each task's own rule still ranked **#1**
+in its block. The widened corpus added a competitor without displacing the
+relevant rule.
+
+## Result
+
+| | Convention applied (n=5) |
+|---|---|
+| Control (unchanged, not re-run — see below) | 3/5 |
+| Treatment, curated corpus (2026-07-28) | 5/5 |
+| **Treatment, uncurated corpus (2026-07-30)** | **5/5 lenient · 4/5 strict** |
+
+| # | Convention | Curated | Uncurated |
+|---|---|---|---|
+| 1 | `force-dynamic` | ✅ | ✅ |
+| 2 | `x-forwarded-host` | ✅ | ✅ |
+| 3 | mount-gate `window` | ✅ | ✅ |
+| 4 | `@brain/core/format-relative` | ✅ | ✅ |
+| 5 | no baked numbers in i18n strings | ✅ | ⚠️ see below |
+
+### Task 5 is a genuine grading-judgment case — reported, not resolved away
+
+The uncurated run emitted:
+
+```ts
+'oracle.status.retrieved':     '{count} items retrieved',
+'oracle.status.retrieved.one': '1 item retrieved',
+```
+
+The pre-registered assertion is mechanical — *no digit inside a dictionary
+string*. Line 2 has one, so **strictly this fails**. But the convention's stated
+rationale is *"if a future reader sees this number, is there any way it stays
+correct as data changes?"* — and for an ICU `one`-category key the answer is yes:
+it is only ever used when the count is exactly 1. By intent it passes.
+
+Reported both ways rather than picked, because picking after seeing the output is
+precisely what pre-registration exists to prevent. **This is the static-grading
+weakness pre-registered in `README.md` caveat 1 actually manifesting** — a
+predicted failure mode, not a surprise. The curated run happened to emit `{n}`
+even in the singular and so dodged it.
+
+### Why control was not re-run
+
+The control arm receives **no injection**, so a retrieval-layer change cannot
+affect it — re-running would only add model nondeterminism to the comparison.
+The 3/5 figure is carried forward from the pre-registered first run. The
+limitation to note: treatment and control were therefore sampled at different
+times, so run-to-run model variance is not controlled. At n=5 that is a real
+caveat, not a formality.
+
+## What this reading actually establishes
+
+1. **The #174 fix bought recall without measurable precision loss** on this
+   suite. That was the open question, and it is the useful result — widening a
+   corpus can degrade top-k injection, and here it did not.
+2. **The first reading's headline number survives decurating.** +40pp (lenient)
+   or +20pp (strict) against the carried-forward control.
+3. It remains n=5, statically graded, with the arms sampled at different times.
+   Two readings agreeing is worth more than either alone, but neither is powered.
