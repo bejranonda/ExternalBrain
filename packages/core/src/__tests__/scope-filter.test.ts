@@ -234,6 +234,22 @@ describe("buildRawProjectFilterV2 — cross-project reach of user-scope rows", (
     expect(sql).toMatch(/AND\s+"ownerUserId"\s*=\s*\$\d+\s+AND\s+\(/);
   });
 
+  // CodeRabbit #177: the opt-in must reach every branch that HAS a project
+  // boundary, including scope="all" with an accessible-project list.
+  it('applies the opt-in to scope="all" with accessible projects', () => {
+    const allArgs = {
+      userId: USER,
+      activeProjectId: PROJECT,
+      activeOrgId: null,
+      accessibleProjectIds: ["proj_other"],
+      scope: "all" as const,
+    };
+    expect(buildRawProjectFilterV2(allArgs, 3).sql).not.toMatch(USER_SCOPE);
+    expect(
+      buildRawProjectFilterV2({ ...allArgs, includeUserScopeAcrossProjects: true }, 3).sql,
+    ).toMatch(USER_SCOPE);
+  });
+
   it("params are unchanged by the opt-in (no new bind slots)", () => {
     const off = buildRawProjectFilterV2(args(PROJECT, ["proj_other"]), 3);
     const on = buildRawProjectFilterV2(args(PROJECT, ["proj_other"], true), 3);

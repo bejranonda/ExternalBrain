@@ -184,6 +184,16 @@ export interface VisibilityScopeArgs {
    * Opt in to letting the caller's own `scope: 'user' | 'global'` rows reach
    * across project boundaries (#174). Default `false` — this MUST stay opt-in.
    *
+   * **What it governs:** the branches that have a project boundary to cross —
+   * every `scope: "project"` branch with an `activeProjectId`, plus the
+   * `scope: "all"` + `accessibleProjectIds` branch. It does **not** gate the
+   * no-`activeProjectId` branch, which includes `user`/`global` rows
+   * unconditionally: with no active project there is no boundary to enforce,
+   * and that behaviour predates this flag (added 2026-05-12 after 5/5 retrieval
+   * misses). Gating it would resurrect that bug for every caller that doesn't
+   * opt in. Likewise the `scope: "all"` + empty-`accessibleProjectIds` branch
+   * already returns everything the user owns, so there is nothing to widen.
+   *
    * Personal-rule retrieval (`kra.ts`, `oracle.ts`) wants it: without it, a
    * rule taught by `brain_teach_knowledge` (whose `scope` defaults to `"user"`)
    * from inside a project is invisible from every other project, which is the
@@ -315,7 +325,10 @@ export function buildRawProjectFilterV2(
   startParam: number,
 ): { sql: string; params: (string | null)[] } {
   const { userId, activeProjectId, accessibleProjectIds, scope } = args;
-  const userScopeSql = args.includeUserScopeAcrossProjects === true ? "" : null;
+  const optedIn = args.includeUserScopeAcrossProjects === true;
+  /** The cross-project disjunct, or "" when not opted in. Always user-pinned. */
+  const userScope = (pUser: string, indent: string) =>
+    optedIn ? `\n${indent}OR (scope IN ('user', 'global') AND "ownerUserId" = ${pUser})` : "";
 
   if (scope === "all") {
     if (accessibleProjectIds.length === 0) {
@@ -333,7 +346,7 @@ export function buildRawProjectFilterV2(
     const sql = ` AND "deletedAt" IS NULL AND (
       ("visibility" IN ('project','org') AND "ownerProjectId" IN (${inPlaceholders}))
       OR ("visibility" = 'private' AND "ownerUserId" = ${pUser})
-      OR ("ownerProjectId" IS NULL AND "ownerUserId" = ${pUser})
+      OR ("ownerProjectId" IS NULL AND "ownerUserId" = ${pUser})${userScope(pUser, "      ")}
     )`;
     return {
       sql,
@@ -371,11 +384,7 @@ export function buildRawProjectFilterV2(
     // No org context — only this project's rows + personal.
     const sql = ` AND "deletedAt" IS NULL AND (
       ("visibility" IN ('project','private') AND "ownerProjectId" = ${pProject})
-      OR ("ownerProjectId" IS NULL AND "ownerUserId" = ${pUser})${
-      userScopeSql === null
-        ? ""
-        : `\n      OR (scope IN ('user', 'global') AND "ownerUserId" = ${pUser})`
-    }
+      OR ("ownerProjectId" IS NULL AND "ownerUserId" = ${pUser})${userScope(pUser, "      ")}
     )`;
     return { sql, params: [activeProjectId, userId] };
   }
@@ -388,11 +397,7 @@ export function buildRawProjectFilterV2(
     ("visibility" = 'project' AND "ownerProjectId" = ${pProject})
     OR ("visibility" = 'private' AND "ownerUserId" = ${pUser} AND "ownerProjectId" = ${pProject})
     OR ("visibility" = 'org' AND "ownerProjectId" IN (${inPlaceholders}))
-    OR ("ownerProjectId" IS NULL AND "ownerUserId" = ${pUser})${
-    userScopeSql === null
-      ? ""
-      : `\n    OR (scope IN ('user', 'global') AND "ownerUserId" = ${pUser})`
-  }
+    OR ("ownerProjectId" IS NULL AND "ownerUserId" = ${pUser})${userScope(pUser, "    ")}
   )`;
 
   return {
