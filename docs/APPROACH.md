@@ -1614,7 +1614,8 @@ that **a defect's recorded description is itself a piece of code that can be
 wrong**, and a wrong one is worse than no entry at all — it converts an open
 question into a settled one.
 
-**1. "A soft cap on LLM cost" was an unbounded auth bypass.** `KNOWN_ISSUES §0o`
+**1. "A soft cap on LLM cost" was an application-level auth-limit bypass.**
+`KNOWN_ISSUES §0o`
 carried `rateLimitCheck`'s non-atomic get-then-set as *deferred*, framed as a
 cost-cap nicety. Both halves were wrong. The bucket advanced by **one per burst
 regardless of burst size** — every concurrent caller read the same pre-increment
@@ -1622,7 +1623,18 @@ count — so a caller who simply kept requests in flight was never limited,
 repeatably. And the helper guards the **auth surface**: voucher redemption (the
 invite-code gate on a self-service Brain), register, forgot-password. Measured
 against a real Redis in a throwaway container, 50 concurrent clients moved the
-old counter to **2**, not 50. The mis-framing wasn't carelessness — it was
+old counter to **2**, not 50.
+
+*Scoped honestly:* this was a bypass of the **application** limiter, not of every
+control. `deploy/Caddyfile` rate-limits `/api/*` at the edge to 10 events per IP
+per second, ordered before `reverse_proxy`, so an attacker was never wholly
+unbounded. But the edge limit is three-plus orders of magnitude looser than the
+control it was masking — 10/second against a voucher gate intended to allow
+10/**hour** — and being per-IP it does nothing against a distributed caller. So
+the finding stands; "unbounded" did not, and the distinction is exactly the kind
+this section is about. (Caught in review of this very write-up.)
+
+The mis-framing wasn't carelessness — it was
 written by someone looking at the one endpoint their PR touched, where "cost cap"
 is a fair description. Hence the rule that came out of it: *enumerate the call
 sites before you write the deferral rationale.*
@@ -1632,8 +1644,14 @@ Building a second generation-uplift suite whose treatment arm draws from the
 **live** retrieval path — rather than a hand-written block — turned up a null on
 the first probe. Chasing it: `scope: "user"` rows (the `brain_teach_knowledge`
 default) carry the `ownerProjectId` of whatever session wrote them, and
-project-scoped retrieval matched on project ownership alone. 117 rows affected;
-101 in a catch-all `Default` project versus 100 in the real one. The
+the production filter (`buildRawProjectFilterV2`) resolves visibility from
+`Knowledge.visibility` plus `ownerProjectId` and never consults `scope`, so those
+rows matched no branch outside their writing project. **117 rows repo-wide** were
+`scope='user'` with a non-null `ownerProjectId` — the affected set. Separately, and
+not a partition of that 117: the corpus split roughly evenly across a catch-all
+`Default` project (101 active rows) and the real one (100), which is what made the
+starvation so large in practice. Fixing it moved a `Brain Platform` session's reach
+from 104 to 141 visible rows. The
 best-matching item in the entire corpus — 0.9009 similarity, exact trigger match,
 eleven successful uses — ranked **first** unscoped and was **absent** from the
 project-scoped session path. Meanwhile the duplicate-project detector reported
