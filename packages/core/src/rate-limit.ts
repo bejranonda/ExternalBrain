@@ -17,6 +17,13 @@ export interface Bucket {
 
 export interface Limit {
   name: string;
+  /**
+   * Requests allowed per window. `0` blocks everything — it is NOT a
+   * "disabled" sentinel, and no caller treats it as one. (Before the atomic
+   * rewrite the fresh-bucket path returned `ok: true` unconditionally, so
+   * `max: 0` leaked one request per window; that inconsistency is gone.) To
+   * disable a limit, don't route the path through the limiter.
+   */
   max: number;
   windowMs: number;
 }

@@ -10,6 +10,7 @@ import {
   buildProposalWhere,
   buildRawProjectFilter,
   buildRawProjectFilterV2,
+  buildKnowledgeWhereV2,
 } from "../scope-filter.js";
 
 const USER = "user_abc";
@@ -254,5 +255,62 @@ describe("buildRawProjectFilterV2 — cross-project reach of user-scope rows", (
     const off = buildRawProjectFilterV2(args(PROJECT, ["proj_other"]), 3);
     const on = buildRawProjectFilterV2(args(PROJECT, ["proj_other"], true), 3);
     expect(on.params).toEqual(off.params);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildKnowledgeWhereV2 — the Prisma-side twin of buildRawProjectFilterV2.
+// Had no coverage at all before 2026-07-31 despite backing the knowledge
+// listing route and action-items.
+// ---------------------------------------------------------------------------
+
+describe("buildKnowledgeWhereV2 — user-scope reach", () => {
+  const args = (
+    activeProjectId: string | null,
+    accessible: string[] = [],
+    optIn = false,
+    scope: "project" | "all" = "project",
+  ) => ({
+    userId: USER,
+    activeProjectId,
+    activeOrgId: null,
+    accessibleProjectIds: accessible,
+    scope,
+    includeUserScopeAcrossProjects: optIn,
+  });
+
+  /** The user-scope disjunct, as it appears in a serialised Prisma where. */
+  const hasUserScope = (where: object) =>
+    JSON.stringify(where).includes('{"scope":{"in":["user","global"]}}');
+
+  it("does NOT widen under an active project unless opted in", () => {
+    expect(hasUserScope(buildKnowledgeWhereV2(args(PROJECT)))).toBe(false);
+    expect(hasUserScope(buildKnowledgeWhereV2(args(PROJECT, ["p2"])))).toBe(false);
+  });
+
+  it("widens under an active project when opted in", () => {
+    expect(hasUserScope(buildKnowledgeWhereV2(args(PROJECT, [], true)))).toBe(true);
+    expect(hasUserScope(buildKnowledgeWhereV2(args(PROJECT, ["p2"], true)))).toBe(true);
+  });
+
+  it('applies the opt-in to scope="all" too', () => {
+    expect(hasUserScope(buildKnowledgeWhereV2(args(PROJECT, ["p2"], false, "all")))).toBe(false);
+    expect(hasUserScope(buildKnowledgeWhereV2(args(PROJECT, ["p2"], true, "all")))).toBe(true);
+  });
+
+  // Parity with buildRawProjectFilterV2: with no active project there is no
+  // boundary to enforce, so user/global rows are admitted regardless of the
+  // flag. The raw helper has done this since 2026-05-12; the two must agree.
+  it("admits user/global rows with no active project, even when not opted in", () => {
+    expect(hasUserScope(buildKnowledgeWhereV2(args(null)))).toBe(true);
+    const raw = buildRawProjectFilterV2(args(null), 3).sql;
+    expect(raw).toMatch(/scope IN \('user',\s*'global'\)/);
+  });
+
+  it("pins the user-scope disjunct to ownerUserId", () => {
+    const where = buildKnowledgeWhereV2(args(PROJECT, [], true));
+    const json = JSON.stringify(where);
+    const idx = json.indexOf('{"scope":{"in":["user","global"]}}');
+    expect(json.slice(idx, idx + 120)).toContain(`"ownerUserId":"${USER}"`);
   });
 });
