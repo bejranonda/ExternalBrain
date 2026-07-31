@@ -1602,3 +1602,108 @@ documented as a deviation in both `README.md` and `RESULTS.md`, with the
 original spec files committed so anyone with a working toolchain can re-grade
 the same outputs. A benchmark's credibility lives in its disclosed deltas from
 its own protocol.
+
+---
+
+## 5bf. Framing is load-bearing: three defects that hid behind their own descriptions (2026-07-28 → 2026-07-31, v2.3.1 → v2.5.1)
+
+Three separate defects shipped in this arc. None of them was hard to fix. All
+three were hard to *see*, and for the same reason: each was already written
+down, in language that made it sound smaller than it was. The through-line is
+that **a defect's recorded description is itself a piece of code that can be
+wrong**, and a wrong one is worse than no entry at all — it converts an open
+question into a settled one.
+
+**1. "A soft cap on LLM cost" was an application-level auth-limit bypass.**
+`KNOWN_ISSUES §0o`
+carried `rateLimitCheck`'s non-atomic get-then-set as *deferred*, framed as a
+cost-cap nicety. Both halves were wrong. The bucket advanced by **one per burst
+regardless of burst size** — every concurrent caller read the same pre-increment
+count — so a caller who simply kept requests in flight was never limited,
+repeatably. And the helper guards the **auth surface**: voucher redemption (the
+invite-code gate on a self-service Brain), register, forgot-password. Measured
+against a real Redis in a throwaway container, 50 concurrent clients moved the
+old counter to **2**, not 50.
+
+*Scoped honestly:* this was a bypass of the **application** limiter, not of every
+control. `deploy/Caddyfile` rate-limits `/api/*` at the edge to 10 events per IP
+per second, ordered before `reverse_proxy`, so an attacker was never wholly
+unbounded. But the edge limit is three-plus orders of magnitude looser than the
+control it was masking — 10/second against a voucher gate intended to allow
+10/**hour** — and being per-IP it does nothing against a distributed caller. So
+the finding stands; "unbounded" did not, and the distinction is exactly the kind
+this section is about. (Caught in review of this very write-up.)
+
+The mis-framing wasn't carelessness — it was
+written by someone looking at the one endpoint their PR touched, where "cost cap"
+is a fair description. Hence the rule that came out of it: *enumerate the call
+sites before you write the deferral rationale.*
+
+**2. The Brain could not see half of its own corpus, and the metric said zero.**
+Building a second generation-uplift suite whose treatment arm draws from the
+**live** retrieval path — rather than a hand-written block — turned up a null on
+the first probe. Chasing it: `scope: "user"` rows (the `brain_teach_knowledge`
+default) carry the `ownerProjectId` of whatever session wrote them, and
+the production filter (`buildRawProjectFilterV2`) resolves visibility from
+`Knowledge.visibility` plus `ownerProjectId` and never consults `scope`, so those
+rows matched no branch outside their writing project. **117 rows repo-wide** were
+`scope='user'` with a non-null `ownerProjectId` — the affected set. Separately, and
+not a partition of that 117: the corpus split roughly evenly across a catch-all
+`Default` project (101 active rows) and the real one (100), which is what made the
+starvation so large in practice. Fixing it moved a `Brain Platform` session's reach
+from 104 to 141 visible rows. The
+best-matching item in the entire corpus — 0.9009 similarity, exact trigger match,
+eleven successful uses — ranked **first** unscoped and was **absent** from the
+project-scoped session path. Meanwhile the duplicate-project detector reported
+zero, because it looks for *normalized name collisions* and `Brain Platform` vs
+`Default` will never collide. **An instrument that can only see one failure shape
+reports health during a different one.**
+
+**3. A watchdog and a standing rule that guaranteed each other's failure.** The
+`prod-drift` workflow files an issue when the deployed tag differs from `main`'s.
+The standing rule says don't redeploy for changes that touch nothing app-served.
+Following the second reliably trips the first. The workflow *did* carry a
+docs-only carve-out, but `.env.example` and the `generation-uplift/` benchmark
+artifacts survived its filter — so the carve-out existed and didn't cover the
+case it was written for.
+
+### What generalises
+
+**Read the whole helper, including the branches your case doesn't hit.** #174
+looked like an open design question, and it was reported as one. It wasn't: the
+no-active-project branch of `scope-filter.ts` already carried the exact fix,
+added 2026-05-12 after "5/5 retrieval misses traced to this branch." The
+active-project branches never got it. The project had decided; the decision had
+been applied to one branch out of three. Escalating a settled question costs the
+operator's attention and risks re-litigating reasoning that was already done.
+
+**Green tests do not detect a boundary no test asserts.** The first version of
+the #174 fix widened the shared filter for every caller, and the suite stayed
+green. The caller audit — not the tests — found that `action-items.ts` treats the
+project edge as the isolation line for tasks, and `meeting-extract.ts`'s
+supersession search is deliberately project-wide but *not* owner-scoped. Both
+boundaries lived only in prose comments. The fix became opt-in per call site,
+which is what `GUIDELINES §7` already asked for: give cross-scope behaviour an
+explicit path rather than quietly changing a shared function.
+
+**Widening recall is not free, and the pass rate won't tell you.** After the fix,
+the formerly-invisible item appeared in **all five** injected blocks regardless of
+topic — real dilution. It cost nothing measurable, because each task's own rule
+still ranked first. Both facts are invisible in the aggregate score; you only see
+them by diffing what actually got injected.
+
+**Publish the correction as loudly as the claim.** The first write-up of #174
+named the wrong mechanism — it cited the V1 filter and asserted that
+`Knowledge.visibility` does *not* govern retrieval, when production uses the V2
+helper and visibility is exactly what governs it. The symptom was real; the cause
+was not. Corrected in place, in the issue and in `KNOWN_ISSUES §0p`, and flagged
+as a correction rather than quietly rewritten — a repo whose differentiator is
+honest self-reporting cannot make stale *pessimism* an exception to that.
+
+**And the benchmark result worth keeping** is not the headline percentage
+(+33.3pp then +40pp, both small-n) but the shape underneath it, which two
+independent suites now agree on: injected knowledge changes the output where the
+convention is **locally arbitrary** — a workspace subpath, a build-pipeline
+quirk — and ties wherever it coincides with general good practice a strong model
+already applies. That is a directly actionable capture strategy, and a much more
+defensible claim than the number.

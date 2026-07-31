@@ -210,6 +210,7 @@ Full walkthrough with examples: **[docs/HOW_IT_WORKS.md](./docs/HOW_IT_WORKS.md)
 | Embeddings | Provider-agnostic via `EMBEDDING_BASE_URL` (Gemini / OpenAI / Qwen3 — any OpenAI-compatible endpoint) |
 | LLM | Claude / GLM / OpenAI / Gemini (swap via env) |
 | Background jobs | pg-boss (no Redis required) |
+| Rate-limit state | In-process by default; Redis when `REDIS_URL` is set (needed for multi-replica, and it survives restarts) |
 | Protocol | Model Context Protocol (`@modelcontextprotocol/sdk`) |
 | Packaging | Turborepo + pnpm workspaces · Docker Compose |
 
@@ -248,7 +249,7 @@ REBUILD/       Phase-by-phase vibe-coding reconstruction guide (start: REBUILD/0
 | [USING_BRAIN](./docs/USING_BRAIN.md) | Daily workflow, trigger phrases, recipes |
 | [KNOWLEDGE](./docs/KNOWLEDGE.md) | The knowledge model (normative) |
 | [protocols/](./docs/protocols/meeting-miner.md) | Agent protocols (V2.0): meeting-miner · doc-harvest · doc-draft · report-draft |
-| [VALIDATION](./docs/VALIDATION.md) | **Does it measurably help?** — retrieval NDCG@5 0.45 vs 0.30 cosine baseline (2026-07-06); first generation-uplift read (2026-07-23): +33.3pp test pass-rate, n=6, small and honestly caveated |
+| [VALIDATION](./docs/VALIDATION.md) | **Does it measurably help?** — retrieval NDCG@5 0.45 vs 0.30 cosine baseline (2026-07-06); two generation-uplift reads (+33.3pp n=6, then +40pp n=5 with live retrieval), both small and honestly caveated. The more useful finding than either number: injected knowledge changes the output where a convention is *locally arbitrary* (a workspace subpath, a build-pipeline quirk) and makes no difference where it coincides with general good practice |
 | [SECURITY](./docs/SECURITY.md) | Auth modes, MCP gating, threat model |
 | [DEPLOY_CHECKLIST](./docs/DEPLOY_CHECKLIST.md) | Production deploy on a public VM |
 | [CICD](./docs/CICD.md) | CI checks + the two deploy scripts, for forkers |

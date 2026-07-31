@@ -154,7 +154,7 @@ comm -23 \
 | `BRAIN_PUBLIC_HOSTNAME` / `BRAIN_MCP_PUBLIC_HOSTNAME` | Server deploy via `scripts/deploy.sh` (Caddy + DNS + TLS, `--profile edge`) | Bare local `docker compose up` (no TLS) |
 | `CADDY_EMAIL` | Caddy is in front of the stack (ACME HTTP-01 registration) | No reverse proxy; direct port exposure |
 | `AUTH_TRUST_HOST` | **Any** reverse proxy in front of the webapp (NextAuth needs to trust the forwarded host header) | Direct exposure of port 3000 |
-| `REDIS_URL` | Multi-replica deploy OR you want per-cluster rate-limit instead of per-replica | Single replica — in-memory rate limit is correct |
+| `REDIS_URL` | **Any server deploy.** Compose only passes it through (`REDIS_URL: ${REDIS_URL:-}`) — it does not supply it, so an unset value means the `redis` service runs with nothing connected. Required for multi-replica; on a single replica the in-memory limiter is *correct* but its state **resets on every deploy or `reload.sh web`**, silently clearing daily caps like `RATE_LIMIT_MEETING_EXTRACT_PER_DAY`. Confirm it took: `docker compose ... logs web \| grep "redis ready"` | Local dev only |
 | `SENTRY_DSN` + `SENTRY_TRACES_SAMPLE_RATE` | Shipping errors to Sentry | Local-only operation |
 | `SKIP_SEED` | Pilot deploy — you don't want the Alex demo persona in production data | First-time dev setup where the seed is the point |
 | `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` / `AUTH_SECRET` | OAuth mode (pilot / public) | Local dev with `ALLOW_DEV_AUTH=true` |
