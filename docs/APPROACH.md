@@ -1704,9 +1704,9 @@ honest self-reporting cannot make stale *pessimism* an exception to that.
 fix a day after shipping it turned up three further gaps: the Prisma and raw
 scope helpers had come to *disagree* about the no-active-project case (a
 divergence the fix itself introduced, and the same inconsistency class review had
-already flagged one layer down); the Prisma helper had **zero** test coverage
-while backing the knowledge listing route, so the fix had added an unreachable
-branch to an untested function; and — unrelated to #174, just never looked at —
+already flagged one layer down); the fix had added an
+unreachable branch (no caller passed the new flag); and — unrelated to #174, just
+never looked at —
 that helper silently dropped the user's own `visibility: 'project'` rows under
 `?scope=all` with no org context, contradicting its own documented contract. The
 generalisable part: **when two functions express one policy on two surfaces,
@@ -1714,10 +1714,14 @@ assert them against each other in the same test.** Testing each alone cannot see
 gap that lives between them, and "both are individually correct" is exactly how
 that gap survives review.
 
-**Check coverage before you add to something.** `grep -c <fnName> <test file>`
-takes seconds and would have said `0`. Adding a branch to an uncovered function
-doubles the untested surface while *looking* safe, because the file has tests —
-just not for that function.
+**Check coverage before you add to something — and check it everywhere.** The
+first version of this section claimed the helper had *zero* coverage. It didn't:
+`grep -c` was run against one test file, and a second file covered it in 22
+places. CI found the error by failing one of those tests. The correct habit is
+`grep -rc <fnName> <test dir>` across the whole directory, and the correct lesson
+is smaller but sharper than the one first written: **a coverage claim from a
+single-file grep is not a coverage claim.** Reaching for the more dramatic version
+of a finding is its own failure mode — the same one this section opens with.
 
 **And the benchmark result worth keeping** is not the headline percentage
 (+33.3pp then +40pp, both small-n) but the shape underneath it, which two
