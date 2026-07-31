@@ -36,6 +36,16 @@ function baseWhere(opts: {
         // content into other projects' Oracle context.
         accessibleProjectIds: [],
         scope: "project",
+        // Deliberately NOT opting into includeUserScopeAcrossProjects (#174):
+        // that finding was about personal rules following the user, which is
+        // the opposite of what tasks want. One case still admits
+        // `scope:'user'|'global'` rows — `projectId === null`, where there is
+        // no boundary left to enforce (the raw filter has behaved that way
+        // since 2026-05-12 and the two helpers must agree). Acceptable here:
+        // the query still ANDs `type: action_item` and stays pinned to
+        // `ownerUserId`, and action items are created project-scoped by
+        // contract, so that set is empty in practice. Revisit if action items
+        // ever become user-scoped.
       }),
       { type: ACTION_ITEM_TYPE },
       // Decay is the abandonment path (spec §3): fully-decayed items are

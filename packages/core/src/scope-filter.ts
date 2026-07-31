@@ -218,11 +218,18 @@ export interface VisibilityScopeArgs {
  *   OR (visibility="org" AND ownerProjectId IN accessibleProjectIds)
  *   OR (visibility="private" AND ownerUserId=userId AND ownerProjectId=activeProjectId)
  *   OR (ownerProjectId IS NULL AND ownerUserId=userId)   // legacy/personal rows
+ *   OR (scope IN ('user','global') AND ownerUserId=userId)
+ *       — only when `includeUserScopeAcrossProjects` is set, OR when there is
+ *         no activeProjectId (no boundary to enforce). See #174.
  *
  * scope="all":
  *   (visibility IN ('project','org') AND ownerProjectId IN accessibleProjectIds)
  *   OR (visibility="private" AND ownerUserId=userId)
  *   OR (ownerProjectId IS NULL AND ownerUserId=userId)
+ *   OR (scope IN ('user','global') AND ownerUserId=userId)   // opt-in only
+ *
+ * Mirrors `buildRawProjectFilterV2` clause for clause — the two are one policy
+ * on two query surfaces, so a change here needs the same change there.
  */
 export function buildKnowledgeWhereV2(args: VisibilityScopeArgs): object {
   const { userId, activeProjectId, accessibleProjectIds, scope } = args;
@@ -299,7 +306,12 @@ export function buildKnowledgeWhereV2(args: VisibilityScopeArgs): object {
   }
 
   orClauses.push(legacyBranch);
-  if (crossProject) orClauses.push(userScopeBranch);
+  // Parity with buildRawProjectFilterV2: with no active project there is no
+  // boundary to enforce, so cross-project rows are admitted regardless of the
+  // flag (that branch has behaved this way since 2026-05-12). With an active
+  // project, the widening is opt-in. The two helpers must express one policy —
+  // they back the same visibility rule on different query surfaces.
+  if (crossProject || !activeProjectId) orClauses.push(userScopeBranch);
 
   return {
     AND: [
