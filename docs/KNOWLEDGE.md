@@ -80,8 +80,18 @@ ontology's retrieval semantics:
 | Scope | Visible to | When set |
 |---|---|---|
 | `global` | all of user's work across all projects | rare; user-taught |
-| `user` | this user's work (default) | default KEA output |
+| `user` | this user's work, **across every project** | default KEA output, and `brain_teach_knowledge`'s default |
 | `project` | one project only | framework/language-specific rules |
+
+**`user` and `global` genuinely reach across projects — since 2026-07-30 (#174).**
+Before that, the column above described intent rather than behaviour: a row is
+stamped with the `ownerProjectId` of whatever session wrote it, and retrieval
+matched on project ownership alone, so a `scope: "user"` rule taught while
+working in project A was invisible from project B. Personal-rule retrieval
+(`kra.ts`, `oracle.ts`) now opts into `includeUserScopeAcrossProjects`, which
+admits `scope IN ('user','global')` rows **pinned to `ownerUserId`** — wider
+project reach, never wider user reach. It is opt-in per call site because
+task/meeting surfaces deliberately keep the project edge (see `scope-filter.ts`).
 | `session_context` | specific mode ("while debugging") | KEA-tagged |
 | `team` | team members | explicit promotion |
 | `community` | everyone opted-in | explicit publish |
@@ -493,6 +503,17 @@ Four new invariants established in Phase 2a:
 ### 12.19 Per-project listing invariant (Phase 2b, 2026-04-25)
 
 By default, any Knowledge/Session/Autoskill-proposal listing shows **the active project's data plus the user's project-less personal knowledge** (rows where `ownerProjectId IS NULL AND ownerUserId = currentUserId`). The listing never shows another user's knowledge or another project's knowledge without an explicit scope opt-out.
+
+**Retrieval is deliberately wider than listing (2026-07-30, #174).** Personal-rule
+retrieval — `kra.ts`'s candidate fetch and the Oracle's context build — additionally
+admits the caller's own `scope IN ('user','global')` rows regardless of which project
+they were written under, via the opt-in `includeUserScopeAcrossProjects` flag. A rule
+you taught once should apply everywhere you work; a *listing* is a browsing surface
+where project focus is the point. The widening is per-call-site rather than global
+because `action-items.ts` treats the project edge as the isolation line for tasks, and
+`meeting-extract.ts`'s supersession search is intentionally project-wide but not
+owner-scoped — both would be breached by a blanket change. `ownerUserId` remains the
+anchor in every branch: cross-project reach never becomes cross-user reach.
 
 The "all my projects" scope (`?scope=all`) shows everything the authenticated user owns across all projects. It does not show knowledge owned by other users, even within the same org.
 

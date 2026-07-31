@@ -64,11 +64,26 @@ jobs:
             echo "state=in_sync" >> "$GITHUB_OUTPUT"
             echo "In sync: deployed=$DEPLOYED main=$MAIN"
           elif git rev-parse -q --verify "$DEPLOYED^{commit}" >/dev/null 2>&1 \
-            && [ -z "$(git diff --name-only "$DEPLOYED"..origin/main -- . | grep -vE '^(docs/|REBUILD/|[^/]+\.md$)')" ]; then
-            # Docs-only drift (#140 false-positive class): every file between the
-            # deployed build and main is markdown/docs — GitHub serves those from
-            # the repo directly, so nothing merged is missing from production.
-            # Treated as in-sync so the issue closes instead of nagging.
+            && [ -z "$(git diff --name-only "$DEPLOYED"..origin/main -- . | grep -vE '^(docs/|REBUILD/|\.github/|packages/core/generation-uplift/|[^/]+\.md$|\.env\.example$)')" ]; then
+            # Not-app-served drift (#140 false-positive class): every file between
+            # the deployed build and main is something production never runs, so
+            # nothing merged is missing from prod. Treated as in-sync so the issue
+            # closes instead of nagging. The excluded set, and why each is safe:
+            #   docs/, REBUILD/, root *.md  — GitHub serves these from the repo.
+            #   .github/                    — CI config; never enters an image.
+            #   packages/core/generation-uplift/ — operator-run benchmark
+            #       artifacts, deliberately outside src/ so neither the package
+            #       tsconfig nor vitest picks them up (GUIDELINES §4). Never built.
+            #   .env.example                — a template. The container reads the
+            #       real .env; a genuinely new runtime var also touches
+            #       deploy/docker-compose.yml, which is NOT excluded and so still
+            #       trips drift.
+            # Added 2026-07-31 after #176: v2.4.0 was a docs + benchmark release
+            # that correctly wasn't deployed, but .env.example and the
+            # generation-uplift/ artifacts survived the old filter and opened a
+            # false drift issue. Verified both ways — v2.3.1..v2.4.0 now filters
+            # to empty, while v2.4.0..v2.5.0 (a real kra/oracle change) still
+            # reports drift.
             echo "state=in_sync" >> "$GITHUB_OUTPUT"
             echo "Docs-only drift (deployed=$DEPLOYED main=$MAIN) — treated as in sync."
           else
