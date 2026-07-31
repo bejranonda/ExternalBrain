@@ -313,4 +313,24 @@ describe("buildKnowledgeWhereV2 — user-scope reach", () => {
     const idx = json.indexOf('{"scope":{"in":["user","global"]}}');
     expect(json.slice(idx, idx + 120)).toContain(`"ownerUserId":"${USER}"`);
   });
+
+  // Pre-existing divergence found in the 2026-07-31 review, not introduced by
+  // #174/#180. scope="all" with no accessible-project list: the raw helper
+  // returns everything the user owns, while the Prisma twin returned only
+  // `private` + project-less rows — dropping the user's own `visibility:
+  // 'project'` rows, which is the DEFAULT visibility. That contradicts the
+  // documented ?scope=all contract in KNOWLEDGE §12.19. Reachable whenever
+  // getAccessibleProjectIds() returns [] (org.ts: non-member short-circuit).
+  it('scope="all" with no org context returns everything the user owns', () => {
+    const a = {
+      userId: USER,
+      activeProjectId: PROJECT,
+      activeOrgId: null,
+      accessibleProjectIds: [] as string[],
+      scope: "all" as const,
+    };
+    expect(buildKnowledgeWhereV2(a)).toEqual({ ownerUserId: USER, deletedAt: null });
+    // The raw helper already behaved this way — this pins them together.
+    expect(buildRawProjectFilterV2(a, 3).sql).toContain('"ownerUserId" = $3');
+  });
 });

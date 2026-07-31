@@ -251,16 +251,26 @@ export function buildKnowledgeWhereV2(args: VisibilityScopeArgs): object {
   };
 
   if (scope === "all") {
+    // No org context — "all my projects" means exactly that: everything this
+    // user owns. Matching buildRawProjectFilterV2's identical branch and the
+    // documented ?scope=all contract (KNOWLEDGE §12.19). Enumerating clauses
+    // here instead dropped the user's own `visibility: 'project'` rows — the
+    // DEFAULT visibility — because none of the private/legacy arms matched
+    // them. Reachable whenever getAccessibleProjectIds() short-circuits to []
+    // for a non-member (org.ts). Fail-safe (under-reported, never leaked), but
+    // wrong. Found in the 2026-07-31 review.
+    if (accessibleProjectIds.length === 0) {
+      return { ownerUserId: userId, deletedAt: null };
+    }
+
     const orClauses: object[] = [];
 
-    if (accessibleProjectIds.length > 0) {
-      orClauses.push({
-        AND: [
-          { visibility: { in: ["project", "org"] } },
-          { ownerProjectId: { in: accessibleProjectIds } },
-        ],
-      });
-    }
+    orClauses.push({
+      AND: [
+        { visibility: { in: ["project", "org"] } },
+        { ownerProjectId: { in: accessibleProjectIds } },
+      ],
+    });
 
     orClauses.push(
       {
