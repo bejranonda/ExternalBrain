@@ -206,19 +206,22 @@ describe('buildKnowledgeWhereV2 scope="all"', () => {
     expect(JSON.stringify(a)).not.toBe(JSON.stringify(b));
   });
 
-  it("empty accessibleProjectIds omits proj+org IN-list branch", () => {
+  // 2026-07-31: with no accessible projects, "all my projects" now returns the
+  // flat owner catch-all rather than an enumerated OR — matching V1
+  // `buildKnowledgeWhere` (which has always done `return base` here), the raw
+  // `buildRawProjectFilterV2`, and the documented ?scope=all contract in
+  // KNOWLEDGE §12.19. The enumerated form dropped the caller's own
+  // `visibility: 'project'` rows, which is the DEFAULT visibility.
+  //
+  // This test's intent — "no proj+org IN-list branch when there are no
+  // accessible projects" — is preserved, and now asserted on the semantic
+  // rather than on the old object shape.
+  it("empty accessibleProjectIds returns the owner catch-all, no proj+org branch", () => {
     const where = buildKnowledgeWhereV2(
       args({ scope: "all", accessibleProjectIds: [] }),
-    ) as { AND: [{ deletedAt: null }, { OR: unknown[] }] };
-    const orClauses = where.AND[1].OR as object[];
-    const projOrgBranch = orClauses.find(
-      (c) =>
-        typeof c === "object" &&
-        c !== null &&
-        "AND" in c &&
-        JSON.stringify(c).includes('"org"'),
     );
-    expect(projOrgBranch).toBeUndefined();
+    expect(where).toEqual({ ownerUserId: USER, deletedAt: null });
+    expect(JSON.stringify(where)).not.toContain('"org"');
   });
 });
 

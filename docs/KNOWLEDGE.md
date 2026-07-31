@@ -92,6 +92,9 @@ working in project A was invisible from project B. Personal-rule retrieval
 admits `scope IN ('user','global')` rows **pinned to `ownerUserId`** — wider
 project reach, never wider user reach. It is opt-in per call site because
 task/meeting surfaces deliberately keep the project edge (see `scope-filter.ts`).
+When there is **no** active project the rows are admitted unconditionally — there
+is no boundary left to enforce — and the Prisma listing helper
+(`buildKnowledgeWhereV2`) applies the identical rule, so the two never disagree.
 | `session_context` | specific mode ("while debugging") | KEA-tagged |
 | `team` | team members | explicit promotion |
 | `community` | everyone opted-in | explicit publish |
@@ -514,6 +517,13 @@ because `action-items.ts` treats the project edge as the isolation line for task
 `meeting-extract.ts`'s supersession search is intentionally project-wide but not
 owner-scoped — both would be breached by a blanket change. `ownerUserId` remains the
 anchor in every branch: cross-project reach never becomes cross-user reach.
+
+The two helpers backing this — `buildKnowledgeWhereV2` (Prisma listings) and
+`buildRawProjectFilterV2` (raw pgvector) — express **one** policy on two query
+surfaces and must be changed together. The "wider than listing" difference above
+applies only where an active project supplies a boundary; with none, both admit
+the same rows, and under `?scope=all` with no org context both return everything
+the user owns.
 
 The "all my projects" scope (`?scope=all`) shows everything the authenticated user owns across all projects. It does not show knowledge owned by other users, even within the same org.
 
