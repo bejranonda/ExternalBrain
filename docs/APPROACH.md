@@ -1757,12 +1757,14 @@ leaves the wrong version in the places a reader is most likely to hit first.
 first.** The benchmark-doc coherence gate exists to stop a `kra.ts` retune
 landing with stale published numbers. The obvious implementation — fail if
 `kra.ts` changed without `VALIDATION.md` — would have blocked this very arc's
-#174 work, which edited that file without moving a single weight. It compares
+issue #174 work, which edited that file without moving a single weight. It compares
 constant *values* across the merge base instead, so refactors and comment
-rewrites are invisible to it. The test that mattered was not "does it fire on a
-retune" but "does it stay silent on a real historical PR it should ignore",
-because a contributor who trips a gate they consider wrong does not fix their
-PR — they campaign to delete the gate.
+rewrites are invisible to it. Both outcomes need a test, and the repo has both: a value change to `WEIGHTS`
+without a `VALIDATION.md` update **must fail** (verified by simulating a
+`0.7 → 0.65` retune), and a refactor-only change **must pass** (verified across
+`v2.4.0..v2.5.0`, a real PR that edited `kra.ts` and moved nothing). The one
+that shaped the design was the second, because a contributor who trips a gate
+they consider wrong does not fix their PR — they campaign to delete the gate.
 
 **Every new never-shipped path re-opens the drift hole.** Adding that gate's
 script would itself have opened a false `prod-drift` issue the next morning:
@@ -1773,6 +1775,16 @@ exclusion set was built to prevent, one release later. The lesson is not "add
 new top-level path is a chance to re-open it, and the only reliable check is
 asking the running containers what they actually contain rather than reading the
 Dockerfile and inferring.
+
+**Four overclaims, one pattern.** "Unbounded auth bypass" (Caddy bounded it),
+"zero test coverage" (22 tests in a sibling file), the #174 root-cause mechanism
+(wrong helper named), and "V1 has no cross-project reach *at all*" (it does,
+under `DataScope: "all"` — the gap is the project-scoped path). Each underlying
+finding was real; each superlative was not. The tell is the same every time: the
+absolute arrives before the verification, because it is the version that makes
+the finding sound worth reporting. Worth naming as a habit rather than four
+separate slips — and worth noting that review caught all four, which is an
+argument for review rather than for trying harder.
 
 **Independent review is not optional when the bot didn't read the diff.** Six PRs
 in this arc came back with a green CodeRabbit check; four of them had **zero**
