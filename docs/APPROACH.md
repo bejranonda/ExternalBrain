@@ -1753,6 +1753,37 @@ more days, until an audit went looking. Corrections need the same
 grep-the-whole-tree discipline as the claims they replace; a partial retraction
 leaves the wrong version in the places a reader is most likely to hit first.
 
+**A gate that cries wolf gets switched off — so design for the negative case
+first.** The benchmark-doc coherence gate exists to stop a `kra.ts` retune
+landing with stale published numbers. The obvious implementation — fail if
+`kra.ts` changed without `VALIDATION.md` — would have blocked this very arc's
+#174 work, which edited that file without moving a single weight. It compares
+constant *values* across the merge base instead, so refactors and comment
+rewrites are invisible to it. The test that mattered was not "does it fire on a
+retune" but "does it stay silent on a real historical PR it should ignore",
+because a contributor who trips a gate they consider wrong does not fix their
+PR — they campaign to delete the gate.
+
+**Every new never-shipped path re-opens the drift hole.** Adding that gate's
+script would itself have opened a false `prod-drift` issue the next morning:
+`scripts/` was not in the not-app-served exclusion set, so a release containing
+nothing the container runs looked like un-deployed work. Same failure the
+exclusion set was built to prevent, one release later. The lesson is not "add
+`scripts/`" — it is that an exclusion list is a *liability that accrues*: every
+new top-level path is a chance to re-open it, and the only reliable check is
+asking the running containers what they actually contain rather than reading the
+Dockerfile and inferring.
+
+**Independent review is not optional when the bot didn't read the diff.** Six PRs
+in this arc came back with a green CodeRabbit check; four of them had **zero**
+inline comments, which the repo already knows means a rate-limited bot rather
+than a clean bill of health. Reviewing those four by hand turned up the finding
+this section closes with: the pre-Phase-4 V1 scope helpers never got #174's
+cross-project reach, and three surfaces still call them — so
+`buildRulesBundle` exports a rule set that disagrees with the one the Brain
+serves. Nothing in CI would ever have said so, because nothing in CI knows the
+two should agree.
+
 **And the benchmark result worth keeping** is not the headline percentage
 (+33.3pp then +40pp, both small-n) but the shape underneath it, which two
 independent suites now agree on: injected knowledge changes the output where the

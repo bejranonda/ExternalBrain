@@ -525,6 +525,13 @@ applies only where an active project supplies a boundary; with none, both admit
 the same rows, and under `?scope=all` with no org context both return everything
 the user owns.
 
+**Three surfaces are narrower than either** — the dashboard, the graph and the
+rules exporter still call the pre-Phase-4 V1 helper, which has no cross-project
+reach at all. The practical consequence is that "Download rules bundle" omits
+`scope: 'user'` rules taught in other projects while the Brain is actively
+injecting them into sessions: the exported set disagrees with the served set.
+Tracked in `KNOWN_ISSUES §0p` as the unfinished half of the V1 → V2 migration.
+
 The "all my projects" scope (`?scope=all`) shows everything the authenticated user owns across all projects. It does not show knowledge owned by other users, even within the same org.
 
 Org-level cross-project sharing (a team member viewing another member's project) is Phase 4. Until Phase 4 lands, `ownerUserId` is always the filter anchor regardless of scope.
