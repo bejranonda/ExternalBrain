@@ -1801,7 +1801,9 @@ Both uplift suites concluded the same thing — injected knowledge changes outpu
 where a convention is locally arbitrary, and ties on general craft — and that
 conclusion sat in `VALIDATION.md` for days while KEA carried on extracting craft.
 Sampling the live corpus put a number on it: of the 18 most recent extractions,
-**3 were locally arbitrary and 15 were general craft**. The finding was published,
+**3 hand-classified as locally arbitrary and 15 as general craft** — a judgement
+call, which is why `VALIDATION.md` publishes the raw rule texts so a reader can
+disagree with the split. The finding was published,
 agreed, quoted back in session injections, and had changed nothing about what the
 system stored. The fix was a prompt edit, not a ranking change — the corollary of
 "injecting craft ties" is "extracting craft is wasted capture effort", and that
