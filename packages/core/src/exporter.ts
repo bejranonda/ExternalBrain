@@ -92,7 +92,15 @@ export async function buildRulesBundle(
   projectId?: string,
   dataScope: DataScope = "project",
 ): Promise<RulesBundle> {
-  const baseWhere = buildKnowledgeWhere(userId, projectId ?? "", dataScope);
+  // #174 — always admit the caller's own `scope: 'user' | 'global'` rows, whichever
+  // project taught them. A rules bundle is the agent's configuration, so it has to
+  // contain the rules the agent is actually served: kra.ts injects user-scoped rules
+  // across projects, and before this the project-scoped default exported a strictly
+  // narrower set than the Brain was applying (KNOWN_ISSUES §0p). Not exposed as a
+  // parameter — there is no reading of "export my rules" that wants less than you
+  // are given. Stays owner-anchored: V1 pins ownerUserId on every branch, which is
+  // why this went here rather than migrating to V2 (whose project arm does not).
+  const baseWhere = buildKnowledgeWhere(userId, projectId ?? "", dataScope, undefined, true);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = (await db.knowledge.findMany({
