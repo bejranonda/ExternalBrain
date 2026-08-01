@@ -64,7 +64,7 @@ jobs:
             echo "state=in_sync" >> "$GITHUB_OUTPUT"
             echo "In sync: deployed=$DEPLOYED main=$MAIN"
           elif git rev-parse -q --verify "$DEPLOYED^{commit}" >/dev/null 2>&1 \
-            && [ -z "$(git diff --name-only "$DEPLOYED"..origin/main -- . | grep -vE '^(docs/|REBUILD/|\.github/|packages/core/generation-uplift/|[^/]+\.md$|\.env\.example$)')" ]; then
+            && [ -z "$(git diff --name-only "$DEPLOYED"..origin/main -- . | grep -vE '^(docs/|REBUILD/|\.github/|scripts/|packages/core/generation-uplift/|[^/]+\.md$|\.env\.example$)')" ]; then
             # Not-app-served drift (#140 false-positive class): every file between
             # the deployed build and main is something production never runs, so
             # nothing merged is missing from prod. Treated as in-sync so the issue
@@ -78,6 +78,13 @@ jobs:
             #       real .env; a genuinely new runtime var also touches
             #       deploy/docker-compose.yml, which is NOT excluded and so still
             #       trips drift.
+            #   scripts/                    — operator tooling. Verified 2026-08-01
+            #       that deploy/Dockerfile never COPYs it and /app/scripts is
+            #       absent from the web, worker and mcp-server images. Scripts run
+            #       from the checkout, so `git pull` applies them immediately —
+            #       there is no deploy that would make them "live". Note
+            #       deploy/docker-compose.yml and deploy/Dockerfile are NOT under
+            #       this path and still trip drift, correctly.
             # Added 2026-07-31 after #176: v2.4.0 was a docs + benchmark release
             # that correctly wasn't deployed, but .env.example and the
             # generation-uplift/ artifacts survived the old filter and opened a
