@@ -1796,6 +1796,45 @@ cross-project reach, and three surfaces still call them — so
 serves. Nothing in CI would ever have said so, because nothing in CI knows the
 two should agree.
 
+**A measurement that doesn't reach the component that acts on it hasn't landed.**
+Both uplift suites concluded the same thing — injected knowledge changes output
+where a convention is locally arbitrary, and ties on general craft — and that
+conclusion sat in `VALIDATION.md` for days while KEA carried on extracting craft.
+Sampling the live corpus put a number on it: of the 18 most recent extractions,
+**3 hand-classified as locally arbitrary and 15 as general craft** — a judgement
+call, which is why `VALIDATION.md` publishes the raw rule texts so a reader can
+disagree with the split. The finding was published,
+agreed, quoted back in session injections, and had changed nothing about what the
+system stored. The fix was a prompt edit, not a ranking change — the corollary of
+"injecting craft ties" is "extracting craft is wasted capture effort", and that
+corollary lives in `kea.ts`, not `kra.ts`. Worth asking of any published result:
+*which component would have to change if this is true, and did it?*
+
+**Twice the recommendation was wrong, not the execution.** Asked to finish the
+V1→V2 scope migration I had myself proposed, checking first showed V2's
+`visibility: 'project'` arm carries no `ownerUserId` predicate — that absence is
+exactly what makes org sharing work — so migrating a *personal* surface would
+have started returning teammates' rules inside a change labelled "finish the
+migration". And the pre-registration for the KEA change used three different
+units for one metric (rules, extractions, sessions), which would have let the
+threshold be chosen after seeing results — the precise failure pre-registration
+exists to prevent, occurring inside the pre-registration. Both were caught by
+verifying before acting, neither by being more careful while acting. Advice given
+at a distance from the evidence is a hypothesis, including your own from an hour
+ago.
+
+**"Latent-correct" is an honourable outcome; claiming it is user-visible is not.**
+The exporter fix genuinely widened its query from 146 to 183 rows, matching what
+retrieval serves. Measuring it after deploy showed `buildRulesBundle` also filters
+`tags: { has: "rules-export" }` and **zero rows carry that tag for any user**, so
+the bundle is empty regardless and nothing observable changed. The PR had
+described a live symptom. Fixing a real latent defect is worth doing and worth
+saying plainly — but a fix to one clause can be masked entirely by another filter
+downstream, and only measuring the whole query tells you which you have. That
+measurement also surfaced the larger fact: the export surface returns nothing for
+everyone, because its only production writer is autoskill *approval* and no
+proposal has been approved.
+
 **And the benchmark result worth keeping** is not the headline percentage
 (+33.3pp then +40pp, both small-n) but the shape underneath it, which two
 independent suites now agree on: injected knowledge changes the output where the
