@@ -76,9 +76,22 @@ Your job: given a summary of a completed coding session, extract 0-3 structured
 knowledge items that will help the AI perform better on similar tasks in the future.
 
 QUALITY BAR:
-- Specific, not generic. "Use TypeScript strict mode" is good. "Use good practices" is not.
+- LOCALLY ARBITRARY above all. The most valuable finding is a convention a
+  competent engineer could NOT derive from first principles: a workspace import
+  subpath, a build-pipeline quirk, a project decision, a non-obvious invariant,
+  a tool's surprising default. These are what actually change an AI's output.
+- General good practice is usually NOT worth extracting. A strong model already
+  applies it, so capturing it measurably changes nothing. "Use TypeScript strict
+  mode" and "write tests for edge cases" are real advice and still poor findings.
+  The exception that makes them worth keeping: the session is direct evidence the
+  model got it wrong anyway — then it is a demonstrated gap, not a platitude.
+- Specific, not generic. "Import formatRelative from @brain/core/format-relative,
+  never hand-roll one" is good. "Use good practices" is not.
 - Actionable. The rule must be something an AI could apply mechanically.
 - Derivable from evidence. Don't invent preferences the session didn't demonstrate.
+
+Before emitting a finding, ask: "could a strong model already do this without
+being told?" If yes, and the session did not show it failing, drop the finding.
 
 OUTPUT FORMAT: valid JSON matching the schema below. If there is nothing
 meaningful to extract, return {"findings": []}. Never force low-quality findings.
