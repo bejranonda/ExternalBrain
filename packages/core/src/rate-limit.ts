@@ -74,6 +74,57 @@ export async function check(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Redis adapter pure cores.
+//
+// The Redis `Store` implementation itself lives in apps/web (it needs a real
+// client), but everything except the `eval` call is a pure decision and lives
+// here, next to the contract it satisfies — the seam pattern GUIDELINES §4
+// prescribes for external clients. These branches only run when Redis
+// misbehaves, so production traffic is no evidence that they are correct.
+// ---------------------------------------------------------------------------
+
+/**
+ * Clamp a window to what Redis `PEXPIRE` accepts: a positive whole number of
+ * milliseconds.
+ */
+export function redisWindowMs(windowMs: number): number {
+  return Math.max(1, Math.ceil(windowMs));
+}
+
+/**
+ * Turn the increment script's `{count, ttl}` reply into a `Bucket`, or `null`
+ * when the reply is unusable and the caller must fall back to the in-process
+ * limiter. Redis is a system boundary, so the reply is validated, not trusted.
+ */
+export function bucketFromRedisReply(
+  reply: unknown,
+  windowMs: number,
+  now: number,
+): Bucket | null {
+  if (!Array.isArray(reply)) return null;
+
+  // `INCR` on a counter this module owns cannot return < 1. A zero, negative
+  // or fractional count means something else wrote the key — and trusting it
+  // would make `check()` compute `ok` forever, i.e. grant unlimited requests.
+  // Falling back to the per-process limiter is the safe reading.
+  const count: unknown = reply[0];
+  if (typeof count !== "number" || !Number.isInteger(count) || count < 1) {
+    return null;
+  }
+
+  // `PTTL` answers -1 (key has no expiry) or -2 (key gone) only if something
+  // outside the script touched the key. Prefer our own window over surfacing a
+  // reset time in the past.
+  const ttl: unknown = reply[1];
+  const ttlMs = typeof ttl === "number" ? ttl : -1;
+
+  return {
+    count,
+    resetAt: ttlMs > 0 ? now + ttlMs : now + redisWindowMs(windowMs),
+  };
+}
+
 /**
  * Convenience Store backed by a JS Map. Good for dev or a single-host
  * deploy. Not safe for multi-replica deployments — use a Redis store for

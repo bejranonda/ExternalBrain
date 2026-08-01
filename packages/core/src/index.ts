@@ -36,7 +36,12 @@ export {
   encodeGenericError,
   ORACLE_SSE_DONE_FRAME,
 } from "./oracle-sse.js";
-export { check as rateLimitCheck, memoryStore } from "./rate-limit.js";
+export {
+  check as rateLimitCheck,
+  memoryStore,
+  redisWindowMs,
+  bucketFromRedisReply,
+} from "./rate-limit.js";
 export type { Bucket, Limit, Store, CheckResult } from "./rate-limit.js";
 export { envForWeb, envForMcp, envForWorker, _resetEnvCache } from "./env.js";
 export type { WebEnv, McpEnv, WorkerEnv } from "./env.js";
