@@ -175,16 +175,29 @@ in exactly the category the benchmarks show produces ties.
 the model got it wrong anyway; that is a demonstrated gap rather than a
 platitude, and several of this arc's most useful rules are of that kind.
 
-**Metric (pre-registered, forward-looking).** On the next 18
-`extractedBy: 'kea'` rules produced after this ships, the locally-arbitrary
-share should exceed **40%** (from ~15%). Classification is a judgement call, so
-the raw 18 rule texts get published alongside the number, as with the uplift
-suites, and a reader can re-classify them.
+**Metric (pre-registered, forward-looking).**
+
+*Canonical unit: one extracted rule* — a single `Knowledge` row with
+`extractedBy: 'kea'`. Not sessions, and not "extractions": `kea.ts` emits 0–3
+findings per session, so those are three different cohorts and choosing between
+them after seeing results would make the metric unfalsifiable. The baseline above
+was counted in rules, so the read is too.
+
+- **Cohort:** the first **18 rows** with `extractedBy: 'kea'` whose `createdAt` is
+  after this change's merge commit, ordered by `createdAt` ascending. However
+  many sessions that takes.
+- **Stopping rule:** read when the 18th such row exists. Do not read early and do
+  not extend the window — both are ways of choosing the answer.
+- **Threshold:** locally-arbitrary share **> 40%** (baseline ~15%, 3/18).
+- **Publication:** the 18 raw `ruleText` values are published with the number, as
+  the uplift suites publish their per-task outputs, so a reader can re-classify
+  and disagree.
 
 **Why this cannot be measured today.** KEA only runs on real closed sessions;
-there is no fixture that produces representative extractions. The read arrives
-when 18 more sessions have closed, and it is a *comparison of two biased
-samples* — worth reporting either way, worth over-claiming from neither.
+there is no fixture that produces representative extractions. The read therefore
+arrives whenever 18 qualifying rows have accumulated, and it is a *comparison of
+two biased samples* — worth reporting either way, worth over-claiming from
+neither.
 
 ### The earlier attempt, and why the label changed
 
