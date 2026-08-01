@@ -31,6 +31,14 @@ if ! git rev-parse -q --verify "$BASE" >/dev/null 2>&1; then
   exit 0
 fi
 
+# Resolve the merge base ONCE and use it for both comparisons. Reading the
+# constants at $BASE's tip while diffing VALIDATION.md with the three-dot form
+# would mix two reference points: if the base branch moves after this branch
+# was cut, a retune landed on main could look like a change in this PR, or a
+# VALIDATION.md update from main could excuse one. (Caught in review of this
+# script's own PR.)
+MERGE_BASE="$(git merge-base "$BASE" HEAD)"
+
 # The tuning surface, reduced to just its numbers: the `WEIGHTS` body plus the
 # CANDIDATE_POOL_SIZE literal. Everything else in the file is ignored.
 tuning_values() {
@@ -41,7 +49,7 @@ tuning_values() {
     | tr '\n' ' '
 }
 
-before="$(tuning_values "$BASE")"
+before="$(tuning_values "$MERGE_BASE")"
 after="$(tuning_values HEAD)"
 
 if [ "$before" = "$after" ]; then
@@ -49,7 +57,7 @@ if [ "$before" = "$after" ]; then
   exit 0
 fi
 
-if git diff --name-only "$BASE"...HEAD | grep -qx "$VALIDATION"; then
+if git diff --name-only "$MERGE_BASE" HEAD | grep -qx "$VALIDATION"; then
   echo "check-benchmark-coherence: tuning changed and $VALIDATION updated — ok."
   echo "  before: $before"
   echo "  after:  $after"

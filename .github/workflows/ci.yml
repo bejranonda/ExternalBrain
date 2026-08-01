@@ -51,6 +51,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # Read-only job: it only reads history. Don't leave GITHUB_TOKEN in
+          # the local git config for the rest of the run (zizmor: artipacked).
+          persist-credentials: false
       - name: Retrieval tuning must ship with a benchmark record
         # Base ref via env, never interpolated into the shell command.
         env:

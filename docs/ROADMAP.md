@@ -39,28 +39,33 @@
 - [x] Knowledge immutability guard (`PATCH` rejects semantic-core edits; fork-on-edit in UI).
 - [x] Rate limiting on `/api/*` via Next.js proxy.
 - [x] Oracle streaming (SSE).
-- [ ] **Gate 1** — open, and the retrieval clause is **stated in units the
-      evidence can't answer**. This row asks for absolute NDCG@5 > 0.5 on a
-      labeled benchmark. What `docs/VALIDATION.md` publishes: 1.000 on the
-      author-written fixture (which VALIDATION itself disclaims as a floor
-      test), 0.4514 on the real-corpus fixture at candidate-pool 20, and
-      **0.3075 at pool 50 — the depth production now runs** since
-      [#146](https://github.com/bejranonda/ExternalBrain/issues/146). Read
-      literally, the shipping configuration sits below this gate's 0.5 and
-      below Phase 1's 0.4 red flag. Read in context it does not, because
-      (a) the labels are a weak proxy (injected-then-session-succeeded, nobody
-      hand-labeled), and (b) NDCG@5 *mechanically* falls as the pool deepens
-      and harder negatives enter — which is why VALIDATION's claim is the
-      **delta** over cosine (+0.1478 at pool 20; still positive, 0.3075 vs
-      0.2317, at pool 50), not the absolute. **Action: restate this gate as a
-      delta-over-baseline threshold, or commit to a hand-labeled fixture that
-      can carry an absolute.** Comparing a pool-50 absolute against a
-      threshold written for a hand-labeled benchmark is a category error in
-      whichever direction it's read.
-      The gate's other two clauses have simply not been run: no 100-session
-      simulation harness exists, and the SQS trend needs real telemetry over
-      time rather than a synthetic burst. Phase 2 shipped regardless —
-      recorded here as a knowingly-taken risk, not a passed gate.
+- [ ] **Gate 1** — retrieval clause **met**; the other two not run.
+
+      *Restated 2026-08-01.* This row used to demand an absolute NDCG@5 > 0.5,
+      and a previous pass flagged that as needing an operator decision. It
+      didn't: the project had **already decided**, on 2026-07-06, that "the
+      regression bar is the delta vs the cosine baseline on the current
+      fixture, not an absolute score" — absolutes are fixture-dependent (the
+      retired seed fixture had cosine at 1.0). That decision is written into
+      `GUIDELINES §3` invariant 12 and `docs/VALIDATION.md`; it had simply
+      never been propagated here. Same shape as
+      [#174](https://github.com/bejranonda/ExternalBrain/issues/174): decided
+      once, applied in some places, left stale in others.
+
+      **Retrieval, under the project's own bar: PASS.** KRA beats the raw-cosine
+      baseline on the real-corpus fixture at both depths measured — +0.1478 at
+      candidate-pool 20 (0.4514 vs 0.3036) and **+0.0758 at pool 50** (0.3075 vs
+      0.2317), the depth production runs since
+      [#146](https://github.com/bejranonda/ExternalBrain/issues/146). Absolutes
+      fall as the pool deepens because harder negatives enter; that is expected,
+      and is exactly why the bar is the delta. Re-run and re-record on any
+      `WEIGHTS` or `CANDIDATE_POOL_SIZE` change — now enforced by the
+      `benchmark-coherence` CI check rather than by discipline.
+
+      **Not run:** no 100-session simulation harness exists, and the SQS trend
+      needs real telemetry over time rather than a synthetic burst. Phase 2
+      shipped regardless — recorded as a knowingly-taken risk, not a passed
+      gate.
 
 ## Phase 2 — MCP + Webapp (weeks 13-18)
 
