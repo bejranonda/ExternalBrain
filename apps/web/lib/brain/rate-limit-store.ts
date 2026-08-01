@@ -13,7 +13,12 @@
  *     Better to rate-limit some replicas independently than to 500.
  */
 import type { Bucket, Store } from "@brain/core";
-import { memoryStore, getLogger } from "@brain/core";
+import {
+  memoryStore,
+  getLogger,
+  redisWindowMs,
+  bucketFromRedisReply,
+} from "@brain/core";
 import type { RedisClientType } from "redis";
 
 const log = getLogger("web").child({ subsystem: "rate-limit" });
@@ -80,21 +85,23 @@ return {count, redis.call('PTTL', KEYS[1])}
 function redisStore(client: RedisClientType): Store {
   const prefix = "bp:ratelimit:";
   return {
+    // Everything except the `eval` below is a pure decision and lives in
+    // @brain/core beside the Store contract, so it can be unit-tested without
+    // a redis client (GUIDELINES §4's seam pattern). Keep it that way: the
+    // branches that matter here are the ones that only fire when Redis
+    // misbehaves, which no amount of healthy production traffic exercises.
     async increment(key: string, windowMs: number, now: number): Promise<Bucket> {
-      const window = Math.max(1, Math.ceil(windowMs));
       try {
         const reply: unknown = await client.eval(INCREMENT_SCRIPT, {
           keys: [prefix + key],
-          arguments: [String(window)],
+          arguments: [String(redisWindowMs(windowMs))],
         });
-        if (!Array.isArray(reply) || typeof reply[0] !== "number") {
-          return fallback.increment(key, windowMs, now);
-        }
-        // PTTL reports -1 (key has no expiry) or -2 (key vanished) only if
-        // something outside this script touched the key; trust our own window
-        // rather than surfacing a nonsense resetAt.
-        const ttlMs = typeof reply[1] === "number" ? reply[1] : -1;
-        return { count: reply[0], resetAt: ttlMs > 0 ? now + ttlMs : now + window };
+        // null => reply unusable (wrong shape, or a count INCR could not have
+        // produced, meaning something else wrote the key).
+        return (
+          bucketFromRedisReply(reply, windowMs, now) ??
+          (await fallback.increment(key, windowMs, now))
+        );
       } catch {
         // Redis unreachable mid-request. Degrade to the per-process limiter —
         // same posture as the `error` handler above: limit independently
