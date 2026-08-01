@@ -42,6 +42,18 @@ export function buildKnowledgeWhere(
   projectId: string,
   scope: DataScope = "project",
   accessibleProjectIds?: string[],
+  /**
+   * Admit the caller's own `scope: 'user' | 'global'` rows regardless of which
+   * project taught them (#174). Default `false`; only meaningful when
+   * `scope = "project"`, since `"all"` already returns everything they own.
+   *
+   * Added to V1 rather than migrating callers to `buildKnowledgeWhereV2`
+   * on purpose: V2's `visibility: 'project'` arm carries **no** `ownerUserId`
+   * predicate (that is what makes Phase-4 org sharing work), so migrating a
+   * personal surface to it would also start returning teammates' rows — a
+   * separate product decision. Here every branch stays owner-anchored.
+   */
+  includeUserScopeAcrossProjects = false,
 ): object {
   const base = { ownerUserId: userId, deletedAt: null } as const;
   if (scope === "all") {
@@ -68,6 +80,12 @@ export function buildKnowledgeWhere(
         OR: [
           { ownerProjectId: projectId },
           { AND: [{ ownerProjectId: null }, { ownerUserId: userId }] },
+          // Cross-project reach for the caller's own user/global rows. `base`
+          // already pins ownerUserId across the whole AND, and the clause
+          // repeats it so the disjunct is safe read in isolation too.
+          ...(includeUserScopeAcrossProjects
+            ? [{ AND: [{ scope: { in: ["user", "global"] } }, { ownerUserId: userId }] }]
+            : []),
         ],
       },
     ],

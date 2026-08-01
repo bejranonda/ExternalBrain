@@ -334,3 +334,46 @@ describe("buildKnowledgeWhereV2 — user-scope reach", () => {
     expect(buildRawProjectFilterV2(a, 3).sql).toContain('"ownerUserId" = $3');
   });
 });
+
+// ---------------------------------------------------------------------------
+// V1 buildKnowledgeWhere — cross-project reach for user-scoped rows.
+//
+// The exported rule set must match the served one: kra.ts injects the caller's
+// `scope: 'user'` rules regardless of which project taught them, so the rules
+// bundle has to contain them too (KNOWN_ISSUES §0p). Deliberately added to V1
+// rather than migrating the exporter to V2 — V2's `visibility: 'project'` arm
+// carries NO ownerUserId predicate (Phase-4 org sharing), so migrating would
+// also start including teammates' rules, which is a separate product decision.
+// ---------------------------------------------------------------------------
+
+describe("buildKnowledgeWhere — includeUserScopeAcrossProjects (V1)", () => {
+  const hasUserScope = (w: object) =>
+    JSON.stringify(w).includes('{"scope":{"in":["user","global"]}}');
+
+  it("is closed by default", () => {
+    expect(hasUserScope(buildKnowledgeWhere(USER, PROJECT, "project"))).toBe(false);
+  });
+
+  it("admits the caller's user/global rows when opted in", () => {
+    expect(
+      hasUserScope(buildKnowledgeWhere(USER, PROJECT, "project", undefined, true)),
+    ).toBe(true);
+  });
+
+  // The whole reason this went into V1 rather than V2: every row must stay the
+  // caller's own. A rules bundle is the agent's config, not the team's.
+  it("never drops the ownerUserId anchor", () => {
+    const w = buildKnowledgeWhere(USER, PROJECT, "project", undefined, true);
+    expect(JSON.stringify(w)).toContain(`"ownerUserId":"${USER}"`);
+    // no branch may match a row this user does not own
+    const json = JSON.stringify(w);
+    const idx = json.indexOf('{"scope":{"in":["user","global"]}}');
+    expect(json.slice(idx, idx + 120)).toContain(`"ownerUserId":"${USER}"`);
+  });
+
+  it('is a no-op under dataScope "all", which already returns everything owned', () => {
+    expect(buildKnowledgeWhere(USER, PROJECT, "all", undefined, true)).toEqual(
+      buildKnowledgeWhere(USER, PROJECT, "all"),
+    );
+  });
+});

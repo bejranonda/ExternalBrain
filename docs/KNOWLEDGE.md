@@ -530,9 +530,14 @@ the rules exporter still call the pre-Phase-4 V1 helper. V1 does reach across
 projects under `DataScope: "all"`, but under its `"project"` default it consults
 only `ownerProjectId`, never `Knowledge.scope` — so it cannot filter to a project
 while still admitting the caller's `user`-scoped rules from elsewhere. The
-practical consequence: the default "Download rules bundle" omits `scope: 'user'`
-rules the Brain is actively injecting into sessions (`?scope=all` returns them).
-Tracked in `KNOWN_ISSUES §0p` as the unfinished half of the V1 → V2 migration.
+**The rules exporter was fixed on 2026-08-01** and now always admits them, so
+the exported set matches the served set — a rules bundle is the agent's
+configuration, not a project view. The dashboard and graph keep the
+project-scoped default on purpose, which is the same retrieval-is-wider-than-
+listing distinction drawn above. See `KNOWN_ISSUES §0p`; note the fix is an
+owner-anchored opt-in on V1, *not* a migration to V2, because V2's
+`visibility: 'project'` arm has no `ownerUserId` predicate and would also
+surface teammates' rows.
 
 The "all my projects" scope (`?scope=all`) shows everything the authenticated user owns across all projects. It does not show knowledge owned by other users, even within the same org.
 
