@@ -99,6 +99,22 @@ is no boundary left to enforce — and the Prisma listing helper
 | `team` | team members | explicit promotion |
 | `community` | everyone opted-in | explicit publish |
 
+### What is worth extracting
+
+The benchmarks answer this, and the answer is narrower than it looks. Injected
+knowledge changes an agent's output where a convention is **locally arbitrary** —
+a workspace import subpath, a build-pipeline quirk, a project decision, a
+surprising tool default — and *ties* where it coincides with general good
+practice a strong model already applies (`docs/VALIDATION.md`, two independent
+suites). So general craft is usually not worth capturing: it feels valuable and
+measurably changes nothing.
+
+The exception is evidence-shaped: if a session shows the model getting a
+well-known practice wrong anyway, that is a demonstrated gap for this user rather
+than a platitude, and it is worth keeping. `kea.ts`'s extraction prompt encodes
+both halves, and asks itself before emitting: *could a strong model already do
+this without being told?*
+
 ### Confidence
 
 Starts at `0.7` for KEA output, `1.0` for user-taught. Updated via outcome feedback:

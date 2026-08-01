@@ -143,6 +143,49 @@ run (`packages/core/generation-uplift/suite-2/README.md`).
   number describes the Brain with its known retrieval defect controlled for, not
   the Brain as a user experiences it today.
 
+## Pre-registered: does narrowing KEA toward arbitrariness change what gets captured? (2026-08-01)
+
+Suite 1 and suite 2 agree that injected knowledge changes an agent's output where
+a convention is **locally arbitrary** and ties where it coincides with general
+good practice a strong model already applies. That is a claim about *injection*.
+This is the corresponding claim about *capture*: if ties come from general craft,
+then extracting general craft is wasted capture effort.
+
+**Baseline, measured before the change.** The 18 most recent `extractedBy: 'kea'`
+rules on the reference instance were hand-classified: **3 locally arbitrary**
+(naming `@brain/core` structure, the `Knowledge.scope` vs `DataScope`
+distinction) against **15 general craft** ("use bounded phrasing", "assert both
+implementations in one test", "verify coverage before extending"). Roughly
+**15% arbitrary / 85% craft**.
+
+**Honest caveat on that baseline:** those 18 came from an unusually
+process-heavy stretch — reviews, corrections and doc sweeps rather than feature
+work — so the split is biased toward craft by the workload, not only by the
+prompt. A coding-heavy window would look different. The comparison below must
+therefore be read against a similar workload, or not at all.
+
+**The change.** `kea.ts`'s `SYSTEM_PROMPT` quality bar now leads with "locally
+arbitrary above all", explicitly demotes general good practice, and adds a
+pre-emit test: *"could a strong model already do this without being told? If
+yes, and the session did not show it failing, drop the finding."* It also
+replaces the bar's own exemplar — which was "Use TypeScript strict mode", a rule
+in exactly the category the benchmarks show produces ties.
+
+**Deliberately not a ban.** Craft survives when the session is direct evidence
+the model got it wrong anyway; that is a demonstrated gap rather than a
+platitude, and several of this arc's most useful rules are of that kind.
+
+**Metric (pre-registered, forward-looking).** On the next 18
+`extractedBy: 'kea'` rules produced after this ships, the locally-arbitrary
+share should exceed **40%** (from ~15%). Classification is a judgement call, so
+the raw 18 rule texts get published alongside the number, as with the uplift
+suites, and a reader can re-classify them.
+
+**Why this cannot be measured today.** KEA only runs on real closed sessions;
+there is no fixture that produces representative extractions. The read arrives
+when 18 more sessions have closed, and it is a *comparison of two biased
+samples* — worth reporting either way, worth over-claiming from neither.
+
 ### The earlier attempt, and why the label changed
 
 A previous pair of scripts ran against the dev seed corpus
