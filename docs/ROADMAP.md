@@ -39,28 +39,33 @@
 - [x] Knowledge immutability guard (`PATCH` rejects semantic-core edits; fork-on-edit in UI).
 - [x] Rate limiting on `/api/*` via Next.js proxy.
 - [x] Oracle streaming (SSE).
-- [ ] **Gate 1** — open, and the retrieval clause is **stated in units the
-      evidence can't answer**. This row asks for absolute NDCG@5 > 0.5 on a
-      labeled benchmark. What `docs/VALIDATION.md` publishes: 1.000 on the
-      author-written fixture (which VALIDATION itself disclaims as a floor
-      test), 0.4514 on the real-corpus fixture at candidate-pool 20, and
-      **0.3075 at pool 50 — the depth production now runs** since
-      [#146](https://github.com/bejranonda/ExternalBrain/issues/146). Read
-      literally, the shipping configuration sits below this gate's 0.5 and
-      below Phase 1's 0.4 red flag. Read in context it does not, because
-      (a) the labels are a weak proxy (injected-then-session-succeeded, nobody
-      hand-labeled), and (b) NDCG@5 *mechanically* falls as the pool deepens
-      and harder negatives enter — which is why VALIDATION's claim is the
-      **delta** over cosine (+0.1478 at pool 20; still positive, 0.3075 vs
-      0.2317, at pool 50), not the absolute. **Action: restate this gate as a
-      delta-over-baseline threshold, or commit to a hand-labeled fixture that
-      can carry an absolute.** Comparing a pool-50 absolute against a
-      threshold written for a hand-labeled benchmark is a category error in
-      whichever direction it's read.
-      The gate's other two clauses have simply not been run: no 100-session
-      simulation harness exists, and the SQS trend needs real telemetry over
-      time rather than a synthetic burst. Phase 2 shipped regardless —
-      recorded here as a knowingly-taken risk, not a passed gate.
+- [ ] **Gate 1** — retrieval clause **met**; the other two not run.
+
+      *Restated 2026-08-01.* This row used to demand an absolute NDCG@5 > 0.5,
+      and a previous pass flagged that as needing an operator decision. It
+      didn't: the project had **already decided**, on 2026-07-06, that "the
+      regression bar is the delta vs the cosine baseline on the current
+      fixture, not an absolute score" — absolutes are fixture-dependent (the
+      retired seed fixture had cosine at 1.0). That decision is written into
+      `GUIDELINES §3` invariant 12 and `docs/VALIDATION.md`; it had simply
+      never been propagated here. Same shape as
+      [#174](https://github.com/bejranonda/ExternalBrain/issues/174): decided
+      once, applied in some places, left stale in others.
+
+      **Retrieval, under the project's own bar: PASS.** KRA beats the raw-cosine
+      baseline on the real-corpus fixture at both depths measured — +0.1478 at
+      candidate-pool 20 (0.4514 vs 0.3036) and **+0.0758 at pool 50** (0.3075 vs
+      0.2317), the depth production runs since
+      [#146](https://github.com/bejranonda/ExternalBrain/issues/146). Absolutes
+      fall as the pool deepens because harder negatives enter; that is expected,
+      and is exactly why the bar is the delta. Re-run and re-record on any
+      `WEIGHTS` or `CANDIDATE_POOL_SIZE` change — now enforced by the
+      `benchmark-coherence` CI check rather than by discipline.
+
+      **Not run:** no 100-session simulation harness exists, and the SQS trend
+      needs real telemetry over time rather than a synthetic burst. Phase 2
+      shipped regardless — recorded as a knowingly-taken risk, not a passed
+      gate.
 
 ## Phase 2 — MCP + Webapp (weeks 13-18)
 
@@ -114,14 +119,18 @@ Three measurements, from cheapest to most expensive:
 
 Deliverables shipped: `packages/core/src/retrieval-benchmark.ts` (+ the `scripts/run-retrieval-benchmark.ts` / `export-retrieval-fixture.ts` pair), `packages/core/generation-uplift/` (pre-registration, task suite, grading harness, results), and `docs/VALIDATION.md`. Must be re-runnable after any KRA / KEA change.
 
-**Not shipped, despite what this line used to claim:** a "CI benchmark-doc
-coherence gate that refuses PRs which edit retrieval code without updating the
-validation numbers". No such workflow or step exists — `.github/workflows/`
-runs `doc-refs`, `verify`, and the two e2e suites, none of which look at
-retrieval code or `VALIDATION.md`. So nothing mechanically stops a `kra.ts`
-weight change from landing with stale published numbers; that coupling is
-currently operator discipline only. Either build the gate or keep this stated
-as a gap — it was listed among shipped deliverables until 2026-07-28.
+**The CI benchmark-doc coherence gate now exists (2026-08-01).** It was listed
+among shipped deliverables from 2026-07 while no such workflow existed — found
+and recorded as a gap on 2026-07-28, built now. `benchmark-coherence` in
+`.github/workflows/ci.yml` runs `scripts/check-benchmark-coherence.sh` on every
+PR: it compares the *values* of `kra.ts`'s `WEIGHTS` and `CANDIDATE_POOL_SIZE`
+either side of the merge base, and fails if they changed without
+`docs/VALIDATION.md` changing too. Deliberately value-based rather than
+file-based — a file-level check would fire on any unrelated edit to `kra.ts`
+(the #174 scope work changed that file without touching a weight), and a gate
+that cries wolf gets switched off. Verified against real history: silent across
+v2.4.0→v2.5.0 (kra.ts edited, weights untouched), fires across v2.2.0→v2.3.0
+(the pool 20→50 widening).
 
 ## Deferred items (not blocked, just explicit)
 
