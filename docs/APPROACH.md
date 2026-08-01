@@ -1723,6 +1723,36 @@ is smaller but sharper than the one first written: **a coverage claim from a
 single-file grep is not a coverage claim.** Reaching for the more dramatic version
 of a finding is its own failure mode — the same one this section opens with.
 
+**"It works in production" is evidence about the happy path only.** The Redis
+rate-limit adapter had no tests and could not have any — every branch sat behind
+the `client.eval` call inside `apps/web`, which needs workspace resolution to
+run. It was easy to leave: it was small, fail-safe, and demonstrably clean under
+live traffic. That comfort was exactly inverted. The untested branches were the
+*failure* branches — malformed reply, `PTTL` of −1/−2, Redis unreachable — and
+those never execute while things are healthy. Healthy traffic is not evidence
+about them; it is the absence of evidence about them. The fix was not clever:
+extract the pure decision into `packages/core` beside the contract it satisfies
+and leave only the `eval` in the app, which is the seam pattern `GUIDELINES §4`
+had already prescribed for LLM calls. The repo knew the answer; nobody had
+applied it here.
+
+**Extraction is a diagnostic, not just a refactor.** Moving that logic somewhere
+it could be read on its own immediately exposed a hole invisible while it was
+welded to the client: the parse accepted any numeric count, though `INCR` on a
+counter this module owns cannot return below 1 — and a zero or negative count
+from a foreign write would have made `check()` compute `ok` forever, granting
+unlimited requests through the limiter guarding voucher redemption and password
+reset. Nothing about the refactor was *intended* to find that. Code you cannot
+test is usually also code you cannot see.
+
+**A retraction applied in one place is not a retraction.** When review corrected
+"unbounded auth bypass" to *application-level* bypass (Caddy caps `/api/*` at 10
+req/s/IP at the edge), the correction landed in this file — and the identical
+wording survived in `KNOWN_ISSUES §0o` and `GUIDELINES §"Rate limiting"` for two
+more days, until an audit went looking. Corrections need the same
+grep-the-whole-tree discipline as the claims they replace; a partial retraction
+leaves the wrong version in the places a reader is most likely to hit first.
+
 **And the benchmark result worth keeping** is not the headline percentage
 (+33.3pp then +40pp, both small-n) but the shape underneath it, which two
 independent suites now agree on: injected knowledge changes the output where the
