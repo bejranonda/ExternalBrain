@@ -134,6 +134,21 @@ describe("bucketFromRedisReply", () => {
     expect(bucketFromRedisReply([2, "soon"], WINDOW, NOW)?.resetAt).toBe(NOW + WINDOW);
   });
 
+  // Real PTTL returns an integer — but so does real INCR, and the count guard
+  // above exists precisely because this function does not trust that. Infinity
+  // would make resetAt non-finite (the bucket never appears to reset, and
+  // x-ratelimit-reset renders as "Infinity"); a fraction is a sub-millisecond
+  // reset time. Both fall back to our own window.
+  it.each([
+    ["Infinity", Number.POSITIVE_INFINITY],
+    ["NaN", Number.NaN],
+    ["a fractional TTL", 5.5],
+  ])("uses our own window for %s", (_label, ttl) => {
+    const bucket = bucketFromRedisReply([2, ttl], WINDOW, NOW);
+    expect(bucket?.resetAt).toBe(NOW + WINDOW);
+    expect(Number.isFinite(bucket?.resetAt)).toBe(true);
+  });
+
   // null means "unusable — caller must fall back to the in-process limiter".
   it.each([
     ["a non-array reply", "OK"],
