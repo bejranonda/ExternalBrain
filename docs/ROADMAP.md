@@ -114,14 +114,18 @@ Three measurements, from cheapest to most expensive:
 
 Deliverables shipped: `packages/core/src/retrieval-benchmark.ts` (+ the `scripts/run-retrieval-benchmark.ts` / `export-retrieval-fixture.ts` pair), `packages/core/generation-uplift/` (pre-registration, task suite, grading harness, results), and `docs/VALIDATION.md`. Must be re-runnable after any KRA / KEA change.
 
-**Not shipped, despite what this line used to claim:** a "CI benchmark-doc
-coherence gate that refuses PRs which edit retrieval code without updating the
-validation numbers". No such workflow or step exists — `.github/workflows/`
-runs `doc-refs`, `verify`, and the two e2e suites, none of which look at
-retrieval code or `VALIDATION.md`. So nothing mechanically stops a `kra.ts`
-weight change from landing with stale published numbers; that coupling is
-currently operator discipline only. Either build the gate or keep this stated
-as a gap — it was listed among shipped deliverables until 2026-07-28.
+**The CI benchmark-doc coherence gate now exists (2026-08-01).** It was listed
+among shipped deliverables from 2026-07 while no such workflow existed — found
+and recorded as a gap on 2026-07-28, built now. `benchmark-coherence` in
+`.github/workflows/ci.yml` runs `scripts/check-benchmark-coherence.sh` on every
+PR: it compares the *values* of `kra.ts`'s `WEIGHTS` and `CANDIDATE_POOL_SIZE`
+either side of the merge base, and fails if they changed without
+`docs/VALIDATION.md` changing too. Deliberately value-based rather than
+file-based — a file-level check would fire on any unrelated edit to `kra.ts`
+(the #174 scope work changed that file without touching a weight), and a gate
+that cries wolf gets switched off. Verified against real history: silent across
+v2.4.0→v2.5.0 (kra.ts edited, weights untouched), fires across v2.2.0→v2.3.0
+(the pool 20→50 widening).
 
 ## Deferred items (not blocked, just explicit)
 
