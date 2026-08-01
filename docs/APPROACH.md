@@ -1753,6 +1753,49 @@ more days, until an audit went looking. Corrections need the same
 grep-the-whole-tree discipline as the claims they replace; a partial retraction
 leaves the wrong version in the places a reader is most likely to hit first.
 
+**A gate that cries wolf gets switched off — so design for the negative case
+first.** The benchmark-doc coherence gate exists to stop a `kra.ts` retune
+landing with stale published numbers. The obvious implementation — fail if
+`kra.ts` changed without `VALIDATION.md` — would have blocked this very arc's
+issue #174 work, which edited that file without moving a single weight. It compares
+constant *values* across the merge base instead, so refactors and comment
+rewrites are invisible to it. Both outcomes need a test, and the repo has both: a value change to `WEIGHTS`
+without a `VALIDATION.md` update **must fail** (verified by simulating a
+`0.7 → 0.65` retune), and a refactor-only change **must pass** (verified across
+`v2.4.0..v2.5.0`, a real PR that edited `kra.ts` and moved nothing). The one
+that shaped the design was the second, because a contributor who trips a gate
+they consider wrong does not fix their PR — they campaign to delete the gate.
+
+**Every new never-shipped path re-opens the drift hole.** Adding that gate's
+script would itself have opened a false `prod-drift` issue the next morning:
+`scripts/` was not in the not-app-served exclusion set, so a release containing
+nothing the container runs looked like un-deployed work. Same failure the
+exclusion set was built to prevent, one release later. The lesson is not "add
+`scripts/`" — it is that an exclusion list is a *liability that accrues*: every
+new top-level path is a chance to re-open it, and the only reliable check is
+asking the running containers what they actually contain rather than reading the
+Dockerfile and inferring.
+
+**Four overclaims, one pattern.** "Unbounded auth bypass" (Caddy bounded it),
+"zero test coverage" (22 tests in a sibling file), the #174 root-cause mechanism
+(wrong helper named), and "V1 has no cross-project reach *at all*" (it does,
+under `DataScope: "all"` — the gap is the project-scoped path). Each underlying
+finding was real; each superlative was not. The tell is the same every time: the
+absolute arrives before the verification, because it is the version that makes
+the finding sound worth reporting. Worth naming as a habit rather than four
+separate slips — and worth noting that review caught all four, which is an
+argument for review rather than for trying harder.
+
+**Independent review is not optional when the bot didn't read the diff.** Six PRs
+in this arc came back with a green CodeRabbit check; four of them had **zero**
+inline comments, which the repo already knows means a rate-limited bot rather
+than a clean bill of health. Reviewing those four by hand turned up the finding
+this section closes with: the pre-Phase-4 V1 scope helpers never got #174's
+cross-project reach, and three surfaces still call them — so
+`buildRulesBundle` exports a rule set that disagrees with the one the Brain
+serves. Nothing in CI would ever have said so, because nothing in CI knows the
+two should agree.
+
 **And the benchmark result worth keeping** is not the headline percentage
 (+33.3pp then +40pp, both small-n) but the shape underneath it, which two
 independent suites now agree on: injected knowledge changes the output where the
