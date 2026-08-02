@@ -131,7 +131,7 @@ You don't call MCP tools by name. You speak naturally; the SKILL.md tells the AI
 | You say… | The AI calls… | What you see |
 |---|---|---|
 | (start of any non-trivial task) | `brain_start_session` | Silent — sessionId saved internally |
-| "remember this: …" / "save this rule" | `brain_teach_knowledge` | "Saved as a rule" + a row appears in `/skills` |
+| "remember this: …" / "save this rule" | `brain_teach_knowledge` | "Saved as a rule" + a row appears in `#skills` |
 | "ask the oracle: …" / "how did I solve …?" | `brain_ask_oracle` | Streamed answer with `[^N]` citations + groundedness pill |
 | "what did I do last week on X?" | `brain_session_search` | List of past sessions matching keywords |
 | "find the rule about Y" | `brain_retrieve_knowledge` | Top-N rules by semantic similarity |
@@ -173,7 +173,7 @@ worker  {op:"kea.extract", outcome:"ok", items:1, durMs:11420,
          msg:"kea.extract"}
 ```
 
-The new rule that landed (visible in `/skills` after a refresh):
+The new rule that landed (visible in `#skills` after a refresh):
 
 ```
 type:    heuristic

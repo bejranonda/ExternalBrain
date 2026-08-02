@@ -126,17 +126,38 @@ test.describe("security posture — negative path", () => {
     }
   });
 
-  test("MCP HTTP transport refuses a bogus Bearer token", async () => {
+  // Must probe `initialize`, NOT `tools/list`. A session-less `tools/list` is
+  // rejected by the SDK with -32000 "Server not initialized" whatever the
+  // bearer says, so the previous version of this test passed without the auth
+  // layer ever being consulted — it would have stayed green with auth removed
+  // entirely. `initialize` is the method that actually allocates a session,
+  // so it is the one that has to refuse an unknown token.
+  test("MCP HTTP transport refuses `initialize` with a bogus Bearer token", async () => {
     const ctx = await pwRequest.newContext();
     try {
       const res = await ctx.post(`${MCP_URL}/mcp`, {
         headers: {
           "content-type": "application/json",
+          accept: "application/json, text/event-stream",
           Authorization: "Bearer bp_definitely_not_a_real_token_abcdef",
         },
-        data: { jsonrpc: "2.0", id: 1, method: "tools/list" },
+        data: {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2024-11-05",
+            capabilities: {},
+            clientInfo: { name: "audit-probe", version: "1" },
+          },
+        },
       });
-      expect(res.status()).toBeGreaterThanOrEqual(400);
+      // Exactly 401 — not merely "some 4xx", which is what let the old
+      // assertion pass for the wrong reason.
+      expect(res.status()).toBe(401);
+      // No session may be handed out, and no capability metadata may leak.
+      expect(res.headers()["mcp-session-id"]).toBeUndefined();
+      expect(await res.text()).not.toContain("serverInfo");
     } finally {
       await ctx.dispose();
     }

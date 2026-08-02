@@ -283,7 +283,11 @@ echo "    Brain, remember: I prefer pgvector for embeddings on this project,"
 echo "    because it co-locates with Postgres backups."
 echo
 echo "  Claude will call brain_teach_knowledge. See the fact appear at:"
-echo "    ${opts.webUrl}/skills"
+# The app's surfaces are HASH routes inside the SPA shell at
+# /<org>/<project> (lib/brain/routes.ts) — a bare /skills path 404s.
+# "/" resolves the active project and 307s to its canonical URL; the
+# fragment is client-side so it survives the redirect.
+echo "    ${opts.webUrl}/#skills"
 echo "  Restart Claude Code first so the new MCP entry is picked up."
 `;
 }

@@ -392,6 +392,21 @@ export const I18N = {
         cmdk_q3: "แสดง Anti-pattern ของ React ที่ฉันชอบทำพลาดบ่อยๆ",
       }
     },
+    decisions: {
+      title: "การตัดสินใจ",
+      subtitle: "ข้อสรุปของโปรเจกต์นี้ — แชร์กับทุกคนที่ทำงานร่วมกัน",
+      loading: "กำลังโหลดการตัดสินใจ…",
+      empty_title: "ยังไม่มีการตัดสินใจที่บันทึกไว้",
+      empty_body:
+        "เมื่อคุณบอกเครื่องมือ AI ถึงการตัดสินใจของโปรเจกต์ — \"เราจะใช้ X\", \"เลิกใช้ Y\" — ให้บันทึกด้วย brain_teach_knowledge (scope: project, tag: decision) จากนั้นจะปรากฏที่นี่ ในการ inject-at-open ของเพื่อนร่วมทีมทุกคน และใน Oracle",
+      help_what:
+        "ข้อสรุปของโปรเจกต์ — สิ่งที่ทีมตัดสินใจแล้วและไม่ควรกลับมาถกใหม่ แชร์ทั้งโปรเจกต์และได้รับการยกเว้นจากการสลาย",
+      help_todo_1:
+        "ดูการตัดสินใจที่ทีมบันทึกไว้ แต่ละรายการแสดงตัวเลือกที่เลือก และทางเลือกที่ตัดออก (ถ้าระบุไว้)",
+      help_todo_2:
+        "บันทึกรายการใหม่ผ่าน MCP (เอเจนต์จะบันทึกให้เมื่อคุณระบุการตัดสินใจของโปรเจกต์) หรือสอนโดยตรง",
+      help_todo_3: "การแก้ไขอยู่ในหน้า Skills — กรองด้วยแท็ก 'decision'",
+    },
     dash: {
       title: "สมองของคุณตอนนี้",
       subtitle: "ส่วนตัว",
@@ -434,6 +449,8 @@ export const I18N = {
     oracle: {
       empty_hint: "ถามอะไรก็ได้กับ Brain — เช่น สิ่งที่คุณทำเป็นประจำ แก้บั๊กเมื่อเดือนก่อนยังไง หรือข้อตกลงทีมของคุณ ทุกคำตอบจะอ้างกฎหรือเซสชันที่เป็นแหล่งที่มา คุณจึงเห็นต้นทางได้",
       title: "ผู้ช่วยอัจฉริยะ",
+      tagline:
+        "ถามอะไรก็ได้เกี่ยวกับงานของคุณ — ทุกคำตอบจะอ้างอิงสกิลและเซสชันที่เป็นแหล่งที่มา",
       model: "ขับเคลื่อนด้วย Claude",
       new_thread: "เธรดใหม่",
       you: "คุณ",
@@ -700,6 +717,22 @@ export const I18N = {
         cmdk_q3: "Zeige mir meine React Anti-Patterns",
       }
     },
+    decisions: {
+      title: "Entscheidungen",
+      subtitle:
+        "Getroffene Entscheidungen für dieses Projekt — geteilt mit allen, die daran arbeiten.",
+      loading: "Entscheidungen werden geladen…",
+      empty_title: "Noch keine Entscheidungen erfasst",
+      empty_body:
+        "Wenn du deinem KI-Tool eine Projektentscheidung mitteilst — \"wir nehmen X\", \"Y wird eingestellt\" — halte sie mit brain_teach_knowledge fest (scope: project, tag: decision). Sie erscheint dann hier, im inject-at-open jedes Teammitglieds und im Oracle.",
+      help_what:
+        "Getroffene Projektentscheidungen — die Festlegungen deines Teams, die nicht neu aufgerollt werden sollten. Projektweit geteilt und vom Decay ausgenommen.",
+      help_todo_1:
+        "Sieh dir die erfassten Entscheidungen an; jede zeigt die getroffene Wahl und, sofern hinterlegt, die verworfene Alternative.",
+      help_todo_2:
+        "Neue per MCP erfassen (dein Agent hält sie fest, sobald du eine Projektentscheidung aussprichst) — oder direkt selbst eintragen.",
+      help_todo_3: "Bearbeitet wird in Skills — filtere nach dem Tag 'decision'.",
+    },
     dash: {
       title: "Dein Gehirn – jetzt",
       subtitle: "persönlicher Bereich",
@@ -742,6 +775,8 @@ export const I18N = {
     oracle: {
       empty_hint: "Frag dein Brain alles — was du normalerweise machst, wie du den Bug letzten Monat gefixt hast, eure Team-Konventionen. Jede Antwort zitiert die Regel oder Sitzung als Quelle, damit du den Ursprung sehen kannst.",
       title: "Assistent",
+      tagline:
+        "Frag alles über deine Arbeit — jede Antwort zitiert die Skills und Sitzungen, aus denen sie stammt.",
       model: "Mit Claude",
       new_thread: "Neuer Thread",
       you: "Du",
@@ -968,6 +1003,33 @@ export const I18N = {
     },
   },
 } as const;
+
+/**
+ * Structural lock — `th` and `de` must carry exactly the sections and keys
+ * that `en` carries.
+ *
+ * Without this the dictionary is three independent object literals and a gap
+ * is invisible to `tsc`, to ESLint and to CI. That is how the entire
+ * `decisions` section (9 keys) went missing from BOTH non-English locales
+ * without anything failing: `translate()` falls back to English before giving
+ * up, so a Thai or German user saw English sentences rather than a raw key —
+ * degraded, but never loud enough to notice.
+ *
+ * This declaration has no runtime cost; it exists purely so
+ * `pnpm turbo run typecheck` fails on the next omission.
+ */
+// Recursive, not flat: several sections nest a sub-object (`hints`,
+// `headers`, `tool_blurb`), so a `{[K]: string}` shape would reject the
+// English dictionary itself.
+type DeepStrings<T> = {
+  [K in keyof T]: T[K] extends string ? string : DeepStrings<T[K]>;
+};
+type LocaleDict = DeepStrings<typeof I18N.en>;
+const _localeCompleteness: Record<Exclude<Lang, "en">, LocaleDict> = {
+  th: I18N.th,
+  de: I18N.de,
+};
+void _localeCompleteness;
 
 export type Vars = Record<string, string | number>;
 

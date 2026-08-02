@@ -93,6 +93,11 @@ function buildServer(counter: CallCounter = { n: 0, lists: 0 }): Server {
   );
 
   server.setRequestHandler(ListToolsRequestSchema, async () => {
+    // Defence in depth. The HTTP dispatcher validates the bearer before it
+    // allocates a session, but stdio has no such gate and a future transport
+    // might not either — the catalogue (tool names, descriptions, input
+    // schemas) is a map of the attack surface and must not be free.
+    await authenticate(currentToken());
     counter.lists++;
     // List-only traffic was invisible before — 184 session opens with no
     // visible activity led to a wrong "no clients calling tools" reading
@@ -143,9 +148,10 @@ function buildServer(counter: CallCounter = { n: 0, lists: 0 }): Server {
     }
   });
 
-  server.setRequestHandler(ListResourcesRequestSchema, async () => ({
-    resources,
-  }));
+  server.setRequestHandler(ListResourcesRequestSchema, async () => {
+    await authenticate(currentToken());
+    return { resources };
+  });
 
   server.setRequestHandler(ReadResourceRequestSchema, async (req) => {
     const auth = await authenticate(currentToken());
@@ -346,6 +352,38 @@ async function runHttp(): Promise<void> {
       }
     }
     if (!session) {
+      // Validate the bearer against the DB BEFORE allocating a transport.
+      // The presence-only gate above refuses the no-header case cheaply, but
+      // ANY syntactically-valid string used to reach `initialize` and get back
+      // serverInfo + the tool catalogue + a live session id — defeating the
+      // stated goal of the strict-auth override documented above, and handing
+      // an anonymous caller an unbounded way to grow this map (entries are
+      // only evicted by the 30-min orphan sweeper).
+      //
+      // Established sessions are deliberately NOT re-validated here: they are
+      // already pinned to this same token by the timingSafeEqual check above,
+      // so the per-request cost for real clients is unchanged.
+      try {
+        await authenticate(token);
+      } catch {
+        res.writeHead(401, {
+          "content-type": "application/json",
+          "www-authenticate": 'Bearer realm="brain-mcp"',
+        });
+        res.end(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            error: { code: -32001, message: "Invalid or expired token" },
+            id: null,
+          }),
+        );
+        log.warn(
+          { op: "mcp.auth.reject", tokenPrefix: token.slice(0, 8) },
+          "rejected session bootstrap with an invalid bearer",
+        );
+        return;
+      }
+
       const counter: CallCounter = { n: 0, lists: 0 };
       const server = buildServer(counter);
       const openedAt = Date.now();
