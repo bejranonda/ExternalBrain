@@ -1842,3 +1842,89 @@ convention is **locally arbitrary** — a workspace subpath, a build-pipeline
 quirk — and ties wherever it coincides with general good practice a strong model
 already applies. That is a directly actionable capture strategy, and a much more
 defensible claim than the number.
+
+---
+
+## 5bg. The sibling problem — a four-pass audit that found one bug eleven times (2026-08-02, v2.8.0)
+
+A structured pre-release audit ran four passes over the codebase — onboarding
+and DX, MCP + multi-tenancy security, worker and DB reliability, deployment and
+i18n — each written up in [`docs/pre-release/`](./pre-release/). The headline
+result was reassuring and unsurprising: **zero CRITICAL findings**, no
+cross-tenant leak, no auth bypass, no secret exposure. The interesting result
+was the shape of what it *did* find.
+
+### What generalises
+
+**Eleven findings, one pattern: hardening that never reached its siblings.**
+The clipboard was correctly guarded in four call sites and unguarded in three.
+The 429-retry lesson was learned in `embedding.ts` and never carried to
+`llm.ts` — the seam every KEA, autoskill and meeting-extract call goes through.
+Token project-scope was enforced on all five write tools and none of the four
+read tools. `captureError` wrapped four worker handlers and not the other five.
+Rate limiting covered `/api/*` and not `/mcp`. Every one had a working
+implementation sitting a few files away.
+
+This is a good problem — the fix is always cheap — but it is invisible to the
+process that created it. Each original fix was correct, reviewed, and merged.
+Nothing in a PR review asks *"which sibling call sites did this just make
+inconsistent?"*, so the answer was never written down. It is now a standing
+question in [`GUIDELINES §4`](./GUIDELINES.md#4-testing). The generalisation
+beyond this repo: **a defect class is a property of a codebase, not of a line.
+Fixing the reported instance is roughly a fifth of the work**, and the other
+four fifths are a `grep` away.
+
+**A test that can pass for two reasons verifies neither.** The sharpest finding
+was not a vulnerability but a test. `security.spec.ts` asserted that
+`tools/list` with a bogus Bearer returned `>= 400`. It was green for years. It
+was green because a session-less `tools/list` is rejected by the MCP SDK with
+"Server not initialized" — the bearer was never consulted, and **the assertion
+would have stayed green with authentication removed entirely.** Sending
+`initialize` with the same junk token returned `200`, a live session, and the
+full tool catalogue.
+
+The failure mode is specific and worth naming: a negative assertion (`it
+failed`) on an outcome with multiple causes proves only that *one* of them
+fired. It reads in review as coverage, which makes it worse than no test — a
+missing test invites scrutiny, a passing one closes the question. The rule that
+came out of it: assert the exact status, assert the absence of the thing that
+would leak, probe the method that actually reaches the check, and confirm the
+test goes red when you break the control.
+
+**Structural checks beat inventories, because the inventory is only as good as
+whoever wrote it.** The i18n gap was reported as "four missing keys" after a
+`grep`-based extraction. That was wrong twice over. The extraction was flat, so
+nested sections collapsed and *nine* keys under `decisions` — the entire section,
+absent from both non-English locales — hid behind identically-named keys
+elsewhere. A corrected nested diff found those nine. Then the fix itself, a
+recursive `DeepStrings` type lock added to *prevent future* drift, immediately
+found a tenth that both diffs had missed: `oracle.tagline`, on one of the most
+viewed surfaces in the app.
+
+Three attempts by a careful reader, three different answers; the type checker
+got it right on the first run and will keep getting it right. Where a rule can
+be expressed structurally — a type, a lint, a CI gate — expressing it as a
+checklist item is a decision to re-derive it by hand forever. And the reason
+this particular gap survived so long is worth holding onto: `translate()` falls
+back to English, so the failure rendered as *slightly wrong* rather than
+visibly broken. **Graceful degradation is a bug-preservation mechanism.** It is
+still right to degrade gracefully; it is also why the detection has to be
+structural, because the symptom will never be loud enough to prompt a look.
+
+**Say what the audit got wrong, in the audit.** Two Pass-4 findings were
+overstated: `.env.example` was called misleading when most of its dead keys were
+already annotated `# aspirational` — I had read the key names and not the comment
+column — and the i18n count was less than half the real number. Both carry
+in-place `CORRECTION` blocks in the reports rather than quiet edits. An audit is
+a document whose entire value is that a reader can trust its claims without
+re-deriving them; silently improving one's own findings destroys exactly that,
+and the same argument already applies to `§5bf`'s retraction and the #174
+correction in `KNOWN_ISSUES §0p`.
+
+**A verdict is more useful than a list.** Four passes produced ~2,400 lines and
+several dozen findings, which on its own would have been a backlog rather than a
+decision. Sorting them into *five release blockers*, a ship-with bucket, and an
+accept bucket — with the two deferred HIGHs carrying explicit containment ("do
+not describe project-scoped tokens as an isolation boundary until this lands") —
+is what turned the audit into something that could be acted on in a day. The
+finding count is the input; the GO/NO-GO is the deliverable.

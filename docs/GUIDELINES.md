@@ -163,6 +163,55 @@ Every new top-level URL or shell hash-route must land in the same PR as:
 
 The nav-smoke list is intentionally hard-coded (not route-discovered) so a new surface cannot slip through silently.
 
+### A failing assertion must be able to fail for exactly one reason
+
+An assertion that only checks *that* something failed verifies nothing if the
+outcome has two possible causes. Before trusting a negative test as coverage,
+ask what else could produce the same result.
+
+The worked example (found in the 2026-08-02 pre-release audit, `KNOWN_ISSUES
+§0q`): `security.spec.ts` sent `tools/list` with a bogus Bearer and asserted
+`status >= 400`. It was green — from the MCP SDK's *"Server not initialized"*
+check, because the request carried no `Mcp-Session-Id`. The bearer was never
+consulted. **The test would have stayed green with authentication removed
+entirely**, while reading in review as proof the boundary held. Sending
+`initialize` with the same junk token returned `200`, a session id, and the full
+tool catalogue.
+
+So, for any test guarding a security boundary:
+
+- Assert the **specific** status (`toBe(401)`), not a range.
+- Assert the **absence of the thing that would leak** (`not.toContain("serverInfo")`,
+  no `mcp-session-id` header) — a status code alone doesn't prove nothing escaped.
+- Exercise the method that actually reaches the check. Probe the code path, not
+  a neighbour of it.
+- Sanity-check by breaking the control locally and confirming the test goes red.
+  If it stays green, it was never testing the control.
+
+### Fixing a defect? Enumerate its siblings before you close the PR
+
+The 2026-08-02 audit found eleven separate issues that were **one pattern**:
+hardening applied in one place and not carried across to the call sites next to
+it.
+
+| Hardened | Not hardened |
+|---|---|
+| clipboard guarded in `token-install-wizard`, `skills` ×2, `agent-prompts-card` | `oracle.tsx`, `settings/org` |
+| 429 retry + classifier in `embedding.ts` | `llm.ts` — the seam every KEA/autoskill call uses |
+| token project-scope on all 5 write tools | all 4 read tools + all 4 resources |
+| `captureError` on 4 worker handlers | the other 5 |
+| rate limiting on `/api/*` | `/mcp` |
+
+Every one of these had a correct implementation sitting a few files away, so the
+fix was cheap — but only for someone who looked. Auditing just the reported site
+finds roughly a fifth of the actual defect.
+
+**Therefore:** when you fix something that belongs to a *class* (error handling,
+auth checks, browser-API guards, retries, scope filters, rate limits),
+`grep` for the other call sites in the same class and state in the PR
+description either that you fixed them or why they don't need it. "Which
+siblings did this just make inconsistent?" is a standing review question.
+
 ---
 
 ## 5. Commit hygiene

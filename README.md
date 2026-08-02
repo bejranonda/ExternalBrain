@@ -256,6 +256,7 @@ REBUILD/       Phase-by-phase vibe-coding reconstruction guide (start: REBUILD/0
 | [CONTRIBUTING](./docs/CONTRIBUTING.md) · [GUIDELINES](./docs/GUIDELINES.md) | How to contribute, code style |
 | [DESIGN_PRINCIPLES](./docs/DESIGN_PRINCIPLES.md) | UI philosophy (progressive disclosure) |
 | [KNOWN_ISSUES](./docs/KNOWN_ISSUES.md) | Tracked risks & gotchas |
+| [pre-release/](./docs/pre-release/00_REMEDIATION_LOG.md) | **Four-pass pre-release audit (2026-08-02)** — onboarding · MCP & multi-tenancy security · worker/DB reliability · deployment & i18n. Zero CRITICAL findings; the reports keep their full working, including two in-place corrections where remediation proved a finding overstated |
 | [REBUILD](./REBUILD/00-START-HERE.md) | **Rebuild from scratch** — 6-phase vibe-coding guide for porting to a new machine |
 
 Diagrams (Mermaid sources + rendered PNGs) live in

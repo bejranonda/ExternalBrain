@@ -335,6 +335,22 @@ If SQS doesn't trend up after 4 weeks of real usage, **stop and investigate** �
 Three model tracks, not mutually exclusive:
 
 ### 11.1 Freemium SaaS (primary)
+
+> **CURRENT PHASE (decided 2026-08-02): freemium *without cost* — the table
+> below is the target model, not what ships today.** There is no billing, no
+> paid tier, no per-user metering, and none is being built. Every LLM dollar is
+> borne by the **instance operator**, which is what makes this a self-hostable
+> platform rather than a service with a free tier.
+>
+> Two consequences that matter for anyone reading code or config:
+> - **Cost controls protect the operator's wallet, not a revenue boundary.** The
+>   only enforced one is `MAX_ORACLE_COST_USD_PER_DAY`
+>   (`packages/core/src/cost.ts::reserveCapSlot`, atomic via a
+>   `pg_advisory_xact_lock`). `MAX_KEA_COST_USD_PER_SESSION` is **not enforced**
+>   and is now labelled as such in `.env.example` — see `KNOWN_ISSUES §0q`.
+> - **Do not build billing, invoicing or usage-metering surfaces** on the
+>   strength of this table. When the phase changes, this note changes first.
+
 | Tier | Price | Who | What they get |
 |---|---|---|---|
 | Personal Free | $0 | hobbyists, students | unlimited sessions, 200 Oracle queries/month, personal Brain only, community publishing, no team |
