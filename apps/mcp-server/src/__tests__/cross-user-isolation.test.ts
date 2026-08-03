@@ -250,13 +250,22 @@ guard("MCP cross-user isolation (IDOR fix #106)", () => {
     ).rejects.toThrow(/FORBIDDEN_PROJECT/);
   });
 
-  it("brain_retrieve_knowledge allows a scoped token asking for its OWN project", async () => {
-    await expect(
-      retrieveKnowledge.handler(
+  it("brain_retrieve_knowledge lets a scoped token PAST the gate for its OWN project", async () => {
+    // What's under test is the scope check, not retrieval. CI has no
+    // embedding provider, so kra.retrieve throws downstream — asserting the
+    // whole call resolves would make this test about the CI environment
+    // instead of about the boundary. Assert we get past the gate: whatever
+    // happens next, it must not be FORBIDDEN_PROJECT.
+    const outcome = await retrieveKnowledge
+      .handler(
         { prompt: "anything", context: { projectId: fix!.bob.projectId } },
         bobScopedAuth(),
-      ),
-    ).resolves.toBeDefined();
+      )
+      .then(() => null)
+      .catch((e: unknown) => e);
+    if (outcome !== null) {
+      expect(String(outcome)).not.toMatch(/FORBIDDEN_PROJECT/);
+    }
   });
 
   // These two need a SECOND project owned by Bob. Asserting that Bob's scoped
