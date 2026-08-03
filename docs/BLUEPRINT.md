@@ -336,20 +336,33 @@ Three model tracks, not mutually exclusive:
 
 ### 11.1 Freemium SaaS (primary)
 
-> **CURRENT PHASE (decided 2026-08-02): freemium *without cost* — the table
-> below is the target model, not what ships today.** There is no billing, no
-> paid tier, no per-user metering, and none is being built. Every LLM dollar is
-> borne by the **instance operator**, which is what makes this a self-hostable
-> platform rather than a service with a free tier.
+> **CURRENT PHASE (decided 2026-08-02): freemium with NO PAYMENT REQUIRED.**
+> The tier table below is the live product shape — what is deferred is
+> **payment collection only**.
 >
-> Two consequences that matter for anyone reading code or config:
-> - **Cost controls protect the operator's wallet, not a revenue boundary.** The
->   only enforced one is `MAX_ORACLE_COST_USD_PER_DAY`
->   (`packages/core/src/cost.ts::reserveCapSlot`, atomic via a
->   `pg_advisory_xact_lock`). `MAX_KEA_COST_USD_PER_SESSION` is **not enforced**
->   and is now labelled as such in `.env.example` — see `KNOWN_ISSUES §0q`.
-> - **Do not build billing, invoicing or usage-metering surfaces** on the
->   strength of this table. When the phase changes, this note changes first.
+> What that means concretely:
+>
+> - **Keep and build the freemium machinery.** Tiers, usage tracking, quotas
+>   and enforced limits are real features and are expected to work. Building
+>   metering now is what lets a paid tier be switched on later without
+>   retrofitting usage accounting into every code path; skipping it makes the
+>   eventual paid tier a rewrite.
+> - **Deferred: checkout, invoicing, card capture, and any paywall that blocks
+>   a user.** Nobody is charged in this phase. No tier gate should hard-stop a
+>   user on payment grounds.
+> - **Every documented limit must actually be enforced in code.** The model to
+>   copy is `MAX_ORACLE_COST_USD_PER_DAY`
+>   (`packages/core/src/cost.ts::reserveCapSlot`) — atomic, via a
+>   `pg_advisory_xact_lock` on `(userId, day)`, so N concurrent callers cannot
+>   all pass the same pre-call check. **A limit that is documented but has no
+>   reader is a product gap, not a doc bug.** `MAX_KEA_COST_USD_PER_SESSION` is
+>   currently in that state — tracked in `KNOWN_ISSUES §0q`.
+> - **Limits serve two masters here and both are real:** the tier boundary
+>   (product) and the instance operator's LLM bill (operational), since in a
+>   self-hosted deployment the operator pays for every token.
+>
+> When the phase changes — i.e. payment is switched on — this note changes
+> first.
 
 | Tier | Price | Who | What they get |
 |---|---|---|---|

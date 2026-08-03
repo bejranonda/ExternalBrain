@@ -76,13 +76,10 @@ assertion would have stayed green with auth removed entirely. It now probes
 `initialize`, asserts exactly `401`, and asserts no `Mcp-Session-Id` header and
 no `serverInfo` in the body.
 
-⬜ **Reviewer must confirm against a running server** — this path is e2e-only:
-```bash
-curl -sD- -X POST "$MCP_URL/mcp" -H 'Authorization: Bearer x' \
-  -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
-  --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"probe","version":"1"}}}'
-# expect 401, no mcp-session-id, no serverInfo
-```
+✅ **Now covered by CI, not by a manual step.** The first draft listed this as a
+`curl` probe a reviewer had to run by hand. Round 2 found the reason it had to
+be manual — the e2e job never booted the MCP server — and fixed that instead, so
+the `authed surfaces e2e` gate now performs exactly this check on every PR.
 
 ### 3. Worker had no graceful shutdown — *Pass 3, R-2*
 
@@ -93,9 +90,12 @@ curl -sD- -X POST "$MCP_URL/mcp" -H 'Authorization: Bearer x' \
 attempt had already burned. `kea.cross_extract` is `retryLimit: 1`, so a deploy
 in its 06:00 window skipped that day's extraction outright.
 
-Added `boss.stop({ wait: true })` behind a 25 s bounded grace window, plus
+Added `boss.stop({ graceful: true, timeout: 20_000 })` plus
 `stop_grace_period: 30s` on the worker service so Docker's 10 s default
-doesn't SIGKILL mid-drain. Also wrapped the floating `initSentry()` promise
+doesn't SIGKILL mid-drain. (The first cut passed `{ wait: true }`, an option
+that does not exist in pg-boss v12 — see **Round 2** below, where reading the
+shipped types also showed the surrounding bail timer was redundant.) Also
+wrapped the floating `initSentry()` promise
 (an unhandled rejection there terminates the process on Node 18+, i.e. the
 error reporter failing to start stopped the worker starting) and added
 `unhandledRejection` / `uncaughtException` handlers.
@@ -178,12 +178,98 @@ compiles; one with a single missing key fails with
 
 ---
 
+---
+
+## Round 2 — what CI caught that the static audit did not
+
+The first push went **red on two required checks**. Both failures were worth more
+than the reports that preceded them.
+
+### `typecheck · test · build` — `boss.stop({ wait: true })` does not compile
+
+`TS2353: 'wait' does not exist in type 'StopOptions'`. I had carried the option
+over from an older pg-boss API instead of reading the installed one. Unpacking
+`pg-boss@12.18.2` showed `StopOptions` is `{ close?, graceful?, timeout? }` —
+and that `stop()` **already does the bounded drain itself**, polling
+`hasPendingCleanups()` every 500 ms up to `timeout` before running `failWip()`
+and closing the pool.
+
+So the hand-rolled 25 s bail timer wrapped around it was not just redundant, it
+was **worse than nothing**: on expiry it called `process.exit(0)`, skipping
+precisely the cleanup the handler exists to perform. Now
+`stop({ graceful: true, timeout: 20_000 })`, with the outer timer demoted to a
+last-resort guard against `stop()` itself hanging and set *longer* (25 s) so
+pg-boss wins in every normal case. The correct implementation was simpler than
+the guess.
+
+### `authed surfaces e2e` — the security tests had never reached the MCP server
+
+My tightened assertion (`toBe(401)` instead of `>= 400`) went red with
+**`Received: 404`**. Chasing that produced the sharpest finding of the whole
+exercise, and one the static audit missed completely:
+
+`security.spec.ts` resolved its target as
+`E2E_BASE_URL ?? "http://localhost:3100"`. The `authed surfaces e2e` job sets
+`E2E_BASE_URL=http://localhost:3000` and boots **only the web app**. So both
+tests named *"MCP HTTP transport refuses…"* were POSTing to `/mcp` on Next.js,
+receiving its 404, and their `status >= 400` assertion accepted it.
+
+**Neither test had ever contacted the MCP server.** I had correctly diagnosed
+that one of them probed the wrong *method*; I did not notice both were pointed at
+the wrong *process*. Static reading would not have found it — tightening the
+assertion did, in one CI run.
+
+Fix, in three parts:
+- A dedicated `E2E_MCP_URL` with **no fallback**, and `test.skip()` with an
+  explicit message when it is unset. A security test that cannot reach its
+  target must skip visibly, never pass quietly.
+- The workflow now builds `@brain/mcp-server`, boots it on :3100, waits on
+  `/health`, and **fails the job** if it never comes up — in this workflow a
+  skip would itself be the failure mode being removed.
+- `apps/mcp-server/**` added to the job's paths filter, so an MCP change can
+  trigger the gate that now tests it.
+
+Both assertions tightened to exactly `401` plus a negative on `serverInfo`.
+
+**Method note:** when you suspect a test is vacuous, the cheapest proof is to
+tighten it and watch what happens. Recorded in `GUIDELINES §4` and `APPROACH §5bg`.
+
+---
+
+## Correction: the freemium framing was wrong
+
+The first version of this log, and the `.env.example` / `BLUEPRINT` edits that
+went with it, read the phase decision as *"freemium without cost → do not build
+billing, invoicing or usage-metering surfaces."*
+
+**That was wrong.** Operator correction, 2026-08-02: *"keep billing, usage, limit
+and other features for freemium — just no payment required in this phase."*
+Tiers, usage tracking, quotas and enforced limits are real product features and
+are expected to work; **payment collection alone** is deferred.
+
+This reclassifies one finding rather than merely rewording it:
+**`MAX_KEA_COST_USD_PER_SESSION` is an unimplemented limit — an open product
+gap — not a documentation bug.** v2.8.0 labels it `⚠️ NOT ENFORCED` so nobody
+relies on it in the meantime, but the fix is a real per-session reservation
+modelled on `cost.ts::reserveCapSlot`. It is now tracked as open in
+`KNOWN_ISSUES §0q` instead of closed.
+
+The general point, which is why this is recorded rather than quietly edited:
+building usage accounting now is what lets a paid tier be switched on later
+without retrofitting metering into every code path. Reading "no payment" as "no
+metering" would have turned the eventual paid tier into a rewrite.
+
+---
+
 ## Net effect on the GO / NO-GO
 
 All five release blockers are closed. Of the eight HIGH findings across four
 passes, **six are fixed**; the two that remain (P2-H2, P3-R3) are documented
 above with their containment.
 
-**Recommendation: GO**, conditional on CI being green and on the one manual
-check that cannot be automated from this checkout — the `curl` probe of
-`initialize` with a junk Bearer against a running MCP server.
+**Recommendation: GO**, conditional on CI being green.
+
+The manual `curl` probe listed in the first draft is **no longer needed** — the
+`authed surfaces e2e` job now boots the MCP server and runs exactly that check
+as a required gate. That is a strictly better outcome than the manual step it
+replaces, and it came out of the CI failure rather than the audit.

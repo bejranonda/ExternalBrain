@@ -187,6 +187,20 @@ So, for any test guarding a security boundary:
   a neighbour of it.
 - Sanity-check by breaking the control locally and confirming the test goes red.
   If it stays green, it was never testing the control.
+- **Verify the test can reach its target at all.** Give a test that talks to a
+  second service its own base-URL variable with **no fallback**, and `test.skip()`
+  loudly when it is unset. A default that silently resolves to a different
+  process is the worst case: the request succeeds, returns *something*, and a
+  range assertion accepts it.
+
+The second half of that rule has its own worked example, found the same day and
+worse than the first. `security.spec.ts` resolved its MCP endpoint as
+`E2E_BASE_URL ?? "http://localhost:3100"`. The `authed surfaces e2e` job sets
+`E2E_BASE_URL=http://localhost:3000` and boots only the web app — so both
+"MCP HTTP transport refuses…" tests POSTed to `/mcp` on **Next.js**, got its
+404, and their `status >= 400` assertion passed. Two named security tests had
+never once contacted the MCP server. The job now builds and boots
+`@brain/mcp-server`, waits on `/health`, and fails if it doesn't come up.
 
 ### Fixing a defect? Enumerate its siblings before you close the PR
 

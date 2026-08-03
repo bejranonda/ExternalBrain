@@ -423,11 +423,23 @@ async function main(): Promise<void> {
   // kea.cross_extract is retryLimit:1, so a deploy landing in its 06:00
   // window skipped that day's cross-session extraction entirely.
   //
-  // `boss.stop({ wait: true })` stops fetching new jobs and lets in-flight
-  // handlers finish. The grace window is bounded so a wedged handler can't
-  // block a deploy forever; `stop_grace_period` in docker-compose.yml is set
-  // above SHUTDOWN_GRACE_MS so Docker doesn't SIGKILL mid-drain.
-  const SHUTDOWN_GRACE_MS = 25_000;
+  // pg-boss v12 `stop({ graceful, timeout })` already does the draining AND
+  // the bounding itself: it stops the manager/timekeeper, then polls
+  // `hasPendingCleanups()` every 500 ms until `timeout` elapses, then runs
+  // `failWip()` + closes the pool (pg-boss `index.js::stop`). So `await
+  // boss.stop(...)` returns only once the drain is finished or the budget is
+  // spent — there is no separate "wait" flag, and an outer bail timer that
+  // called `process.exit()` on expiry would be strictly worse: it would skip
+  // `failWip()` and the connection close, which is the cleanup this handler
+  // exists to perform.
+  //
+  // The outer timer below is therefore NOT the grace window — it is a
+  // last-resort guard for `boss.stop()` itself hanging (DB unreachable), and
+  // is deliberately longer than pg-boss's own budget so pg-boss wins in every
+  // normal case. `stop_grace_period` in docker-compose.yml sits above both so
+  // Docker doesn't SIGKILL mid-drain.
+  const DRAIN_BUDGET_MS = 20_000;
+  const HARD_BAIL_MS = 25_000;
   let stopping = false;
   const shutdown = async (signal: string): Promise<void> => {
     if (stopping) return;
@@ -435,14 +447,14 @@ async function main(): Promise<void> {
     log.info({ op: "worker.shutdown", signal }, "draining in-flight jobs");
     const bail = setTimeout(() => {
       log.warn(
-        { op: "worker.shutdown", signal, outcome: "grace_expired" },
-        "grace window expired — exiting with jobs still in flight",
+        { op: "worker.shutdown", signal, outcome: "stop_hung" },
+        "boss.stop() did not return — exiting without a clean drain",
       );
       process.exit(0);
-    }, SHUTDOWN_GRACE_MS);
+    }, HARD_BAIL_MS);
     bail.unref();
     try {
-      await boss.stop({ wait: true });
+      await boss.stop({ graceful: true, timeout: DRAIN_BUDGET_MS });
       log.info(
         { op: "worker.shutdown", signal, outcome: "drained" },
         "worker stopped cleanly",

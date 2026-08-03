@@ -65,6 +65,11 @@ jobs:
           filters: |
             web:
               - 'apps/web/**'
+              # This job now boots the MCP server so security.spec.ts's
+              # transport tests have something real to talk to — so an
+              # mcp-server change must be able to trigger the gate that
+              # tests it.
+              - 'apps/mcp-server/**'
               - 'packages/core/**'
               - 'packages/db/**'
               - '.github/workflows/authed-e2e.yml'
@@ -106,6 +111,15 @@ jobs:
         if: steps.changes.outputs.web == 'true'
         run: pnpm turbo run build --filter=@brain/web
 
+      # security.spec.ts's two MCP-transport tests need the MCP server to
+      # actually be running. Before 2026-08-02 they read `E2E_BASE_URL` (the
+      # WEB origin, :3000), posted to `/mcp` on Next.js, got a 404, and their
+      # `status >= 400` assertion accepted it — so both had never once
+      # contacted the MCP server. See KNOWN_ISSUES §0q.
+      - name: Build MCP server
+        if: steps.changes.outputs.web == 'true'
+        run: pnpm turbo run build --filter=@brain/mcp-server
+
       - name: Install Playwright chromium
         if: steps.changes.outputs.web == 'true'
         run: pnpm --filter @brain/web exec playwright install --with-deps chromium
@@ -127,6 +141,13 @@ jobs:
           # network log. Prod default untouched.
           RATE_LIMIT_MCP_PER_MINUTE: "5000"
           E2E_BASE_URL: http://localhost:3000
+          # Separate from E2E_BASE_URL on purpose — the MCP server is its own
+          # process on its own port. security.spec.ts skips its transport
+          # tests loudly when this is unset rather than passing against
+          # whatever the web app returns for /mcp (which was a 404).
+          E2E_MCP_URL: http://localhost:3100
+          MCP_TRANSPORT: http
+          MCP_SERVER_HTTP_PORT: "3100"
           E2E_ADMIN_USERNAME: alex
           E2E_ADMIN_PASSWORD: e2e-ci-throwaway-password
         run: |
@@ -135,6 +156,9 @@ jobs:
           export ADMIN_PASSWORD_HASH=$(cd apps/web && node -e "console.log(require('bcryptjs').hashSync(process.env.E2E_ADMIN_PASSWORD, 10))")
           pnpm --filter @brain/web start &
           APP_PID=$!
+          pnpm --filter @brain/mcp-server start &
+          MCP_PID=$!
+          cleanup() { kill "$APP_PID" "$MCP_PID" 2>/dev/null || true; }
           for _ in $(seq 1 60); do
             if curl -sSf --max-time 2 http://localhost:3000/api/healthz >/dev/null 2>&1; then
               echo "web is up"; break
@@ -143,7 +167,21 @@ jobs:
           done
           if ! curl -sSf --max-time 3 http://localhost:3000/api/healthz >/dev/null 2>&1; then
             echo "::error::web never became healthy on :3000"
-            kill "$APP_PID" 2>/dev/null || true
+            cleanup
+            exit 1
+          fi
+          # Fail the job rather than let the transport tests skip: in THIS
+          # workflow the server is supposed to be up, and a silent skip is
+          # the failure mode this whole change exists to remove.
+          for _ in $(seq 1 60); do
+            if curl -sSf --max-time 2 http://localhost:3100/health >/dev/null 2>&1; then
+              echo "mcp-server is up"; break
+            fi
+            sleep 1
+          done
+          if ! curl -sSf --max-time 3 http://localhost:3100/health >/dev/null 2>&1; then
+            echo "::error::mcp-server never became healthy on :3100"
+            cleanup
             exit 1
           fi
           set +e
@@ -178,7 +216,7 @@ jobs:
             "web/e2e/security.spec.ts" \
             "web/e2e/meetings.spec.ts"
           RC=$?
-          kill "$APP_PID" 2>/dev/null || true
+          cleanup
           exit $RC
 
       - name: Upload Playwright report on failure

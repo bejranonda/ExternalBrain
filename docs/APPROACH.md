@@ -1911,6 +1911,25 @@ visibly broken. **Graceful degradation is a bug-preservation mechanism.** It is
 still right to degrade gracefully; it is also why the detection has to be
 structural, because the symptom will never be loud enough to prompt a look.
 
+**The best finding came from tightening an assertion, not from reading code.**
+Changing `expect(status).toBeGreaterThanOrEqual(400)` to `expect(status).toBe(401)`
+turned a silent pass into a red build — and the red build revealed something the
+static audit had missed entirely: the two "MCP HTTP transport refuses…" tests
+were resolving their endpoint as `E2E_BASE_URL ?? localhost:3100`, and the CI job
+sets `E2E_BASE_URL` to the **web** origin while booting only the web app. Both
+tests had been POSTing to `/mcp` on Next.js and accepting its 404. They had never
+contacted the MCP server at all.
+
+That is a strictly worse defect than the one I filed (a test probing the wrong
+*method*), and no amount of further reading would have surfaced it — I had
+correctly identified that the assertion was too loose without noticing it was
+also pointed at the wrong process. The lesson is procedural: **when you suspect a
+test is vacuous, the cheapest proof is to tighten it and watch what happens.**
+A test that was truly covering its control goes green; one that wasn't tells you
+why in the failure output. In this repo the same suite had already been added in
+2026-07 because its specs "had never actually run in CI" — the second-order
+version of the same problem, one layer down.
+
 **Say what the audit got wrong, in the audit.** Two Pass-4 findings were
 overstated: `.env.example` was called misleading when most of its dead keys were
 already annotated `# aspirational` — I had read the key names and not the comment
@@ -1920,6 +1939,19 @@ a document whose entire value is that a reader can trust its claims without
 re-deriving them; silently improving one's own findings destroys exactly that,
 and the same argument already applies to `§5bf`'s retraction and the #174
 correction in `KNOWN_ISSUES §0p`.
+
+**Read the dependency's types before assuming its API.** The graceful-shutdown
+handler shipped with `boss.stop({ wait: true })`, an option carried over from an
+older pg-boss. CI caught it as a typecheck error. Unpacking the published
+package showed `StopOptions` is `{ close?, graceful?, timeout? }` — and, more
+usefully, that `stop()` *already performs the bounded drain itself*: it polls
+`hasPendingCleanups()` up to `timeout`, then runs `failWip()` and closes the
+pool. The hand-rolled bail timer wrapped around it, which called `process.exit(0)`
+on expiry, was therefore not merely redundant but actively harmful — it would
+have skipped exactly the cleanup the handler existed to perform. **The correct
+implementation was simpler than the guess**, which is the usual shape of this
+mistake: writing defensive scaffolding around a library because you didn't read
+what it already guarantees.
 
 **A verdict is more useful than a list.** Four passes produced ~2,400 lines and
 several dozen findings, which on its own would have been a backlog rather than a
