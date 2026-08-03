@@ -1960,3 +1960,66 @@ accept bucket — with the two deferred HIGHs carrying explicit containment ("do
 not describe project-scoped tokens as an isolation boundary until this lands") —
 is what turned the audit into something that could be acted on in a day. The
 finding count is the input; the GO/NO-GO is the deliverable.
+
+---
+
+## 5bh. Two halves of one promise — org sharing that neither read nor wrote (2026-08-03, v2.10.0)
+
+`AGENTS.md` had told every agent, for months, that *"Decisions are shared
+project memory: a teammate's next `brain_start_session` surfaces them."* It was
+false. Making it true took fixing two independent things, and the interesting
+part is that fixing either one alone would have left the sentence exactly as
+false while looking like the job was done.
+
+**The read half** was the one the audit found: nothing on the MCP path ever
+populated `accessibleProjectIds`, so retrieval fell to its empty-list branch
+and — behind the `ownerUserId` pin — returned only the caller's own rows.
+Phase-4 org visibility worked in the webapp, which is the surface people use
+least.
+
+**The write half** only surfaced while building the fix, and would have made
+the whole exercise pointless: `brain_teach_knowledge` never set `visibility`,
+so it defaulted to `'project'` — which the owner gate deliberately does *not*
+share across users. Every "decision" ever captured over MCP was project-private
+to its author. Retrieval could have been perfect and still returned nothing,
+because there was nothing marked shareable to return.
+
+### What generalises
+
+**A documented behaviour with two mechanisms has two ways to be false, and one
+of them will not show up in the component you're fixing.** The read path was
+where the symptom lived and where the audit looked. The write path was upstream,
+had no symptom of its own, and was only visible once you asked "what
+*visibility* do the rows we're trying to share actually have?" The habit worth
+keeping: when restoring a promised behaviour, trace the full round trip —
+producer through storage through consumer — and check what each end assumes the
+other did.
+
+**Widen a security boundary by adding a bounded disjunct, never by relaxing the
+pin.** The obvious implementation was to drop the `ownerUserId` filter and let
+`buildRawProjectFilterV2` decide, since it already has an org arm. That would
+have been a real cross-tenant leak: the filter's `visibility='project'` arm
+deliberately carries *no* owner predicate, and nothing on the retrieval path
+verifies that a client-supplied `projectId` belongs to a project the caller can
+reach. The pin was the only thing making that arm safe. What shipped instead
+keeps the pin and ORs one narrowly-bounded clause beside it — `visibility='org'`
+only, in a membership-verified project list computed server-side. With an empty
+list the emitted SQL is byte-identical to the previous form, so every caller
+that doesn't opt in is *provably* unaffected rather than argued to be.
+
+**Verify a security boundary by running it, not by reading it.** The unit tests
+assert the SQL's shape; they cannot tell you what Postgres does with it. The
+check that actually settled it was a throwaway `pgvector` container with six
+rows spanning three users and two orgs, executing the *exact* generated
+statement. The result table is the artifact worth keeping: own rows ✅,
+teammate's `org` row ✅, teammate's `project` row ❌, teammate's `private` row
+❌, another org's `org` row ❌. That is a claim a reviewer can check in a minute;
+"I read the predicate carefully" is not.
+
+**The fix reproduced the bug it was fixing, and the review caught it.** The
+first draft inlined the new owner gate at both `kra.ts` and `oracle.ts` — two
+copies of one security predicate, which is precisely the sibling-drift pattern
+this whole audit arc was about (`§5bg`). It was extracted into `buildOwnerGate`
+before landing. Knowing a failure mode by name does not stop you writing it; the
+value of naming it is that you recognise it a few minutes later instead of a few
+months later.

@@ -168,6 +168,13 @@ across sessions (and it's the product's own dogfood):
    decision) that decision's id in `supersedesKnowledgeId`. Decisions are shared
    project memory: a teammate's next `brain_start_session` surfaces them, and
    they are exempt from decay (a stated fact, retired only by supersession).
+   **Mechanically (v2.10.0):** a `scope: "project"` teach tagged `decision` is
+   written `visibility: "org"`, and MCP retrieval now carries org scope — so an
+   org teammate's session-open injection really does include it. Both halves
+   were needed, and until then this paragraph described behaviour that did not
+   happen: retrieval never passed `accessibleProjectIds` over MCP, and the write
+   side left `visibility` at its project-only default. Rules **not** tagged
+   `decision` stay visible to you alone.
 6. **Meeting & document protocols (V2.0)**: when handed a meeting transcript
    or asked to draft/harvest standard project documents or a status report,
    follow the matching protocol in [`docs/protocols/`](./docs/protocols/) —

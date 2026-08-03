@@ -106,10 +106,31 @@ export const teachKnowledge: ToolDef = {
       }
     }
 
+    // A project DECISION is a shared team fact by definition — AGENTS.md
+    // says so outright ("Decisions are shared project memory: a teammate's
+    // next brain_start_session surfaces them") and KNOWLEDGE §12.22 treats
+    // them as settled choices the whole project works from.
+    //
+    // That promise was false in both directions until 2026-08-03. Retrieval
+    // never carried org scope over MCP (fixed alongside this), AND the write
+    // side left `visibility` at its `'project'` default — which the owner
+    // gate deliberately does NOT share across users. Fixing only retrieval
+    // would have left the claim just as false, for a subtler reason.
+    //
+    // Narrow on purpose: ONLY rows the caller explicitly tagged `decision`
+    // AND scoped to a project. Everything else keeps the default. A rule you
+    // taught for yourself does not become org-visible because you happened to
+    // be in a project.
+    const isProjectDecision =
+      input.scope === "project" &&
+      input.tags.some((t) => t.toLowerCase() === "decision") &&
+      resolvedProjectId !== null;
+
     const row = await db.knowledge.create({
       data: {
         type: input.type,
         scope: input.scope,
+        ...(isProjectDecision ? { visibility: "org" } : {}),
         ownerUserId: auth.userId,
         ownerProjectId: resolvedProjectId,
         triggerText: input.trigger,

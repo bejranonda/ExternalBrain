@@ -14,7 +14,7 @@ import type {
 } from "@brain/types";
 import { db, toVector } from "@brain/db";
 import { embed } from "./embedding.js";
-import { buildRawProjectFilterV2 } from "./scope-filter.js";
+import { buildOwnerGate, buildRawProjectFilterV2 } from "./scope-filter.js";
 
 interface ScoredItem {
   item: Knowledge;
@@ -168,6 +168,40 @@ async function fetchCandidates(
     3,
   );
 
+  // ── The owner gate ────────────────────────────────────────────────────
+  //
+  // Until 2026-08-03 this was a bare `AND "ownerUserId" = $2`, ANDed over
+  // everything — which is what made `buildRawProjectFilterV2`'s deliberately
+  // owner-agnostic `visibility = 'project'` arm safe, and simultaneously
+  // meant NO teammate row could ever be retrieved. Phase-4 org sharing
+  // therefore worked in the webapp and silently did not apply to MCP, while
+  // AGENTS.md promised "a teammate's next brain_start_session surfaces them".
+  //
+  // The gate now admits exactly one extra class, and the narrowness is the
+  // security argument:
+  //
+  //   ownerUserId = me                                  (unchanged)
+  //   OR (visibility = 'org' AND ownerProjectId ∈ L)    (new)
+  //
+  // where **L is computed server-side from verified org membership**
+  // (`getAccessibleProjectIds`, which returns [] for a non-member) and is
+  // NEVER client-supplied. Three consequences worth stating explicitly:
+  //
+  //   1. `visibility = 'org'` is the author's own declaration that the row is
+  //      shared. Nothing crosses the owner boundary that wasn't marked to.
+  //   2. A teammate's `visibility = 'project'` row still does NOT match, even
+  //      though the project filter's owner-less arm would accept it — the
+  //      gate is ANDed in front of that arm and blocks it. This is what stops
+  //      a client-supplied `projectId` from turning into a read of someone
+  //      else's project-private rows.
+  //   3. With an empty L the emitted SQL is byte-identical to the old form,
+  //      so every caller that doesn't opt in is provably unaffected.
+  const { sql: ownerGate, params: ownerGateParams } = buildOwnerGate(
+    "$2",
+    accessibleProjectIds,
+    3 + projectParams.length,
+  );
+
   // Explicit column list — `SELECT *` would pull the `embedding vector(1536)`
   // column, which Prisma's driver can't deserialize (pgvector's `vector` type
   // has no Prisma equivalent). Listing columns keeps the shape Prisma-safe.
@@ -185,13 +219,14 @@ async function fetchCandidates(
     FROM "Knowledge"
     WHERE embedding IS NOT NULL
       AND "decayScore" > 0.3
-      AND "ownerUserId" = $2${RULE_TYPES_PREDICATE}${projectFilter}
+      AND ${ownerGate}${RULE_TYPES_PREDICATE}${projectFilter}
     ORDER BY embedding <=> $1::vector ASC
     LIMIT ${limit}
     `,
     vec,
     context.userId,
     ...projectParams,
+    ...ownerGateParams,
   );
 
   return rows.map((r) => ({
