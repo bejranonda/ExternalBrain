@@ -185,6 +185,61 @@ export function buildRawProjectFilter(
   return { sql, params: [projectId, userId] };
 }
 
+/**
+ * The OWNER GATE for the two raw pgvector surfaces (`kra.ts`, `oracle.ts`).
+ *
+ * This is the predicate that decides whose rows may be returned at all, and
+ * it is ANDed *in front of* `buildRawProjectFilterV2`'s output. That ordering
+ * is the whole security design:
+ *
+ * `buildRawProjectFilterV2` has, deliberately, one arm with **no owner
+ * predicate** — `("visibility" = 'project' AND "ownerProjectId" = $p)` — which
+ * is what makes Phase-4 org sharing expressible. On its own that arm would
+ * return any project member's rows for a caller-supplied `ownerProjectId`.
+ * The owner gate in front of it is what keeps that safe.
+ *
+ * Until 2026-08-03 the gate was a bare `"ownerUserId" = $2`, which was safe
+ * and also meant no teammate row could EVER be retrieved — so org sharing
+ * worked in the webapp and silently did not apply over MCP. The gate now
+ * admits exactly one further class:
+ *
+ *   ownerUserId = me   OR   (visibility = 'org' AND ownerProjectId ∈ L)
+ *
+ * `L` must be derived from **verified org membership** server-side
+ * (`getAccessibleProjectIds`, which returns `[]` for a non-member) and must
+ * never be client-supplied. Given that, the widening is bounded to rows an
+ * author explicitly marked as org-shared, inside orgs the caller belongs to.
+ * A teammate's `visibility: 'project'` row still does not match — the gate
+ * blocks it before the owner-less arm can accept it.
+ *
+ * Extracted rather than inlined at both call sites because kra.ts and
+ * oracle.ts are one policy on two surfaces: a divergence would mean the
+ * Oracle answering from a different corpus than retrieval injects. Same
+ * reasoning as the V2 pair below. (GUIDELINES §4 — fix the class, not the
+ * instance.)
+ *
+ * @param userParam           placeholder holding the caller's userId (e.g. "$2")
+ * @param accessibleProjectIds membership-verified project ids; `[]` disables
+ *                            the widening entirely
+ * @param startParam          index for the array parameter, when one is needed
+ *
+ * With an empty list the emitted SQL is byte-identical to the historical
+ * `"ownerUserId" = $2`, so callers that don't opt in are provably unaffected.
+ */
+export function buildOwnerGate(
+  userParam: string,
+  accessibleProjectIds: string[],
+  startParam: number,
+): { sql: string; params: string[][] } {
+  if (accessibleProjectIds.length === 0) {
+    return { sql: `"ownerUserId" = ${userParam}`, params: [] };
+  }
+  return {
+    sql: `("ownerUserId" = ${userParam} OR ("visibility" = 'org' AND "ownerProjectId" = ANY($${startParam}::text[])))`,
+    params: [accessibleProjectIds],
+  };
+}
+
 // ============================================================
 // Phase 4 — Visibility-aware V2 helpers
 // ============================================================

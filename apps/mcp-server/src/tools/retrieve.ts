@@ -2,6 +2,7 @@ import { z } from "zod";
 import { kra, formatter } from "@brain/core";
 import type { ToolDef } from "./index.js";
 import { resolveReadProjectId } from "../scope.js";
+import { resolveOrgScope } from "../org-scope.js";
 
 const inputShape = z.object({
   prompt: z.string().min(1),
@@ -56,12 +57,17 @@ export const retrieveKnowledge: ToolDef = {
     // client input, so without this a token labelled "scoped to project X"
     // could retrieve from every project its owner had. See ../scope.ts.
     const projectId = resolveReadProjectId(auth, input.context.projectId);
+    // Org sharing: resolved server-side from the project's own organizationId
+    // and re-checked against OrganizationMember. Never client-supplied — it
+    // is the only input that widens kra.ts's owner gate. See ../org-scope.ts.
+    const orgScope = await resolveOrgScope(auth.userId, projectId);
     const bundle = await kra.retrieve(
       input.prompt,
       {
         sessionId: input.context.sessionId ?? "",
         userId: auth.userId,
         projectId,
+        ...orgScope,
         framework: input.context.framework,
         language: input.context.language,
         sessionMode: input.context.sessionMode,

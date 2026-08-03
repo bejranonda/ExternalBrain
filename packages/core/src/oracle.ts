@@ -19,7 +19,7 @@ import { effectivenessScore } from "./knowledge-stats.js";
 import { db, toVector } from "@brain/db";
 import { embed } from "./embedding.js";
 import { reserveCapSlot, recordCall, DEFAULT_RESERVATION_USD, OracleCapReachedError } from "./cost.js";
-import { buildRawProjectFilterV2, buildSessionWhere } from "./scope-filter.js";
+import { buildOwnerGate, buildRawProjectFilterV2, buildSessionWhere } from "./scope-filter.js";
 import { RULE_TYPES_PREDICATE } from "./kra.js";
 import { listProjectActionItems, type ActionItemRow } from "./action-items.js";
 import type { DataScope, VisibilityScopeArgs } from "./scope-filter.js";
@@ -143,13 +143,26 @@ async function buildContext(
   };
   const { sql: kProjectFilter, params: kProjectParams } = buildRawProjectFilterV2(visArgs, 3);
 
+  // Owner gate — kept deliberately identical in shape to `kra.ts`'s. The two
+  // are one policy on two query surfaces (the same reason
+  // buildKnowledgeWhereV2 and buildRawProjectFilterV2 must move together), so
+  // a divergence here would mean the Oracle answered from a different corpus
+  // than retrieval injected. `visibility = 'org'` rows are admitted only for
+  // projects whose membership was verified server-side; everything else stays
+  // owner-pinned. Empty list → byte-identical SQL to the previous form.
+  const { sql: kOwnerGate, params: kOwnerGateParams } = buildOwnerGate(
+    "$2",
+    visArgs.accessibleProjectIds ?? [],
+    3 + kProjectParams.length,
+  );
+
   const knowledge = await db.$queryRawUnsafe<RetrievedKnowledge[]>(
     `
     SELECT id, type, tags, "triggerText", "ruleText", rationale, confidence,
            "successCount", "failureCount", "usageCount", "lastUsedAt",
            1 - (embedding <=> $1::vector) AS "_similarity"
     FROM "Knowledge"
-    WHERE "ownerUserId" = $2
+    WHERE ${kOwnerGate}
       AND embedding IS NOT NULL${RULE_TYPES_PREDICATE}${kProjectFilter}
     ORDER BY embedding <=> $1::vector ASC
     LIMIT 12
@@ -157,6 +170,7 @@ async function buildContext(
     toVector(qvec),
     userId,
     ...kProjectParams,
+    ...kOwnerGateParams,
   );
 
   const sessionWhere = buildSessionWhere(

@@ -13,6 +13,7 @@ import {
   getLogger,
 } from "@brain/core";
 import type { ToolDef } from "./index.js";
+import { resolveOrgScope } from "../org-scope.js";
 
 const log = getLogger("start-session");
 
@@ -192,12 +193,17 @@ export const startSession: ToolDef = {
       | undefined;
     if (input.prompt && input.prompt.trim().length > 0) {
       try {
+        // Inject-at-open is the path AGENTS.md points at when it says a
+        // teammate's decisions surface at session start — so this is the
+        // call that has to carry org scope, not just brain_retrieve_knowledge.
+        const orgScope = await resolveOrgScope(auth.userId, resolvedProjectId ?? undefined);
         const bundle = await kra.retrieve(
           input.prompt,
           {
             sessionId: session.id,
             userId: auth.userId,
             ...(resolvedProjectId ? { projectId: resolvedProjectId } : {}),
+            ...orgScope,
             ...(input.framework ? { framework: input.framework } : {}),
             ...(input.language ? { language: input.language } : {}),
           },
