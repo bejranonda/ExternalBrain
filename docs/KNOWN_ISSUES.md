@@ -426,7 +426,20 @@ These are not blocking pilot but must be resolved before a second contributor jo
 
 ---
 
-## 0q. Four-pass pre-release master audit (2026-08-02, v2.8.0)
+## 0q. Four-pass pre-release master audit (2026-08-02, v2.8.0 → v2.10.1)
+
+> **⚠️ Upgrade note for multi-user instances (v2.10.0).** A
+> `brain_teach_knowledge` call with `scope: "project"` **and** the `decision`
+> tag is now written `visibility: "org"`, and MCP retrieval carries org scope —
+> so project decisions become readable by **org teammates**. That is what
+> `AGENTS.md` has always described and what did not previously happen.
+> Single-operator instances are unaffected. Rules **not** tagged `decision` are
+> unchanged and stay visible only to their author. Nothing existing is
+> retroactively re-shared; this applies to rows written after upgrading. The
+> containment argument — the `ownerUserId` pin is *kept*, with a bounded
+> disjunct added beside it rather than relaxed — is in the org-sharing row
+> below and in [`APPROACH §5bh`](./APPROACH.md).
+
 
 A structured pre-release sweep across four roles — onboarding/DX, MCP + tenancy
 security, worker/DB reliability, deployment/i18n. Full reports live in
