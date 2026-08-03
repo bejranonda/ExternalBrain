@@ -24,6 +24,15 @@ const sessionJobSchema = z.object({
 });
 type SessionJobData = z.infer<typeof sessionJobSchema>;
 
+/**
+ * Retry budget for `kea.extract`. Declared once because two places must
+ * agree: the queue is CREATED with it, and the handler READS it to decide
+ * which attempt is the last — the one on which a failure is durable enough
+ * to stamp `extractionStatus = 'failed'` onto the Session. If they drifted,
+ * sessions would be marked failed while retries were still pending.
+ */
+const KEA_RETRY_LIMIT = 3;
+
 const env = envForWorker();
 const log = getLogger("worker");
 // Sentry is no-op unless SENTRY_DSN is set. Wrapped because a rejection here
@@ -75,7 +84,9 @@ async function main(): Promise<void> {
   }> = [
     // Per-session work — retry generously with backoff; expire if the
     // run takes more than 10 min so we don't hold up other sessions.
-    { name: "kea.extract",     retryLimit: 3, retryBackoff: true,  expireInSeconds: 600 },
+    // KEA_RETRY_LIMIT is shared with the handler, which needs to know which
+    // attempt is the last one before it marks the Session `failed`.
+    { name: "kea.extract",     retryLimit: KEA_RETRY_LIMIT, retryBackoff: true,  expireInSeconds: 600 },
     { name: "autoskill.run",   retryLimit: 3, retryBackoff: true,  expireInSeconds: 600 },
     // Cross-session KEA (PR #219) — daily fan-out over users. Bumped
     // expireInSeconds because per-user processing involves LLM calls
@@ -133,8 +144,50 @@ async function main(): Promise<void> {
     "code" in err &&
     (err as { code?: unknown }).code === "P2025";
 
+  /**
+   * Record whether extraction ran, on the Session row itself.
+   *
+   * Status bookkeeping must NEVER fail the job or mask the original error —
+   * if this write throws, the interesting failure is the one that got us
+   * here. Hence the swallow-and-log.
+   *
+   * P2025 is expected and ignored: the session may have been deleted between
+   * enqueue and process (GDPR erase, test cleanup), which the caller already
+   * treats as a non-retryable skip.
+   */
+  const markExtraction = async (
+    sessionId: string,
+    status: "ok" | "failed",
+    error?: unknown,
+  ): Promise<void> => {
+    try {
+      await db.session.update({
+        where: { id: sessionId },
+        data: {
+          extractionStatus: status,
+          extractionAt: new Date(),
+          extractionError:
+            status === "failed"
+              ? (error instanceof Error ? error.message : String(error)).slice(0, 500)
+              : null,
+        },
+      });
+    } catch (err) {
+      if (isPrismaRecordNotFound(err)) return;
+      log.warn(
+        { op: "kea.extract.mark", sessionId, status, err },
+        "could not record extraction status",
+      );
+    }
+  };
+
+  // `includeMetadata: true` is what promotes the handler's argument from
+  // `Job` to `JobWithMetadata` — `retryCount` lives only on the latter, and
+  // without this the read below is a type error rather than a silent
+  // undefined. (Checked against pg-boss@12's own index.d.ts overloads.)
   await boss.work<{ sessionId: string; userId: string }>(
     "kea.extract",
+    { includeMetadata: true },
     async ([job]) => {
       if (!job) return;
       const data = parseSessionJob(job.data, "kea.extract");
@@ -145,6 +198,7 @@ async function main(): Promise<void> {
           const metrics = await summarizeSession(data.sessionId);
           const payload = await kea.buildPayload(data.sessionId, metrics);
           const extracted = await kea.extractFromSession(payload);
+          await markExtraction(data.sessionId, "ok");
           log.info(
             {
               op: "kea.extract",
@@ -168,6 +222,16 @@ async function main(): Promise<void> {
             );
             return; // Complete the job; don't retry a 404.
           }
+          // Only mark `failed` once the retries are actually spent — an
+          // earlier attempt may still succeed, and flagging on attempt 1
+          // would leave rows reading `failed` that later extracted fine.
+          // pg-boss `retryCount` is 0-indexed; KEA_RETRY_LIMIT is the same
+          // constant the queue is created with, so the two cannot drift.
+          const attempt = job.retryCount ?? 0;
+          const isFinalAttempt = attempt >= KEA_RETRY_LIMIT - 1;
+          if (isFinalAttempt) {
+            await markExtraction(data.sessionId, "failed", err);
+          }
           await captureError(
             log,
             err,
@@ -175,6 +239,8 @@ async function main(): Promise<void> {
               op: "kea.extract",
               outcome: "error",
               sessionId: data.sessionId,
+              attempt,
+              finalAttempt: isFinalAttempt,
               durMs: Math.round(performance.now() - start),
             },
             "kea.extract failed",
