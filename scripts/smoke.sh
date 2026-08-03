@@ -49,6 +49,54 @@ log()  { printf '\033[36m──\033[0m %s\n' "$*"; }
 WEB="https://${BRAIN_PUBLIC_HOSTNAME}"
 MCP="https://${BRAIN_MCP_PUBLIC_HOSTNAME}"
 
+# ── Container health ─────────────────────────────────────────────────────
+#
+# Nothing else in the repo ever asserted this, and the HTTP checks below
+# cannot substitute: the worker has no HTTP surface, so a worker that is
+# running-but-broken passes every other check here.
+#
+# That is not hypothetical. v2.8.0 shipped a worker healthcheck that failed
+# on EVERY interval (`node -e "require('pg')…"` → Cannot find module 'pg',
+# because pnpm's isolated node_modules doesn't expose a transitive dep to the
+# app dir). Deploy reported success, smoke passed, and the container sat
+# heading for `unhealthy` until it was found by hand with `docker inspect`.
+# A permanently-unhealthy container is worse than no healthcheck: it teaches
+# operators to ignore health status.
+#
+# Deliberately "nothing is unhealthy" rather than "everything is healthy":
+# `caddy` defines no healthcheck, and a gate that fails on services which
+# never declared one would cry wolf on every run — and a gate that cries
+# wolf gets switched off, which is how you end up with no gate at all.
+log "container health"
+if command -v docker >/dev/null 2>&1 && docker compose -f deploy/docker-compose.yml --env-file .env ps -q >/dev/null 2>&1; then
+  UNHEALTHY=""
+  STARTING=""
+  for cid in $(docker compose -f deploy/docker-compose.yml --env-file .env ps -q 2>/dev/null); do
+    name=$(docker inspect --format '{{.Name}}' "$cid" 2>/dev/null | sed 's#^/##')
+    # `.State.Health` is absent when the service declares no healthcheck —
+    # `{{if}}` keeps that case as the empty string rather than "<no value>".
+    state=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$cid" 2>/dev/null || true)
+    case "$state" in
+      unhealthy) UNHEALTHY="$UNHEALTHY $name" ;;
+      starting)  STARTING="$STARTING $name" ;;
+    esac
+  done
+  if [ -n "$UNHEALTHY" ]; then
+    printf '\033[31m✗\033[0m unhealthy container(s):%s\n' "$UNHEALTHY" >&2
+    for n in $UNHEALTHY; do
+      printf '   ── last probe output for %s ──\n' "$n" >&2
+      docker inspect --format '{{range .State.Health.Log}}{{.Output}}{{end}}' "$n" 2>/dev/null | tail -5 >&2 || true
+    done
+    fail "container health check failed — see probe output above"
+  fi
+  # `starting` is normal briefly after a deploy; report it without failing,
+  # since smoke runs immediately and start_period is up to 40s.
+  [ -n "$STARTING" ] && printf '\033[33m⚠\033[0m  still starting (not a failure this soon after deploy):%s\n' "$STARTING" >&2
+  ok "no unhealthy containers"
+else
+  printf '\033[33m⚠\033[0m  docker/compose not reachable from here — skipping container health.\n' >&2
+fi
+
 log "webapp healthz"
 curl -fsS --max-time 5 "$WEB/api/healthz" >/dev/null || fail "$WEB/api/healthz unreachable"
 ok "$WEB/api/healthz"

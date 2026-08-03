@@ -202,6 +202,29 @@ worse than the first. `security.spec.ts` resolved its MCP endpoint as
 never once contacted the MCP server. The job now builds and boots
 `@brain/mcp-server`, waits on `/health`, and fails if it doesn't come up.
 
+### Writing a Docker healthcheck? It runs in the container, not in your shell
+
+Two rules, both learned by shipping the mistake (v2.8.0, `KNOWN_ISSUES §0q`):
+
+- **Never resolve a module in a probe.** `node -e "require('pg')…"` fails with
+  `Cannot find module 'pg'` under pnpm's isolated `node_modules` — a transitive
+  dependency is not resolvable from the app directory even when the app itself
+  depends on it. Have the service expose a liveness endpoint and probe it with
+  Node's built-in `fetch`, which needs nothing from `node_modules` at all. That
+  removes the resolution question instead of working around it.
+- **Make the probe assert the dependency that matters.** `boss.getQueue()`
+  round-trips to the queue schema, so green means "this process can still
+  reach its queue" rather than "the event loop is alive". `restart:
+  unless-stopped` already covers the process *exiting*; the healthcheck exists
+  for the case where it doesn't.
+
+And the reason both of those went unnoticed: **no CI gate exercises compose
+healthchecks**, and `smoke.sh`'s HTTP checks can't stand in for one — the
+worker has no HTTP surface, so a running-but-broken worker passed everything.
+Smoke now fails on any `unhealthy` container. A permanently-unhealthy container
+is worse than no healthcheck, because it teaches operators to ignore health
+status.
+
 ### Fixing a defect? Enumerate its siblings before you close the PR
 
 The 2026-08-02 audit found eleven separate issues that were **one pattern**:
