@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { kra, formatter } from "@brain/core";
 import type { ToolDef } from "./index.js";
+import { resolveReadProjectId } from "../scope.js";
 
 const inputShape = z.object({
   prompt: z.string().min(1),
@@ -51,12 +52,16 @@ export const retrieveKnowledge: ToolDef = {
   },
   handler: async (raw, auth) => {
     const input = inputShape.parse(raw);
+    // A scoped token reads only its own project. `projectId` arrives from
+    // client input, so without this a token labelled "scoped to project X"
+    // could retrieve from every project its owner had. See ../scope.ts.
+    const projectId = resolveReadProjectId(auth, input.context.projectId);
     const bundle = await kra.retrieve(
       input.prompt,
       {
         sessionId: input.context.sessionId ?? "",
         userId: auth.userId,
-        projectId: input.context.projectId,
+        projectId,
         framework: input.context.framework,
         language: input.context.language,
         sessionMode: input.context.sessionMode,

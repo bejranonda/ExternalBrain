@@ -33,6 +33,40 @@ type SessionJobData = z.infer<typeof sessionJobSchema>;
  */
 const KEA_RETRY_LIMIT = 3;
 
+/**
+ * Daily per-user ceiling on KEA extractions. `0` disables it.
+ *
+ * A COUNT, not a dollar figure, and that is deliberate. The retired
+ * `MAX_KEA_COST_USD_PER_SESSION` key was unenforceable in principle: KEA is
+ * one LLM call chain per session, you do not know its cost until after it
+ * runs, and you cannot partially extract — so a per-session dollar cap either
+ * never fires or aborts after the money is already spent, yielding no
+ * knowledge for it. It could not prevent the spend it named.
+ *
+ * A *cost*-based daily cap would be the other candidate, but KEA does no
+ * token accounting at all today (nothing in kea.ts calls `recordCall`), so
+ * that would mean building a whole cost model first. Extractions are roughly
+ * constant-cost, so counting them bounds the operator's bill proportionally
+ * for none of that work — and a count is the dimension a tier is actually
+ * expressed in ("50 extractions/day"), which is what the freemium phase
+ * needs. See docs/BLUEPRINT.md §11.1.
+ *
+ * The counter is free: `Session.extractionAt` landed in v2.9.0 for the
+ * FAILED_EXTRACTION work, so today's usage is one indexed count away.
+ */
+const KEA_DAILY_LIMIT = (() => {
+  const raw = process.env.MAX_KEA_EXTRACTIONS_PER_DAY;
+  if (raw === undefined || raw === "") return 200;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : 200;
+})();
+
+/** UTC midnight — same day boundary the Oracle cost ledger uses. */
+function startOfUtcDay(): Date {
+  const d = new Date();
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
 const env = envForWorker();
 const log = getLogger("worker");
 // Sentry is no-op unless SENTRY_DSN is set. Wrapped because a rejection here
@@ -157,7 +191,7 @@ async function main(): Promise<void> {
    */
   const markExtraction = async (
     sessionId: string,
-    status: "ok" | "failed",
+    status: "ok" | "failed" | "skipped_quota",
     error?: unknown,
   ): Promise<void> => {
     try {
@@ -195,6 +229,33 @@ async function main(): Promise<void> {
       await withRequest(`job-${job.id ?? shortId()}`, async () => {
         const start = performance.now();
         try {
+          // Daily quota. Checked BEFORE any LLM work — a limit that fires
+          // after the call is a report, not a limit. Failed attempts count
+          // against the budget because they still spent tokens.
+          if (KEA_DAILY_LIMIT > 0) {
+            const usedToday = await db.session.count({
+              where: {
+                userId: data.userId,
+                extractionAt: { gte: startOfUtcDay() },
+                extractionStatus: { in: ["ok", "failed"] },
+              },
+            });
+            if (usedToday >= KEA_DAILY_LIMIT) {
+              await markExtraction(data.sessionId, "skipped_quota");
+              log.warn(
+                {
+                  op: "kea.extract",
+                  outcome: "skipped_quota",
+                  sessionId: data.sessionId,
+                  usedToday,
+                  limit: KEA_DAILY_LIMIT,
+                },
+                "kea.extract skipped — daily extraction quota reached",
+              );
+              return; // Complete the job. Retrying would not free quota.
+            }
+          }
+
           const metrics = await summarizeSession(data.sessionId);
           const payload = await kea.buildPayload(data.sessionId, metrics);
           const extracted = await kea.extractFromSession(payload);

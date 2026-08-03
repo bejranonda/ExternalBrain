@@ -5,7 +5,10 @@ import { logEvent } from "../tools/log-event.js";
 import { reportSessionOutcome } from "../tools/report.js";
 import { startSession } from "../tools/start-session.js";
 import { teachKnowledge } from "../tools/teach.js";
-import { ensureDefaultProject, BrainError } from "@brain/core";
+import { retrieveKnowledge } from "../tools/retrieve.js";
+import { sessionSearch } from "../tools/session-search.js";
+import { readResource } from "../resources.js";
+import { ensureDefaultProject, ensureNamedProject, BrainError } from "@brain/core";
 
 /**
  * Regression net for the IDOR cluster fixed in audit C3-C6 (issue #106).
@@ -144,6 +147,9 @@ guard("MCP cross-user isolation (IDOR fix #106)", () => {
     scope: "personal" as const,
   });
 
+  /** Bob, on a token bound to Bob's own project. */
+  const bobScopedAuth = () => ({ ...bobAuth(), projectId: fix!.bob.projectId });
+
   it("brain_log_event rejects another user's sessionId (NOT_FOUND)", async () => {
     await expect(
       logEvent.handler(
@@ -224,6 +230,101 @@ guard("MCP cross-user isolation (IDOR fix #106)", () => {
         bobAuth(),
       ),
     ).rejects.toBeInstanceOf(BrainError);
+  });
+
+  // ── Read-path scope enforcement (P2-H2) ────────────────────────────────
+  //
+  // The write tools above have rejected a foreign projectId since Phase 3c.
+  // Every read tool ignored the token's binding entirely until 2026-08-03:
+  // `brain_retrieve_knowledge` took the project from CLIENT INPUT and never
+  // compared it, so a token labelled "scoped to project X" could read every
+  // project its owner had. Not a cross-tenant leak — kra.ts hard-pins
+  // ownerUserId — but the scope was a promise only half kept.
+
+  it("brain_retrieve_knowledge rejects a scoped token asking for a foreign project", async () => {
+    await expect(
+      retrieveKnowledge.handler(
+        { prompt: "anything", context: { projectId: fix!.alice.projectId } },
+        bobScopedAuth(),
+      ),
+    ).rejects.toThrow(/FORBIDDEN_PROJECT/);
+  });
+
+  it("brain_retrieve_knowledge lets a scoped token PAST the gate for its OWN project", async () => {
+    // What's under test is the scope check, not retrieval. CI has no
+    // embedding provider, so kra.retrieve throws downstream — asserting the
+    // whole call resolves would make this test about the CI environment
+    // instead of about the boundary. Assert we get past the gate: whatever
+    // happens next, it must not be FORBIDDEN_PROJECT.
+    const outcome = await retrieveKnowledge
+      .handler(
+        { prompt: "anything", context: { projectId: fix!.bob.projectId } },
+        bobScopedAuth(),
+      )
+      .then(() => null)
+      .catch((e: unknown) => e);
+    if (outcome !== null) {
+      expect(String(outcome)).not.toMatch(/FORBIDDEN_PROJECT/);
+    }
+  });
+
+  // These two need a SECOND project owned by Bob. Asserting that Bob's scoped
+  // token can't see ALICE's session would be vacuous — both queries already
+  // filter `userId`, so it could never appear regardless of project scope.
+  // The property under test is confinement WITHIN one owner's account, which
+  // is exactly what P2-H2 was about, so the fixture has to contain a row that
+  // an unscoped token WOULD return.
+  it("brain_session_search on a scoped token hides the owner's OTHER project", async () => {
+    const other = await ensureNamedProject(db, fix!.bob.userId, `idor-other-${randomBytes(4).toString("hex")}`);
+    const otherSession = await db.session.create({
+      data: {
+        userId: fix!.bob.userId,
+        projectId: other.projectId,
+        clientType: "custom",
+        metadata: { prompt: "zzscopeprobe distinctive haystack token" },
+      },
+      select: { id: true },
+    });
+    try {
+      const unscoped = (await sessionSearch.handler(
+        { query: "zzscopeprobe" },
+        bobAuth(),
+      )) as { sessions: Array<{ id: string }> };
+      // Control: without scope the row IS reachable. If this fails the test
+      // below proves nothing.
+      expect(unscoped.sessions.map((r) => r.id)).toContain(otherSession.id);
+
+      const scoped = (await sessionSearch.handler(
+        { query: "zzscopeprobe" },
+        bobScopedAuth(),
+      )) as { sessions: Array<{ id: string }> };
+      expect(scoped.sessions.map((r) => r.id)).not.toContain(otherSession.id);
+    } finally {
+      await db.session.deleteMany({ where: { id: otherSession.id } }).catch(() => {});
+    }
+  });
+
+  it("brain://user/recent-sessions on a scoped token hides the owner's OTHER project", async () => {
+    const other = await ensureNamedProject(db, fix!.bob.userId, `idor-res-${randomBytes(4).toString("hex")}`);
+    const otherSession = await db.session.create({
+      data: { userId: fix!.bob.userId, projectId: other.projectId, clientType: "custom" },
+      select: { id: true },
+    });
+    try {
+      const unscoped = (await readResource(
+        "brain://user/recent-sessions",
+        bobAuth(),
+      )) as { contents: Array<{ text: string }> };
+      expect(unscoped.contents[0]!.text).toContain(otherSession.id); // control
+
+      const scoped = (await readResource(
+        "brain://user/recent-sessions",
+        bobScopedAuth(),
+      )) as { contents: Array<{ text: string }> };
+      expect(scoped.contents[0]!.text).not.toContain(otherSession.id);
+    } finally {
+      await db.session.deleteMany({ where: { id: otherSession.id } }).catch(() => {});
+    }
   });
 
   it("brain_teach_knowledge rejects unscoped-token call with foreign projectId (FORBIDDEN_PROJECT)", async () => {

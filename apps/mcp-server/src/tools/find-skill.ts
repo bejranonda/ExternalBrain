@@ -10,6 +10,18 @@ const inputShape = z.object({
   limit: z.number().int().min(1).max(20).default(5),
 });
 
+/**
+ * NOTE ON TOKEN SCOPE: this tool is deliberately NOT project-scoped, and that
+ * is a schema fact rather than an omission — the `Skill` model has no
+ * `ownerProjectId` column (see packages/db/prisma/schema.prisma). Skills are a
+ * user/team artifact, so there is no project boundary for a scoped token to
+ * cross here. Every read path that *does* have one now enforces it via
+ * ../scope.ts.
+ *
+ * If skills should become project-partitioned, that is a migration plus a
+ * product decision, tracked in KNOWN_ISSUES §0q. Until then a scoped token
+ * sees its owner's skills, and the docs say so rather than implying otherwise.
+ */
 export const findSkill: ToolDef = {
   name: "brain_find_skill",
   description:

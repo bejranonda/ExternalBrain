@@ -32,14 +32,31 @@ export const resources = [
   },
 ];
 
+/**
+ * Resources honour `MCPToken.projectId` where the underlying table HAS a
+ * project dimension, and say so plainly where it does not:
+ *
+ *   style-profile   → Knowledge.ownerProjectId    → scoped
+ *   recent-sessions → Session.projectId           → scoped
+ *   active-skills   → Skill has NO project column → cannot be scoped
+ *   peer-card       → deliberately reads the user-level card
+ *                     (ownerProjectId IS NULL), which is a user fact by
+ *                     definition, so there is no boundary to enforce
+ *
+ * The `active-skills` gap is a schema fact, not an oversight to paper over:
+ * skills are a user/team artifact and no `ownerProjectId` exists to filter
+ * on. Tracked in KNOWN_ISSUES §0q — closing it needs a migration and a
+ * product decision about whether skills should be project-partitioned at all.
+ */
 export async function readResource(uri: string, auth: AuthContext) {
+  const projectId = auth.projectId ?? undefined;
   switch (uri) {
     case "brain://user/style-profile":
-      return jsonResource(uri, await styleProfile(auth.userId));
+      return jsonResource(uri, await styleProfile(auth.userId, projectId));
     case "brain://user/active-skills":
       return jsonResource(uri, await activeSkills(auth.userId));
     case "brain://user/recent-sessions":
-      return jsonResource(uri, await recentSessions(auth.userId));
+      return jsonResource(uri, await recentSessions(auth.userId, projectId));
     case "brain://user/peer-card":
       return jsonResource(uri, await peerCard(auth.userId));
     default:
@@ -59,9 +76,19 @@ function jsonResource(uri: string, data: unknown) {
   };
 }
 
-async function styleProfile(userId: string) {
+async function styleProfile(userId: string, projectId?: string) {
   const reflexes = await db.knowledge.findMany({
-    where: { ownerUserId: userId, type: "reflex", deletedAt: null },
+    where: {
+      ownerUserId: userId,
+      type: "reflex",
+      deletedAt: null,
+      // A scoped token sees this project's reflexes plus the caller's own
+      // project-less ones — the same shape buildKnowledgeWhere uses, so a
+      // scoped token is not cut off from its owner's user-level style.
+      ...(projectId
+        ? { OR: [{ ownerProjectId: projectId }, { ownerProjectId: null }] }
+        : {}),
+    },
     orderBy: { confidence: "desc" },
     take: 20,
     select: { triggerText: true, ruleText: true, confidence: true },
@@ -69,6 +96,11 @@ async function styleProfile(userId: string) {
   return { rules: reflexes };
 }
 
+/**
+ * NOT project-scopable: the `Skill` model has no `ownerProjectId`. Left
+ * user-scoped deliberately rather than silently returning nothing for a
+ * scoped token. See the note on `readResource`.
+ */
 async function activeSkills(userId: string) {
   return db.skill.findMany({
     where: {
@@ -88,9 +120,9 @@ async function activeSkills(userId: string) {
   });
 }
 
-async function recentSessions(userId: string) {
+async function recentSessions(userId: string, projectId?: string) {
   return db.session.findMany({
-    where: { userId },
+    where: { userId, ...(projectId ? { projectId } : {}) },
     orderBy: { startedAt: "desc" },
     take: 10,
     select: {

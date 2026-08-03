@@ -332,6 +332,8 @@ model Session {
   /// pending = reserved for a future in-flight marker
   /// ok      = extraction completed
   /// failed  = retries exhausted; `extractionError` carries the last message
+  /// skipped_quota = the user's daily extraction quota was already spent
+  ///                 (MAX_KEA_EXTRACTIONS_PER_DAY); no LLM call was made
   ///
   /// Before this existed, a session whose extraction failed three times still
   /// read `outcome: "success"` with no knowledge extracted — so the dashboard
