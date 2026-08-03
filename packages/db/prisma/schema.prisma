@@ -320,6 +320,26 @@ model Session {
   startedAt       DateTime  @default(now())
   endedAt         DateTime?
   outcome         String?   // success | partial | failed
+  /// Whether the KEA extraction pipeline ran for this session.
+  ///
+  /// Deliberately SEPARATE from `outcome`, which is the CLIENT's report of
+  /// whether the user's coding task succeeded. The two are unrelated: a
+  /// session can succeed for the user and still have its extraction die on a
+  /// provider 429. Overloading `outcome` would make a failed extraction
+  /// indistinguishable from a failed user task.
+  ///
+  /// null    = not attempted yet (normal until the worker picks the job up)
+  /// pending = reserved for a future in-flight marker
+  /// ok      = extraction completed
+  /// failed  = retries exhausted; `extractionError` carries the last message
+  ///
+  /// Before this existed, a session whose extraction failed three times still
+  /// read `outcome: "success"` with no knowledge extracted — so the dashboard
+  /// counted it as productive and the flywheel metric counted a session that
+  /// taught nothing. (Pre-release audit P3-R3, KNOWN_ISSUES §0q.)
+  extractionStatus String?
+  extractionError  String?   @db.VarChar(500)
+  extractionAt     DateTime?
   sqs             Float?
   metadata        Json?
 
