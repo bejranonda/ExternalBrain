@@ -231,8 +231,28 @@ Fix, in three parts:
 
 Both assertions tightened to exactly `401` plus a negative on `serverInfo`.
 
+**Round 2b — booting it exposed a third thing.** The first attempt to start the
+MCP server in CI died in ~60 ms with `ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL` and
+**no other output**: pnpm swallows a child's startup crash. The cause is that
+`@brain/mcp-server`'s `start` script is `node dist/index.js`, which *cannot*
+work — `@brain/core` and `@brain/db` publish `"main": "./src/index.ts"`, so
+plain Node has no loader for what those imports resolve to. Production already
+knew: `deploy/Dockerfile` runs `CMD ["…/tsx", "src/index.ts"]`, with a comment
+explaining exactly this. Nothing else ever invoked `pnpm start` for these
+packages, so a dead script sat in `package.json` unnoticed.
+
+Two fixes, and the second matters more than the first:
+- CI runs the server **the way the artifact actually runs** —
+  `pnpm --filter @brain/mcp-server exec tsx src/index.ts`.
+- Its output is redirected to `/tmp/mcp-server.log` and **printed when the
+  health check fails**. Being unable to diagnose a CI failure from its own log
+  is its own defect; instrumenting was cheaper than a third round of guessing.
+
 **Method note:** when you suspect a test is vacuous, the cheapest proof is to
-tighten it and watch what happens. Recorded in `GUIDELINES §4` and `APPROACH §5bg`.
+tighten it and watch what happens. And when a process dies without saying why,
+capture its output before forming a theory — this session had already lost one
+round to guessing an API instead of reading it. Recorded in `GUIDELINES §4` and
+`APPROACH §5bg`.
 
 ---
 
