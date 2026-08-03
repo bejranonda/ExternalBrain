@@ -537,10 +537,35 @@ export default function OrgPage() {
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
+  const [copyFailed, setCopyFailed] = useState(false);
+
   const show = (text: string, isLink = false) => {
     setFlash({ text, isLink });
+    setCopyFailed(false);
     if (!isLink) {
       window.setTimeout(() => setFlash(null), 3000);
+    }
+  };
+
+  /**
+   * Copy the once-shown invite link, and only dismiss it if the write
+   * actually landed.
+   *
+   * The previous version fired `void navigator.clipboard.writeText(...)` and
+   * cleared the flash on an unconditional 800 ms timer. `navigator.clipboard`
+   * is `undefined` on a non-secure origin — which is the default `dev-up.sh`
+   * posture (no TLS) — so the call threw, and on a secure origin a denied
+   * permission prompt rejected a promise that `void` discarded. Either way the
+   * link was gone 800 ms later and the admin had to revoke and re-issue it.
+   */
+  const copyInviteLink = async (text: string) => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("clipboard unavailable");
+      await navigator.clipboard.writeText(text);
+      window.setTimeout(() => setFlash(null), 800);
+    } catch {
+      // Keep the link on screen. It is still selectable, so manual copy works.
+      setCopyFailed(true);
     }
   };
 
@@ -673,22 +698,26 @@ export default function OrgPage() {
               <br />
               <span
                 style={{ cursor: "pointer", textDecoration: "underline" }}
-                onClick={() => {
-                  void navigator.clipboard.writeText(flash.text);
-                  window.setTimeout(() => setFlash(null), 800);
-                }}
+                onClick={() => void copyInviteLink(flash.text)}
               >
                 {flash.text}
               </span>
               <button
-                onClick={() => {
-                  void navigator.clipboard.writeText(flash.text);
-                  window.setTimeout(() => setFlash(null), 800);
-                }}
+                onClick={() => void copyInviteLink(flash.text)}
                 style={{ ...btnStyle, marginLeft: 12, fontSize: 11 }}
               >
                 Copy
               </button>
+              {copyFailed && (
+                <div
+                  role="alert"
+                  style={{ marginTop: 8, fontSize: 12, color: "var(--warn, #d97757)" }}
+                >
+                  Couldn&apos;t reach the clipboard (this happens on a non-HTTPS
+                  origin, or if you denied the permission). The link above is
+                  still here — select it and copy manually.
+                </div>
+              )}
             </>
           ) : (
             flash.text

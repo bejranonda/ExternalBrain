@@ -228,6 +228,25 @@ services:
       dockerfile: deploy/Dockerfile
       target: worker
     restart: unless-stopped
+    # Must exceed the worker's own SHUTDOWN_GRACE_MS (25 s, apps/worker/src/
+    # index.ts) so Docker doesn't SIGKILL the process mid-drain. The default
+    # is 10 s, which cut the drain short and re-created the very problem the
+    # graceful-shutdown handler exists to solve.
+    stop_grace_period: 30s
+    # `restart: unless-stopped` only reacts to a process that EXITS. A worker
+    # wedged on a dropped pg-boss connection or a hung handler stays "up"
+    # forever, and this is the service where failures are already quietest.
+    # Probe the thing that actually matters: can this process still reach its
+    # queue schema?
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          node -e "const{Client}=require('pg');const c=new Client({connectionString:process.env.DATABASE_URL});c.connect().then(()=>c.query('select 1 from '+(process.env.PG_BOSS_SCHEMA||'pgboss')+'.version limit 1')).then(()=>{c.end();process.exit(0)}).catch(()=>process.exit(1))"
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     depends_on:
       db:
         condition: service_healthy

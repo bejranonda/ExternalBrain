@@ -192,7 +192,7 @@ different project — fork it to the active project (skills row →
 ## Knowledge isn't being extracted from sessions
 
 **Symptom:** sessions show up on the dashboard, but `Active knowledge`
-isn't growing. Or KEA proposals never appear in `/skills` queue.
+isn't growing. Or KEA proposals never appear in `#skills` queue.
 
 **Most likely cause:** KEA hasn't run for those sessions.
 

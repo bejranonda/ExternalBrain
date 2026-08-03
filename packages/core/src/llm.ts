@@ -9,6 +9,16 @@ export interface LLMCallOpts {
   model: string;
   systemPrompt?: string;
   maxTokens?: number;
+  /**
+   * Wall-clock budget for the whole call, retry included. Default 120 s.
+   *
+   * Declared here rather than left to the vendor SDKs because their default
+   * (documented as 10 min) is not shorter than `expireInSeconds: 600` on the
+   * kea.extract / autoskill.run queues — so a hung provider call and the
+   * job's expiry raced, and pg-boss could hand the job to a second worker
+   * while the first request was still open and still spending tokens.
+   */
+  timeoutMs?: number;
 }
 
 export interface LLMDeps {
@@ -98,12 +108,34 @@ const realDeps: LLMDeps = {
   },
 };
 
+export const DEFAULT_LLM_TIMEOUT_MS = 120_000;
+
+/**
+ * Transient-failure predicate — the same class `embedding.ts` already retries.
+ * Kept textual rather than status-code-based because the three SDKs surface
+ * status differently and all of them put the reason in the message.
+ */
+export function isTransientLLMError(err: unknown): boolean {
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  return /rate.?limit|quota|timeout|exceeded|unavailable|temporarily|overloaded|\b429\b|\b50[234]\b/.test(
+    msg,
+  );
+}
+
 /**
  * Dispatch a single text completion by model family:
  *   claude*       → Anthropic SDK (system param)
  *   qwen* / glm*  → DashScope (OpenAI-compatible)
  *   everything else → OpenAI (json_object response format)
  * Returns the raw assistant text. Callers own parsing.
+ *
+ * Resilience lives here, not in the callers. `embedding.ts` has classified and
+ * retried transient provider failures since the first live 429; this seam —
+ * which every KEA, autoskill and meeting-extract call goes through — did not,
+ * so a provider rate-limit propagated straight out and cost that session its
+ * extraction. One retry with jitter mirrors the embedding path; anything
+ * longer is pg-boss's job (retryLimit 3 + backoff), which is the right place
+ * for a minutes-scale wait.
  */
 export async function callLLMText(
   prompt: string,
@@ -113,9 +145,43 @@ export async function callLLMText(
   const model = opts.model;
   const system = opts.systemPrompt ?? DEFAULT_SYSTEM;
   const maxTokens = opts.maxTokens ?? 1024;
-  if (model.startsWith("claude")) return deps.anthropic(prompt, opts);
-  if (model.startsWith("qwen") || model.startsWith("glm")) {
-    return deps.dashscope(prompt, model, system, maxTokens);
+  const budgetMs = opts.timeoutMs ?? DEFAULT_LLM_TIMEOUT_MS;
+
+  const dispatch = (): Promise<string> => {
+    if (model.startsWith("claude")) return deps.anthropic(prompt, opts);
+    if (model.startsWith("qwen") || model.startsWith("glm")) {
+      return deps.dashscope(prompt, model, system, maxTokens);
+    }
+    return deps.openai(prompt, model, system, maxTokens, true);
+  };
+
+  const withDeadline = async (): Promise<string> => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        dispatch(),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () => reject(new Error(`llm timeout after ${budgetMs}ms (model=${model})`)),
+            budgetMs,
+          );
+          // Never hold the event loop open on the loser of the race.
+          timer.unref?.();
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  };
+
+  try {
+    return await withDeadline();
+  } catch (err) {
+    if (!isTransientLLMError(err)) throw err;
+    await new Promise((r) => {
+      const t = setTimeout(r, 1000 + Math.random() * 2000);
+      t.unref?.();
+    });
+    return await withDeadline();
   }
-  return deps.openai(prompt, model, system, maxTokens, true);
 }

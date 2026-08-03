@@ -61,7 +61,11 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid_credentials: "Wrong username or password. Check your entry and try again.",
   voucher_required:
     "A voucher code is required to sign up here. Enter yours below and try again — or ask the person who invited you (or the operator of this Brain) for one.",
-  voucher_invalid: "That voucher code isn't valid. Double-check the code with your admin — codes are case-sensitive.",
+  // Codes are normalised with .trim().toUpperCase() before every lookup
+  // (lib/brain/vouchers.ts::normalize), so capitalisation and stray spaces
+  // are NOT the cause — the old copy said "case-sensitive" and sent stuck
+  // users down the one dead end that cannot be the problem.
+  voucher_invalid: "That voucher code isn't valid. Check for a typo, or ask your admin to confirm the code (capitalisation and surrounding spaces don't matter).",
   voucher_expired: "That voucher code has expired. Ask your admin for a fresh one.",
   voucher_exhausted: "That voucher code has already been used the maximum number of times. Ask your admin for a fresh one.",
   voucher_disabled: "That voucher code has been disabled by an admin. Ask for a new one.",

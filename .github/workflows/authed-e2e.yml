@@ -65,6 +65,11 @@ jobs:
           filters: |
             web:
               - 'apps/web/**'
+              # This job now boots the MCP server so security.spec.ts's
+              # transport tests have something real to talk to — so an
+              # mcp-server change must be able to trigger the gate that
+              # tests it.
+              - 'apps/mcp-server/**'
               - 'packages/core/**'
               - 'packages/db/**'
               - '.github/workflows/authed-e2e.yml'
@@ -106,6 +111,14 @@ jobs:
         if: steps.changes.outputs.web == 'true'
         run: pnpm turbo run build --filter=@brain/web
 
+      # NOTE: there is deliberately no build step for the MCP server. Its
+      # `start` script (`node dist/index.js`) cannot work: `@brain/core` and
+      # `@brain/db` publish `main: "./src/index.ts"`, so plain Node has no
+      # loader for what they resolve to. Production runs it under tsx for
+      # exactly this reason (deploy/Dockerfile:
+      # `CMD ["…/tsx", "src/index.ts"]`), and CI now does the same — running
+      # the gate the way the artifact actually runs.
+
       - name: Install Playwright chromium
         if: steps.changes.outputs.web == 'true'
         run: pnpm --filter @brain/web exec playwright install --with-deps chromium
@@ -127,6 +140,13 @@ jobs:
           # network log. Prod default untouched.
           RATE_LIMIT_MCP_PER_MINUTE: "5000"
           E2E_BASE_URL: http://localhost:3000
+          # Separate from E2E_BASE_URL on purpose — the MCP server is its own
+          # process on its own port. security.spec.ts skips its transport
+          # tests loudly when this is unset rather than passing against
+          # whatever the web app returns for /mcp (which was a 404).
+          E2E_MCP_URL: http://localhost:3100
+          MCP_TRANSPORT: http
+          MCP_SERVER_HTTP_PORT: "3100"
           E2E_ADMIN_USERNAME: alex
           E2E_ADMIN_PASSWORD: e2e-ci-throwaway-password
         run: |
@@ -135,6 +155,13 @@ jobs:
           export ADMIN_PASSWORD_HASH=$(cd apps/web && node -e "console.log(require('bcryptjs').hashSync(process.env.E2E_ADMIN_PASSWORD, 10))")
           pnpm --filter @brain/web start &
           APP_PID=$!
+          # Same runtime as production (deploy/Dockerfile). stderr is captured
+          # to a file because pnpm swallows a child's startup crash behind
+          # ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL, which left the first attempt at
+          # this step with no diagnosable output at all.
+          pnpm --filter @brain/mcp-server exec tsx src/index.ts > /tmp/mcp-server.log 2>&1 &
+          MCP_PID=$!
+          cleanup() { kill "$APP_PID" "$MCP_PID" 2>/dev/null || true; }
           for _ in $(seq 1 60); do
             if curl -sSf --max-time 2 http://localhost:3000/api/healthz >/dev/null 2>&1; then
               echo "web is up"; break
@@ -143,7 +170,24 @@ jobs:
           done
           if ! curl -sSf --max-time 3 http://localhost:3000/api/healthz >/dev/null 2>&1; then
             echo "::error::web never became healthy on :3000"
-            kill "$APP_PID" 2>/dev/null || true
+            cleanup
+            exit 1
+          fi
+          # Fail the job rather than let the transport tests skip: in THIS
+          # workflow the server is supposed to be up, and a silent skip is
+          # the failure mode this whole change exists to remove.
+          for _ in $(seq 1 60); do
+            if curl -sSf --max-time 2 http://localhost:3100/health >/dev/null 2>&1; then
+              echo "mcp-server is up"; break
+            fi
+            sleep 1
+          done
+          if ! curl -sSf --max-time 3 http://localhost:3100/health >/dev/null 2>&1; then
+            echo "::error::mcp-server never became healthy on :3100"
+            echo "----- mcp-server output -----"
+            cat /tmp/mcp-server.log || true
+            echo "-----------------------------"
+            cleanup
             exit 1
           fi
           set +e
@@ -178,7 +222,7 @@ jobs:
             "web/e2e/security.spec.ts" \
             "web/e2e/meetings.spec.ts"
           RC=$?
-          kill "$APP_PID" 2>/dev/null || true
+          cleanup
           exit $RC
 
       - name: Upload Playwright report on failure

@@ -256,6 +256,7 @@ REBUILD/       Phase-by-phase vibe-coding reconstruction guide (start: REBUILD/0
 | [CONTRIBUTING](./docs/CONTRIBUTING.md) · [GUIDELINES](./docs/GUIDELINES.md) | How to contribute, code style |
 | [DESIGN_PRINCIPLES](./docs/DESIGN_PRINCIPLES.md) | UI philosophy (progressive disclosure) |
 | [KNOWN_ISSUES](./docs/KNOWN_ISSUES.md) | Tracked risks & gotchas |
+| [pre-release/](./docs/pre-release/00_REMEDIATION_LOG.md) | **Four-pass pre-release audit (2026-08-02)** — onboarding · MCP & multi-tenancy security · worker/DB reliability · deployment & i18n. Zero CRITICAL findings; the reports keep their full working, including two in-place corrections where remediation proved a finding overstated |
 | [REBUILD](./REBUILD/00-START-HERE.md) | **Rebuild from scratch** — 6-phase vibe-coding guide for porting to a new machine |
 
 Diagrams (Mermaid sources + rendered PNGs) live in
@@ -307,6 +308,26 @@ You need Docker Engine 24+ and one LLM provider API key (Google Gemini's free
 tier works). Clone the repo, copy `.env.example` to `.env`, add your key, and
 run `./scripts/dev-up.sh`. Full walkthrough:
 [docs/QUICKSTART.md](./docs/QUICKSTART.md).
+</details>
+
+<details>
+<summary><strong>What does it cost?</strong></summary>
+
+**Nothing to us — there is no payment in this phase.** External Brain is MIT
+licensed and freemium with no payment required: no checkout, no card, no paywall
+that blocks you. Tiers, usage tracking and quotas exist as product features (and
+the limits that are documented are meant to be enforced), but nobody is charged.
+
+What you *do* pay for is your own infrastructure and your own LLM usage — you
+bring your own provider key, so those tokens are billed to you by that provider,
+not by us. Google Gemini's free tier is enough to run an instance.
+
+Two knobs bound that spend, and one of them is honest about not working yet:
+`MAX_ORACLE_COST_USD_PER_DAY` is **enforced** (atomic per user/day);
+`MAX_KEA_COST_USD_PER_SESSION` is **not yet enforced** and is labelled as such
+in `.env.example` — tracked in
+[KNOWN_ISSUES §0q](./docs/KNOWN_ISSUES.md). Model and rationale:
+[docs/BLUEPRINT.md §11.1](./docs/BLUEPRINT.md).
 </details>
 
 <details>

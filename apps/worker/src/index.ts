@@ -25,11 +25,27 @@ type SessionJobData = z.infer<typeof sessionJobSchema>;
 
 const env = envForWorker();
 const log = getLogger("worker");
-// Sentry is no-op unless SENTRY_DSN is set.
+// Sentry is no-op unless SENTRY_DSN is set. Wrapped because a rejection here
+// is unhandled — which on Node 18+ terminates the process. The worker failing
+// to START because its error reporter failed to start is the worst possible
+// trade, and it happens before main()'s .catch() is even reachable.
 void (async () => {
-  const { initSentry } = await import("@brain/core");
-  await initSentry("worker");
+  try {
+    const { initSentry } = await import("@brain/core");
+    await initSentry("worker");
+  } catch (err) {
+    log.warn({ err, op: "worker.sentry_init" }, "Sentry init failed — continuing without it");
+  }
 })();
+
+// Nothing else logs an async escape that happens outside a job handler.
+process.on("unhandledRejection", (reason) => {
+  log.error({ err: reason, op: "worker.unhandled_rejection" }, "unhandled promise rejection");
+});
+process.on("uncaughtException", (err) => {
+  log.fatal({ err, op: "worker.uncaught" }, "uncaught exception — exiting");
+  process.exit(1);
+});
 
 async function main(): Promise<void> {
   const boss = new PgBoss({
@@ -243,26 +259,72 @@ async function main(): Promise<void> {
   await boss.schedule("session.sweep_abandoned",        "0 7 * * *",   {}, { singletonKey: "session.sweep_abandoned" });
   await boss.schedule("embeddings.backfill",            "*/10 * * * *",{}, { singletonKey: "embeddings.backfill" });
 
-  await boss.work("evolution.decay", async () => {
-    const res = await evolution.decayUnused();
-    log.info({ updated: res.updated, flaggedLowEffectiveness: res.flaggedLowEffectiveness }, "evolution.decay");
-  });
-  await boss.work("evolution.consolidate", async () => {
-    const res = await evolution.consolidateDuplicates();
-    log.info({ merged: res.merged }, "evolution.consolidate");
-  });
-  await boss.work("evolution.detect-obsolescence", async () => {
-    const res = await evolution.detectObsolescence();
-    log.info({ flagged: res.flagged }, "evolution.detect-obsolescence");
-  });
-  await boss.work("evolution.health-snapshot", async () => {
-    await evolution.snapshotKnowledgeHealth();
-    log.info("evolution.health-snapshot done");
-  });
-  await boss.work("embeddings.backfill", async () => {
-    const res = await backfillEmbeddings({ limit: 256 });
-    if (res.processed > 0) log.info({ rows: res.processed }, "embeddings.backfill");
-  });
+  /**
+   * Wrap a maintenance handler so a failure is *visible*.
+   *
+   * pg-boss already retried these; what was missing was any record that they
+   * failed at all. The four session-scoped handlers call `captureError`, these
+   * five did not — so `evolution.decay` silently erroring every night looked
+   * identical to it working, and `embeddings.backfill` (a 10-minute cron)
+   * could fail 144 times a day without emitting one error line or one Sentry
+   * event. Emits the same `op` / `outcome` / `durMs` shape the rest of the
+   * worker uses, so the log histogram treats them uniformly.
+   */
+  const observed =
+    (op: string, fn: () => Promise<Record<string, unknown> | void>) =>
+    async (): Promise<void> => {
+      const start = performance.now();
+      try {
+        const fields = (await fn()) ?? {};
+        log.info(
+          { op, outcome: "ok", ...fields, durMs: Math.round(performance.now() - start) },
+          op,
+        );
+      } catch (err) {
+        await captureError(
+          log,
+          err,
+          { op, outcome: "error", durMs: Math.round(performance.now() - start) },
+          `${op} failed`,
+        );
+        throw err;
+      }
+    };
+
+  await boss.work(
+    "evolution.decay",
+    observed("evolution.decay", async () => {
+      const res = await evolution.decayUnused();
+      return { updated: res.updated, flaggedLowEffectiveness: res.flaggedLowEffectiveness };
+    }),
+  );
+  await boss.work(
+    "evolution.consolidate",
+    observed("evolution.consolidate", async () => {
+      const res = await evolution.consolidateDuplicates();
+      return { merged: res.merged };
+    }),
+  );
+  await boss.work(
+    "evolution.detect-obsolescence",
+    observed("evolution.detect-obsolescence", async () => {
+      const res = await evolution.detectObsolescence();
+      return { flagged: res.flagged };
+    }),
+  );
+  await boss.work(
+    "evolution.health-snapshot",
+    observed("evolution.health-snapshot", async () => {
+      await evolution.snapshotKnowledgeHealth();
+    }),
+  );
+  await boss.work(
+    "embeddings.backfill",
+    observed("embeddings.backfill", async () => {
+      const res = await backfillEmbeddings({ limit: 256 });
+      return { rows: res.processed };
+    }),
+  );
 
   // Cross-session KEA (PR #219). Daily fan-out via kea.runCrossExtractDaily.
   // The function itself emits per-user `op="kea.cross.skip"` /
@@ -352,6 +414,59 @@ async function main(): Promise<void> {
   });
 
   log.info({ schema: env.PG_BOSS_SCHEMA }, "Worker running. Press Ctrl+C to stop.");
+
+  // Graceful shutdown. Without this, SIGTERM — every `deploy.sh`, every
+  // `docker compose restart` — killed jobs mid-execution: the pg-boss lease
+  // was never released, the row sat `active` until expireInSeconds (10 min
+  // for kea.extract, 60 for kea.cross_extract), and the work was redone,
+  // re-spending the LLM tokens the killed attempt had already burned.
+  // kea.cross_extract is retryLimit:1, so a deploy landing in its 06:00
+  // window skipped that day's cross-session extraction entirely.
+  //
+  // pg-boss v12 `stop({ graceful, timeout })` already does the draining AND
+  // the bounding itself: it stops the manager/timekeeper, then polls
+  // `hasPendingCleanups()` every 500 ms until `timeout` elapses, then runs
+  // `failWip()` + closes the pool (pg-boss `index.js::stop`). So `await
+  // boss.stop(...)` returns only once the drain is finished or the budget is
+  // spent — there is no separate "wait" flag, and an outer bail timer that
+  // called `process.exit()` on expiry would be strictly worse: it would skip
+  // `failWip()` and the connection close, which is the cleanup this handler
+  // exists to perform.
+  //
+  // The outer timer below is therefore NOT the grace window — it is a
+  // last-resort guard for `boss.stop()` itself hanging (DB unreachable), and
+  // is deliberately longer than pg-boss's own budget so pg-boss wins in every
+  // normal case. `stop_grace_period` in docker-compose.yml sits above both so
+  // Docker doesn't SIGKILL mid-drain.
+  const DRAIN_BUDGET_MS = 20_000;
+  const HARD_BAIL_MS = 25_000;
+  let stopping = false;
+  const shutdown = async (signal: string): Promise<void> => {
+    if (stopping) return;
+    stopping = true;
+    log.info({ op: "worker.shutdown", signal }, "draining in-flight jobs");
+    const bail = setTimeout(() => {
+      log.warn(
+        { op: "worker.shutdown", signal, outcome: "stop_hung" },
+        "boss.stop() did not return — exiting without a clean drain",
+      );
+      process.exit(0);
+    }, HARD_BAIL_MS);
+    bail.unref();
+    try {
+      await boss.stop({ graceful: true, timeout: DRAIN_BUDGET_MS });
+      log.info(
+        { op: "worker.shutdown", signal, outcome: "drained" },
+        "worker stopped cleanly",
+      );
+    } catch (err) {
+      log.error({ op: "worker.shutdown", signal, err }, "boss.stop failed");
+    }
+    clearTimeout(bail);
+    process.exit(0);
+  };
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
 }
 
 async function summarizeSession(sessionId: string) {

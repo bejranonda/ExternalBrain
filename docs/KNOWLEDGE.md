@@ -585,6 +585,25 @@ Specifics:
 
 **Null means "any project the user has access to."** A token with `projectId = null` is not scoped — it behaves as before Phase 3c.
 
+> ⚠️ **The invariant is WRITE-side only, and that is a real limitation — not a
+> wording nicety** (found by the 2026-08-02 pre-release audit,
+> `KNOWN_ISSUES §0q`). Read it literally: it says *"cannot perform **writes**
+> against any other project."* All five write/session tools enforce it. **None
+> of the read tools do** — `brain_retrieve_knowledge` takes `projectId` from
+> *client input* and never compares it to `auth.projectId`, and
+> `brain_ask_oracle`, `brain_find_skill`, `brain_session_search` and all four
+> `brain://` resources ignore the token's scope entirely.
+>
+> **This is not a cross-tenant hole.** `kra.ts:188` and `oracle.ts:152` hard-pin
+> `"ownerUserId" = $2` outside the visibility filter, so a foreign
+> `ownerProjectId` returns nothing. The gap is confinement *within* one user's
+> Brain: a token labelled "scoped to project X" can read every project that user
+> owns.
+>
+> **Until the read path is closed, do not describe a project-scoped token as an
+> isolation boundary** — to a user, an operator, or a contractor you hand one
+> to. It bounds what the token can write, not what it can see.
+
 ### 12.22 Knowledge visibility — three states, promote/fork chain (Phase 4, 2026-04-27)
 
 Knowledge rows carry a `visibility` column (TEXT, NOT NULL, DEFAULT `'project'`) that controls who sees the row in listing and retrieval contexts. It is distinct from the `scope` column (which carries semantic context like `user`/`project`/`team`/`community`/`global`/`session_context` — used by KEA and the formatter).

@@ -1,12 +1,22 @@
 import { test, expect, request as pwRequest } from "@playwright/test";
 
-// The MCP HTTP transport lives at <origin>/mcp behind the same Caddy
-// vhost as the webapp on deployed brains, and on port 3100 locally
-// when no E2E_BASE_URL is set. The earlier hardcoded localhost:3100
-// silently passed in local dev runs and silently failed in the
-// deployed e2e gate — surfaced when the gate finally started running
-// on PRs via the e2e-please label.
-const MCP_URL = process.env["E2E_BASE_URL"] ?? "http://localhost:3100";
+// The MCP HTTP transport gets its OWN base URL, deliberately with no
+// fallback.
+//
+// It used to read `E2E_BASE_URL ?? "http://localhost:3100"`. On a deployed
+// brain that is right — MCP sits behind the same Caddy vhost as the webapp.
+// In the `authed surfaces e2e` job it was catastrophically wrong: that job
+// sets `E2E_BASE_URL=http://localhost:3000` and boots **only** the web app,
+// so every "MCP transport" assertion below was posting to `/mcp` on Next.js
+// and reading its 404. Both tests asserted `status >= 400`, so a 404 from the
+// wrong process satisfied them. **Neither test had ever contacted the MCP
+// server** (found 2026-08-02, KNOWN_ISSUES §0q).
+//
+// So: a separate variable, no default, and a loud skip when it is absent.
+// A security test that cannot reach its target must skip visibly, never pass
+// quietly — see GUIDELINES §4, "a failing assertion must be able to fail for
+// exactly one reason".
+const MCP_URL = process.env["E2E_MCP_URL"];
 
 /**
  * Security posture E2E. Every check names the invariant it protects.
@@ -111,6 +121,13 @@ test.describe("security posture — negative path", () => {
   // (MCP transport, below) are unaffected — they never carry page cookies.
   test.use({ storageState: { cookies: [], origins: [] } });
 
+  // Both MCP transport tests are gated on E2E_MCP_URL. Skipping is loud in
+  // the Playwright report; the previous silent pass against a 404 was not.
+  test.skip(
+    !MCP_URL,
+    "E2E_MCP_URL not set — the MCP transport was NOT exercised by this run",
+  );
+
   test("MCP HTTP transport refuses an unauthenticated call", async () => {
     const ctx = await pwRequest.newContext();
     try {
@@ -118,25 +135,49 @@ test.describe("security posture — negative path", () => {
         headers: { "content-type": "application/json" },
         data: { jsonrpc: "2.0", id: 1, method: "tools/list" },
       });
-      // Must fail closed — 401/403/400 all acceptable, anything 2xx would
-      // mean the MCP server served tools to an anonymous caller.
-      expect(res.status()).toBeGreaterThanOrEqual(400);
+      // 401 specifically: the transport refuses every method without a
+      // Bearer, before the SDK sees the request (index.ts, "Refuse every
+      // request without a Bearer token, including `initialize`"). A range
+      // assertion here is what let a 404 from the wrong server pass.
+      expect(res.status()).toBe(401);
+      expect(await res.text()).not.toContain("serverInfo");
     } finally {
       await ctx.dispose();
     }
   });
 
-  test("MCP HTTP transport refuses a bogus Bearer token", async () => {
+  // Must probe `initialize`, NOT `tools/list`. A session-less `tools/list` is
+  // rejected by the SDK with -32000 "Server not initialized" whatever the
+  // bearer says, so the previous version of this test passed without the auth
+  // layer ever being consulted — it would have stayed green with auth removed
+  // entirely. `initialize` is the method that actually allocates a session,
+  // so it is the one that has to refuse an unknown token.
+  test("MCP HTTP transport refuses `initialize` with a bogus Bearer token", async () => {
     const ctx = await pwRequest.newContext();
     try {
       const res = await ctx.post(`${MCP_URL}/mcp`, {
         headers: {
           "content-type": "application/json",
+          accept: "application/json, text/event-stream",
           Authorization: "Bearer bp_definitely_not_a_real_token_abcdef",
         },
-        data: { jsonrpc: "2.0", id: 1, method: "tools/list" },
+        data: {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2024-11-05",
+            capabilities: {},
+            clientInfo: { name: "audit-probe", version: "1" },
+          },
+        },
       });
-      expect(res.status()).toBeGreaterThanOrEqual(400);
+      // Exactly 401 — not merely "some 4xx", which is what let the old
+      // assertion pass for the wrong reason.
+      expect(res.status()).toBe(401);
+      // No session may be handed out, and no capability metadata may leak.
+      expect(res.headers()["mcp-session-id"]).toBeUndefined();
+      expect(await res.text()).not.toContain("serverInfo");
     } finally {
       await ctx.dispose();
     }

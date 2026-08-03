@@ -32,14 +32,14 @@ flowchart TD
     Start[I have a rule in mind] --> Sure{Sure it's a real,<br/>persistent rule?}
     Sure -- no --> Wait[Don't teach.<br/>Use it in a session;<br/>KEA picks it up if it's real.]
     Sure -- yes --> Active{Have I used it<br/>in a Brain session<br/>at least 2x?}
-    Active -- yes --> Wait2[KEA likely already<br/>extracted it.<br/>Check /skills first.]
+    Active -- yes --> Wait2[KEA likely already<br/>extracted it.<br/>Check #skills first.]
     Active -- no --> Type{Which type<br/>fits best?}
     Type --> Reflex[reflex<br/>'always X, never Y']
     Type --> Recipe[recipe<br/>'multi-step pattern']
     Type --> Heuristic[heuristic<br/>'soft rule with conditions']
     Type --> Principle[principle<br/>'high-level value']
     Type --> Anti[anti_principle<br/>'avoid X, do Y instead']
-    Reflex --> Teach[Teach via /skills<br/>or 'remember that...' in chat]
+    Reflex --> Teach[Teach via #skills<br/>or 'remember that...' in chat]
     Recipe --> Teach
     Heuristic --> Teach
     Principle --> Teach
