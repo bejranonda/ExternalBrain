@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { db } from "@brain/db";
 import type { ToolDef } from "./index.js";
+import { resolveReadProjectId } from "../scope.js";
 
 const inputShape = z.object({
   query: z.string().min(2),
@@ -21,6 +22,13 @@ export const sessionSearch: ToolDef = {
   },
   handler: async (raw, auth) => {
     const input = inputShape.parse(raw);
+    // A scoped token searches only its own project's sessions. Appended as
+    // an extra AND rather than folded into the existing predicate so the
+    // unscoped path emits byte-identical SQL to before.
+    const scopedProjectId = resolveReadProjectId(auth);
+    const projectClause = scopedProjectId ? ` AND s."projectId" = $3` : "";
+    const projectClauseFlat = scopedProjectId ? ` AND "projectId" = $3` : "";
+    const projectParams = scopedProjectId ? [scopedProjectId] : [];
     // Postgres FTS over `metadata->>'prompt'` and `SessionEvent.payload::text`,
     // ranked with `ts_rank_cd`. The `websearch_to_tsquery` form accepts the
     // natural query string as-is (quoted phrases, `-term`, `or`). A GIN
@@ -53,7 +61,7 @@ export const sessionSearch: ToolDef = {
                  q.tsq
                ) AS rank
         FROM "Session" s, q
-        WHERE s."userId" = $1
+        WHERE s."userId" = $1${projectClause}
           AND (
             to_tsvector('english', coalesce(s.metadata->>'prompt', '')) @@ q.tsq
             OR s.id IN (
@@ -69,6 +77,7 @@ export const sessionSearch: ToolDef = {
       `,
       auth.userId,
       input.query,
+      ...projectParams,
     );
 
     if (tsRows.length > 0) {
@@ -91,7 +100,7 @@ export const sessionSearch: ToolDef = {
              metadata->>'prompt' AS prompt,
              NULL::real AS rank
       FROM "Session"
-      WHERE "userId" = $1
+      WHERE "userId" = $1${projectClauseFlat}
         AND (
           metadata->>'prompt' ILIKE '%' || $2 || '%'
           OR id IN (
@@ -104,6 +113,7 @@ export const sessionSearch: ToolDef = {
       `,
       auth.userId,
       input.query,
+      ...projectParams,
     );
     return { sessions: fallback };
   },

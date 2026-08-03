@@ -585,24 +585,33 @@ Specifics:
 
 **Null means "any project the user has access to."** A token with `projectId = null` is not scoped — it behaves as before Phase 3c.
 
-> ⚠️ **The invariant is WRITE-side only, and that is a real limitation — not a
-> wording nicety** (found by the 2026-08-02 pre-release audit,
-> `KNOWN_ISSUES §0q`). Read it literally: it says *"cannot perform **writes**
-> against any other project."* All five write/session tools enforce it. **None
-> of the read tools do** — `brain_retrieve_knowledge` takes `projectId` from
-> *client input* and never compares it to `auth.projectId`, and
-> `brain_ask_oracle`, `brain_find_skill`, `brain_session_search` and all four
-> `brain://` resources ignore the token's scope entirely.
->
-> **This is not a cross-tenant hole.** `kra.ts:188` and `oracle.ts:152` hard-pin
-> `"ownerUserId" = $2` outside the visibility filter, so a foreign
-> `ownerProjectId` returns nothing. The gap is confinement *within* one user's
-> Brain: a token labelled "scoped to project X" can read every project that user
-> owns.
->
-> **Until the read path is closed, do not describe a project-scoped token as an
-> isolation boundary** — to a user, an operator, or a contractor you hand one
-> to. It bounds what the token can write, not what it can see.
+**The invariant now covers reads as well as writes (v2.10.0).** It was
+write-only until the 2026-08-02 pre-release audit found the gap
+(`KNOWN_ISSUES §0q`): `brain_retrieve_knowledge` took `projectId` from *client
+input* and never compared it, and the Oracle, skill search, session search and
+all four `brain://` resources ignored the token's scope entirely. That was
+never a cross-tenant hole — `kra.ts` and `oracle.ts` hard-pin
+`"ownerUserId" = $2` outside the visibility filter — but it made the scope a
+promise the product only half kept.
+
+Read enforcement lives in **one** resolver, `apps/mcp-server/src/scope.ts`,
+which every read path calls. One helper rather than four copies is deliberate:
+the audit's central finding was that this codebase's dominant defect shape is
+hardening applied in one place and not its siblings (`GUIDELINES §4`).
+
+- **Enforced:** `brain_retrieve_knowledge`, `brain_ask_oracle`,
+  `brain_session_search`, `brain://user/style-profile`,
+  `brain://user/recent-sessions`.
+- **A foreign `projectId` throws `FORBIDDEN_PROJECT`** rather than being
+  silently narrowed to the token's project. A caller that asked for project B
+  and received project A's answers has been handed wrong data, not less data.
+- **Deliberately NOT scoped — a schema fact, not an omission:**
+  `brain_find_skill` and `brain://user/active-skills` read `Skill`, which has
+  **no `ownerProjectId` column**. There is no project boundary to cross, and
+  filtering on one that doesn't exist would return nothing.
+  `brain://user/peer-card` reads the user-level card (`ownerProjectId IS
+  NULL`), which is a user fact by definition. Whether skills should be
+  project-partitioned is a migration plus a product decision, still open.
 
 ### 12.22 Knowledge visibility — three states, promote/fork chain (Phase 4, 2026-04-27)
 

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { oracle } from "@brain/core";
 import type { ToolDef } from "./index.js";
+import { resolveReadProjectId } from "../scope.js";
 
 const inputShape = z.object({
   question: z.string().min(3),
@@ -27,9 +28,18 @@ export const askOracle: ToolDef = {
   },
   handler: async (raw, auth) => {
     const input = inputShape.parse(raw);
-    return oracle.ask(auth.userId, {
-      question: input.question,
-      reasoningLevel: input.reasoningLevel,
-    });
+    // `ask()` has always accepted a projectId; this tool simply never passed
+    // one, so a scoped token's Oracle answers were drawn from the whole
+    // account. The tool takes no project parameter of its own, so there is
+    // nothing to reject — resolve() just supplies the token's binding.
+    const projectId = resolveReadProjectId(auth);
+    return oracle.ask(
+      auth.userId,
+      {
+        question: input.question,
+        reasoningLevel: input.reasoningLevel,
+      },
+      projectId,
+    );
   },
 };

@@ -274,6 +274,12 @@ services:
       GOOGLE_GEMINI_API_KEY: ${GOOGLE_GEMINI_API_KEY:-}
       PG_BOSS_SCHEMA: ${PG_BOSS_SCHEMA:-pgboss}
       KEA_ENABLED: ${KEA_ENABLED:-true}
+      # Daily per-user extraction ceiling, checked before any LLM call.
+      # Compose only PASSES THIS THROUGH — the default here must match the
+      # one in apps/worker/src/index.ts, or the limit an operator reads in
+      # .env.example is not the limit that runs. (Same trap as REDIS_URL,
+      # KNOWN_ISSUES §0p: a value compose forwards but nobody sets.)
+      MAX_KEA_EXTRACTIONS_PER_DAY: ${MAX_KEA_EXTRACTIONS_PER_DAY:-200}
       # KEA_MODEL routes to a provider in packages/core/src/kea.ts:
       #   qwen*/glm* → DashScope (needs DASHSCOPE_API_KEY)
       #   claude*    → Anthropic   (needs ANTHROPIC_API_KEY)
