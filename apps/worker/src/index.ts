@@ -4,6 +4,7 @@
  * Scheduling via pg-boss. One process handles all job classes; scale
  * horizontally by running additional workers.
  */
+import { createServer } from "node:http";
 import { PgBoss } from "pg-boss";
 import { z } from "zod";
 import { kea, autoskill, evolution, envForWorker, getLogger, withRequest, shortId, captureError } from "@brain/core";
@@ -413,6 +414,50 @@ async function main(): Promise<void> {
     }
   });
 
+  // Liveness endpoint.
+  //
+  // The worker has no HTTP surface of its own, and `restart: unless-stopped`
+  // only reacts to a process that EXITS — a worker wedged on a dropped
+  // pg-boss connection stays "up" forever. Docker therefore needs something
+  // to probe.
+  //
+  // The first attempt at this probe ran `node -e "require('pg')…"` inside the
+  // container and failed with `Cannot find module 'pg'`: under pnpm's
+  // isolated node_modules, `pg` is not resolvable from /app/apps/worker even
+  // though pg-boss depends on it. Serving the check from inside the process
+  // that already holds the pool removes the module-resolution question
+  // entirely — the probe becomes a plain HTTP GET, which Node can make with
+  // built-in `fetch` and no imports at all.
+  //
+  // `boss.getQueue()` round-trips to the pgboss schema, so a green response
+  // means this process can still reach its queue — which is the property
+  // worth asserting, rather than merely "the event loop is alive".
+  // (Checked against pg-boss@12's own types: `getQueue(name)` /
+  // `getQueues()` exist; `getQueueSize` does not.)
+  const healthPort = Number(process.env.WORKER_HEALTH_PORT ?? 9091);
+  const health = createServer((req, res) => {
+    if (req.url !== "/health") {
+      res.writeHead(404).end();
+      return;
+    }
+    void (async () => {
+      try {
+        await boss.getQueue("kea.extract");
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ ok: true, schema: env.PG_BOSS_SCHEMA }));
+      } catch (err) {
+        log.warn({ op: "worker.health", err }, "health probe could not reach the queue");
+        res.writeHead(503, { "content-type": "application/json" });
+        res.end(JSON.stringify({ ok: false }));
+      }
+    })();
+  });
+  health.listen(healthPort, "127.0.0.1", () => {
+    log.info({ op: "worker.health", port: healthPort }, "worker health endpoint listening");
+  });
+  // Never let the probe server hold the process open on its own.
+  health.unref();
+
   log.info({ schema: env.PG_BOSS_SCHEMA }, "Worker running. Press Ctrl+C to stop.");
 
   // Graceful shutdown. Without this, SIGTERM — every `deploy.sh`, every
@@ -445,6 +490,7 @@ async function main(): Promise<void> {
     if (stopping) return;
     stopping = true;
     log.info({ op: "worker.shutdown", signal }, "draining in-flight jobs");
+    health.close();
     const bail = setTimeout(() => {
       log.warn(
         { op: "worker.shutdown", signal, outcome: "stop_hung" },
