@@ -610,8 +610,18 @@ hardening applied in one place and not its siblings (`GUIDELINES §4`).
   **no `ownerProjectId` column**. There is no project boundary to cross, and
   filtering on one that doesn't exist would return nothing.
   `brain://user/peer-card` reads the user-level card (`ownerProjectId IS
-  NULL`), which is a user fact by definition. Whether skills should be
-  project-partitioned is a migration plus a product decision, still open.
+  NULL`), which is a user fact by definition.
+
+**Skills are not project-partitioned, and will not be (decided 2026-08-03).**
+`Knowledge` is atomic and project-bound; a Skill is a portable recipe that the
+exporter writes into `.claude/skills/` and `.cursor/rules/`, and that
+`BLUEPRINT §11.2` plans to distribute as packs. Adding `ownerProjectId` also
+has no truthful backfill — a skill is distilled from work that may span several
+projects — and would force the `(skillId, ownerUserId)` unique key to either
+duplicate skills per project or leave the column advisory. If a scoped token
+must be kept away from skills, the right primitive is a **token capability**
+(`read:knowledge` without `read:skills`), not a partition of the data model.
+Rationale in `KNOWN_ISSUES §0q` and `APPROACH §5bi`.
 
 ### 12.22 Knowledge visibility — three states, promote/fork chain (Phase 4, 2026-04-27)
 

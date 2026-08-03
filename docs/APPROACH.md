@@ -2023,3 +2023,64 @@ this whole audit arc was about (`§5bg`). It was extracted into `buildOwnerGate`
 before landing. Knowing a failure mode by name does not stop you writing it; the
 value of naming it is that you recognise it a few minutes later instead of a few
 months later.
+
+---
+
+## 5bi. Two decisions worth writing down, one of which was to build nothing (2026-08-03, v2.10.1)
+
+### Declining a schema change is a result, not an absence of one
+
+The open question after the audit was whether `Skill` should gain an
+`ownerProjectId` so project-scoped tokens could confine skill reads the way
+they now confine knowledge reads. The answer is no, and the argument that
+settles it is not about cost:
+
+**There is no correct backfill.** A skill is distilled from work that may span
+several projects, so every existing row would have to be either NULLed — which
+silently hides every existing skill from scoped tokens — or assigned a project
+arbitrarily, which is fabricating data to satisfy a schema. When a migration's
+backfill has no truthful value, that is usually the schema telling you the
+column doesn't belong on that table.
+
+The second reason is directional: `Knowledge` is atomic and project-bound, but
+a Skill is a *portable recipe* — `BLUEPRINT §11.2` plans to sell them as packs
+and the exporter writes them into `.claude/skills/` and `.cursor/rules/`.
+Partitioning a thing designed to travel between projects works against its own
+roadmap. `Skill` already has `scope` and `ownerTeamId`; the absence of a
+project axis is a statement, not an oversight.
+
+And when the underlying worry is real but the proposed mechanism is wrong, name
+the right mechanism rather than shipping the wrong one: if a contractor's token
+must not read skills, that is a **token capability** (`read:knowledge` without
+`read:skills`) — one column, no backfill, and it generalises to every surface
+added later.
+
+### Put the gate where the artifact is
+
+The other question was where to catch a broken healthcheck. The instinctive
+answer is CI — boot the compose stack on every PR. The better answer was the
+deploy.
+
+A healthcheck describes a *running container*. CI would boot a reconstruction
+of one, cost minutes on every PR, and duplicate what `deploy.sh` already does;
+its only marginal benefit is catching the fault before *merge* rather than
+before *traffic*. With autonomous-deploy-on-green, before-traffic is the
+boundary that actually protects the instance. So the assertion went into
+`smoke.sh`, fifteen lines, running against the artifact that was actually
+shipped.
+
+Two details did more work than the check itself:
+
+- **"Nothing is unhealthy", not "everything is healthy."** `caddy` declares no
+  healthcheck. A gate that failed on services which never declared one would
+  cry wolf on every run — and a gate that cries wolf gets switched off, which
+  is how you end up with no gate at all. Tolerating the undeclared case is what
+  makes the gate survivable.
+- **Print the probe output on failure.** The original bug was undiagnosable
+  from the deploy log; it took a manual `docker inspect`. A gate that tells you
+  *that* something failed, without telling you *why*, only relocates the work.
+
+Both were verified in both directions — passing against the live stack, and
+failing against a container deliberately broken with the *same* `require('pg')`
+probe that caused the original incident. A gate that has only ever passed has
+not been tested; it has been observed.
