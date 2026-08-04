@@ -188,12 +188,25 @@ async function main(): Promise<void> {
   });
 
   for (const q of QUEUES) {
-    await boss.createQueue(q.name, {
+    const opts = {
       retryLimit: q.retryLimit,
       retryBackoff: q.retryBackoff,
       expireInSeconds: q.expireInSeconds,
       ...(q.deadLetter ? { deadLetter: q.deadLetter } : {}),
-    });
+    };
+    await boss.createQueue(q.name, opts);
+    // `createQueue` is a NO-OP when the queue already exists — it does not
+    // reconcile options. On any brain that has run before (i.e. every real
+    // one), the queues predate this config, so the `deadLetter` added in
+    // v2.11.0 silently never attached: the `dlq` row appeared, `dead_letter`
+    // stayed NULL on all three source queues, and the feature was inert while
+    // looking installed.
+    //
+    // `updateQueue` is the reconciling half. Running both makes this block
+    // idempotent in the sense that actually matters — the queue ends up
+    // matching the config in this file whether or not it existed before,
+    // which is what every reader of this array assumes it already did.
+    await boss.updateQueue(q.name, opts);
   }
 
   // Parse `job.data` defensively — see WK6 comment near sessionJobSchema.
