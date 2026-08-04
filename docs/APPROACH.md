@@ -2204,3 +2204,53 @@ findings were produced by patience; its regressions were produced by pace.
 belongs in the record at full strength. A changelog that shows only the final
 working state teaches nothing, and the next person to add a queue option will
 reach for `expireInSeconds` for exactly the same reason I did.
+
+---
+
+## 5bl. The same test, applied twice, gave opposite answers (2026-08-04, v2.12.0)
+
+Two schema questions arrived a day apart. Should `Skill` gain an
+`ownerProjectId` so scoped tokens could confine skill reads? Should `MCPToken`
+gain a `capabilities` column so a token could be limited to knowledge without
+skills?
+
+Both are "add a column to a live table". The first was declined and the second
+built, on one criterion: **does the new column have a truthful value for every
+row that already exists?**
+
+For `Skill.ownerProjectId` it does not. A skill is distilled from work spanning
+several projects, so every existing row would be either NULLed — silently
+hiding every existing skill from scoped tokens — or assigned a project
+arbitrarily, which is inventing data to satisfy a schema.
+
+For `MCPToken.capabilities` it does, and exactly: `[]`, meaning unrestricted.
+Every token keeps precisely the authority it had. Nothing is guessed, nothing
+changes on deploy, and the migration is provably behaviour-preserving rather
+than argued to be.
+
+### What generalises
+
+**"What is the honest value for existing rows?" is the cheapest schema test
+there is.** When the answer is a shrug, the column usually belongs somewhere
+else, or the concept belongs on a different table. It costs one question and
+routinely saves a migration that cannot be rolled back cleanly.
+
+**Design the default so the common case needs no decision.** Empty-equals-
+unrestricted means an operator minting an ordinary token ticks nothing and gets
+what they always got; only the deliberately-narrow case involves any thought.
+A default that requires a choice is a default that will be chosen wrongly under
+time pressure.
+
+**Allow-list, not deny-list, for anything that will grow.** Both were
+implementable. A deny-list would silently grant every capability added later to
+every token someone had already restricted — the failure arriving months after
+the decision, in a release note nobody connects to it. An allow-list fails
+closed as the surface expands, so the worst case is a token that does too
+little and says so.
+
+**Restrict what is worth restricting, and say why the rest isn't.** The
+session-lifecycle tools carry no capability check. A token that cannot open a
+session is not a restricted token, it is a confusing spelling of "revoked", and
+offering that switch would produce credentials whose failure mode is a support
+ticket. Writing that reasoning next to the exemption is what stops someone
+"completing" the feature later.

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { oracle } from "@brain/core";
 import type { ToolDef } from "./index.js";
 import { resolveReadProjectId } from "../scope.js";
+import { requireCapability } from "../capability.js";
 
 const inputShape = z.object({
   question: z.string().min(3),
@@ -27,6 +28,7 @@ export const askOracle: ToolDef = {
     },
   },
   handler: async (raw, auth) => {
+    requireCapability(auth, "oracle");
     const input = inputShape.parse(raw);
     // `ask()` has always accepted a projectId; this tool simply never passed
     // one, so a scoped token's Oracle answers were drawn from the whole

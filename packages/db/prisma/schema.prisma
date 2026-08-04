@@ -499,6 +499,23 @@ model MCPToken {
   revokedAt          DateTime?
   scheduledRevokeAt  DateTime?
   rotatedFromId      String?   @unique  // back-pointer: this token replaced the one with this id
+  /// Allow-list of capability slugs this token may exercise.
+  ///
+  /// **Empty means unrestricted**, which is what makes this safe to add to a
+  /// live table: every existing token keeps exactly the authority it had, and
+  /// there is no ambiguous backfill value to invent. (Contrast the rejected
+  /// `Skill.ownerProjectId` proposal, where no truthful backfill existed —
+  /// see KNOWN_ISSUES §0q.)
+  ///
+  /// A non-empty array restricts: only the listed capabilities are permitted.
+  /// This is the primitive that was proposed *instead of* partitioning skills
+  /// by project — it generalises to every future read surface, needs no
+  /// backfill, and is one column rather than a data-model change.
+  ///
+  /// Slugs live in `packages/core/src/capabilities.ts`; the enforcement point
+  /// is `apps/mcp-server/src/capability.ts`. Adding a slug here without
+  /// wiring the check is a no-op, so the two are tested against each other.
+  capabilities       String[]  @default([])
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   team         Team?         @relation(fields: [teamId], references: [id], onDelete: Cascade)

@@ -15,6 +15,8 @@ export interface AuthContext {
   // Phase 3c: org/project scoping. null = any project the user has access to.
   organizationId: string | null;
   projectId: string | null;
+  /** Allow-list of capability slugs. EMPTY = unrestricted. See @brain/core. */
+  capabilities: string[];
 }
 
 export async function authenticate(
@@ -51,5 +53,6 @@ export async function authenticate(
     tokenId: token.id,
     organizationId: token.organizationId ?? null,
     projectId: token.projectId ?? null,
+    capabilities: token.capabilities ?? [],
   };
 }

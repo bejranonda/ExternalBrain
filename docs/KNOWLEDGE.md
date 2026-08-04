@@ -619,9 +619,35 @@ exporter writes into `.claude/skills/` and `.cursor/rules/`, and that
 has no truthful backfill — a skill is distilled from work that may span several
 projects — and would force the `(skillId, ownerUserId)` unique key to either
 duplicate skills per project or leave the column advisory. If a scoped token
-must be kept away from skills, the right primitive is a **token capability**
-(`read:knowledge` without `read:skills`), not a partition of the data model.
+must be kept away from skills, the right primitive is a **token capability**,
+not a partition of the data model — and that primitive now exists.
 Rationale in `KNOWN_ISSUES §0q` and `APPROACH §5bi`.
+
+### 12.21a MCP token capabilities (v2.12.0)
+
+`MCPToken.capabilities` is an allow-list of slugs — `knowledge`, `skills`,
+`sessions`, `oracle`. **Empty means unrestricted**, and that contract is the
+whole reason this was safe to add to a live table: every pre-existing token
+keeps exactly the authority it had, and there was no ambiguous value to
+backfill. The *absence* of such a value is precisely why `Skill.ownerProjectId`
+was rejected above — the same test, applied twice, giving opposite answers.
+
+- **Allow-list, not deny-list.** A deny-list would silently grant every
+  capability invented later to every already-restricted token. An allow-list
+  fails closed as the surface grows, which is the direction a security
+  primitive should fail.
+- **One enforcement point** — `apps/mcp-server/src/capability.ts`, called by
+  `brain_retrieve_knowledge`, `brain_teach_knowledge`, `brain_find_skill`,
+  `brain_session_search`, `brain_ask_oracle`, and the `active-skills` /
+  `recent-sessions` resources. The empty-means-unrestricted decision lives in
+  `@brain/core`'s `hasCapability`, so no call site can reimplement it wrongly.
+- **Session lifecycle is deliberately exempt.** `brain_start_session`,
+  `brain_log_event`, `brain_report_session_outcome` and the project tools carry
+  no capability check: a token that cannot open a session is not a token, it is
+  a confusing way to spell "revoked".
+
+Two axes, kept distinct: `projectId` bounds **where** a token acts (§12.21);
+`capabilities` bounds **what it may do**.
 
 ### 12.22 Knowledge visibility — three states, promote/fork chain (Phase 4, 2026-04-27)
 
