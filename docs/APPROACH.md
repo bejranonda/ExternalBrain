@@ -2084,3 +2084,61 @@ Both were verified in both directions — passing against the live stack, and
 failing against a container deliberately broken with the *same* `require('pg')`
 probe that caused the original incident. A gate that has only ever passed has
 not been tested; it has been observed.
+
+---
+
+## 5bj. The surface found the bug in the first five minutes (2026-08-04, v2.11.0)
+
+The dead-letter queue and its admin tile were built to close an audit finding:
+a job that exhausted its retries moved to `failed` in `pgboss.job` and nothing
+ever read it. Routine work, closing a known gap.
+
+Validating the new endpoint's SQL against the live database returned a row:
+
+```
+kea.cross_extract | failed | 1
+```
+
+Following it produced a defect nobody had reported and nothing had detected:
+`kea.cross_extract` had failed **eight nights running, from 2026-07-28**, on
+`model=glm-5.1 routes to DashScope but DASHSCOPE_API_KEY is unset`. Cross-session
+extraction — a daily job — had simply not happened for over a week, while every
+health check, smoke test and lockdown audit reported green.
+
+The cause was the pattern this whole audit arc keeps finding. `oracle.ts`
+decided provider with a predicate that treats `ANTHROPIC_BASE_URL` as "a
+gateway fronts everything, pass provider-native model names through verbatim".
+`llm.ts` had its own rule that sent `glm-*` to DashScope and never consulted
+the gateway. Same model string, two dispatchers, opposite destinations — so the
+Oracle worked and everything behind `callLLMText` died.
+
+### What generalises
+
+**Observability finds bugs on the way in, not just later.** The value of a
+status surface is usually argued in the future tense — *when* something breaks,
+you'll see it. This one paid for itself before it shipped, because building it
+required looking at data nobody had looked at. If you are adding a monitor and
+its first real query returns something you cannot explain, you have already
+found the thing the monitor was for.
+
+**"No alert fired" is not evidence when nothing was listening.** Eight failures
+produced eight `captureError` calls that went nowhere useful, and eight rows in
+a table with no reader. The system was not quiet because it was healthy; it was
+quiet because silence was the only sound it could make. Distinguishing those two
+states is the entire job of a health surface — and until one exists, "we'd have
+noticed" is a belief, not a fact.
+
+**A defect class does not stop at the fourth instance.** The audit found one
+rule implemented twice in four places — clipboard hardening, 429 retry, token
+scope, `captureError`. This is the fifth: provider routing. Each was a correct
+fix applied to one site and not its sibling, and each survived because nothing
+in review asks *which other place implements this same rule?* Four instances
+felt like a finding; five suggests the question belongs in the PR template, not
+in a document someone reads once.
+
+**Cheap fixes hide expensive bugs.** The dead-letter queue was rated MEDIUM and
+deferred twice as "worth doing whole, not half". It was, in the end, thirty
+lines — and the thing it exposed had been costing a daily job for eight days.
+The cost of a monitor is visible up front; the cost of not having one is
+invisible by construction, which is exactly why it loses the prioritisation
+argument every time.

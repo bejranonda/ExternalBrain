@@ -202,6 +202,25 @@ worse than the first. `security.spec.ts` resolved its MCP endpoint as
 never once contacted the MCP server. The job now builds and boots
 `@brain/mcp-server`, waits on `/health`, and fails if it doesn't come up.
 
+### One rule, one implementation — and put the question in the PR
+
+The audit arc that produced most of this section found the same defect class
+**five** times: a rule implemented correctly in one place and not in its
+sibling. Clipboard hardening (4 sites of 7), 429 retry (`embedding.ts` but not
+`llm.ts`), token project-scope (all writes, no reads), `captureError` (4
+handlers of 9), and finally provider routing — where `oracle.ts` and `llm.ts`
+sent the same model string to different providers, killing a nightly job for
+eight days while the Oracle looked healthy.
+
+Two habits, in order of usefulness:
+
+1. **Extract the rule before you write it twice.** Every one of these was
+   cheaper to share than to duplicate — `buildOwnerGate`, `useAnthropicSdk`,
+   `resolveReadProjectId` are each a dozen lines that now cannot drift.
+2. **Ask the question in review, not in a doc.** *"Which other place implements
+   this same rule?"* costs one `grep` and is the only step that reliably
+   catches this. A guideline nobody re-reads does not.
+
 ### Writing a Docker healthcheck? It runs in the container, not in your shell
 
 Two rules, both learned by shipping the mistake (v2.8.0, `KNOWN_ISSUES §0q`):

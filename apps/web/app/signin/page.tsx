@@ -50,6 +50,31 @@ function safeRedirect(raw: string | undefined): string {
   return raw;
 }
 
+/**
+ * Origin for this container to call its OWN route handlers.
+ *
+ * These two server actions POST to the app's own API. They used to build the
+ * URL as `NEXTAUTH_URL ?? AUTH_URL ?? "http://localhost:3000"`, which is wrong
+ * twice over:
+ *
+ *   - `NEXTAUTH_URL` is the Auth.js **v4** name and was checked FIRST, despite
+ *     this repo running v5 and wiring only `AUTH_URL`.
+ *   - `AUTH_URL` is required to be the exact browser-facing origin
+ *     (.env.example says so), so in production the container called itself
+ *     back out through Caddy — needing self-egress and split-horizon DNS, both
+ *     of which a locked-down host commonly denies.
+ *
+ * Loopback is what this actually wants: same process, no TLS, no DNS, no
+ * egress. `INTERNAL_SELF_ORIGIN` is the escape hatch if a deployment ever
+ * puts the route handlers somewhere else.
+ */
+function selfOrigin(): string {
+  return (
+    process.env.INTERNAL_SELF_ORIGIN ??
+    `http://127.0.0.1:${process.env.PORT ?? "3000"}`
+  );
+}
+
 const ERROR_MESSAGES: Record<string, string> = {
   // UX-newcomer-pass-3 (iter 26): the previous copy leaked env-var
   // names (ADMIN_USERNAME, ADMIN_PASSWORD_HASH, …) directly at the
@@ -237,14 +262,22 @@ export default async function SignIn({ searchParams }: Props) {
                 }
 
                 // POST to /api/invites/signup
-                const res = await fetch(
-                  `${process.env.NEXTAUTH_URL ?? process.env.AUTH_URL ?? "http://localhost:3000"}/api/invites/signup`,
-                  {
+                // No try/catch here previously: a rejected fetch (DNS, TLS,
+                // egress block) surfaced as Next's generic error boundary on
+                // the account-creation step — a blank wall at the worst
+                // possible moment. `registration_failed` has real copy.
+                let res: Response;
+                try {
+                  res = await fetch(`${selfOrigin()}/api/invites/signup`, {
                     method: "POST",
                     headers: { "content-type": "application/json" },
                     body: JSON.stringify({ token, name, password }),
-                  },
-                );
+                  });
+                } catch {
+                  redirect(
+                    `/signin?invite=${encodeURIComponent(token)}&error=registration_failed`,
+                  );
+                }
 
                 if (!res.ok) {
                   const data = (await res.json()) as { error?: string };
@@ -382,9 +415,9 @@ export default async function SignIn({ searchParams }: Props) {
                   redirect("/signin?mode=register&error=password_mismatch");
                 }
 
-                const res = await fetch(
-                  `${process.env.NEXTAUTH_URL ?? process.env.AUTH_URL ?? "http://localhost:3000"}/api/auth/register`,
-                  {
+                let res: Response;
+                try {
+                  res = await fetch(`${selfOrigin()}/api/auth/register`, {
                     method: "POST",
                     headers: { "content-type": "application/json" },
                     body: JSON.stringify({
@@ -392,8 +425,10 @@ export default async function SignIn({ searchParams }: Props) {
                       password,
                       ...(voucher ? { voucher } : {}),
                     }),
-                  },
-                );
+                  });
+                } catch {
+                  redirect("/signin?mode=register&error=registration_failed");
+                }
 
                 if (!res.ok) {
                   const data = (await res.json().catch(() => ({}))) as { error?: string };

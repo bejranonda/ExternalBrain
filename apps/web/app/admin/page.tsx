@@ -1,5 +1,6 @@
 import { db } from "@brain/db";
 import { BackupStatusCard } from "@/components/brain/backup-status-card";
+import { QueueHealthCard } from "@/components/brain/queue-health-card";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,7 @@ export default async function AdminOverview() {
           sub={`${cost._sum.callCount ?? 0} calls all-time`}
         />
         <BackupStatusCard />
+        <QueueHealthCard />
       </div>
 
       <section style={{ marginTop: 36 }}>

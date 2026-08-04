@@ -199,8 +199,19 @@ export function Oracle() {
                 await sendFeedback(i, rating, reason);
               }}
               onFollow={(q2) => setQ(q2)}
-              onCopy={() => {
-                void navigator.clipboard.writeText(turn.answer);
+              onCopy={async () => {
+                // `navigator.clipboard` is undefined on a non-secure origin —
+                // the default `dev-up.sh` posture — so the previous bare
+                // `void navigator.clipboard.writeText(...)` threw inside the
+                // click handler and, either way, gave the user no signal at
+                // all. Report the outcome so TurnView can show it.
+                try {
+                  if (!navigator.clipboard?.writeText) return false;
+                  await navigator.clipboard.writeText(turn.answer);
+                  return true;
+                } catch {
+                  return false;
+                }
               }}
               onTeach={(q2) => openTeach(q2)}
               streaming={
@@ -585,7 +596,8 @@ interface TurnViewProps {
   feedback: "up" | "down" | undefined;
   onFeedback(rating: "up" | "down", reason?: string): void;
   onFollow(q: string): void;
-  onCopy(): void;
+  /** Resolves true when the clipboard write actually landed. */
+  onCopy(): Promise<boolean>;
   onTeach(prefill: string): void;
   streaming: boolean;
 }
@@ -596,6 +608,8 @@ function TurnView({ turn, t, feedback, onFeedback, onFollow, onCopy, onTeach, st
     minute: "2-digit",
   });
   const [citationsOpen, setCitationsOpen] = useState(false);
+  // Per-turn, so it belongs here rather than threaded down from the parent.
+  const [copyState, setCopyState] = useState<"idle" | "ok" | "fail">("idle");
   // The reason picker appears after a thumbs-down click (not before).
   // null = down not clicked yet; string = down clicked, picker open.
   const [reasonOpen, setReasonOpen] = useState(false);
@@ -950,9 +964,19 @@ function TurnView({ turn, t, feedback, onFeedback, onFollow, onCopy, onTeach, st
             type="button"
             className="btn btn-ghost"
             style={{ height: 26, fontSize: 12 }}
-            onClick={onCopy}
+            onClick={async () => {
+              const ok = await onCopy();
+              setCopyState(ok ? "ok" : "fail");
+              window.setTimeout(() => setCopyState("idle"), 1500);
+            }}
+            title={copyState === "fail" ? t("oracle.copy_unavailable") : undefined}
           >
-            <Icon name="copy" size={10} /> {t("oracle.copy_skill")}
+            <Icon name="copy" size={10} />{" "}
+            {copyState === "ok"
+              ? t("oracle.copied")
+              : copyState === "fail"
+                ? t("oracle.copy_unavailable")
+                : t("oracle.copy_skill")}
           </button>
           <div className="grow" />
           <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>
