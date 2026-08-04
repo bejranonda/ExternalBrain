@@ -10,6 +10,7 @@ import {
   getLogger,
 } from "@brain/core";
 import type { ToolDef } from "./index.js";
+import { requireCapability } from "../capability.js";
 
 const inputShape = z.object({
   type: z.enum([
@@ -64,6 +65,7 @@ export const teachKnowledge: ToolDef = {
     },
   },
   handler: async (raw, auth) => {
+    requireCapability(auth, "knowledge");
     const input = inputShape.parse(raw);
 
     // Phase 3c: if the token is project-scoped, enforce the scope.

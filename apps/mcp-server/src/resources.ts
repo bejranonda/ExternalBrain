@@ -3,6 +3,7 @@
  */
 import { db } from "@brain/db";
 import type { AuthContext } from "./auth.js";
+import { requireCapability } from "./capability.js";
 
 export const resources = [
   {
@@ -54,8 +55,12 @@ export async function readResource(uri: string, auth: AuthContext) {
     case "brain://user/style-profile":
       return jsonResource(uri, await styleProfile(auth.userId, projectId));
     case "brain://user/active-skills":
+      // The resource half of `brain_find_skill` — restricting one without the
+      // other would leave the door open beside the lock.
+      requireCapability(auth, "skills");
       return jsonResource(uri, await activeSkills(auth.userId));
     case "brain://user/recent-sessions":
+      requireCapability(auth, "sessions");
       return jsonResource(uri, await recentSessions(auth.userId, projectId));
     case "brain://user/peer-card":
       return jsonResource(uri, await peerCard(auth.userId));

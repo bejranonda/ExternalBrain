@@ -243,6 +243,7 @@ rather than leaving them in container logs:
 |---|---|
 | `/admin` → **Backups** tile | did last night's `pg_dump` succeed, and is off-host replication current? |
 | `/admin` → **Background jobs** tile | did any job exhaust its retries and get lost? (`GET /api/admin/queue-health`) |
+| `/settings/tokens` → **Limited:** chip | is any token restricted, and to what? (capabilities: `knowledge`, `skills`, `sessions`, `oracle` — empty means unrestricted) |
 | `./scripts/smoke.sh` | are all containers healthy, and does a real MCP session still complete end-to-end? |
 | `./scripts/verify-lockdown.sh` | is the deployment still refusing anonymous access on every gated surface? |
 

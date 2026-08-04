@@ -2,6 +2,7 @@ import { z } from "zod";
 import { db } from "@brain/db";
 import type { ToolDef } from "./index.js";
 import { resolveReadProjectId } from "../scope.js";
+import { requireCapability } from "../capability.js";
 
 const inputShape = z.object({
   query: z.string().min(2),
@@ -21,6 +22,7 @@ export const sessionSearch: ToolDef = {
     },
   },
   handler: async (raw, auth) => {
+    requireCapability(auth, "sessions");
     const input = inputShape.parse(raw);
     // A scoped token searches only its own project's sessions. Appended as
     // an extra AND rather than folded into the existing predicate so the

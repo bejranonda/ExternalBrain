@@ -1,5 +1,13 @@
 "use client";
 
+// Subpath import, NOT the "@brain/core" barrel. This is a client component,
+// and the barrel re-exports `logger.ts` → `@sentry/node` → `worker_threads`,
+// which cannot be bundled for the browser ("Module not found: Can't resolve
+// 'worker_threads'"). `capabilities.ts` has no imports at all, so it is safe
+// to ship to the client. Same reason `token-install-wizard.tsx` imports from
+// "@brain/core/install-snippets".
+import { CAPABILITIES, CAPABILITY_LABELS, type Capability } from "@brain/core/capabilities";
+
 import { useCallback, useEffect, useState } from "react";
 import { TokenInstallWizard } from "@/components/brain/token-install-wizard";
 import { HelpPopover } from "@/components/brain/help-popover";
@@ -10,6 +18,7 @@ interface TokenRow {
   scope: "personal" | "team";
   organizationId: string | null;
   projectId: string | null;
+  capabilities?: string[];
   createdAt: string;
   lastUsedAt: string | null;
   expiresAt: string | null;
@@ -46,6 +55,9 @@ export default function TokensPage() {
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  // Capability allow-list for the token being minted. EMPTY = unrestricted,
+  // which is the default and matches every token that already exists.
+  const [selectedCaps, setSelectedCaps] = useState<string[]>([]);
 
   // "Change scope" modal state — separate from the secret-rotation modal.
   const [scopeTarget, setScopeTarget] = useState<TokenRow | null>(null);
@@ -180,6 +192,7 @@ export default function TokensPage() {
           scope: "personal",
           organizationId: selectedOrgId ?? null,
           projectId: selectedProjectId ?? null,
+          capabilities: selectedCaps,
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -435,6 +448,42 @@ export default function TokensPage() {
             </div>
           );
         })()}
+
+        {/* Capability allow-list. Unchecked-everything = unrestricted, which
+            is deliberately the default: it is what every existing token has,
+            and it means the common case needs no decision. Checking any box
+            turns the token into an allow-list — the primitive offered instead
+            of partitioning skills by project (KNOWN_ISSUES §0q). */}
+        <div style={{ marginTop: 10 }}>
+          <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 4 }}>
+            Capabilities
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            {CAPABILITIES.map((cap) => (
+              <label
+                key={cap}
+                style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedCaps.includes(cap)}
+                  onChange={(e) =>
+                    setSelectedCaps((prev) =>
+                      e.target.checked ? [...prev, cap] : prev.filter((c) => c !== cap),
+                    )
+                  }
+                  style={{ width: 14, height: 14, accentColor: "var(--accent)" }}
+                />
+                {CAPABILITY_LABELS[cap]}
+              </label>
+            ))}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 4 }}>
+            {selectedCaps.length === 0
+              ? "Nothing checked — the token can do everything (the default)."
+              : `Restricted: this token may only ${selectedCaps.map((c) => CAPABILITY_LABELS[c as Capability].toLowerCase()).join(", ")}.`}
+          </div>
+        </div>
       </section>
 
       <section>
@@ -508,6 +557,19 @@ export default function TokensPage() {
                     <span className="mono" style={chipStyle}>
                       {projectName ? `Project: ${projectName}` : "Any project"}
                     </span>
+                    {/* Capability chip. Only rendered when the token IS
+                        restricted — an "unrestricted" chip on every row would
+                        be noise, and the read that matters is "which of these
+                        is limited?", not "which is normal?". */}
+                    {(t.capabilities?.length ?? 0) > 0 && (
+                      <span
+                        className="mono"
+                        style={{ ...chipStyle, borderColor: "var(--warn, #F5C451)", color: "var(--warn, #F5C451)" }}
+                        title={`Restricted to: ${t.capabilities!.join(", ")}`}
+                      >
+                        Limited: {t.capabilities!.join(", ")}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="grow" />

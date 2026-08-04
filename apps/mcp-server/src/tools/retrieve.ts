@@ -3,6 +3,7 @@ import { kra, formatter } from "@brain/core";
 import type { ToolDef } from "./index.js";
 import { resolveReadProjectId } from "../scope.js";
 import { resolveOrgScope } from "../org-scope.js";
+import { requireCapability } from "../capability.js";
 
 const inputShape = z.object({
   prompt: z.string().min(1),
@@ -52,6 +53,7 @@ export const retrieveKnowledge: ToolDef = {
     },
   },
   handler: async (raw, auth) => {
+    requireCapability(auth, "knowledge");
     const input = inputShape.parse(raw);
     // A scoped token reads only its own project. `projectId` arrives from
     // client input, so without this a token labelled "scoped to project X"

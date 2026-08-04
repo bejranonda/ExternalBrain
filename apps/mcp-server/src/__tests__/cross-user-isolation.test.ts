@@ -145,6 +145,10 @@ guard("MCP cross-user isolation (IDOR fix #106)", () => {
     projectId: null as string | null,
     organizationId: null as string | null,
     scope: "personal" as const,
+    // Empty = unrestricted, matching every token that predates the
+    // capabilities column. These tests are about project scope, not
+    // capabilities, so they must not accidentally restrict.
+    capabilities: [] as string[],
   });
 
   /** Bob, on a token bound to Bob's own project. */

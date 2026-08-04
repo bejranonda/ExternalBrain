@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { db } from "@brain/db";
 import { z } from "zod";
 import { authErrorResponse, getCurrentUserId } from "@/lib/brain/auth";
-import { writeAudit, ensurePersonalOrg } from "@brain/core";
+import { writeAudit, ensurePersonalOrg , sanitizeCapabilities, CAPABILITIES } from "@brain/core";
 
 // 90-day default follows best practice for long-lived bearer tokens.
 // Callers can override with any positive integer up to 3650 (10y) or set
@@ -24,6 +24,13 @@ const createSchema = z.object({
   // user is a member of. When BOTH organizationId and projectId are set,
   // the project must belong to that org.
   organizationId: z.string().optional().nullable(),
+  // Capability allow-list. Absent or empty = UNRESTRICTED (prior behaviour
+  // for every token that already exists). Unknown slugs are dropped by
+  // sanitizeCapabilities rather than rejected, so a client on an older
+  // capability vocabulary degrades to a narrower token instead of a 400 —
+  // but see the guard below: "asked for restrictions, none survived" must
+  // NOT silently become "unrestricted".
+  capabilities: z.array(z.string()).optional(),
 });
 
 export async function GET(): Promise<Response> {
@@ -39,6 +46,7 @@ export async function GET(): Promise<Response> {
         teamId: true,
         organizationId: true,
         projectId: true,
+        capabilities: true,
         createdAt: true,
         lastUsedAt: true,
         expiresAt: true,
@@ -113,6 +121,20 @@ export async function POST(req: Request): Promise<Response> {
       }
     }
 
+    // Capabilities: [] means unrestricted, so a caller who ASKED for
+    // restrictions and had every slug dropped must not silently receive an
+    // all-powerful token. Fail instead of guessing.
+    const resolvedCapabilities = sanitizeCapabilities(body.capabilities);
+    if ((body.capabilities?.length ?? 0) > 0 && resolvedCapabilities.length === 0) {
+      return Response.json(
+        {
+          error: "invalid_capabilities",
+          message: `None of the requested capabilities are recognised. Valid: ${CAPABILITIES.join(", ")}.`,
+        },
+        { status: 400 },
+      );
+    }
+
     const row = await db.mCPToken.create({
       data: {
         userId,
@@ -122,6 +144,7 @@ export async function POST(req: Request): Promise<Response> {
         scope: body.scope,
         teamId: body.scope === "team" ? (body.teamId ?? null) : null,
         projectId: resolvedProjectId,
+        capabilities: resolvedCapabilities,
         ...(expiresAt ? { expiresAt } : {}),
       },
       select: {
@@ -129,6 +152,7 @@ export async function POST(req: Request): Promise<Response> {
         name: true,
         scope: true,
         projectId: true,
+        capabilities: true,
         organizationId: true,
         createdAt: true,
         expiresAt: true,

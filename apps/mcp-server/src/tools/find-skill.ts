@@ -2,6 +2,7 @@ import { z } from "zod";
 import { db, toVector } from "@brain/db";
 import { embedding } from "@brain/core";
 import type { ToolDef } from "./index.js";
+import { requireCapability } from "../capability.js";
 
 const inputShape = z.object({
   query: z.string().min(2),
@@ -40,6 +41,7 @@ export const findSkill: ToolDef = {
     },
   },
   handler: async (raw, auth) => {
+    requireCapability(auth, "skills");
     const input = inputShape.parse(raw);
     const vec = await embedding.embed(input.query);
 

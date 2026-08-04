@@ -87,6 +87,14 @@ export {
 } from "./org.js";
 export type { UserProject, OrgMemberView, OrgInviteView, CreatedOrg, DuplicateProjectGroup } from "./org.js";
 export {
+  CAPABILITIES,
+  CAPABILITY_LABELS,
+  hasCapability,
+  isCapability,
+  sanitizeCapabilities,
+} from "./capabilities.js";
+export type { Capability } from "./capabilities.js";
+export {
   buildKnowledgeWhere,
   buildSessionWhere,
   buildProposalWhere,

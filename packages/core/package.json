@@ -23,6 +23,7 @@
     "./cost": "./src/cost.ts",
     "./logger": "./src/logger.ts",
     "./install-snippets": "./src/install-snippets.ts",
+    "./capabilities": "./src/capabilities.ts",
     "./format-relative": "./src/format-relative.ts"
   },
   "scripts": {

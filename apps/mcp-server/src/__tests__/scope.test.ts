@@ -18,6 +18,7 @@ function auth(projectId: string | null) {
     tokenId: "t1",
     organizationId: null,
     projectId,
+    capabilities: [] as string[],
   };
 }
 
