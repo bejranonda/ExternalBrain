@@ -150,6 +150,17 @@ body {
    Standalone pages have no `.app`, so they keep the scrolling this whole
    change was about. */
 @media (min-width: 881px) {
+  /* BOTH elements, and `html` is the one that actually does the work.
+     Constraining only `body` leaves the document scrollable: reproduced in a
+     browser against this very stylesheet — a `.scroll` pane whose content
+     escapes it gave `scrollY = 800` with the body-only rule and `0` once the
+     root element was constrained too. Body's overflow does not reliably
+     propagate to the viewport once its own box is overflowed, and the
+     viewport is what `window.scrollTo` moves. */
+  html:has(.app) {
+    height: 100%;
+    overflow: hidden;
+  }
   body:has(.app) {
     height: 100vh;
     overflow: hidden;
