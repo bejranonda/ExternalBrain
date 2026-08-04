@@ -234,6 +234,26 @@ REBUILD/       Phase-by-phase vibe-coding reconstruction guide (start: REBUILD/0
 
 ---
 
+## Operating a Brain — what tells you it's working
+
+Self-hosting means you own the failure modes, so the platform surfaces them
+rather than leaving them in container logs:
+
+| Surface | Answers |
+|---|---|
+| `/admin` → **Backups** tile | did last night's `pg_dump` succeed, and is off-host replication current? |
+| `/admin` → **Background jobs** tile | did any job exhaust its retries and get lost? (`GET /api/admin/queue-health`) |
+| `./scripts/smoke.sh` | are all containers healthy, and does a real MCP session still complete end-to-end? |
+| `./scripts/verify-lockdown.sh` | is the deployment still refusing anonymous access on every gated surface? |
+
+`./scripts/deploy.sh` runs the last two automatically and **fails the deploy**
+if either does. That is deliberate: this project's most expensive bugs have all
+been silent ones — a backup that failed for three weeks, a nightly extraction
+that died for eight days, a healthcheck that could never pass. Each was
+invisible until something was built to look. See
+[`KNOWN_ISSUES §0q`](./docs/KNOWN_ISSUES.md) for the full set and what each one
+cost.
+
 ## Documentation & Guides
 
 | Doc | What it covers |

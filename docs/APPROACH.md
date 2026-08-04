@@ -2142,3 +2142,65 @@ lines — and the thing it exposed had been costing a daily job for eight days.
 The cost of a monitor is visible up front; the cost of not having one is
 invisible by construction, which is exactly why it loses the prioritisation
 argument every time.
+
+---
+
+## 5bk. Three mistakes on thirty lines — verifying the nearest signal instead of the property (2026-08-04, v2.11.0 → v2.11.2)
+
+The dead-letter queue was the smallest item on the list: route three queues to
+a terminal inbox, add an admin tile. It took three attempts, and every failure
+passed the check that was supposed to catch it.
+
+**Attempt 1 — `expireInSeconds` where `retentionSeconds` was meant.**
+pg-boss asserts a 24-hour ceiling on expiry, so `createQueue` threw before any
+handler registered and the worker crash-looped **in production**. Every
+background job was down until the hotfix. I had opened the type definitions and
+confirmed the option existed — three lines above the one I wanted — without
+reading what it meant.
+
+**Attempt 2 — the health gate waved the crash-loop through.** The
+container-health check added the day before warned on `starting` and passed. At
+smoke time the crash-looping worker was inside its 40 s `start_period`, so the
+deploy printed an amber note and reported green.
+
+**Attempt 3 — the feature installed successfully and did nothing.**
+`createQueue` is a no-op on an existing queue; it does not reconcile options. On
+any brain that has run before — every real one — `deadLetter` silently never
+attached. The `dlq` row appeared, `dead_letter` stayed NULL on all three source
+queues, and every signal said success.
+
+### What generalises
+
+**Verify the property, not the nearest signal.** Each failure had a check
+sitting one layer short of the thing that mattered:
+
+| I verified | I should have verified |
+|---|---|
+| the option exists | what the option *means* |
+| smoke is green | the worker is *healthy* |
+| the `dlq` row exists | jobs *route* to it |
+
+The nearest signal is always cheaper to obtain, always correlates with success,
+and is exactly what a defect can satisfy while the real property is false. The
+tell is that the check can pass in a world where the feature doesn't work — if
+you can describe that world, the check is the wrong one.
+
+**A gate that tolerates "not yet known" is worst precisely when it matters.**
+`starting` is a third state between healthy and unhealthy, and treating it as
+"probably fine" means reporting green during the window a fresh deploy is most
+likely to be broken. It now waits for the state to resolve and fails if it never
+does. Unknown must resolve to failure in a gate, or it is not a gate — a lesson
+this same check needed **twice in two days**, having previously shipped a
+healthcheck that could never pass.
+
+**Speed is where verification discipline goes to die.** Every one of these was
+caught by the discipline this same audit arc had been insisting on for a day —
+read the installed types, query the database, don't trust the checkmark. They
+happened anyway because the item was small and the session was long, and small
+items are where you stop doing the thing you know to do. The audit's own
+findings were produced by patience; its regressions were produced by pace.
+
+**Publish the count.** Three corrections on thirty lines is a bad ratio and
+belongs in the record at full strength. A changelog that shows only the final
+working state teaches nothing, and the next person to add a queue option will
+reach for `expireInSeconds` for exactly the same reason I did.

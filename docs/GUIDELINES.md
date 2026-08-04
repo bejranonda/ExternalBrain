@@ -202,6 +202,29 @@ worse than the first. `security.spec.ts` resolved its MCP endpoint as
 never once contacted the MCP server. The job now builds and boots
 `@brain/mcp-server`, waits on `/health`, and fails if it doesn't come up.
 
+### Verify the property, not the nearest signal
+
+Every check has a cheaper neighbour that correlates with it. The neighbour is
+what a defect satisfies while the real property is false.
+
+| Nearest signal | The property |
+|---|---|
+| the option exists in the type | what the option *means* |
+| the deploy smoke is green | the container is *healthy* |
+| the row exists in the table | the thing the row enables *happens* |
+| the test passed | the test *could have failed* for this reason |
+
+The tell: **if you can describe a world where the check passes and the feature
+does not work, it is the wrong check.** For anything with a database or a
+container behind it, the acceptance criterion is usually a query, not a
+checkmark — `SELECT name, dead_letter FROM pgboss.queue` rather than "deploy
+succeeded".
+
+Related, and learned the hard way twice: **a gate must resolve "unknown" to
+failure.** A container in `starting`, a skipped test, an unreachable endpoint —
+tolerating any of these means reporting green during precisely the window when
+something is most likely broken. See `KNOWN_ISSUES §0q` for both occasions.
+
 ### One rule, one implementation — and put the question in the PR
 
 The audit arc that produced most of this section found the same defect class
