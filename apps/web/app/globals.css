@@ -108,8 +108,26 @@ body {
   /* Bumped to 16px for general readability per UX brief. */
   font-size: var(--text-base);
   line-height: 1.5;
-  overflow: hidden;
-  height: 100vh;
+  /* `overflow: hidden; height: 100vh` used to live here. It existed for the
+     SPA shell, which pins ITSELF to 100vh (`.app`) and scrolls inside its own
+     `.scroll` panes — so on the shell it was redundant. Everywhere else it was
+     a trap: every standalone page (/settings/*, /admin/*, /signin, /welcome,
+     /docs, /accept-invite, …) renders straight into <body> with no `.scroll`
+     wrapper, so anything past one viewport height became unreachable — no
+     scrollbar, no keyboard scroll, no way down.
+     Reported 2026-08-04 against /settings/tokens, where an account with 9
+     tokens could only reach the first two. `min-height` keeps the background
+     filling short pages; the shell is unaffected because `.app` sets its own
+     height and therefore never makes the document taller than the viewport.
+
+     `overflow-x: hidden` is kept deliberately: the horizontal half of that old
+     rule was doing real work. `e2e/mobile-overflow.spec.ts` exists because the
+     signed-in app once scrolled sideways on a 375px viewport (#60), and
+     clipping X is the belt to that spec's braces. Only the Y axis needed
+     freeing. (Setting overflow-x alone computes overflow-y to `auto`, which is
+     exactly the wanted behaviour.) */
+  min-height: 100vh;
+  overflow-x: hidden;
 }
 
 ::selection { background: var(--accent); color: var(--accent-ink); }
