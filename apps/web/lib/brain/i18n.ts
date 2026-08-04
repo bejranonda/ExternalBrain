@@ -115,6 +115,8 @@ export const I18N = {
     oracle: {
       title: "Oracle",
       tagline: "Ask anything about your work — answers cite the skills and sessions they came from.",
+      copied: "Copied",
+      copy_unavailable: "Clipboard unavailable",
       model: "Powered by Claude",
       new_thread: "New thread",
       you: "You",
@@ -451,6 +453,8 @@ export const I18N = {
       title: "ผู้ช่วยอัจฉริยะ",
       tagline:
         "ถามอะไรก็ได้เกี่ยวกับงานของคุณ — ทุกคำตอบจะอ้างอิงสกิลและเซสชันที่เป็นแหล่งที่มา",
+      copied: "คัดลอกแล้ว",
+      copy_unavailable: "ใช้คลิปบอร์ดไม่ได้",
       model: "ขับเคลื่อนด้วย Claude",
       new_thread: "เธรดใหม่",
       you: "คุณ",
@@ -777,6 +781,8 @@ export const I18N = {
       title: "Assistent",
       tagline:
         "Frag alles über deine Arbeit — jede Antwort zitiert die Skills und Sitzungen, aus denen sie stammt.",
+      copied: "Kopiert",
+      copy_unavailable: "Zwischenablage nicht verfügbar",
       model: "Mit Claude",
       new_thread: "Neuer Thread",
       you: "Du",

@@ -10,11 +10,12 @@
  * injected via `deps`, and the timeout is driven to a few milliseconds so the
  * suite stays fast.
  */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   callLLMText,
   isTransientLLMError,
   DEFAULT_LLM_TIMEOUT_MS,
+  useAnthropicSdk,
   type LLMDeps,
 } from "../llm.js";
 
@@ -200,5 +201,65 @@ describe("callLLMText dispatch is preserved by the retry wrapper", () => {
 
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
+  });
+});
+
+describe("provider routing — the gateway rule (the 8-night silent failure)", () => {
+  const orig = process.env.ANTHROPIC_BASE_URL;
+  afterEach(() => {
+    if (orig === undefined) delete process.env.ANTHROPIC_BASE_URL;
+    else process.env.ANTHROPIC_BASE_URL = orig;
+  });
+
+  it("routes glm-* to DashScope when NO gateway is configured", async () => {
+    delete process.env.ANTHROPIC_BASE_URL;
+    const seen: string[] = [];
+    const deps: LLMDeps = {
+      anthropic: async () => { seen.push("anthropic"); return "A"; },
+      openai: async () => { seen.push("openai"); return "O"; },
+      dashscope: async () => { seen.push("dashscope"); return "D"; },
+    };
+    await callLLMText("p", { model: "glm-5.1" }, deps);
+    expect(seen).toEqual(["dashscope"]);
+  });
+
+  it("routes glm-* through the ANTHROPIC gateway when one IS configured", async () => {
+    // The regression: with ANTHROPIC_BASE_URL set, oracle.ts sent glm-5.1 to
+    // the gateway and worked, while callLLMText sent the same string to
+    // DashScope and died on a missing key — so kea.cross_extract failed
+    // every night from 2026-07-28 while the Oracle looked healthy.
+    process.env.ANTHROPIC_BASE_URL = "https://gateway.example/v1";
+    const seen: string[] = [];
+    const deps: LLMDeps = {
+      anthropic: async () => { seen.push("anthropic"); return "A"; },
+      openai: async () => { seen.push("openai"); return "O"; },
+      dashscope: async () => { seen.push("dashscope"); return "D"; },
+    };
+    await callLLMText("p", { model: "glm-5.1" }, deps);
+    expect(seen).toEqual(["anthropic"]);
+  });
+
+  it("agrees with oracle.ts's predicate for every case that matters", () => {
+    delete process.env.ANTHROPIC_BASE_URL;
+    expect(useAnthropicSdk("claude-sonnet-4-6")).toBe(true);
+    expect(useAnthropicSdk("glm-5.1")).toBe(false);
+    expect(useAnthropicSdk("gpt-4o")).toBe(false);
+    process.env.ANTHROPIC_BASE_URL = "https://gateway.example/v1";
+    // The gateway fronts everything — that is the whole point of the var.
+    expect(useAnthropicSdk("claude-sonnet-4-6")).toBe(true);
+    expect(useAnthropicSdk("glm-5.1")).toBe(true);
+    expect(useAnthropicSdk("gpt-4o")).toBe(true);
+  });
+
+  it("still sends claude-* to Anthropic with no gateway set", async () => {
+    delete process.env.ANTHROPIC_BASE_URL;
+    const seen: string[] = [];
+    const deps: LLMDeps = {
+      anthropic: async () => { seen.push("anthropic"); return "A"; },
+      openai: async () => { seen.push("openai"); return "O"; },
+      dashscope: async () => { seen.push("dashscope"); return "D"; },
+    };
+    await callLLMText("p", { model: "claude-haiku-4-5" }, deps);
+    expect(seen).toEqual(["anthropic"]);
   });
 });

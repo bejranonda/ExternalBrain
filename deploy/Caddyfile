@@ -68,6 +68,22 @@
 
 # MCP HTTP: same treatment on a (possibly) different hostname.
 {$BRAIN_MCP_PUBLIC_HOSTNAME} {
+	# Neither layer throttled /mcp before this: `apps/web/proxy.ts` matches
+	# `/api/:path*` only, and this vhost had no rate_limit at all. So bearer
+	# guessing and session-spray were limited by nothing.
+	#
+	# v2.8.0 removed the anonymous amplifier (an invalid token no longer
+	# allocates a session), so this is defence in depth rather than the fix.
+	# 30/s/IP sits far above a real editor's cadence — a working session is a
+	# handful of calls per minute — while still bounding a spray.
+	rate_limit {
+		zone mcp_per_ip {
+			key {http.request.remote_host}
+			events 30
+			window 1s
+		}
+	}
+
 	encode gzip zstd
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"

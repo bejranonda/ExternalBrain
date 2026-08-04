@@ -21,6 +21,10 @@ import { embed } from "./embedding.js";
 import { reserveCapSlot, recordCall, DEFAULT_RESERVATION_USD, OracleCapReachedError } from "./cost.js";
 import { buildOwnerGate, buildRawProjectFilterV2, buildSessionWhere } from "./scope-filter.js";
 import { RULE_TYPES_PREDICATE } from "./kra.js";
+// Shared with callLLMText — one routing rule, two dispatchers. A divergence
+// here is what made kea.cross_extract fail for eight nights while the Oracle
+// worked on the identical model string.
+import { useAnthropicSdk } from "./llm.js";
 import { listProjectActionItems, type ActionItemRow } from "./action-items.js";
 import type { DataScope, VisibilityScopeArgs } from "./scope-filter.js";
 
@@ -492,12 +496,6 @@ export async function* askStream(
  * case the provider's own model names (`glm-*`, etc.) are passed
  * through verbatim.
  */
-function useAnthropicSdk(model: string): boolean {
-  if (model.startsWith("claude")) return true;
-  if (process.env.ANTHROPIC_BASE_URL) return true;
-  return false;
-}
-
 async function callOracle(
   userPrompt: string,
   maxTokens: number,

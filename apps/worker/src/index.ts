@@ -33,6 +33,9 @@ type SessionJobData = z.infer<typeof sessionJobSchema>;
  */
 const KEA_RETRY_LIMIT = 3;
 
+/** Name of the terminal queue for jobs that exhausted their retries. */
+const DEAD_LETTER_QUEUE = "dlq";
+
 /**
  * Daily per-user ceiling on KEA extractions. `0` disables it.
  *
@@ -115,20 +118,22 @@ async function main(): Promise<void> {
     retryDelay?: number;
     retryBackoff: boolean;
     expireInSeconds: number;
+    /** Terminal destination once retries are spent. See DEAD_LETTER_QUEUE. */
+    deadLetter?: string;
   }> = [
     // Per-session work — retry generously with backoff; expire if the
     // run takes more than 10 min so we don't hold up other sessions.
     // KEA_RETRY_LIMIT is shared with the handler, which needs to know which
     // attempt is the last one before it marks the Session `failed`.
-    { name: "kea.extract",     retryLimit: KEA_RETRY_LIMIT, retryBackoff: true,  expireInSeconds: 600 },
-    { name: "autoskill.run",   retryLimit: 3, retryBackoff: true,  expireInSeconds: 600 },
+    { name: "kea.extract",     retryLimit: KEA_RETRY_LIMIT, retryBackoff: true,  expireInSeconds: 600, deadLetter: DEAD_LETTER_QUEUE },
+    { name: "autoskill.run",   retryLimit: 3, retryBackoff: true,  expireInSeconds: 600, deadLetter: DEAD_LETTER_QUEUE },
     // Cross-session KEA (PR #219) — daily fan-out over users. Bumped
     // expireInSeconds because per-user processing involves LLM calls
     // against a multi-session payload that can take 30-60s each. retryLimit=1
     // because the work is idempotent (skip-on-no-new-sessions makes retry
     // safe) AND because LLM-call failures usually indicate provider issues
     // that won't recover in the same cron window.
-    { name: "kea.cross_extract", retryLimit: 1, retryBackoff: false, expireInSeconds: 3600 },
+    { name: "kea.cross_extract", retryLimit: 1, retryBackoff: false, expireInSeconds: 3600, deadLetter: DEAD_LETTER_QUEUE },
     // Session sweeper (#228). Daily DB-side sweep that closes Sessions
     // with endedAt=NULL whose latest activity is older than 24h. The
     // in-memory mcp.session.orphan sweeper (PR #202) handles transport-
@@ -146,11 +151,34 @@ async function main(): Promise<void> {
     // remaining work; no need to retry hard.
     { name: "embeddings.backfill",            retryLimit: 1, retryBackoff: false, expireInSeconds: 600 },
   ];
+  // Terminal inbox for jobs that exhausted their retries. NOTHING works this
+  // queue — it is read by the admin surface and by a human during an incident.
+  //
+  // Before this, an exhausted job moved to `failed` in pgboss.job and stopped
+  // existing as far as the platform was concerned: no surface, no cron check,
+  // no alert. Combined with the silent-handler problem fixed in v2.8.0, an
+  // entire class of failure was invisible — KEA fails three times, the job
+  // dies, the Session still reads `success`, and the only trace is a log line
+  // nobody greps. Same shape as the backup that failed silently for three
+  // weeks (§0f), which was solved the same way: a status surface someone sees.
+  //
+  // Only the session-scoped queues route here. The cron queues are
+  // self-healing — a missed nightly decay is corrected by tomorrow's run —
+  // so dead-lettering them would fill the inbox with entries nobody acts on,
+  // and an inbox nobody acts on is the thing this is trying to replace.
+  await boss.createQueue(DEAD_LETTER_QUEUE, {
+    retryLimit: 0,
+    retryBackoff: false,
+    // 14 days: long enough to survive a holiday, short enough to stay finite.
+    expireInSeconds: 14 * 24 * 60 * 60,
+  });
+
   for (const q of QUEUES) {
     await boss.createQueue(q.name, {
       retryLimit: q.retryLimit,
       retryBackoff: q.retryBackoff,
       expireInSeconds: q.expireInSeconds,
+      ...(q.deadLetter ? { deadLetter: q.deadLetter } : {}),
     });
   }
 

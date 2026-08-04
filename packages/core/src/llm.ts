@@ -108,6 +108,32 @@ const realDeps: LLMDeps = {
   },
 };
 
+/**
+ * Should this model go through the Anthropic SDK?
+ *
+ * `claude*` always does. **And so does everything else when
+ * `ANTHROPIC_BASE_URL` is set**, because that variable means "an
+ * Anthropic-compatible gateway fronts all of this" — Z.ai/GLM, Bedrock, a
+ * Vertex anthropic proxy — and such gateways take the provider's own model
+ * names (`glm-*`) verbatim over the Anthropic wire protocol.
+ *
+ * This predicate used to live only in `oracle.ts`, and the divergence cost
+ * eight consecutive nights of silent failure: with `ANTHROPIC_BASE_URL` set
+ * and `ORACLE_MODEL=glm-5.1`, the Oracle routed to the gateway and worked,
+ * while `callLLMText` routed the SAME model string to DashScope and died on
+ * `DASHSCOPE_API_KEY is unset`. `kea.cross_extract` inherits ORACLE_MODEL
+ * when `CROSS_SESSION_KEA_MODEL` is unset, so cross-session extraction had
+ * not run since 2026-07-28 — visible only in `pgboss.job`, which nothing
+ * read until the queue-health surface landed.
+ *
+ * One predicate, both dispatchers. (GUIDELINES §4 — fix the class.)
+ */
+export function useAnthropicSdk(model: string): boolean {
+  if (model.startsWith("claude")) return true;
+  if (process.env.ANTHROPIC_BASE_URL) return true;
+  return false;
+}
+
 export const DEFAULT_LLM_TIMEOUT_MS = 120_000;
 
 /**
@@ -148,7 +174,9 @@ export async function callLLMText(
   const budgetMs = opts.timeoutMs ?? DEFAULT_LLM_TIMEOUT_MS;
 
   const dispatch = (): Promise<string> => {
-    if (model.startsWith("claude")) return deps.anthropic(prompt, opts);
+    // Gateway passthrough first: when ANTHROPIC_BASE_URL is set it fronts
+    // every model, so a `glm-*` name must NOT be re-routed to DashScope.
+    if (useAnthropicSdk(model)) return deps.anthropic(prompt, opts);
     if (model.startsWith("qwen") || model.startsWith("glm")) {
       return deps.dashscope(prompt, model, system, maxTokens);
     }
