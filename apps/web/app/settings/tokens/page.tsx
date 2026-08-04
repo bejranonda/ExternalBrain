@@ -1,6 +1,12 @@
 "use client";
 
-import { CAPABILITIES, CAPABILITY_LABELS, type Capability } from "@brain/core";
+// Subpath import, NOT the "@brain/core" barrel. This is a client component,
+// and the barrel re-exports `logger.ts` → `@sentry/node` → `worker_threads`,
+// which cannot be bundled for the browser ("Module not found: Can't resolve
+// 'worker_threads'"). `capabilities.ts` has no imports at all, so it is safe
+// to ship to the client. Same reason `token-install-wizard.tsx` imports from
+// "@brain/core/install-snippets".
+import { CAPABILITIES, CAPABILITY_LABELS, type Capability } from "@brain/core/capabilities";
 
 import { useCallback, useEffect, useState } from "react";
 import { TokenInstallWizard } from "@/components/brain/token-install-wizard";
