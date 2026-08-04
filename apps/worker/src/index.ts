@@ -169,8 +169,22 @@ async function main(): Promise<void> {
   await boss.createQueue(DEAD_LETTER_QUEUE, {
     retryLimit: 0,
     retryBackoff: false,
-    // 14 days: long enough to survive a holiday, short enough to stay finite.
-    expireInSeconds: 14 * 24 * 60 * 60,
+    // `retentionSeconds`, NOT `expireInSeconds` — the two mean different
+    // things and conflating them took the worker down in v2.11.0:
+    //
+    //   expireInSeconds   how long a job may sit ACTIVE before being retried
+    //                     or failed. pg-boss asserts a 24-hour maximum, so
+    //                     the 14 days meant here threw
+    //                     "configuration assert: expiration cannot exceed
+    //                     24 hours" at boss.createQueue() — before any
+    //                     handler registered — and the worker crash-looped.
+    //   retentionSeconds  how long a job is KEPT before deletion. This is
+    //                     the "how long do dead letters stay readable"
+    //                     knob, and it has no 24-hour ceiling.
+    //
+    // Nothing ever works this queue, so expiry is irrelevant to it; leaving
+    // the default is correct rather than merely safe.
+    retentionSeconds: 14 * 24 * 60 * 60,
   });
 
   for (const q of QUEUES) {

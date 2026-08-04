@@ -89,9 +89,47 @@ if command -v docker >/dev/null 2>&1 && docker compose -f deploy/docker-compose.
     done
     fail "container health check failed — see probe output above"
   fi
-  # `starting` is normal briefly after a deploy; report it without failing,
-  # since smoke runs immediately and start_period is up to 40s.
-  [ -n "$STARTING" ] && printf '\033[33m⚠\033[0m  still starting (not a failure this soon after deploy):%s\n' "$STARTING" >&2
+  # WAIT for `starting` to resolve — do not wave it through.
+  #
+  # The first version of this check warned on `starting` and passed. That let
+  # v2.11.0 ship a crash-looping worker: `boss.createQueue` threw on a bad
+  # `expireInSeconds`, the container restarted in a loop, and at smoke time it
+  # was still inside its 40 s start_period — so the gate printed a friendly
+  # warning and reported success. A gate that tolerates "not yet known" is a
+  # gate that reports green during exactly the window a deploy is most likely
+  # to be broken.
+  if [ -n "$STARTING" ]; then
+    printf '\033[36m──\033[0m waiting for health to settle:%s\n' "$STARTING"
+    for _ in $(seq 1 24); do   # 24 × 5s = 120s, comfortably past start_period
+      sleep 5
+      STARTING=""; UNHEALTHY=""
+      for cid in $(docker compose -f deploy/docker-compose.yml --env-file .env ps -q 2>/dev/null); do
+        name=$(docker inspect --format '{{.Name}}' "$cid" 2>/dev/null | sed 's#^/##')
+        state=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$cid" 2>/dev/null || true)
+        case "$state" in
+          unhealthy) UNHEALTHY="$UNHEALTHY $name" ;;
+          starting)  STARTING="$STARTING $name" ;;
+        esac
+      done
+      [ -z "$STARTING" ] && break
+    done
+    if [ -n "$STARTING" ]; then
+      printf '\033[31m✗\033[0m container(s) never left `starting`:%s\n' "$STARTING" >&2
+      for n in $STARTING; do
+        printf '   ── last probe output for %s ──\n' "$n" >&2
+        docker inspect --format '{{range .State.Health.Log}}{{.Output}}{{end}}' "$n" 2>/dev/null | tail -5 >&2 || true
+      done
+      fail "health never settled — treat as unhealthy rather than unknown"
+    fi
+    if [ -n "$UNHEALTHY" ]; then
+      printf '\033[31m✗\033[0m unhealthy container(s):%s\n' "$UNHEALTHY" >&2
+      for n in $UNHEALTHY; do
+        printf '   ── last probe output for %s ──\n' "$n" >&2
+        docker inspect --format '{{range .State.Health.Log}}{{.Output}}{{end}}' "$n" 2>/dev/null | tail -5 >&2 || true
+      done
+      fail "container became unhealthy after the start period"
+    fi
+  fi
   ok "no unhealthy containers"
 else
   printf '\033[33m⚠\033[0m  docker/compose not reachable from here — skipping container health.\n' >&2
