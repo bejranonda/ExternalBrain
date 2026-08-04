@@ -398,7 +398,7 @@ export const I18N = {
       loading: "กำลังโหลดการตัดสินใจ…",
       empty_title: "ยังไม่มีการตัดสินใจที่บันทึกไว้",
       empty_body:
-        "เมื่อคุณบอกเครื่องมือ AI ถึงการตัดสินใจของโปรเจกต์ — \"เราจะใช้ X\", \"เลิกใช้ Y\" — ให้บันทึกด้วย brain_teach_knowledge (scope: project, tag: decision) จากนั้นจะปรากฏที่นี่ ในการ inject-at-open ของเพื่อนร่วมทีมทุกคน และใน Oracle",
+        "เมื่อคุณแจ้งการตัดสินใจของโปรเจกต์กับเครื่องมือ AI — \"เราจะใช้ X\", \"เลิกใช้ Y\" — ให้บันทึกด้วย brain_teach_knowledge (scope: project, tag: decision) จากนั้นจะปรากฏที่นี่ ตอนเปิดเซสชันของเพื่อนร่วมทีมทุกคน และใน Oracle",
       help_what:
         "ข้อสรุปของโปรเจกต์ — สิ่งที่ทีมตัดสินใจแล้วและไม่ควรกลับมาถกใหม่ แชร์ทั้งโปรเจกต์และได้รับการยกเว้นจากการสลาย",
       help_todo_1:
@@ -724,9 +724,9 @@ export const I18N = {
       loading: "Entscheidungen werden geladen…",
       empty_title: "Noch keine Entscheidungen erfasst",
       empty_body:
-        "Wenn du deinem KI-Tool eine Projektentscheidung mitteilst — \"wir nehmen X\", \"Y wird eingestellt\" — halte sie mit brain_teach_knowledge fest (scope: project, tag: decision). Sie erscheint dann hier, im inject-at-open jedes Teammitglieds und im Oracle.",
+        "Wenn du deinem KI-Tool eine Projektentscheidung mitteilst — \"wir nehmen X\", \"Y wird eingestellt\" — halte sie mit brain_teach_knowledge fest (scope: project, tag: decision). Sie erscheint dann hier, beim Session-Start jedes Teammitglieds und im Oracle.",
       help_what:
-        "Getroffene Projektentscheidungen — die Festlegungen deines Teams, die nicht neu aufgerollt werden sollten. Projektweit geteilt und vom Decay ausgenommen.",
+        "Getroffene Projektentscheidungen — die Festlegungen deines Teams, die nicht wieder aufgerollt werden sollten. Projektweit geteilt und vom Zerfall ausgenommen.",
       help_todo_1:
         "Sieh dir die erfassten Entscheidungen an; jede zeigt die getroffene Wahl und, sofern hinterlegt, die verworfene Alternative.",
       help_todo_2:
