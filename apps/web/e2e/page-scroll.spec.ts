@@ -78,21 +78,33 @@ for (const hash of SHELL_SURFACES) {
     await page.waitForSelector(".app", { timeout: 30_000 });
     // Let the surface's data land — overflow usually arrives with content.
     await page.waitForTimeout(1500);
-    const m = await page.evaluate(() => ({
-      docH: document.documentElement.scrollHeight,
-      winH: window.innerHeight,
-      railBottom: (() => {
-        const r = document.querySelector(".rail");
-        return r ? Math.round(r.getBoundingClientRect().bottom) : null;
-      })(),
-    }));
-    // Allow a pixel of rounding slack.
+    const m = await page.evaluate(() => {
+      // Try to scroll the DOCUMENT. This — not content height — is the
+      // property that matters. `#skills` legitimately reports a
+      // scrollHeight of ~2000px because the surface renders a long list;
+      // what must never happen is the document MOVING, because the rail is
+      // anchored inside a 100vh `.app` at the document top and would strand.
+      //
+      // The first version of this test asserted `scrollHeight <= innerHeight`
+      // and failed on #skills even with the fix in place — measuring content
+      // extent where the symptom is movement. Clipped-but-tall is fine;
+      // scrollable is not.
+      window.scrollTo(0, 800);
+      const movedY = window.scrollY;
+      window.scrollTo(0, 0);
+      const r = document.querySelector(".rail");
+      return {
+        movedY,
+        winH: window.innerHeight,
+        railBottom: r ? Math.round(r.getBoundingClientRect().bottom) : null,
+      };
+    });
     expect(
-      m.docH,
-      `shell document height ${m.docH} vs viewport ${m.winH} on ${hash || "(default)"}`,
-    ).toBeLessThanOrEqual(m.winH + 1);
-    // Directly assert the reported symptom: the rail must end at the bottom of
-    // the viewport, not partway down a taller document.
+      m.movedY,
+      `shell document scrolled by ${m.movedY}px on ${hash || "(default)"} — the rail will strand`,
+    ).toBe(0);
+    // The reported symptom itself: the rail must end at the viewport bottom,
+    // not partway down.
     if (m.railBottom !== null) {
       expect(
         m.railBottom,
