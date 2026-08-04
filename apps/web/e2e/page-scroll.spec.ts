@@ -61,17 +61,55 @@ for (const path of STANDALONE_PAGES) {
   });
 }
 
-test("the SPA shell still pins itself to the viewport (no double scrollbar)", async ({ page }) => {
-  // The counterpart risk: freeing <body> must not make the shell scroll the
-  // document as well as its inner panes. `.app` sets height:100vh, so the
-  // document should never exceed the viewport on the shell.
-  const res = await page.goto("/");
-  test.skip(!res || res.status() >= 400, "shell not reachable in this fixture");
-  await page.waitForSelector(".app", { timeout: 30_000 });
-  const m = await page.evaluate(() => ({
-    docH: document.documentElement.scrollHeight,
-    winH: window.innerHeight,
-  }));
-  // Allow a pixel of rounding slack.
-  expect(m.docH, `shell document height ${m.docH} vs viewport ${m.winH}`).toBeLessThanOrEqual(m.winH + 1);
-});
+// The counterpart risk: freeing <body> must not let the shell scroll the
+// DOCUMENT as well as its inner panes — that strands the rail (which lives in
+// a `height:100vh` `.app` anchored at the document top) somewhere mid-page.
+//
+// The first version of this test checked only `/`, i.e. the DASHBOARD, and
+// passed — while `#skills` was broken in production. A shell test that visits
+// one surface tests one surface: the failure lives in whichever pane lets its
+// content escape, so every surface has to be walked.
+const SHELL_SURFACES = ["", "#skills", "#sessions", "#decisions", "#dashboard"];
+
+for (const hash of SHELL_SURFACES) {
+  test(`the SPA shell pins itself to the viewport on ${hash || "(default)"}`, async ({ page }) => {
+    const res = await page.goto(`/${hash}`);
+    test.skip(!res || res.status() >= 400, "shell not reachable in this fixture");
+    await page.waitForSelector(".app", { timeout: 30_000 });
+    // Let the surface's data land — overflow usually arrives with content.
+    await page.waitForTimeout(1500);
+    const m = await page.evaluate(() => {
+      // Try to scroll the DOCUMENT. This — not content height — is the
+      // property that matters. `#skills` legitimately reports a
+      // scrollHeight of ~2000px because the surface renders a long list;
+      // what must never happen is the document MOVING, because the rail is
+      // anchored inside a 100vh `.app` at the document top and would strand.
+      //
+      // The first version of this test asserted `scrollHeight <= innerHeight`
+      // and failed on #skills even with the fix in place — measuring content
+      // extent where the symptom is movement. Clipped-but-tall is fine;
+      // scrollable is not.
+      window.scrollTo(0, 800);
+      const movedY = window.scrollY;
+      window.scrollTo(0, 0);
+      const r = document.querySelector(".rail");
+      return {
+        movedY,
+        winH: window.innerHeight,
+        railBottom: r ? Math.round(r.getBoundingClientRect().bottom) : null,
+      };
+    });
+    expect(
+      m.movedY,
+      `shell document scrolled by ${m.movedY}px on ${hash || "(default)"} — the rail will strand`,
+    ).toBe(0);
+    // The reported symptom itself: the rail must end at the viewport bottom,
+    // not partway down.
+    if (m.railBottom !== null) {
+      expect(
+        m.railBottom,
+        `rail bottom ${m.railBottom} should sit at the viewport bottom ${m.winH}`,
+      ).toBeGreaterThan(m.winH - 80);
+    }
+  });
+}

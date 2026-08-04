@@ -117,8 +117,15 @@ body {
      scrollbar, no keyboard scroll, no way down.
      Reported 2026-08-04 against /settings/tokens, where an account with 9
      tokens could only reach the first two. `min-height` keeps the background
-     filling short pages; the shell is unaffected because `.app` sets its own
-     height and therefore never makes the document taller than the viewport.
+     filling short pages.
+
+     CORRECTION: the first version of this comment claimed "the shell is
+     unaffected because `.app` sets its own height and therefore never makes
+     the document taller than the viewport." That was wrong, and shipping it
+     stranded the rail mid-page on `#skills`. `.app` being `height: 100vh`
+     bounds the SHELL, not the document — a surface whose content escapes its
+     `.scroll` pane still grows <body>, and then nothing pins it. The desktop
+     shell is re-pinned explicitly below rather than by assumption.
 
      `overflow-x: hidden` is kept deliberately: the horizontal half of that old
      rule was doing real work. `e2e/mobile-overflow.spec.ts` exists because the
@@ -128,6 +135,36 @@ body {
      exactly the wanted behaviour.) */
   min-height: 100vh;
   overflow-x: hidden;
+}
+
+/* …but the DESKTOP SHELL genuinely needed the old constraint, and freeing
+   <body> for everyone else took it away (v2.11.0 regression, reported
+   2026-08-04): on `#skills` the rail ended up stranded a viewport down the
+   page, because `.app` is `height: 100vh` and anchored at the document top
+   while the document itself had become scrollable.
+   The shell scrolls INSIDE its own `.scroll` panes and must never scroll the
+   document, so pin <body> only when the shell is actually mounted. Scoped to
+   ≥881px because the mobile block below deliberately does the opposite —
+   there `.app` is `height: auto`, `.rail` is hidden, and the document scroll
+   is the intended one.
+   Standalone pages have no `.app`, so they keep the scrolling this whole
+   change was about. */
+@media (min-width: 881px) {
+  /* BOTH elements, and `html` is the one that actually does the work.
+     Constraining only `body` leaves the document scrollable: reproduced in a
+     browser against this very stylesheet — a `.scroll` pane whose content
+     escapes it gave `scrollY = 800` with the body-only rule and `0` once the
+     root element was constrained too. Body's overflow does not reliably
+     propagate to the viewport once its own box is overflowed, and the
+     viewport is what `window.scrollTo` moves. */
+  html:has(.app) {
+    height: 100%;
+    overflow: hidden;
+  }
+  body:has(.app) {
+    height: 100vh;
+    overflow: hidden;
+  }
 }
 
 ::selection { background: var(--accent); color: var(--accent-ink); }
