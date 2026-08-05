@@ -13,7 +13,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-COMPOSE="docker compose -f deploy/docker-compose.yml --profile edge --env-file .env"
+# No `--profile edge` here: the `backup` service is no longer profile-gated
+# (KNOWN_ISSUES §0s — gating it meant no backups at all on non-Caddy hosts).
+COMPOSE="docker compose -f deploy/docker-compose.yml --env-file .env"
 
 log()  { printf '\033[36m[restore]\033[0m %s\n' "$*"; }
 warn() { printf '\033[33m[restore]\033[0m %s\n' "$*" >&2; }

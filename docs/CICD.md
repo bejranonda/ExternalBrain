@@ -110,7 +110,8 @@ cp .env.example .env        # set DATABASE_URL, BRAIN_*_PUBLIC_HOSTNAME, an auth
 ./scripts/deploy.sh         # build · migrate · start with Caddy auto-TLS + nightly backups
 ```
 
-Brings up the full edge profile (Caddy/Let's Encrypt, Redis, backups), enforces
+Brings up the full edge profile (Caddy/Let's Encrypt, Redis) — backups come up
+with the core stack on every topology, not just this one — enforces
 real auth (the dev-auth shim is refused), waits for the first certificate, then
 runs `scripts/verify-lockdown.sh` + `scripts/smoke.sh` and **aborts the deploy
 if either fails** — so a broken build never goes live. Re-run after a

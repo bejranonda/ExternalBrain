@@ -41,8 +41,8 @@ Day-two operations each have a smaller command:
 
 | Situation | Command | Why |
 |---|---|---|
-| **Local dev** | `./scripts/dev-up.sh` | Core stack only (db · web · mcp-server · worker) on localhost — builds, migrates, seeds the demo fixture, audits auth. The `edge` services (TLS/Redis/backup) stay off. |
-| **Server deploy (TLS)** | `./scripts/deploy.sh` | Build + migrate + backfill + up with the `edge` profile (Caddy + ACME cert, Redis, nightly backup); refuses the deploy on a lockdown-audit failure. Idempotent. |
+| **Local dev** | `./scripts/dev-up.sh` | Core stack only (db · web · mcp-server · worker · backup) on localhost — builds, migrates, seeds the demo fixture, audits auth. The `edge` services (TLS/Redis) stay off; `backup` is deliberately not profile-gated, so it comes up here too ([KNOWN_ISSUES §0s](./KNOWN_ISSUES.md)). |
+| **Server deploy (TLS)** | `./scripts/deploy.sh` | Build + migrate + backfill + up with the `edge` profile (Caddy + ACME cert, Redis); refuses the deploy on a lockdown-audit failure. Idempotent. |
 | **Edited TypeScript** | `./scripts/reload.sh web` (or `worker`, `mcp-server`) | Rebuilds + force-recreates only the named service(s). Skips DB wait/migrations. |
 | **Edited Prisma schema** | `./scripts/dev-up.sh` (local) / `./scripts/deploy.sh` (server) | Runs `prisma migrate deploy`. Add the migration SQL under `packages/db/prisma/migrations/` first. |
 | **Edited `.env` only** | `./scripts/reload.sh web` (+ others as needed) | `--force-recreate` is what picks up new env values. |

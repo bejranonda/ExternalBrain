@@ -214,6 +214,9 @@ what a defect satisfies while the real property is false.
 | the deploy smoke is green | the container is *healthy* |
 | the row exists in the table | the thing the row enables *happens* |
 | the test passed | the test *could have failed* for this reason |
+| the backup service is `Up` | a dump *exists*, and contains your rows |
+| `certbot renew` said "success" | the new cert is what the server *serves* |
+| the scheduled job is configured | it *ran*, and produced output |
 
 The tell: **if you can describe a world where the check passes and the feature
 does not work, it is the wrong check.** For anything with a database or a
@@ -225,6 +228,24 @@ Related, and learned the hard way twice: **a gate must resolve "unknown" to
 failure.** A container in `starting`, a skipped test, an unreachable endpoint —
 tolerating any of these means reporting green during precisely the window when
 something is most likely broken. See `KNOWN_ISSUES §0q` for both occasions.
+
+The bottom three rows are the 2026-08-05 additions (`KNOWN_ISSUES §0s`), and
+they sharpen the rule for anything that runs **unattended**: a backup service
+had been `Up` and healthy for months while its volume was empty, and a
+`certbot renew` that printed "Congratulations, all renewals succeeded" left
+nginx serving the expired certificate it still held in memory. Both reported
+success continuously; neither produced anything.
+
+> **An automated mechanism is not verified until you have inspected its
+> output.** Not its status, not its exit code, not its log line claiming
+> success — the artifact it was supposed to produce.
+
+For scheduled work, the acceptance criterion is the artifact and its *freshness*:
+`ls` the dump and count rows in it; read the certificate off the wire with
+`openssl s_client` rather than off disk. This matters most exactly where
+attention is lowest — the mechanisms nobody watches are the ones that fail
+silently for months, and the cost is only ever discovered at the moment you
+needed them to have worked.
 
 ### One rule, one implementation — and put the question in the PR
 

@@ -356,8 +356,14 @@ services:
   # (pgvector/pgvector:pg16) — pg_dump refuses to dump a newer server, which
   # silently failed every nightly backup after the pg16 upgrade while the tag
   # was still :15. Bump both together.
+  # NOT profile-gated, deliberately. This used to carry `profiles: ["edge"]`,
+  # which silently meant "no backups on any host that terminates TLS with
+  # something other than Caddy" — the nginx-fronted topology (#164) never runs
+  # `--profile edge`, so `deploy_brain_backups` sat empty for months and the
+  # first time anyone looked was mid-incident, with nothing to restore from.
+  # Backups are orthogonal to who terminates TLS, and an opt-in backup is
+  # indistinguishable from no backup until you need one. Default-on.
   backup:
-    profiles: ["edge"]
     image: prodrigestivill/postgres-backup-local:16
     restart: unless-stopped
     depends_on:
@@ -376,8 +382,8 @@ services:
       BACKUP_KEEP_MONTHS: "6"
       HEALTHCHECK_PORT: "8080"
 
-  # Off-host backup replication — opt-in via the `backup-replicate` profile
-  # (in addition to `edge`). Syncs brain_backups to a remote rclone backend.
+  # Off-host backup replication — opt-in via the `backup-replicate` profile.
+  # Syncs brain_backups to a remote rclone backend.
   # See docs for setup (deploy/rclone.conf, BACKUP_REMOTE).
   backup-replicate:
     profiles: ["backup-replicate"]
