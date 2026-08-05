@@ -12,7 +12,11 @@ import path from "node:path";
  */
 export default defineConfig({
   test: {
-    include: ["app/api/**/*.test.ts"],
+    // `lib/**` added 2026-08-05 for pure-function and source-invariant tests
+    // (e.g. the #293 bug-class guard in lib/brain/public-urls.test.ts). These
+    // need neither a DOM nor a database, so they run in CI unconditionally —
+    // unlike the app/api tests, which self-skip when no DB is reachable.
+    include: ["app/api/**/*.test.ts", "lib/**/*.test.ts"],
     environment: "node",
     globals: false,
     // `@/auth` calls NextAuth(...) at module scope, and next-auth@5's

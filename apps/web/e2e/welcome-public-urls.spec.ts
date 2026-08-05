@@ -22,6 +22,19 @@ import { test, expect } from "@playwright/test";
 //   E2E_EXPECTED_MCP_HOST=mcp.brain-dev.example.com \
 //   pnpm --filter @brain/web exec playwright test e2e/welcome-public-urls.spec.ts
 
+// 2026-08-05: the #293 fix and this spec were both scoped to /welcome, but
+// the token install wizard and the onboarding modal resolved their MCP URLs
+// the same brittle way (`${hostname}:3100`) from client components that
+// could not read the deploy env at all. Same bug, two more surfaces,
+// invisible here because this spec named a page instead of the bug class.
+//
+// This file runs in the ANON job (.github/workflows/onboarding-e2e.yml), so
+// it must not contain anything requiring a signed-in session — an authed
+// assertion added here fails with `auth_not_configured`. The wizard
+// counterpart therefore lives in e2e/tokens.spec.ts, and the
+// locale-independent guard for the whole class is the source-level test in
+// lib/brain/public-urls.test.ts, which runs unconditionally.
+
 const EXPECTED_HOST = process.env["E2E_EXPECTED_MCP_HOST"]?.trim();
 
 test.describe("welcome public URLs (#293, #294)", () => {

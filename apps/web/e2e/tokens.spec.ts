@@ -285,3 +285,53 @@ test.describe("token lifecycle", () => {
     await expect(page.getByRole("button", { name: /copy/i }).first()).toBeVisible();
   });
 });
+
+// #293, second surface. The original fix and its spec
+// (e2e/welcome-public-urls.spec.ts) were both scoped to /welcome, so the
+// identical `${hostname}:3100` defect stayed live here — in the wizard
+// operators actually use for first-run setup — until 2026-08-05. That spec
+// runs in the ANON job and cannot host an authed assertion, hence this
+// counterpart. A test named after a page proves nothing about its siblings.
+//
+// NOTE: this file is not currently referenced by either e2e workflow, so
+// this guard does not yet gate CI. The unconditional guard for the bug
+// class is the source-level test in lib/brain/public-urls.test.ts.
+const PUBLIC_URL_TOKEN_NAME = "e2e-public-url";
+const EXPECTED_MCP_HOST = process.env["E2E_EXPECTED_MCP_HOST"]?.trim();
+
+test.describe("token install wizard public URLs (#293, second surface)", () => {
+  test.afterEach(async ({ page }) => {
+    await page.evaluate(async (name) => {
+      const res = await fetch("/api/tokens", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = (await res.json()) as { tokens: Array<{ id: string; name: string }> };
+      for (const t of data.tokens) {
+        if (t.name === name) await fetch(`/api/tokens/${t.id}`, { method: "DELETE" });
+      }
+    }, PUBLIC_URL_TOKEN_NAME);
+  });
+
+  test("freshly-created token snippet renders a reachable MCP URL", async ({ page, baseURL }) => {
+    await page.goto("/settings/tokens");
+    await page.waitForLoadState("networkidle");
+
+    await page.getByRole("textbox").first().fill(PUBLIC_URL_TOKEN_NAME);
+    await page.getByRole("button", { name: "Create" }).click();
+    await expect(page.getByText("COPY NOW — THIS IS SHOWN ONCE")).toBeVisible();
+
+    const text = await page.locator("body").innerText();
+    const urls = text.match(/https?:\/\/[^\s'"]+\/mcp/g) ?? [];
+    expect(urls.length, "expected an MCP URL in the install wizard snippet").toBeGreaterThan(0);
+
+    for (const url of urls) {
+      if (!(baseURL ?? "").includes("localhost")) {
+        expect(url, "wizard snippet still contains :3100").not.toContain(":3100");
+      }
+      if (EXPECTED_MCP_HOST) {
+        expect(url, "wizard snippet host doesn't match E2E_EXPECTED_MCP_HOST").toContain(
+          EXPECTED_MCP_HOST,
+        );
+      }
+    }
+  });
+});

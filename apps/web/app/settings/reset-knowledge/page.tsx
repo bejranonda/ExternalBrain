@@ -245,10 +245,14 @@ export default function ResetKnowledgePage() {
           >
             CONFIRM (TYPE EXACTLY: {REQUIRED_CONFIRM})
           </label>
+          <span id="reset-confirm-hint" className="sr-only">
+            Type {REQUIRED_CONFIRM} exactly to enable the reset button.
+          </span>
           <input
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             placeholder={REQUIRED_CONFIRM}
+            aria-describedby="reset-confirm-hint"
             style={{
               width: "100%",
               padding: "8px 10px",
@@ -270,11 +274,15 @@ export default function ResetKnowledgePage() {
           className="btn"
           disabled={!canSubmit}
           onClick={() => void onSubmit()}
+          aria-describedby="reset-confirm-hint"
           style={{
             marginTop: 16,
-            background: canSubmit ? "var(--bad, #e05252)" : "var(--bg-elev-1)",
-            color: canSubmit ? "white" : "var(--ink-3)",
-            borderColor: canSubmit ? "var(--bad, #e05252)" : "var(--line)",
+            // Was `white` on #e05252 — 3.82:1, below the 4.5:1 AA floor, on
+            // the single most destructive control in the product. The token
+            // pair --bg on --bad is 8.36:1 and matches the palette.
+            background: canSubmit ? "var(--bad)" : "var(--bg-elev-1)",
+            color: canSubmit ? "var(--bg)" : "var(--ink-3)",
+            borderColor: canSubmit ? "var(--bad)" : "var(--line)",
             cursor: canSubmit ? "pointer" : "not-allowed",
             padding: "8px 16px",
             fontWeight: 500,
@@ -284,38 +292,50 @@ export default function ResetKnowledgePage() {
         </button>
       </section>
 
-      {result?.kind === "ok" && (
-        <section
-          className="panel"
-          style={{
-            padding: "12px 14px",
-            background: "var(--bg-elev-1)",
-            border: "1px solid var(--accent)",
-            borderRadius: 8,
-            color: "var(--accent-text)",
-            fontSize: 13,
-          }}
-        >
-          ✓ Reset complete — {result.deleted} row{result.deleted === 1 ? "" : "s"}{" "}
-          {result.hard ? "permanently deleted" : "soft-deleted"} (scope: {result.scopeLabel}).{" "}
-          <a href="/settings/audit">View audit entry →</a>
-        </section>
-      )}
-      {result?.kind === "err" && (
-        <section
-          className="panel"
-          style={{
-            padding: "12px 14px",
-            background: "rgba(224,82,82,0.07)",
-            border: "1px solid rgba(224,82,82,0.3)",
-            borderRadius: 8,
-            color: "#e05252",
-            fontSize: 13,
-          }}
-        >
-          ✗ {result.message}
-        </section>
-      )}
+      {/* A bulk destructive operation previously reported its outcome only
+          visually — a screen-reader user got no confirmation that N rows had
+          been deleted. role="status" announces the success count; the failure
+          path uses role="alert" because it is genuinely interruptive.
+          WCAG 4.1.3. */}
+      <div aria-live="polite" aria-atomic="true">
+        {result?.kind === "ok" && (
+          <section
+            className="panel"
+            role="status"
+            style={{
+              padding: "12px 14px",
+              background: "var(--bg-elev-1)",
+              border: "1px solid var(--accent)",
+              borderRadius: 8,
+              color: "var(--accent-text)",
+              fontSize: 13,
+            }}
+          >
+            ✓ Reset complete — {result.deleted} row{result.deleted === 1 ? "" : "s"}{" "}
+            {result.hard ? "permanently deleted" : "soft-deleted"} (scope: {result.scopeLabel}).{" "}
+            <a href="/settings/audit">View audit entry →</a>
+          </section>
+        )}
+        {result?.kind === "err" && (
+          <section
+            className="panel"
+            role="alert"
+            style={{
+              padding: "12px 14px",
+              // Hardcoded #e05252 / rgba(224,82,82,…) replaced with the
+              // --bad token so the page tracks theme changes like every
+              // other surface.
+              background: "color-mix(in oklab, var(--bad) 8%, transparent)",
+              border: "1px solid color-mix(in oklab, var(--bad) 35%, transparent)",
+              borderRadius: 8,
+              color: "var(--bad)",
+              fontSize: 13,
+            }}
+          >
+            ✗ {result.message}
+          </section>
+        )}
+      </div>
     </main>
   );
 }

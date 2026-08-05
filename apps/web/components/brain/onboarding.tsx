@@ -6,6 +6,9 @@ import { Icon } from "./icons";
 const STORAGE_KEY = "bp_onboarded";
 
 interface Props {
+  /** Real MCP endpoint from the deploy env, injected by the server component.
+   *  Undefined in local dev, where localhost:3100 is correct. */
+  mcpUrl?: string | undefined;
   knowledgeCount: number;
   /** True once the hosting app has fetched initial counts. Gates auto-open
    *  so we don't flash the modal during the pre-fetch window where every
@@ -30,6 +33,7 @@ interface Props {
  *  5. Ask the Oracle (navigates to #oracle)
  */
 export function Onboarding({
+  mcpUrl,
   knowledgeCount,
   ready,
   onTeach,
@@ -104,9 +108,15 @@ export function Onboarding({
         <div>
           <p style={{ margin: "0 0 10px", lineHeight: 1.55 }}>
             Add this entry to <code>~/.claude/mcp.json</code> and restart Claude Code. Replace{" "}
-            <code>&lt;TOKEN&gt;</code> with the token you copied — and{" "}
-            <code>localhost:3100</code> with your Brain&rsquo;s URL if you&rsquo;re
-            on a hosted instance (the tokens page shows the exact value to use).
+            <code>&lt;TOKEN&gt;</code> with the token you copied.
+            {!mcpUrl && (
+              <>
+                {" "}
+                Replace <code>localhost:3100</code> with your Brain&rsquo;s URL if
+                you&rsquo;re on a hosted instance (the tokens page shows the exact
+                value to use).
+              </>
+            )}
           </p>
           <pre
             style={{
@@ -125,7 +135,7 @@ export function Onboarding({
     "brain": {
       "transport": {
         "type": "http",
-        "url": "http://localhost:3100/mcp"
+        "url": "${mcpUrl ?? "http://localhost:3100/mcp"}"
       },
       "headers": { "Authorization": "Bearer <TOKEN>" }
     }

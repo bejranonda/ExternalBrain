@@ -17,6 +17,7 @@ import { auth, anySignInConfigured, devAuthAllowed } from "@/auth";
 import { BrainApp } from "@/components/brain/app";
 import { getActiveProjectFromUrl } from "@/lib/brain/active-project";
 import { getCurrentUserId } from "@/lib/brain/auth";
+import { resolvePublicMcpUrl } from "@/lib/brain/public-urls";
 import { BrainError } from "@brain/core";
 
 export const dynamic = "force-dynamic";
@@ -93,5 +94,8 @@ export default async function OrgProjectPage({ params }: Props) {
   }
 
   // ── Render the SPA shell ─────────────────────────────────────────────────
-  return <BrainApp />;
+  // mcpUrl is threaded down to the onboarding modal, whose mcp.json snippet
+  // otherwise falls back to the local dev endpoint and asks the operator to
+  // hand-edit it. See lib/brain/public-urls.ts.
+  return <BrainApp mcpUrl={resolvePublicMcpUrl()} />;
 }

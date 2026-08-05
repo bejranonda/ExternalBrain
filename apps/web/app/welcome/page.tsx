@@ -1,6 +1,7 @@
 import { WelcomeFlow } from "@/components/brain/welcome-flow";
 import { LocalePicker } from "@/components/brain/locale-picker";
 import { auth } from "@/auth";
+import { resolvePublicMcpUrl, resolvePublicWebUrl } from "@/lib/brain/public-urls";
 
 export const metadata = {
   title: "Welcome — External Brain",
@@ -21,17 +22,9 @@ export const dynamic = "force-dynamic";
 // at `${host}:3100` which is the internal host port behind nginx.
 // Falls back to undefined for local dev (welcome-flow then uses the
 // client-side `${origin}:3100` heuristic). Closes #293.
-function resolvePublicMcpUrl(): string | undefined {
-  const host = process.env.BRAIN_MCP_PUBLIC_HOSTNAME?.trim();
-  if (!host) return undefined;
-  return `https://${host}/mcp`;
-}
-
-function resolvePublicWebUrl(): string | undefined {
-  const host = process.env.BRAIN_PUBLIC_HOSTNAME?.trim();
-  if (!host) return undefined;
-  return `https://${host}`;
-}
+//
+// Shared with /settings/tokens and the SPA shell — the same snippet bug
+// resurfaced on both because each surface resolved its own URLs.
 
 export default async function WelcomePage() {
   // Anonymous visitors (this is a public exploratory landing page) shouldn't

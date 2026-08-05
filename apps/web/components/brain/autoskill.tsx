@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Icon } from "./icons";
 import { useT } from "@/lib/brain/i18n";
 import {
@@ -22,13 +22,17 @@ function readAutoApply(): boolean {
 export function Autoskill() {
   const t = useT();
   const { scope, setScope } = useProjectScope();
-  const { proposals, loadState, error, apply, reject, refresh } = useAutoskillProposals(scope);
+  const { proposals, loadState, error, apply, reject, unreject, refresh } =
+    useAutoskillProposals(scope);
   const counts = useCounts();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [autoApply, setAutoApply] = useState(false);
   const [editTarget, setEditTarget] = useState<ProposalView | null>(null);
   const [diffTarget, setDiffTarget] = useState<ProposalView | null>(null);
+  // Reject is reversible (POST action:"unreject" — a pure status flip), so it
+  // fires immediately and offers undo instead of a blocking confirm dialog.
+  const [undoTarget, setUndoTarget] = useState<{ id: string; title: string } | null>(null);
 
   useEffect(() => {
     setAutoApply(readAutoApply());
@@ -63,18 +67,46 @@ export function Autoskill() {
     }
   };
 
-  const onAct = async (id: string, action: "apply" | "reject") => {
-    setPendingId(id);
-    setActionError(null);
+  const onAct = useCallback(
+    async (id: string, action: "apply" | "reject") => {
+      const title = proposals.find((p) => p.id === id)?.title ?? "proposal";
+      setPendingId(id);
+      setActionError(null);
+      try {
+        if (action === "apply") {
+          await apply(id);
+          setUndoTarget(null);
+        } else {
+          await reject(id);
+          setUndoTarget({ id, title });
+        }
+      } catch (e) {
+        setActionError(e instanceof Error ? e.message : "action failed");
+      } finally {
+        setPendingId(null);
+      }
+    },
+    [apply, reject, proposals],
+  );
+
+  const onUndo = useCallback(async () => {
+    if (!undoTarget) return;
+    const { id } = undoTarget;
+    setUndoTarget(null);
     try {
-      if (action === "apply") await apply(id);
-      else await reject(id);
+      await unreject(id);
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : "action failed");
-    } finally {
-      setPendingId(null);
+      setActionError(e instanceof Error ? e.message : "undo failed");
     }
-  };
+  }, [undoTarget, unreject]);
+
+  // Undo is offered for a bounded window, not forever — a stale toast that
+  // silently expires is worse than one that visibly goes away.
+  useEffect(() => {
+    if (!undoTarget) return;
+    const t = window.setTimeout(() => setUndoTarget(null), 10_000);
+    return () => window.clearTimeout(t);
+  }, [undoTarget]);
 
   return (
     <div className="scroll" style={{ height: "100%", padding: "24px 32px 60px" }}>
@@ -211,6 +243,42 @@ export function Autoskill() {
       {diffTarget && (
         <DiffModal proposal={diffTarget} onClose={() => setDiffTarget(null)} />
       )}
+
+      {/* role="status" (not "alert") — an undo offer is informational, and
+          "alert" would interrupt a screen-reader user mid-sentence on every
+          reject during rapid triage. */}
+      <div
+        role="status"
+        aria-live="polite"
+        style={{
+          position: "fixed",
+          left: "50%",
+          bottom: 28,
+          transform: "translateX(-50%)",
+          zIndex: "var(--z-toast)" as unknown as number,
+          pointerEvents: undoTarget ? "auto" : "none",
+        }}
+      >
+        {undoTarget && (
+          <div
+            className="panel row"
+            style={{
+              gap: 12,
+              padding: "10px 14px",
+              boxShadow: "var(--shadow-2)",
+              maxWidth: "min(520px, calc(100vw - 32px))",
+            }}
+          >
+            <Icon name="x" size={11} />
+            <span style={{ fontSize: 13, minWidth: 0, overflowWrap: "anywhere" }}>
+              Rejected <strong style={{ fontWeight: 500 }}>{undoTarget.title}</strong>
+            </span>
+            <button type="button" className="btn" onClick={() => void onUndo()}>
+              Undo
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -243,7 +311,10 @@ function ProposalCard({
   tViewDiff,
 }: ProposalCardProps) {
   return (
-    <div className="panel" style={{ marginBottom: 10, overflow: "hidden", opacity: disabled ? 0.5 : 1 }}>
+    <div
+      className="panel"
+      style={{ marginBottom: 10, overflow: "hidden", opacity: disabled ? 0.5 : 1 }}
+    >
       <div
         style={{
           padding: "14px 18px",
