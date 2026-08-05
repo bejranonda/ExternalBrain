@@ -46,7 +46,8 @@ The codebase already occupies the "high-density workbench" destination: `--bg: #
 | **Client-side secret exposure** | ✅ **Pass** | Zero `process.env` reads in any `"use client"` file. Sole `NEXT_PUBLIC_*` is `APP_VERSION` (a `git describe` string). |
 | **Reverse-proxy correctness** | ✅ Pass | `X-Forwarded-For` parsed consistently across ~20 API routes; Caddy sets `X-Forwarded-Proto` |
 | **Operational telemetry** | ✅ Pass | `ConnectionStatus`, `QueueHealthCard`, `BackupStatusCard`, `LoopHealthCard` built and mounted |
-| **i18n resilience** | ⚠️ 1 risk (fixed, unverified) | Thai font swapped without line-height compensation |
+| **i18n resilience** | ⚠️ 1 risk (fixed, measured) | Thai font swapped without line-height compensation. *Note:* `i18n.spec.ts` and `responsive.spec.ts` do not run in CI — see F3 |
+| **e2e coverage wiring** | 🔴 **20 of 31 specs never run** | See F3 — including `a11y.spec.ts` and `responsive.spec.ts` |
 | **Aesthetic (anti-AI-template)** | ✅ Pass | 0/8 tropes present |
 
 ---
@@ -168,6 +169,22 @@ The UI now shows a 10-second undo toast in a `role="status"` live region (`"stat
 ### `[FRICTION]` F2 — Admin audit filters fired a query per keystroke
 
 Covered by the B2 diff above (250 ms debounce). Typing a 12-character action filter previously issued 12 `LIMIT 200` queries.
+
+---
+
+### `[BLOCKER]` F3 — **20 of 31 Playwright specs never run in CI**
+
+Found while fixing a CI failure this audit caused. The two e2e workflows name their specs explicitly, and the lists have drifted badly behind the suite:
+
+**Runs (11):** `dashboard`, `docs-i18n`, `healthz`, `meetings`, `mobile-overflow`, `nav`, `page-scroll`, `security`, `sessions`, `skills`, `welcome-public-urls`
+
+**Never runs (20):** `a11y`, `autoskill`, `credentials-signup`, `empty-dashboard`, `graph`, `i18n`, `onboarding`, `onboarding-orientation`, `oracle`, `org-invites`, `palette`, `password-reset`, `projects`, `responsive`, `settings-org`, `signout`, `streaming`, `tokens`, `tweaks`, `visual`
+
+This is the same defect `.github/workflows/authed-e2e.yml:205-215` documents for a *previous* spec ("fell into NEITHER e2e workflow, so its tests… had never actually run in CI despite existing in the repo"). It was fixed for that one file and not generalized — **the identical shape as #293**: an instance repaired, the class left open.
+
+**This materially corrects an earlier claim in this report.** The scorecard originally rated i18n and responsive coverage a pass by citing `i18n.spec.ts`, `responsive.spec.ts` and `mobile-overflow.spec.ts` as existing coverage. Only `mobile-overflow` actually runs. `a11y.spec.ts` — the suite most relevant to this audit's own subject — has never gated a single PR.
+
+**Not fixed here, deliberately.** Wiring 20 unrun specs into CI will almost certainly surface pre-existing failures, which belongs in its own PR rather than smuggled into an audit remediation. Recommended follow-up: enable them one workflow at a time, starting with `a11y` and `responsive`.
 
 ---
 
@@ -359,7 +376,7 @@ The local toolchain gap that blocked verification in earlier drafts is now close
 - ✅ Confirmed zero shortcut residue after the 2.1.4 revert
 
 **NOT performed**
-- ⬜ Playwright run of the new `welcome-public-urls.spec.ts` block — needs a live stack with a DB. **That test is still unexecuted.**
+- ⬜ The wizard e2e test now lives in `e2e/tokens.spec.ts`, which **no workflow runs** (F3). It is written but does not gate anything. The unconditional guard for this bug class is `lib/brain/public-urls.test.ts`.
 - ⬜ `apps/web` route tests (skip without a database)
 - ⬜ Live browser validation at 375 / 768 / 1440px (`responsive.spec.ts`, `mobile-overflow.spec.ts` exist but were not run)
 - ⬜ End-to-end exercise of the undo flow against a real database

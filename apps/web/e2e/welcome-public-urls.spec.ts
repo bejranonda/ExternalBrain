@@ -23,16 +23,19 @@ import { test, expect } from "@playwright/test";
 //   pnpm --filter @brain/web exec playwright test e2e/welcome-public-urls.spec.ts
 
 // 2026-08-05: the #293 fix and this spec were both scoped to /welcome, but
-// the token install wizard resolved its MCP URL the same brittle way
-// (`${hostname}:3100`) from a "use client" page that could not read the
-// deploy env at all. Same bug, second surface, invisible to this test
-// because the test named a page instead of the bug class. The tokens page
-// is now a server component that injects the URLs; the describe block at
-// the bottom guards it.
+// the token install wizard and the onboarding modal resolved their MCP URLs
+// the same brittle way (`${hostname}:3100`) from client components that
+// could not read the deploy env at all. Same bug, two more surfaces,
+// invisible here because this spec named a page instead of the bug class.
+//
+// This file runs in the ANON job (.github/workflows/onboarding-e2e.yml), so
+// it must not contain anything requiring a signed-in session — an authed
+// assertion added here fails with `auth_not_configured`. The wizard
+// counterpart therefore lives in e2e/tokens.spec.ts, and the
+// locale-independent guard for the whole class is the source-level test in
+// lib/brain/public-urls.test.ts, which runs unconditionally.
 
 const EXPECTED_HOST = process.env["E2E_EXPECTED_MCP_HOST"]?.trim();
-
-const TOKEN_NAME = "e2e-public-url";
 
 test.describe("welcome public URLs (#293, #294)", () => {
   // Defeat the storageState that pre-marks bp_onboarded — we want a true
@@ -77,43 +80,6 @@ test.describe("welcome public URLs (#293, #294)", () => {
             `${variant}: snippet host doesn't match E2E_EXPECTED_MCP_HOST`,
           ).toContain(EXPECTED_HOST);
         }
-      }
-    }
-  });
-});
-
-test.describe("token install wizard public URLs (#293, second surface)", () => {
-  test.afterEach(async ({ page }) => {
-    await page.evaluate(async (name) => {
-      const res = await fetch("/api/tokens", { cache: "no-store" });
-      if (!res.ok) return;
-      const data = (await res.json()) as { tokens: Array<{ id: string; name: string }> };
-      for (const t of data.tokens) {
-        if (t.name === name) await fetch(`/api/tokens/${t.id}`, { method: "DELETE" });
-      }
-    }, TOKEN_NAME);
-  });
-
-  test("freshly-created token snippet renders a reachable MCP URL", async ({ page, baseURL }) => {
-    await page.goto("/settings/tokens");
-    await page.waitForLoadState("networkidle");
-
-    await page.getByRole("textbox").first().fill(TOKEN_NAME);
-    await page.getByRole("button", { name: "Create" }).click();
-    await expect(page.getByText("COPY NOW — THIS IS SHOWN ONCE")).toBeVisible();
-
-    const text = await page.locator("body").innerText();
-    const urls = text.match(/https?:\/\/[^\s'"]+\/mcp/g) ?? [];
-    expect(urls.length, "expected an MCP URL in the install wizard snippet").toBeGreaterThan(0);
-
-    for (const url of urls) {
-      if (!(baseURL ?? "").includes("localhost")) {
-        expect(url, "wizard snippet still contains :3100").not.toContain(":3100");
-      }
-      if (EXPECTED_HOST) {
-        expect(url, "wizard snippet host doesn't match E2E_EXPECTED_MCP_HOST").toContain(
-          EXPECTED_HOST,
-        );
       }
     }
   });
