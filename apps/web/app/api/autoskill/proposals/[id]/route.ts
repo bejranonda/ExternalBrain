@@ -5,7 +5,7 @@ import { authErrorResponse, getCurrentUserId } from "@/lib/brain/auth";
 import { toProposalView } from "@/lib/brain/views";
 
 const bodySchema = z.object({
-  action: z.enum(["apply", "reject"]),
+  action: z.enum(["apply", "reject", "unreject"]),
 });
 
 export async function POST(
@@ -50,6 +50,24 @@ export async function POST(
           .catch(() => {/* best-effort */});
         const msg = e instanceof Error ? e.message : "apply failed";
         return Response.json({ error: msg }, { status: 422 });
+      }
+    } else if (body.action === "unreject") {
+      // Undo path. Safe to expose because rejecting is a pure status flip —
+      // unlike apply, it writes no knowledge rows, so restoring to pending
+      // has nothing to unwind. Same compare-and-claim shape as the others,
+      // which also makes a double-tapped undo idempotent (second call 409s).
+      const claim = await db.autoskillProposal.updateMany({
+        where: { id, userId, status: "rejected" },
+        data: { status: "pending", resolvedAt: null },
+      });
+      if (claim.count === 0) {
+        const cur = await db.autoskillProposal.findUnique({
+          where: { id },
+          select: { userId: true, status: true },
+        });
+        if (!cur) return Response.json({ error: "not_found" }, { status: 404 });
+        if (cur.userId !== userId) return Response.json({ error: "forbidden" }, { status: 403 });
+        return Response.json({ error: "not_rejected", status: cur.status }, { status: 409 });
       }
     } else {
       // Reject path — same atomic flip.

@@ -17,12 +17,18 @@ interface AuditRow {
 export default function AuditLogPage() {
   const [rows, setRows] = useState<AuditRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(true);
   // Phase 3c: filter state
   const [filterOrgId, setFilterOrgId] = useState("");
   const [filterProjectId, setFilterProjectId] = useState("");
   const [filterAction, setFilterAction] = useState("");
 
   const load = useCallback(async () => {
+    // Clearing the error here is load-bearing: it was previously only ever
+    // set, so a single transient failure pinned the banner on screen for the
+    // rest of the session even after a successful refetch.
+    setError(null);
+    setBusy(true);
     try {
       const params = new URLSearchParams({ limit: "200" });
       if (filterOrgId.trim()) params.set("orgId", filterOrgId.trim());
@@ -34,11 +40,16 @@ export default function AuditLogPage() {
       setRows(data.entries);
     } catch (e) {
       setError(e instanceof Error ? e.message : "load failed");
+    } finally {
+      setBusy(false);
     }
   }, [filterOrgId, filterProjectId, filterAction]);
 
+  // Debounced: `load` is keyed on the three filter strings, so without this
+  // every keystroke fired a fresh LIMIT 200 query against the audit table.
   useEffect(() => {
-    void load();
+    const t = window.setTimeout(() => void load(), 250);
+    return () => window.clearTimeout(t);
   }, [load]);
 
   return (
@@ -50,22 +61,27 @@ export default function AuditLogPage() {
 
       {/* Phase 3c: filter controls */}
       <div className="row" style={{ gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        {/* Placeholders are not accessible names — they vanish on input and
+            several screen readers skip them entirely. */}
         <input
           value={filterAction}
           onChange={(e) => setFilterAction(e.target.value)}
           placeholder="Filter by action…"
+          aria-label="Filter by action"
           style={filterInputStyle}
         />
         <input
           value={filterOrgId}
           onChange={(e) => setFilterOrgId(e.target.value)}
           placeholder="Filter by org ID…"
+          aria-label="Filter by organization ID"
           style={filterInputStyle}
         />
         <input
           value={filterProjectId}
           onChange={(e) => setFilterProjectId(e.target.value)}
           placeholder="Filter by project ID…"
+          aria-label="Filter by project ID"
           style={filterInputStyle}
         />
         {(filterOrgId || filterProjectId || filterAction) && (
@@ -85,13 +101,40 @@ export default function AuditLogPage() {
       </div>
 
       {error && (
-        <div role="alert" style={{ color: "var(--warn)", fontSize: 13, marginBottom: 12 }}>
-          {error}
+        <div
+          role="alert"
+          className="row"
+          style={{
+            gap: 10,
+            color: "var(--bad)",
+            fontSize: 13,
+            marginBottom: 12,
+            padding: "8px 10px",
+            border: "1px solid var(--line)",
+            borderRadius: 6,
+          }}
+        >
+          <span>Couldn&rsquo;t load the audit log — {error}</span>
+          <button type="button" className="btn btn-ghost" onClick={() => void load()}>
+            Retry
+          </button>
         </div>
       )}
 
-      <div style={{ border: "1px solid var(--line)", borderRadius: 8, overflow: "hidden" }}>
+      {/* overflow-x, not hidden: six columns of IDs and IPs cannot fit a
+          375px viewport, and `hidden` silently clipped them. */}
+      <div
+        className="scroll"
+        style={{
+          border: "1px solid var(--line)",
+          borderRadius: 8,
+          overflowX: "auto",
+        }}
+      >
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <caption className="sr-only">
+            Admin audit log — most recent 200 entries, newest first
+          </caption>
           <thead>
             <tr style={{ background: "var(--bg-elev-1)", color: "var(--ink-3)" }}>
               <Th>When</Th>
@@ -103,6 +146,17 @@ export default function AuditLogPage() {
             </tr>
           </thead>
           <tbody>
+            {busy &&
+              rows === null &&
+              Array.from({ length: 8 }).map((_, i) => (
+                <tr key={`sk-${i}`} style={{ borderTop: "1px solid var(--line)" }}>
+                  {Array.from({ length: 6 }).map((__, j) => (
+                    <Td key={j}>
+                      <span className="skeleton-bar" />
+                    </Td>
+                  ))}
+                </tr>
+              ))}
             {rows?.map((r) => (
               <tr key={r.id} style={{ borderTop: "1px solid var(--line)" }}>
                 <Td mono>{new Date(r.createdAt).toISOString().replace("T", " ").slice(0, 19)}</Td>
@@ -138,7 +192,24 @@ export default function AuditLogPage() {
       </div>
       {rows && rows.length === 0 && (
         <div style={{ color: "var(--ink-3)", fontSize: 13, marginTop: 12 }}>
-          No audit entries yet.
+          {filterAction || filterOrgId || filterProjectId ? (
+            <>
+              No entries match these filters.{" "}
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => {
+                  setFilterOrgId("");
+                  setFilterProjectId("");
+                  setFilterAction("");
+                }}
+              >
+                Clear filters
+              </button>
+            </>
+          ) : (
+            "No audit entries yet — admin mutations will appear here as they happen."
+          )}
         </div>
       )}
     </div>
@@ -159,6 +230,7 @@ const filterInputStyle: React.CSSProperties = {
 function Th({ children }: { children: React.ReactNode }) {
   return (
     <th
+      scope="col"
       style={{
         padding: "8px 12px",
         textAlign: "left",
@@ -166,6 +238,7 @@ function Th({ children }: { children: React.ReactNode }) {
         fontSize: 12,
         letterSpacing: "0.04em",
         textTransform: "uppercase",
+        whiteSpace: "nowrap",
       }}
     >
       {children}

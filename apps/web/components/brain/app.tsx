@@ -22,7 +22,10 @@ import { UserMenu } from "./user-menu";
 import { Onboarding } from "./onboarding";
 import { LearnedToast } from "./learned-toast";
 
-export function BrainApp() {
+/** `mcpUrl` is resolved server-side from BRAIN_MCP_PUBLIC_HOSTNAME and passed
+ *  down so the onboarding snippet shows the real endpoint. Undefined in local
+ *  dev, where Onboarding uses its own local fallback. */
+export function BrainApp({ mcpUrl }: { mcpUrl?: string | undefined }) {
   const [route, setRoute] = useRoute();
   const [cmdOpen, setCmdOpen] = useState(false);
   const [tweakOpen, setTweakOpen] = useState(false);
@@ -154,6 +157,7 @@ export function BrainApp() {
         }}
       />
       <Onboarding
+        mcpUrl={mcpUrl}
         knowledgeCount={counts.skills}
         ready={liveCounts.loaded}
         onTeach={() => setTeachOpen(true)}

@@ -20,6 +20,7 @@ export function useAutoskillProposals(
 ): State & {
   apply(id: string): Promise<void>;
   reject(id: string): Promise<void>;
+  unreject(id: string): Promise<void>;
   refresh(): Promise<void>;
 } {
   const [state, setState] = useState<State>({
@@ -56,11 +57,15 @@ export function useAutoskillProposals(
   }, [refresh]);
 
   const act = useCallback(
-    async (id: string, action: "apply" | "reject") => {
-      setState((s) => ({
-        ...s,
-        proposals: s.proposals.filter((p) => p.id !== id),
-      }));
+    async (id: string, action: "apply" | "reject" | "unreject") => {
+      // "unreject" restores a row, so there is nothing to optimistically
+      // remove — refresh() below pulls it back into the pending list.
+      if (action !== "unreject") {
+        setState((s) => ({
+          ...s,
+          proposals: s.proposals.filter((p) => p.id !== id),
+        }));
+      }
       try {
         const res = await fetch(`/api/autoskill/proposals/${id}`, {
           method: "POST",
@@ -68,6 +73,7 @@ export function useAutoskillProposals(
           body: JSON.stringify({ action }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (action === "unreject") await refresh();
       } catch (err) {
         await refresh();
         throw err;
@@ -80,6 +86,7 @@ export function useAutoskillProposals(
     ...state,
     apply: (id) => act(id, "apply"),
     reject: (id) => act(id, "reject"),
+    unreject: (id) => act(id, "unreject"),
     refresh: () => refresh(),
   };
 }
