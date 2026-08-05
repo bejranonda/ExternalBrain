@@ -120,6 +120,62 @@ KEA extraction is LLM-driven because deterministic keyword matching was the bott
 | Putting business logic in a route handler | Handlers are thin; logic lives in `@brain/core`. |
 | Returning raw LLM output to users without parsing | Oracle returns `{answer, citations}`; parse citations, validate markers. |
 | Logging full prompts / embeddings | Expensive, privacy-risky, and almost never useful. |
+| Naming a regression test after the page you found the bug on | It passes forever while the sibling surface ships the same defect. Name it after the bug class. See §5q. |
+| Citing a test file as evidence of coverage without checking it runs | 20 of 31 e2e specs were referenced by no workflow. Existing ≠ gating. |
+
+---
+
+## 5q. Fix the class, and let the test say so (2026-08-05)
+
+Three separate findings this year reduce to one method failure, so it is worth
+stating as method rather than as three bugs.
+
+**The pattern.** A defect is found on one surface, fixed there, and guarded by a
+test named after *that surface*. The test is green forever. The identical defect
+on the surface next door is invisible to it.
+
+- **The install-snippet URL defect** — an unreachable `${hostname}:3100/mcp` was fixed for `/welcome` and
+  guarded by `welcome-public-urls.spec.ts`. It stayed live in the token install
+  wizard and the onboarding modal — the two surfaces operators actually use for
+  first-run setup — for months.
+- **e2e wiring** — `authed-e2e.yml` documents, in a comment, that one spec "fell
+  into NEITHER e2e workflow, so its tests had never actually run in CI despite
+  existing in the repo." That was fixed for that one file. 20 of 31 specs are
+  still in exactly that state.
+- **The 2026-08-02 audit's eleven findings** were already this shape
+  (`GUIDELINES §4`): hardening applied in one place, not carried across.
+
+**The method.** Three moves, in order:
+
+1. **Enumerate before you close.** `grep` the defective *pattern*, not the
+   reported file. Cheap enough that there is no excuse: a single `grep -rn
+   ':3100'` would have found all three surfaces at any point in the last year.
+2. **Centralize the thing that was duplicated.** Per-surface copies of the same
+   resolution logic are the *mechanism* by which a class-defect recurs. The fix
+   was one module (`lib/brain/public-urls.ts`), not three patches.
+3. **Write the test as an invariant over the repo, not an assertion about a
+   page.** "No file hardcodes this port, except these known dev fallbacks" fails
+   the moment a fourth surface appears. "This page is correct" never does.
+   Prefer a source-level test that needs no DB or stack, so it actually runs.
+
+**Corollary — prefer the guard that runs.** A perfect e2e assertion in a spec no
+workflow invokes protects nothing. When choosing where to put a guard, weight
+"does this execute on every PR" above "is this the most realistic simulation."
+
+### Measure the typography, don't eyeball it
+
+The same audit flagged Thai text as clipping at tight line-heights. Rather than
+asserting it from a screenshot, the check was: render the real webfont in
+headless Chromium and compare `TextMetrics.actualBoundingBoxAscent +
+actualBoundingBoxDescent` to the computed line box. That produced a number
+(6.8px of overlap at 32px/1.1), validated the proposed fix (−2.8px clearance at
+1.4), **and corrected the audit** — sites at 1.35 that had been listed as
+defects actually clear by 0.55px. A Latin control at the identical setting
+confirmed the cause was the script, not the leading in general.
+
+Generalizes: when a claim is about a measurable physical property, measure it.
+The measurement is usually cheaper than the argument, and it is the only version
+that can tell you that you were wrong.
 
 ---
 

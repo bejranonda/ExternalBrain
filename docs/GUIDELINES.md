@@ -9,6 +9,7 @@ How we write code, structure changes, and ship safely in this repo.
 ## 1. Code style
 
 - **TypeScript strict**, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`. Set in `tsconfig.base.json`; do not relax per-package.
+  - `exactOptionalPropertyTypes` has a sharp edge worth knowing before it bites: `foo?: string` means *"absent, or a string"* — it **rejects an explicitly-passed `undefined`** (TS2375). Any optional prop whose value comes from a function rather than being conditionally spread needs `foo?: string | undefined`. This is the normal shape for a server component threading a resolved-or-undefined value into a client component: `<C mcpUrl={resolvePublicMcpUrl()} />`.
 - **Node 20+**, ESM modules (`"type": "module"` everywhere).
 - **Formatting**: Prettier defaults, 2-space indent, single quotes for JS/TS, trailing commas.
 - **Naming**: `camelCase` for values, `PascalCase` for types/classes, `kebab-case` for file names, `SCREAMING_SNAKE` only for env vars.
@@ -291,6 +292,47 @@ auth checks, browser-API guards, retries, scope filters, rate limits),
 description either that you fixed them or why they don't need it. "Which
 siblings did this just make inconsistent?" is a standing review question.
 
+#### The regression test must be named after the bug, not the page
+
+This rule already existed when the install-snippet URL defect broke it — twice.
+That `${hostname}:3100/mcp` bug was fixed for `/welcome` and guarded by
+`e2e/welcome-public-urls.spec.ts`. Because the spec named a **page**, it
+proved nothing about `/settings/tokens` or the onboarding modal, which
+rendered the same value the same wrong way and stayed broken for months. The
+2026-08-05 audit found both (`KNOWN_ISSUES §0r`).
+
+A test that encodes "this page is correct" is worth far less than one that
+encodes "no page does the wrong thing." Prefer the second shape:
+
+```ts
+// Weak: passes forever while a sibling surface ships the same defect.
+test("/welcome snippet has no :3100", …)
+
+// Strong: a NEW file introducing the pattern fails immediately.
+const ALLOWED_TO_MENTION_PORT = new Set([...]);
+const offenders = walk(WEB_ROOT)
+  .filter(f => readFileSync(f, "utf8").includes(":3100"))
+  .filter(rel => !ALLOWED_TO_MENTION_PORT.has(rel));
+expect(offenders).toEqual([]);
+```
+
+See `apps/web/lib/brain/public-urls.test.ts`. Source-level invariant tests
+belong under `apps/web/lib/**` — that glob is in `vitest.config.ts` and needs
+neither a DOM nor a database, so unlike the `app/api/**` tests it runs in CI
+unconditionally.
+
+**And check the test actually runs.** Both e2e workflows enumerate specs by
+name; 20 of 31 currently run in neither (`KNOWN_ISSUES §0r`). Before citing a
+spec as coverage:
+
+```bash
+grep -rhoE 'e2e/[a-z0-9-]+\.spec\.ts' .github/workflows/*.yml | sort -u
+```
+
+Also check *which* job: `welcome-public-urls.spec.ts` runs in the **anon**
+onboarding job, so an authed assertion added there fails with
+`auth_not_configured`.
+
 ---
 
 ## 5. Commit hygiene
@@ -458,6 +500,20 @@ Rules when touching frontend:
 - **Mount-gate every client-only global reachable from render (`#418` class).** Reading `window` / `navigator` / `localStorage` / `Date.now()` / `Math.random()` *during render* (incl. `useMemo` and `useState(initFn)`) makes the server's HTML differ from the client's first render → React `#418`. The rule: initialize state to an SSR-safe default and read the real value in `useEffect` after mount (the pattern `useRoute` / `useProjectScope` / `useTweaks` use). Repeat offenders found: `ShowEverythingFold` localStorage (#fixed 06-05), `useEnvLabel` hostname + `/welcome` snippet `window.location` (#fixed 06-07). Before merging shell/dashboard/first-run changes, run `grep -n "typeof window\|typeof navigator"` over the touched files and confirm each hit is inside an effect or handler, not a render path. A component that only ever mounts *after* a client interaction (e.g. a modal opened on click) is exempt — it never hydrates.
 - **Relative time goes through `@brain/core/format-relative` — never hand-roll.** v0.15.0 consolidated four divergent local formatters (oracle/graph/connection-status each rendered "2 days ago" differently) onto the canonical `formatRelative(iso)` → `just now / Nm / Nh / Nd / Mmm D`. Import via the subpath `@brain/core/format-relative` (it's split out specifically so it doesn't pull `@sentry/node` into the browser bundle). Keep the hydration-safe wrapper pattern (`<RelativeTime>` / `<RelativeText>` render the absolute date on SSR + first paint, swap to relative in `useEffect`) — `formatRelative` reads `Date.now()`, so rendering it directly causes hydration mismatches (audit FE5, #103).
 - **User-facing copy is plain English; internal metric names stay in code/docs/DB (Phase R.5).** Surfaces show "Quality" / "Answer relevance" / "Brain"; the code/schema/docs keep `SQS` / `NDCG@5` / `KEA`. The normative mapping lives in `docs/KNOWLEDGE.md`. When adding a new metric, give it a plain-English label and keep the precise name in a `title=` tooltip, not the visible text.
+- **Server-resolved public URLs come from `lib/brain/public-urls.ts` — never from `window.location`.** Any surface rendering a copy-pasteable config snippet (MCP endpoint, install command, `mcp.json`) must take the URL as a prop from a server component that calls `resolvePublicMcpUrl()` / `resolvePublicWebUrl()`, plus `export const dynamic = "force-dynamic"`. A `${window.location.hostname}:3100` guess is correct only for local dev: behind Caddy the MCP server is its own vhost on :443 and that port is closed. A `"use client"` page **cannot** read the deploy env at all — if a page needs one of these values, that is the signal to split it into a server wrapper plus a client body (`app/settings/tokens/page.tsx` + `tokens-client.tsx` is the reference). This defect shipped three times across three surfaces (KNOWN_ISSUES §0c, §0r); the guard is `lib/brain/public-urls.test.ts`.
+
+### Accessibility (WCAG 2.1 AA is the floor)
+
+The 2026-08-05 audit (`KNOWN_ISSUES §0r`) found the design tokens already pass contrast comfortably — worst case `--ink-4` on `--bg-elev-3` is 5.11:1 against a 4.5 requirement. The failures were all in behaviour, not palette:
+
+- **A reset and its restore must name the same elements.** `input, textarea { outline: 0 }` paired with a `:focus-visible` rule listing only `input` left every textarea with no focus indicator (2.4.7). When you add an element to a reset, add it to the restore in the same edit.
+- **Never rely on colour alone for links.** The global `a { color: inherit; text-decoration: none }` is right for nav chrome and wrong for prose. Inline links use `p a:not([class])` / `li a:not([class])`, which underline and take `--accent-text` (1.4.1).
+- **No single-character keyboard shortcuts on a global listener.** WCAG **2.1.4 is Level A** and requires them to be turn-off-able, remappable, or *active only on focus*. A `window` keydown handler guarded only against text-entry elements still misfires when a link or button holds focus. If a surface genuinely needs accelerators, scope the listener to the focused container. This is distinct from — and must not be traded against — standard keyboard operability (Tab/Enter/Esc, visible focus rings), which is mandatory.
+- **Destructive actions announce their outcome.** A bulk mutation that reports "N rows deleted" visually only gives a screen-reader user no confirmation it happened (4.1.3). Wrap the result in `aria-live`; `role="status"` for success and undo offers, `role="alert"` only for genuinely interruptive failures.
+- **Icon-only controls and placeholder-labelled inputs need an accessible name.** A `placeholder` is not a label — it disappears on input and several screen readers skip it. Add `aria-label`.
+- **Use the design tokens for state colours.** Hardcoded hex bypasses theming *and* the contrast work: `white` on `#e05252` measured 3.82:1 on the reset-knowledge button. `--bg` on `--bad` is 8.36:1.
+- **Honour `prefers-reduced-motion`.** `globals.css` carries a global reduce block; any new looping animation is covered by it automatically — don't defeat it with a more specific `!important`.
+- **Thai needs vertical headroom.** `html[lang="th"]` sets `line-height: 1.4` on headings and `1.75` on body text, with `!important` because the tight Latin-tuned values are inline styles. Thai stacks an upper vowel plus a tone mark above the baseline; a 32px/1.1 line box overlaps by 6.8px where the Latin control does not collide at all. Measure with `TextMetrics.actualBoundingBoxAscent + actualBoundingBoxDescent` against the computed line box rather than eyeballing a screenshot.
 
 ---
 

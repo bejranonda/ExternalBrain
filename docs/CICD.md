@@ -59,6 +59,29 @@ ignore it. Forks without a `BRAIN_DEPLOY_URL` secret skip it green.
 > CI because the suite only covered signed-in behaviour. The gate closes that
 > gap for the highest-churn public surfaces without slowing down unrelated PRs.
 
+> ⚠️ **The spec lists are hand-maintained, and they have drifted.** Both e2e
+> workflows name their Playwright files explicitly. As of 2026-08-05, **20 of
+> the 31 specs in `apps/web/e2e/` are referenced by neither workflow** — among
+> them `a11y`, `responsive`, `i18n`, `oracle`, `autoskill` and `tokens`. Those
+> files exist, run locally, and gate nothing. Before citing a spec as coverage:
+>
+> ```bash
+> grep -rhoE 'e2e/[a-z0-9-]+\.spec\.ts' .github/workflows/*.yml | sort -u
+> ls apps/web/e2e/*.spec.ts
+> ```
+>
+> Adding a spec file is not the same as adding a gate — wire it into a workflow
+> in the same PR, and check **which** job: `welcome-public-urls.spec.ts` runs in
+> the *anon* job, so an authed assertion added there fails with
+> `auth_not_configured`. Tracked in [`KNOWN_ISSUES §0r`](./KNOWN_ISSUES.md).
+>
+> **Corollary for test design:** an invariant you can assert without a browser
+> belongs in a plain vitest file under `apps/web/lib/**` (that glob is in
+> `apps/web/vitest.config.ts` and needs no DOM or database, so it runs
+> unconditionally on every PR). `lib/brain/public-urls.test.ts` is the worked
+> example — it guards a bug class that three separate e2e specs had failed to
+> catch.
+
 There is **no deploy step in CI** — deploying is a deliberate, human-run action
 (below). CI proves the code is sound; you decide when it goes live.
 
