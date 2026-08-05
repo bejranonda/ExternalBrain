@@ -2310,3 +2310,77 @@ session is not a restricted token, it is a confusing spelling of "revoked", and
 offering that switch would produce credentials whose failure mode is a support
 ticket. Writing that reasoning next to the exemption is what stops someone
 "completing" the feature later.
+
+## 5bm. The mechanisms nobody watches (2026-08-05, v2.13.0 prod redeploy)
+
+A routine redeploy — pull `main`, apply two additive migrations, rebuild three
+services. The code half was uneventful: 678 unit tests green, typecheck 9/9,
+build 6/6, lockdown audit PASS, zero errors in any container log. Every gate
+this project has built for itself passed on the first attempt.
+
+Then the smoke test failed on TLS, and pulling that thread found two
+production defects that had been live for **months**, both invisible to every
+one of those gates:
+
+1. **Nightly backups had never written a single file.** The `backup` service
+   carried `profiles: ["edge"]`. Only `deploy.sh` passes `--profile edge`, and
+   the nginx-fronted host cannot run `deploy.sh` — its Caddy sidecar collides
+   with the nginx already bound to :443. So on the host that actually holds
+   user data, the backup container had never started. Independently, its image
+   was pinned `postgres-backup-local:15` against a `pgvector:pg16` server, and
+   `pg_dump` refuses to dump a newer server — it would have failed silently
+   even if it had started.
+2. **A renewed certificate was never served.** `mcp.brain.autobahn.bot` had
+   been serving a cert that expired 11 days earlier, breaking every MCP client
+   with `HTTP 000`. The renewal machinery was fine; `certbot renew` printed
+   "Congratulations, all renewals succeeded". But nginx re-reads certificate
+   files only on reload, and no certbot deploy hook existed — so it kept
+   serving the expired cert out of memory, indefinitely, while the new one sat
+   correctly on disk.
+
+The order matters. Finding (2) is what made anyone look at (1), and (1) was
+discovered at the worst possible moment: immediately after the operator had
+asked to wipe the database and rebuild from scratch. The wipe was declined for
+policy reasons, and only then did checking the backup volume reveal there was
+nothing to restore from. Had the policy gate not held, the data would have
+been unrecoverable — not because anyone skipped backups, but because everyone
+believed backups were running.
+
+### What generalises
+
+**An automated mechanism is not verified until you have inspected its output.**
+Not its status, not its exit code, not its own log line claiming success. The
+backup container was `Up (healthy)` for two months with an empty volume.
+Certbot's success banner was *true* — it did renew the certificate — and
+completely disconnected from whether any client could establish TLS. Both are
+the "nearest signal" failure (§5bk) applied to scheduled work, where it is
+worst: nobody is watching, so the gap between signal and property can persist
+for months instead of minutes. Check the artifact and its freshness — count
+rows inside the dump, read the certificate off the wire.
+
+**Opt-in durability is not durability.** The profile gate was defensible in
+isolation: backups were introduced alongside the Caddy deployment path, so
+attaching them to `edge` was locally reasonable. But a backup you must
+remember to enable is indistinguishable from no backup right up until the
+restore, and the operator who most needs it is the one who never learned the
+flag exists. Coupling was the specific error — backups are orthogonal to who
+terminates TLS — but the general rule is that anything protecting against data
+loss defaults **on**, and the exotic deployment opts *out*.
+
+**A fix that requires a second fix to take effect is not a fix.** The `:15` →
+`:16` image bump shipped in v2.13.0 and was correct. It also changed nothing,
+because the service it corrected still never started. Two independent causes
+with one shared symptom — an empty volume — and either alone was sufficient.
+When a defect has more than one cause, fixing the one you found first produces
+a changelog entry, a closed ticket, and an unchanged system. Ask what *else*
+would have to be true for the symptom to clear.
+
+**Prefer failure modes that announce themselves.** Every defect in this pass
+was silent: no unhealthy container, no non-zero exit, nothing in a log anyone
+reads. The platform already treats this as its most expensive bug class
+(README §"Operating a Brain"), and the response has been to build surfaces
+that look — `/api/admin/backup-status` alarms on dump age precisely because a
+previous backup failure hid for three weeks (§5az). That surface existed here
+and would have caught this, had the service ever run to produce a first dump
+to age. **A freshness alarm cannot fire on a thing that has never existed
+once**; monitor for absence, not only staleness.

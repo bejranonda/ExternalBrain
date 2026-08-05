@@ -77,7 +77,12 @@ docker compose -f deploy/docker-compose.yml --env-file .env logs -f
 
 ## How the server deploy differs from a bare local `up`
 
-`scripts/deploy.sh` runs the single Compose file with `--profile edge` (Caddy, Redis, nightly backup) and adds the server-grade preflight + post-deploy checks. A bare local `docker compose -f deploy/docker-compose.yml up` brings up only the core stack with dev-friendly defaults.
+`scripts/deploy.sh` runs the single Compose file with `--profile edge` (Caddy, Redis) and adds the server-grade preflight + post-deploy checks. A bare local `docker compose -f deploy/docker-compose.yml up` brings up only the core stack with dev-friendly defaults.
+
+Nightly backups are **not** part of `edge` — they start with the core stack on
+every topology. They used to be profile-gated, which meant no backups at all on
+hosts that terminate TLS with something other than Caddy; see
+[`KNOWN_ISSUES §0s`](../docs/KNOWN_ISSUES.md).
 
 | Concern | Local `up` | Server (`./scripts/deploy.sh`, `--profile edge`) |
 |---|---|---|
@@ -89,7 +94,22 @@ docker compose -f deploy/docker-compose.yml --env-file .env logs -f
 
 ## Backups
 
-The `backup` service (edge profile) runs `pg_dump` nightly at 03:00 UTC and writes compressed archives into the `brain_backups` Docker volume mounted at `/backups` inside the container. Retention: 7 daily, 4 weekly, 6 monthly copies.
+The `backup` service runs `pg_dump` nightly at 03:00 UTC and writes compressed archives into the `brain_backups` Docker volume mounted at `/backups` inside the container. Retention: 7 daily, 4 weekly, 6 monthly copies. It is **not** profile-gated — it comes up with the core stack regardless of who terminates TLS.
+
+**Confirm it has actually produced something before you rely on it:**
+
+```bash
+docker run --rm -v deploy_brain_backups:/b alpine ls -la /b/last/   # expect a .sql.gz
+```
+
+An empty listing means you have no backups, no matter what the container's
+status column says — this volume sat empty for months while the service
+reported healthy ([`KNOWN_ISSUES §0s`](../docs/KNOWN_ISSUES.md)). Force a first
+dump immediately with:
+
+```bash
+docker compose -f deploy/docker-compose.yml exec -T backup /backup.sh
+```
 
 ### Where backups live
 
@@ -99,7 +119,7 @@ On the host the volume lives under Docker's managed storage (typically `/var/lib
 
 ```bash
 # One-shot copy of a single file via docker cp (container must be running)
-docker compose -f deploy/docker-compose.yml --profile edge exec backup \
+docker compose -f deploy/docker-compose.yml exec backup \
   sh -c 'ls /backups/brain/'
 docker cp "$(docker compose ps -q backup)":/backups/brain/<file.sql.gz> ./local-backup.sql.gz
 

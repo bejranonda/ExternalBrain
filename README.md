@@ -255,6 +255,27 @@ invisible until something was built to look. See
 [`KNOWN_ISSUES §0q`](./docs/KNOWN_ISSUES.md) for the full set and what each one
 cost.
 
+The 2026-08-05 pass ([`§0s`](./docs/KNOWN_ISSUES.md)) found two more of the
+same shape, and both had been reporting success the whole time: nightly
+backups that had **never written a single file** (the service was gated behind
+a compose profile the nginx-fronted topology never enables), and a renewed TLS
+certificate that nginx never picked up, silently breaking every MCP client for
+11 days. The rule they taught:
+
+> **An automated mechanism is not verified until you have inspected its
+> output.** A green container, a zero exit code, and a "renewals succeeded"
+> banner each proved nothing. Count the rows in the dump; read the certificate
+> off the wire.
+
+If you self-host, spot-check these two directly — neither raises an alarm on
+its own:
+
+```bash
+docker run --rm -v deploy_brain_backups:/b alpine ls -la /b/last/   # expect a .sql.gz
+echo | openssl s_client -connect mcp.your-host.com:443 2>/dev/null \
+  | openssl x509 -noout -dates                                     # expect a future date
+```
+
 ## Documentation & Guides
 
 | Doc | What it covers |

@@ -6,7 +6,8 @@ See `BLUEPRINT.md` for the full narrative. This doc is the quick-reference diagr
 
 External Brain runs as a single self-contained stack — four containers on one
 host, brought up by `./scripts/dev-up.sh` (local) or `./scripts/deploy.sh`
-(public server, adds the `edge` profile: Caddy/TLS, Redis, backups):
+(public server, adds the `edge` profile: Caddy/TLS, Redis). Nightly backups run
+on every topology and are deliberately not profile-gated:
 
 ```
                  laptops / IDEs

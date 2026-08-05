@@ -239,8 +239,24 @@ Refer to [README "Which script to run when"](../README.md#which-script-to-run-wh
 
 Nightly `pg_dump` runs in the `backup` compose service; archives land in the `brain_backups` Docker volume. **On-host only** — if the VM dies, so do the backups. Pipe to S3/R2/rclone for real durability. See `deploy/PRODUCTION.md §"Backups"`.
 
+**Verify the volume is non-empty before you trust any of this** (KNOWN_ISSUES
+§0s — this volume sat empty for months while everything *looked* healthy):
+
+```bash
+docker run --rm -v deploy_brain_backups:/b alpine ls -la /b/last/   # expect a .sql.gz
+```
+
+An empty listing means no backup exists, regardless of what the `backup`
+container's status column says. Until 2026-08-05 the service carried
+`profiles: ["edge"]`, so it started **only** on Caddy-fronted hosts that run
+`deploy.sh --profile edge`; the nginx-fronted topology (§#164) never started it
+at all. That gate is now removed and `backup` is default-on — but if you are
+running an older checkout on a non-Caddy host, you have no backups and no
+error saying so.
+
 Manual snapshot: `./scripts/backup-restore.sh backup`
 Restore: `./scripts/backup-restore.sh restore <timestamp>`
+Force one immediately (useful right after enabling the service): `docker compose -f deploy/docker-compose.yml exec -T backup /backup.sh`
 
 **Restore drill (do this periodically — a backup that has never been restored
 is a hope, not a backup):** copy the latest nightly dump out of the backup
@@ -265,11 +281,55 @@ docker rm -f brain-restore-drill && rm /tmp/drill.sql.gz    # clean up the data 
 Use the `pgvector/pgvector:pg16` image (plain `postgres:16` lacks the
 `vector` extension and the restore will error on the embedding column).
 
+### TLS certificates (only if you terminate TLS yourself)
+
+Irrelevant on the Caddy path — Caddy renews and reloads itself. It matters if
+you front the stack with your own nginx (the §#164 topology), where two
+independent things must both be true:
+
+1. **Every hostname is covered.** A wildcard matches exactly one label, so
+   `*.example.com` covers `brain.example.com` but **not**
+   `mcp.brain.example.com` — the MCP vhost needs its own cert. Check both:
+   ```bash
+   for h in brain.example.com mcp.brain.example.com; do
+     echo | openssl s_client -servername $h -connect $h:443 2>/dev/null \
+       | openssl x509 -noout -subject -dates
+   done
+   ```
+2. **A renewal actually reaches nginx.** nginx re-reads certificate files only
+   on reload, so a successful `certbot renew` with no deploy hook leaves it
+   serving the *expired* cert out of memory — indefinitely. Install one:
+   ```bash
+   # /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh  (chmod +x)
+   #!/usr/bin/env bash
+   set -euo pipefail
+   nginx -t 2>/dev/null && systemctl reload nginx
+   ```
+   Hooks in `renewal-hooks/deploy/` run for every cert, and only on an actual
+   renewal.
+
+The tell that you have problem 2: the file on disk shows a new date while the
+wire shows an old one.
+
+```bash
+openssl x509 -noout -dates -in /etc/letsencrypt/live/<name>/fullchain.pem   # new
+echo | openssl s_client -connect <host>:443 2>/dev/null | openssl x509 -noout -dates  # old
+```
+
+Confirm nginx really reloaded by checking that its worker PIDs changed — a
+reload replaces workers, and `systemctl reload` reporting success does not
+prove they did.
+
 ### Monitoring
 
 - `/api/healthz` — liveness. Hit from your uptime monitor.
 - `/api/readyz` — readiness including DB. Fires 503 when the DB is down.
 - Sentry: set `SENTRY_DSN` in `.env` to receive error reports. Off by default.
+- **Monitor certificate expiry and backup freshness explicitly.** Both failure
+  modes in KNOWN_ISSUES §0s were silent — no container unhealthy, no non-zero
+  exit, nothing in any log anyone reads. `/api/admin/backup-status` warns when
+  the newest dump is older than `BACKUP_DUMP_MAX_AGE` (default 26 h); there is
+  no equivalent for TLS, so point an external check at it.
 
 ### Admin watchdog
 
@@ -315,5 +375,10 @@ When all ten boxes are checked, send the invites.
 | `voucher_rate_limited` on legitimate sign-in | Someone's been mistyping voucher codes from the same IP. 10/hr per IP; either wait an hour or ask for a fresh code (admin bypasses via `ADMIN_EMAILS`). |
 | `auth_not_configured` (503) | Both OAuth and `ALLOW_DEV_AUTH` are off. Set the three `AUTH_GITHUB_*` + `AUTH_SECRET` and redeploy. |
 | Oracle returns 429 for users | Per-IP proxy rate limit. Bump `RATE_LIMIT_ORACLE_PER_DAY` or wire Redis (`REDIS_URL=redis://...`) for shared state. |
+| `P1001: Can't reach database server at db:5432` from a **host shell** | Not an outage. `db` is a compose *service name* and resolves only inside the compose network; from the host use the published port: `DATABASE_URL="${DATABASE_URL/@db:5432/@127.0.0.1:5433}"`. |
+| `The datasource.url property is required in your Prisma config file` | `.env` isn't loaded. Compose reads it via `--env-file`, but a bare `pnpm exec prisma` does not — run `set -a; source .env; set +a` first. |
+| `'<field>' does not exist in type 'SessionUpdateInput'` (or similar) after `git pull` | Stale generated Prisma client on the **host** (containers regenerate theirs at build). Run `pnpm --filter @brain/db exec prisma generate`. |
+| MCP clients fail TLS but the webapp is fine | Separate certificate for the `mcp.` vhost — a wildcard cannot cover a two-level subdomain. See §E "TLS certificates". |
+| Cert renewed but clients still see the old/expired one | nginx wasn't reloaded; it caches certs in memory. Add the certbot deploy hook in §E and confirm nginx worker PIDs changed. |
 
 For anything not in the table: [`docs/KNOWN_ISSUES.md`](./KNOWN_ISSUES.md) lists tracked risks and gotchas.

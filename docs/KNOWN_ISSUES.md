@@ -516,6 +516,35 @@ Recorded because the audit's own errors are the more useful artifact:
 
 ---
 
+## 0s. Unattended-operation audit (2026-08-05, v2.13.0 prod redeploy)
+
+Found while redeploying `main` (`4c16f8e` → `7780eec`) onto the nginx-fronted
+prod host. The code deployed cleanly — every defect below was in the parts
+nobody watches: **the things that were supposed to run by themselves and
+didn't.** Both headline findings share one shape: *a scheduled job that
+reports success while producing nothing*, invisible until the moment you need
+its output.
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**Nightly backups had never produced a single file.**~~ **Fixed.** `deploy_brain_backups` was empty after months of "nightly" backups. Two independent causes, either alone sufficient: (a) the `backup` service carried `profiles: ["edge"]`, but the nginx-fronted topology (§#164) never runs `--profile edge` — only `deploy.sh` passes it, and this host cannot run `deploy.sh` because its Caddy sidecar collides with nginx on :443. So the container **never started**. (b) Its image was pinned `postgres-backup-local:15` against a `pgvector:pg16` server, and `pg_dump` refuses to dump a *newer* server — so it would have failed silently even if started. The `:16` bump shipped in v2.13.0, but **fixing (b) alone changes nothing** while (a) keeps the service down; the two look identical from outside (empty volume, no error anyone reads). Backups are orthogonal to who terminates TLS, so the profile gate is now removed — `backup` is default-on. Verified by dumping and counting: 34 `Knowledge` rows in the dump against 34 live. | `deploy/docker-compose.yml` | done |
+| ~~**A renewed TLS cert was never served, silently breaking every MCP client for 11 days.**~~ **Fixed.** `mcp.brain.autobahn.bot` served a cert that expired 2026-07-25; all MCP traffic failed `curl (60) certificate has expired` / HTTP 000, and the onboard script died at its smoke step. Two layers: (a) the wildcard `*.autobahn.bot` covers `brain.autobahn.bot` but **cannot** cover a two-level subdomain — TLS wildcards match exactly one label — so MCP has its own cert whose expiry nobody tracked. (b) The one that actually bites: **no certbot deploy hook existed**, and nginx only re-reads cert files on reload. A successful `certbot renew` therefore left nginx serving the expired cert from memory indefinitely. Recognise it by the split: `openssl x509 -in /etc/letsencrypt/live/<n>/fullchain.pem` shows the NEW date while `openssl s_client -connect <host>:443` shows the OLD one. Fixed by `/etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh` (`nginx -t` then `systemctl reload nginx`; fires only on actual renewal, applies to every cert). | host: `/etc/letsencrypt/renewal-hooks/deploy/` | done |
+| **Most of the e2e suite cannot run against a populated instance.** Of 31 specs, ~22 write data (`credentials-signup`, `org-invites`, `tokens`, `projects`, …) — pointing them at a real deployment injects junk users/orgs/tokens into live data. Only `healthz` is genuinely auth-free. Compounding it, `nav.spec.ts:19-20` asserts in a comment that auth mode "redirects to /signin then back… either way we end up at / with the BrainApp mounted", which is **false** for CREDENTIALS mode without a cookie: `/` → 307 → `/signin` and stays, so `nav.rail` never mounts and 4 tests fail for environmental reasons that read as regressions. Its third test handles this correctly via `test.skip()`; the first two do not. Related to the 20-dormant-specs row in §0r. | `apps/web/e2e/nav.spec.ts`, `apps/web/e2e/` | **open** |
+| **Prisma CLI is unusable from a host shell without rewriting the DB host.** `.env` carries `DATABASE_URL=…@db:5432/brain`, where `db` is a compose *service name* that resolves only inside the compose network. Every host-shell Prisma command therefore dies `P1001: Can't reach database server at db:5432`, which reads like an outage rather than a name-resolution mismatch. Use `DATABASE_URL="${DATABASE_URL/@db:5432/@127.0.0.1:5433}"`. Separately, a bare `pnpm exec prisma` does **not** auto-load `.env` (compose does, via `--env-file`), so `prisma.config.ts` sees `process.env.DATABASE_URL` undefined and reports the misleading "The datasource.url property is required in your Prisma config file". | `docs/DEPLOY_CHECKLIST.md` | documented |
+| **A stale generated Prisma client fails typecheck in a way that looks like bad code.** After pulling schema changes, `pnpm turbo run typecheck` fails with e.g. `'extractionStatus' does not exist in type SessionUpdateInput`. Docker builds regenerate the client internally so containers are correct — it is only the *host's* `packages/db/src/generated/client` that is stale. Run `prisma generate` before reading anything into the error. | `docs/DEPLOY_CHECKLIST.md` | documented |
+
+**The class:** every item here is a *silent* failure of an unattended
+mechanism — a backup that never ran, a renewal that never took effect, a test
+suite that cannot execute where it matters. None surfaced an error to anyone;
+all three were discovered only because a human went looking during unrelated
+work. Where §0r's lesson was "fix the class, not the instance", this one is:
+**an automated mechanism is not verified until you have inspected its
+output.** A green container, a zero exit code, and a "renewals succeeded"
+banner each proved nothing here. Verify the artifact — count rows in the dump,
+read the cert off the wire — not the process that claims to produce it.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:
