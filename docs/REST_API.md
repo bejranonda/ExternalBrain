@@ -398,6 +398,32 @@ POST   /api/skills/:id/export?format=claude-code         export
 POST   /api/skills/:id/publish-community                 moderate then publish
 ```
 
+## Autoskill proposals
+
+```
+GET    /api/autoskill/proposals?status&scope        list (see ?scope=all above)
+GET    /api/autoskill/proposals/:id                 one proposal + diff + patch
+PATCH  /api/autoskill/proposals/:id                 edit reasoning / diff (pending only)
+POST   /api/autoskill/proposals/:id                 { action: "apply" | "reject" | "unreject" }
+```
+
+`POST` uses an atomic compare-and-claim (`updateMany` filtered on the expected
+current `status`) rather than read-then-write, so a double-clicked button or a
+retried webhook cannot both win — the loser gets `409 already_resolved`.
+
+| action | transition | notes |
+|---|---|---|
+| `apply` | `pending → applying → applied` | Writes knowledge. On handler failure the claim is rolled back to `pending` so the user can retry; returns `422`. |
+| `reject` | `pending → rejected` | Sets `resolvedAt`. Writes nothing else. |
+| `unreject` | `rejected → pending` | **(v2.13.0)** Clears `resolvedAt`. Returns `409 not_rejected` if the proposal is in any other state, which also makes a double-tapped undo idempotent. |
+
+`unreject` is safe to expose precisely *because* `reject` is a pure status flip
+— unlike `apply`, it creates no `Knowledge` rows, so restoring to `pending` has
+nothing to unwind. It exists so the UI can offer an undo toast instead of a
+blocking confirmation dialog on a repetitive triage surface. Do **not** add a
+symmetric "unapply": reversing an apply would require retracting knowledge that
+other rules may already reference.
+
 ## Oracle
 
 ```

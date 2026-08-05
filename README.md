@@ -275,7 +275,8 @@ cost.
 | [DEPLOY_CHECKLIST](./docs/DEPLOY_CHECKLIST.md) | Production deploy on a public VM |
 | [CICD](./docs/CICD.md) | CI checks + the two deploy scripts, for forkers |
 | [CONTRIBUTING](./docs/CONTRIBUTING.md) · [GUIDELINES](./docs/GUIDELINES.md) | How to contribute, code style |
-| [DESIGN_PRINCIPLES](./docs/DESIGN_PRINCIPLES.md) | UI philosophy (progressive disclosure) |
+| [DESIGN_PRINCIPLES](./docs/DESIGN_PRINCIPLES.md) | UI philosophy (progressive disclosure) + the accessibility constraint |
+| [UI_UX_MASTER_AUDIT](./UI_UX_MASTER_AUDIT.md) | **UI/UX + WCAG 2.1 AA audit (2026-08-05)** — the aesthetic half found nothing; the finding that mattered was three surfaces shipping one bug because its regression test was named after a page. Includes measured contrast and Thai typography tables, and the audit's own corrections |
 | [KNOWN_ISSUES](./docs/KNOWN_ISSUES.md) | Tracked risks & gotchas |
 | [pre-release/](./docs/pre-release/00_REMEDIATION_LOG.md) | **Four-pass pre-release audit (2026-08-02)** — onboarding · MCP & multi-tenancy security · worker/DB reliability · deployment & i18n. Zero CRITICAL findings; the reports keep their full working, including two in-place corrections where remediation proved a finding overstated |
 | [REBUILD](./REBUILD/00-START-HERE.md) | **Rebuild from scratch** — 6-phase vibe-coding guide for porting to a new machine |

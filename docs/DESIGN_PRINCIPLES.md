@@ -72,6 +72,40 @@ If you can answer all three in one sentence each, the change is probably scoped 
 
 ---
 
+## 4a. Accessibility is a constraint, not a fourth principle
+
+The three principles above govern *what* appears. Accessibility governs whether
+what appears is usable at all, so it does not trade against them — a surface
+that is quiet, earned and progressively disclosed but keyboard-unreachable is
+simply broken.
+
+Two distinctions the 2026-08-05 audit made concrete (`KNOWN_ISSUES §0r`):
+
+- **Keyboard *operability* is mandatory; keyboard *accelerators* are optional.**
+  Tab order, Enter/Space activation, Esc-to-close and a visible focus ring are
+  WCAG 2.1.1 / 2.4.7 — never negotiable, never removed for aesthetics. Single-key
+  shortcuts (<kbd>J</kbd>/<kbd>K</kbd>-style) are a *feature*, and a hazardous one:
+  WCAG **2.1.4 is Level A** and forbids them on a global listener unless they can
+  be disabled, remapped, or are active only on focus. That audit added such
+  shortcuts to the autoskill queue and had to remove them. Do not confuse the two
+  categories, in either direction.
+- **The reversible action gets the fast path.** Where an action can be undone
+  cheaply, prefer an undo affordance over a confirmation dialog — a dialog taxes
+  every invocation to protect against the rare mistake, which is the wrong trade
+  on a repetitive triage surface. Where it *cannot* be undone, keep the dialog
+  (or a typed confirmation phrase, as `/settings/reset-knowledge` does). Autoskill
+  reject became reversible specifically so it could earn the fast path.
+
+Beyond that, treat the checklist in
+[`GUIDELINES §10`](./GUIDELINES.md#10-frontend--design-system) as normative:
+reset/restore symmetry on focus styles, never colour alone for links, design
+tokens rather than hardcoded hex (the palette's contrast is already tuned),
+`aria-live` on destructive outcomes, and Thai leading. Note that
+`apps/web/e2e/a11y.spec.ts` exists but **currently runs in no CI workflow** — do
+not treat its presence as evidence that a change is accessible.
+
+---
+
 ## 5. References
 
 - [`docs/GUIDELINES.md §10`](./GUIDELINES.md#10-frontend--design-system) — design tokens, i18n, state-based navigation.
