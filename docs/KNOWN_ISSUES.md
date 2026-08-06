@@ -619,6 +619,38 @@ N surfaces implement one contract, at least one test must range over all N.
 
 ---
 
+## 0v. Subpage navigation consistency (2026-08-06)
+
+Audited after §0u, on the same suspicion: if one affordance drifted across
+surfaces, others had too. `/admin/*` and `/docs/*` each own their
+back-to-Brain link in a **layout**, so every page under them gets it for
+free. `/settings/*` did not — its layout was an auth guard only, and each
+page hand-rolled its own link. Four did; the fifth didn't.
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**`/settings/org` had no route back to the app at all.**~~ **Fixed.** A user who reached Organization settings could leave only via the browser Back button. Not an oversight by one author so much as the predictable outcome of an affordance that lived in four sibling files and nowhere authoritative. | `apps/web/app/settings/org/page.tsx` | done |
+| ~~**The four pages that had it disagreed.**~~ **Fixed.** `audit`, `projects`, `reset-knowledge` and `tokens` each rendered their own `← back to Brain` → `/`; `password` rendered `← Settings` → `/settings` (which itself redirects to `/settings/tokens`, so "up" landed on a sibling). Ownership moved to `settings/layout.tsx`, matching `admin/` and `docs/`; the four inline copies are deleted. `password`'s up-level link is kept — it points somewhere different on purpose, and no longer duplicates the root link. | `apps/web/app/settings/layout.tsx` | done |
+| ~~**Nothing prevented the next settings page from repeating it.**~~ **Fixed.** `lib/brain/page-home-link.test.ts` walks every `page.tsx` and requires a home link on the page, an ancestor layout, or a component it imports. A new page under a nav-owning layout passes for free; a new top-level section fails until it provides one. **Verified non-vacuous:** reverting the layout link fails 6 settings routes. Source-level (no DB, no browser) so it runs unconditionally — §0r's 20-dormant-specs finding makes an e2e-only guard indistinguishable from no guard. | `apps/web/lib/brain/page-home-link.test.ts` | done |
+
+**Not defects, and worth recording so a later audit doesn't "fix" them:**
+`/` is home; `/signin`, `/signup`, `/signout`, `/forgot-password`,
+`/reset-password` and `/accept-invite` are pre-auth surfaces where a home link
+would bounce the visitor straight back; `/settings` renders nothing (it
+redirects to `/settings/tokens`); and `/[orgSlug]/[projectSlug]` renders the
+full SPA shell with its navigation rail — it *is* the app, scoped to a
+project, not a subpage to escape from.
+
+**The class, restated once more:** an affordance implemented per-page is an
+affordance that will be missing from some page. The fix is never "add it to
+the one that lacks it" — it is to move ownership somewhere the next author
+inherits without knowing it exists. Two sections of this app already did that;
+the third had drifted, and only a test that ranges over *all* routes could see
+it. Same shape as §0u, where only a sweep across all clients could see that one
+of eleven lacked a note.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:

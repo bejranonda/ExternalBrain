@@ -88,9 +88,6 @@ export default function SettingsAuditPage() {
         fontFamily: "var(--font-sans)",
       }}
     >
-      <a href="/" className="mono" style={{ fontSize: 12, color: "var(--ink-3)", textDecoration: "none" }}>
-        ← back to Brain
-      </a>
       <div style={{ marginTop: 18, marginBottom: 6 }}>
         <h1 style={{ fontSize: 22, fontWeight: 500, margin: 0, letterSpacing: "-0.02em" }}>
           Audit log
