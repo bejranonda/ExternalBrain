@@ -2390,9 +2390,9 @@ once**; monitor for absence, not only staleness.
 The immediate sequel to §5bm, and its sharper form. Having just spent a
 session on mechanisms that report success while producing nothing, the agent
 recorded the lessons into the Brain — the product's own dogfood — and verified
-the loop properly: teach five rules, reopen a session, confirm retrieval
-injected them, close with `SQS 88`. Every call returned a real knowledge id.
-The round-trip was genuine.
+the loop properly: teach five rules and record one decision, reopen a session,
+confirm retrieval injected them, close with `SQS 88`. All six calls returned a
+real knowledge id. The round-trip was genuine.
 
 It ran entirely against the **dev** Brain. The operator had re-onboarded the
 MCP token to prod mid-session, but Claude Code binds its MCP configuration at

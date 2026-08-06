@@ -49,11 +49,20 @@ After install, **restart Claude Code** so it picks up the new MCP entry and the 
 > write:
 >
 > ```bash
+> # POSIX
 > python3 -c "import json;print(json.load(open('$HOME/.claude.json'))['mcpServers']['brain']['url'])"
 > ```
 >
-> and check that a taught ID really landed —
+> ```powershell
+> # Windows PowerShell
+> (Get-Content "$env:USERPROFILE\.claude.json" | ConvertFrom-Json).mcpServers.brain.url
+> ```
+>
+> Then check that a taught id really landed in the Brain you meant:
 > `select id from "Knowledge" where id = '<id returned by the teach call>';`
+> Zero rows means the id is absent *there* — it may have gone to another
+> instance, or the write may have failed; the resolved URL above distinguishes
+> the two.
 
 ### Audit-first variant (security-aware operators)
 

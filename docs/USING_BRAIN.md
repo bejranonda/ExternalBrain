@@ -354,8 +354,8 @@ docker logs deploy-worker-1 --since 1h | grep "kea.extract"
 
 If you see no `kea.extract` lines after a session ended, Claude didn't call `brain_report_session_outcome`. Be more explicit: end with "we're done" or "ship it" — the SKILL.md trains the AI to recognise these as session-close signals.
 
-**Second cause, if the teaches *appear* to succeed:** you may be writing to a
-different Brain. An MCP client binds its endpoint **at session start**, so
+**Second cause, if the teach calls *appear* to succeed:** you may be writing to
+a different Brain. An MCP client binds its endpoint **at session start**, so
 re-running the installer against another instance mid-session repoints the
 config file while the live connection keeps writing to the old one. Every call
 still succeeds and returns a real knowledge id — nothing looks wrong from the
@@ -368,7 +368,9 @@ docker compose ... exec -T db psql -U brain -d brain \
   -c "select id from \"Knowledge\" where id = '<id returned by the teach call>';"
 ```
 
-Zero rows means the write went elsewhere. Restart the client and re-teach.
+Zero rows proves only that the id is absent from the database you queried — the
+write may have gone to another instance, or failed and rolled back. Check the
+resolved endpoint above to tell those apart before restarting and re-teaching.
 Relatedly, `brain_get_user_style` returning **no reflexes** is not by itself a
 fault — it is equally consistent with "a different instance answered" and with
 "this token's user genuinely owns none yet" (a fresh deployment, or knowledge

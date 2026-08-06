@@ -251,7 +251,7 @@ needed them to have worked.
 
 One level up from the above, and the sequel that produced it (`KNOWN_ISSUES
 §0t`): a round-trip test proves the loop is closed, but says nothing about
-**which** loop. An agent wrote five knowledge rules over MCP, verified
+**which** loop. An agent wrote six knowledge rows over MCP, verified
 teach → retrieve → inject → close, saw every call return a real id, and
 reported the loop "verified end-to-end" — against the wrong Brain. The client
 had bound its config at session start and was still talking to the previous

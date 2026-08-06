@@ -548,20 +548,22 @@ read the cert off the wire — not the process that claims to produce it.
 ## 0t. Writes went to the wrong Brain (2026-08-06)
 
 The direct sequel to §0s, and the same lesson pointed at the product itself.
-While fixing the §0s defects, the agent recorded five rules via
+While fixing the §0s defects, the agent recorded six knowledge rows — five
+rules and one decision — via
 `brain_teach_knowledge` and verified the loop end-to-end — teach, retrieve,
 inject, close, `SQS 88`. Every call succeeded and returned a real knowledge id.
 **All of it was written to the wrong instance.**
 
 | Issue | Where | Status |
 |---|---|---|
-| ~~**Re-onboarding mid-session silently writes to the previously-connected Brain.**~~ **Documented.** Claude Code binds its MCP configuration **at session start**. The operator re-ran `onboard.sh` against prod during a live session whose client had connected to `mcp.brain-dev.autobahn.bot`; the installer rewrote `~/.claude.json` correctly, but the open client kept using the dev connection. Six subsequent teaches landed on **dev** and are absent from prod — confirmed by `select id from "Knowledge" where id in (…)` returning 0 rows on prod. Nothing errored at any point: the tool calls returned ids, the round-trip verification passed, and the agent reported the loop "verified end-to-end" while verifying the wrong host. The installer already prints "Restart Claude Code first", but it reads as a convenience note about tool visibility, not as *"until you do, your writes go somewhere else."* | `apps/web/app/api/onboard.sh`, `docs/CLIENTS.md` | documented |
+| ~~**Re-onboarding mid-session silently writes to the previously-connected Brain.**~~ **Documented.** Claude Code binds its MCP configuration **at session start**. The operator re-ran `onboard.sh` against prod during a live session whose client had connected to `mcp.brain-dev.autobahn.bot`; the installer rewrote `~/.claude.json` correctly, but the open client kept using the dev connection. All six of those writes landed on **dev** and are absent from prod — confirmed by `select id from "Knowledge" where id in (…)` returning 0 rows on prod. Nothing errored at any point: the tool calls returned ids, the round-trip verification passed, and the agent reported the loop "verified end-to-end" while verifying the wrong host. The installer already prints "Restart Claude Code first", but it reads as a convenience note about tool visibility, not as *"until you do, your writes go somewhere else."* | `apps/web/app/api/onboard.sh`, `docs/CLIENTS.md` | documented |
 | **An empty MCP result is a signal, not a pass.** `brain_get_user_style` returned ~30 reflexes one day and **0** the next. The connection was healthy both times; the difference was which Brain answered. Two legitimate causes look identical to a fault: (a) you are talking to a different instance, (b) the token's user genuinely owns no knowledge — on this prod host all 34 pre-existing rows belong to two `alex@*` demo/seed personas, and the operator's `admin@…` account owned none. Reporting "connection works" on a non-error response would have concealed the misrouted writes for as long as nobody compared instances. | `docs/CLIENTS.md` troubleshooting table | documented |
 | **Diagnosing this requires DB access, which an ordinary user does not have.** The only conclusive check performed was `select id from "Knowledge" where id = '<returned-id>'` against the Postgres container. A self-hoster on a managed host, or any non-admin user, cannot run it — so the failure is undiagnosable from the client side, where it occurs. A `brain_whoami`-style tool returning the resolved instance URL, token identity and owned-knowledge count would make it a one-call check. **Not built** — filed here rather than smuggled into a docs PR. | MCP tool surface | **open** |
 
 **Operator decision (2026-08-06):** the stranded dev knowledge is **not**
 migrated. The prod Brain (`brain.autobahn.bot`) is the system of record from
-this date; the four host-specific ops rules from §0s were re-taught here, and
+this date; the four host-specific ops rules from §0s were re-taught here (plus
+the start-fresh decision itself, five rows in total), and
 dev's remaining rules are historical. Prod's near-empty starting state is a
 deliberate choice, not data loss to repair — recorded as a `decision`-tagged
 project rule so a future session doesn't try to "fix" the asymmetry.
