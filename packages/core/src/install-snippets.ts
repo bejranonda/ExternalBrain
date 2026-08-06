@@ -34,22 +34,27 @@ export type TargetOS = "darwin" | "linux" | "win32";
 
 // ─── shared helper ────────────────────────────────────────────────────────────
 
-/** Build the standard `mcpServers.brain` JSON object (un-indented leaf). */
-function brainMcpEntry(token: string, mcpUrl: string): object {
-  return {
-    transport: { type: "http", url: mcpUrl },
-    headers: { Authorization: `Bearer ${token}` },
-  };
+/**
+ * Serialise `{ "<wrapper>": { "brain": <entry> } }` as lines.
+ *
+ * There is deliberately NO shared "standard" entry shape. Every client keys
+ * its remote-server URL off a different field, and a config in the wrong
+ * shape does not error — the client ignores the entry, or (Claude Desktop)
+ * discards the whole block. Until 2026-08-06 all five JSON clients here
+ * emitted one invented `transport: { type, url }` shape that no client
+ * documents; the tests passed because they only asserted the body was valid
+ * JSON containing the token, which is true of any shape. See KNOWN_ISSUES §0u.
+ */
+function wrapServerEntry(
+  entry: object,
+  wrapper: "mcpServers" | "servers" = "mcpServers",
+): string[] {
+  return JSON.stringify({ [wrapper]: { brain: entry } }, null, 2).split("\n");
 }
 
-/** Serialise a full `{ "mcpServers": { "brain": … } }` wrapper as lines. */
-function mcpServersLines(token: string, mcpUrl: string): string[] {
-  const body = JSON.stringify(
-    { mcpServers: { brain: brainMcpEntry(token, mcpUrl) } },
-    null,
-    2,
-  );
-  return body.split("\n");
+/** Bearer header object, shared by every client that takes static headers. */
+function bearer(token: string): { Authorization: string } {
+  return { Authorization: `Bearer ${token}` };
 }
 
 // ─── generators ───────────────────────────────────────────────────────────────
@@ -91,7 +96,31 @@ export function claudeDesktop(
 ): InstallSnippet {
   return {
     kind: "json",
-    lines: mcpServersLines(token, mcpUrl),
+    // stdio bridge, NOT a direct HTTP entry. `claude_desktop_config.json`
+    // validates stdio servers only: a `url`-shaped entry is at best ignored
+    // and at worst causes Desktop to drop the entire `mcpServers` block on
+    // its next save — taking the user's OTHER servers with it
+    // (anthropics/claude-code#37286). `mcp-remote` bridges stdio↔HTTP and is
+    // what docs/CLIENTS.md has always specified; only this generator
+    // disagreed. Header is passed as one `Name:Value` argument.
+    lines: wrapServerEntry({
+      command: "npx",
+      args: [
+        "-y",
+        "mcp-remote",
+        mcpUrl,
+        "--header",
+        `Authorization:Bearer ${token}`,
+      ],
+    }),
+    // Every other client carries a note; this one shipped without one, so the
+    // user got a wall of JSON and a path with no instruction (caught by the
+    // cross-client sweep in install-snippets.test.ts). The restart clause is
+    // load-bearing, not politeness: Claude Desktop reads this file only at
+    // startup, so editing it in a running app changes nothing and looks like
+    // a bad token — the same "config on disk is not the live connection"
+    // trap as KNOWN_ISSUES §0t.
+    note: "Requires Node (npx) — Claude Desktop speaks stdio only, so mcp-remote bridges it to HTTP. Claude Desktop → Settings → Developer → Edit Config, then FULLY quit from the menu bar / system tray (closing the window is not enough) and reopen. It reads this config only at startup.",
     configPath: {
       darwin:
         "~/Library/Application Support/Claude/claude_desktop_config.json",
@@ -112,8 +141,10 @@ export function cursor(
 ): InstallSnippet {
   return {
     kind: "json",
-    lines: mcpServersLines(token, mcpUrl),
-    note: "Cursor → Settings → MCP Servers → +Add → paste this.",
+    // Cursor takes a FLAT `url` (native streamable-HTTP since 2025 — the
+    // `mcp-remote` shim docs/CLIENTS.md once required is no longer needed).
+    lines: wrapServerEntry({ url: mcpUrl, headers: bearer(token) }),
+    note: "Cursor → Settings → MCP Servers → +Add → paste this. Project-scope alternative: <repo>/.cursor/mcp.json.",
     configPath: {
       darwin: "~/.cursor/mcp.json",
       linux: "~/.cursor/mcp.json",
@@ -133,8 +164,10 @@ export function windsurf(
 ): InstallSnippet {
   return {
     kind: "json",
-    lines: mcpServersLines(token, mcpUrl),
-    note: "Windsurf → Settings → Cascade → MCP Servers → +Add → paste this.",
+    // Windsurf keys remote servers off `serverUrl`, not `url` — the same
+    // quirk Antigravity has. A `url` entry is silently ignored.
+    lines: wrapServerEntry({ serverUrl: mcpUrl, headers: bearer(token) }),
+    note: "Windsurf → Settings → Cascade → MCP Servers → +Add → paste this. Note: Windsurf uses `serverUrl` (not `url`) for HTTP servers.",
     configPath: {
       darwin: "~/.codeium/windsurf/mcp_config.json",
       linux: "~/.codeium/windsurf/mcp_config.json",
@@ -155,8 +188,11 @@ export function geminiCli(
 ): InstallSnippet {
   return {
     kind: "json",
-    lines: mcpServersLines(token, mcpUrl),
-    note: "Gemini CLI added MCP support in 2025; works the same as Claude Code's MCP.",
+    // Gemini CLI names the streamable-HTTP endpoint `httpUrl` (it reserves
+    // `url` for SSE). A `url` entry connects over the wrong transport or not
+    // at all.
+    lines: wrapServerEntry({ httpUrl: mcpUrl, headers: bearer(token) }),
+    note: "Paste into ~/.gemini/settings.json. Note: Gemini CLI uses `httpUrl` (not `url`) for streamable-HTTP servers.",
     configPath: {
       darwin: "~/.gemini/settings.json",
       linux: "~/.gemini/settings.json",
@@ -314,8 +350,11 @@ export function rawMcpServersJson(
 ): InstallSnippet {
   return {
     kind: "json",
-    lines: mcpServersLines(token, mcpUrl),
-    note: "Paste into the client's MCP config — exact path depends on the client.",
+    // Flat `url` is the most widely accepted remote shape; the note names the
+    // known deviations so a user on an unlisted client can adapt rather than
+    // silently getting an entry their client ignores.
+    lines: wrapServerEntry({ url: mcpUrl, headers: bearer(token) }),
+    note: "Paste into the client's MCP config — exact path depends on the client. If it doesn't connect, check which field your client expects: `url` (most), `serverUrl` (Windsurf, Antigravity), `httpUrl` (Gemini CLI), or a `servers` wrapper instead of `mcpServers` (VS Code). stdio-only clients need the `mcp-remote` bridge.",
   };
 }
 

@@ -576,6 +576,49 @@ against the wrong target, identify the target as part of the check.
 
 ---
 
+## 0u. Every JSON install snippet was the wrong shape (2026-08-06)
+
+Found while auditing the token wizard for copy-button consistency — the
+reported symptom was cosmetic; the defect underneath was that **five of the
+eleven generated configs did not work**, and one could destroy user data.
+
+All five JSON clients shared one helper, `mcpServersLines()`, emitting an
+invented shape:
+
+```json
+{ "mcpServers": { "brain": { "transport": { "type": "http", "url": "…" }, "headers": { … } } } }
+```
+
+No MCP client documents `transport: { type, url }` as a config key. Each of the
+five wants something different, and every one of them fails **silently** —
+the entry is ignored, not rejected:
+
+| Client | Needs | Got |
+|---|---|---|
+| Claude Desktop | `command`/`args` **stdio bridge** (`mcp-remote`) | `transport.url` — ignored, and can drop the whole `mcpServers` block on next save, taking the user's OTHER servers with it ([anthropics/claude-code#37286](https://github.com/anthropics/claude-code/issues/37286)) |
+| Cursor | flat `url` | `transport.url` |
+| Windsurf | `serverUrl` | `transport.url` |
+| Gemini CLI | `httpUrl` (it reserves `url` for SSE) | `transport.url` |
+| Generic fallback | flat `url` | `transport.url` |
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**Five JSON install snippets emitted a shape no client accepts.**~~ **Fixed.** Each generator now emits its client's documented field, and the generic fallback's note enumerates the deviations so a user on an unlisted client can adapt. The shared "one standard entry" helper is gone — replaced by `wrapServerEntry(entry, wrapper)`, which deliberately takes the entry shape as an argument, because assuming a shared shape is what caused this. | `packages/core/src/install-snippets.ts` | done |
+| ~~**`docs/CLIENTS.md` contradicted the wizard, and was itself half-stale.**~~ **Fixed.** The doc said Cursor and Windsurf were "stdio-only, wrap with `mcp-remote`" (true when written, now wrong — both speak native HTTP) while correctly specifying the `mcp-remote` bridge for Claude Desktop (which the wizard ignored). Two surfaces, opposite errors, neither checked against the other. | `docs/CLIENTS.md` | done |
+| ~~**The onboarding modal hardcoded its own copy of the same wrong JSON**~~ **Fixed.** It also told the reader "Cursor and Windsurf use the same config shape" — false for all three named clients. Now renders from `rawMcpServersJson()` so it cannot drift again. This is the §0r defect class exactly: one value rendered by several surfaces, fixed in one of them. | `apps/web/components/brain/onboarding.tsx` | done |
+| ~~**348 passing tests proved only that the output was valid JSON.**~~ **Fixed.** Per-client blocks asserted `JSON.parse` succeeded and the token appeared — both true of *any* shape, including a wrong one. Cursor's and Windsurf's tests still passed after their shape was corrected, which is the proof they were never testing the thing that mattered. Assertions now pin the specific field per client (`url` / `serverUrl` / `httpUrl` / `command`) and assert the *absence* of the others. | `packages/core/src/__tests__/install-snippets.test.ts` | done |
+| ~~**No test compared clients against each other.**~~ **Fixed.** Added a cross-client sweep over all 11 clients × 3 OSes asserting the invariants a pasteable snippet must satisfy. It immediately caught an unrelated drift: `claudeDesktop` was the only client of eleven with no `note`, so its users got a wall of JSON and a file path with no instruction. | `packages/core/src/__tests__/install-snippets.test.ts` | done |
+
+**The class:** §0s was a mechanism reporting success while producing nothing;
+§0t was a verification measuring the wrong system. This is the third form —
+**a test asserting a property weaker than the one that matters.** "Parses as
+JSON" is to "is a valid config" what "container is Up" is to "a backup exists".
+Each per-client test also only ever looked at its own client, so a property
+every client should satisfy was checked only where someone remembered to. When
+N surfaces implement one contract, at least one test must range over all N.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:

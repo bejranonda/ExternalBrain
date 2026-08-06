@@ -155,7 +155,53 @@ Skills are loaded at session start. Claude Code in another terminal won't see th
 
 ### Cursor
 
-Cursor's MCP support is stdio-only as of writing. Wrap the HTTP transport with the [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) shim:
+Cursor speaks native streamable-HTTP MCP — the `mcp-remote` shim this page
+used to require is no longer needed. It keys the endpoint off a **flat `url`**:
+
+```json
+{
+  "mcpServers": {
+    "brain": {
+      "url": "https://<your-brain>/mcp",
+      "headers": { "Authorization": "Bearer bp_…" }
+    }
+  }
+}
+```
+
+Cursor reads `~/.cursor/mcp.json` (user-scope) or `<repo>/.cursor/mcp.json` (project-scope).
+
+### Windsurf
+
+Native HTTP, but Windsurf is the one client that names the field **`serverUrl`**
+instead of `url` — a `url` entry is silently ignored:
+
+```json
+{
+  "mcpServers": {
+    "brain": {
+      "serverUrl": "https://<your-brain>/mcp",
+      "headers": { "Authorization": "Bearer bp_…" }
+    }
+  }
+}
+```
+
+Config at `~/.codeium/windsurf/mcp_config.json`.
+
+### Claude Desktop
+
+Edit `claude_desktop_config.json`:
+
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+
+Claude Desktop validates **stdio servers only** — it is now the one client here
+that still needs the [`mcp-remote`](https://www.npmjs.com/package/mcp-remote)
+bridge. Do **not** paste a `url`-shaped entry: Desktop ignores it and can drop
+the whole `mcpServers` block on its next save, taking your other servers with it
+([anthropics/claude-code#37286](https://github.com/anthropics/claude-code/issues/37286)).
 
 ```json
 {
@@ -172,21 +218,7 @@ Cursor's MCP support is stdio-only as of writing. Wrap the HTTP transport with t
 }
 ```
 
-Cursor reads `~/.cursor/mcp.json` (user-scope) or `<repo>/.cursor/mcp.json` (project-scope). A native HTTP transport is on Cursor's roadmap.
-
-### Windsurf
-
-Same pattern as Cursor: stdio-only, wrap with `mcp-remote`. Config at `~/.codeium/windsurf/mcp_config.json`.
-
-### Claude Desktop
-
-Edit `claude_desktop_config.json`:
-
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-- **Linux**: `~/.config/Claude/claude_desktop_config.json`
-
-Same `mcp-remote` wrapper as Cursor, then **restart Claude Desktop fully** (quit from menu bar / system tray, not just close the window).
+Requires Node (for `npx`). Then **restart Claude Desktop fully** (quit from menu bar / system tray, not just close the window).
 
 ### Generic MCP / custom agent
 

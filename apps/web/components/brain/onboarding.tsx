@@ -1,6 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+// Subpath import (not the "@brain/core" barrel) — this is a client component
+// and the barrel pulls in @sentry/node. Same constraint as token-install-wizard.
+//
+// Imported rather than hand-written: this modal previously hardcoded its own
+// `mcpServers` JSON, which drifted into an invented `transport: { type, url }`
+// shape no client accepts, and told the reader "Cursor and Windsurf use the
+// same config shape" when all three differ. That is the §0r defect class —
+// one value rendered by several surfaces, fixed in one of them. Rendering from
+// the generator makes the modal structurally unable to drift again.
+import { rawMcpServersJson } from "@brain/core/install-snippets";
 import { Icon } from "./icons";
 
 const STORAGE_KEY = "bp_onboarded";
@@ -130,21 +140,20 @@ export function Onboarding({
               overflowX: "auto",
               lineHeight: 1.55,
             }}
-          >{`{
-  "mcpServers": {
-    "brain": {
-      "transport": {
-        "type": "http",
-        "url": "${mcpUrl ?? "http://localhost:3100/mcp"}"
-      },
-      "headers": { "Authorization": "Bearer <TOKEN>" }
-    }
-  }
-}`}</pre>
+          >
+            {rawMcpServersJson(
+              "<TOKEN>",
+              mcpUrl ?? "http://localhost:3100/mcp",
+              "",
+              "linux",
+            ).lines.join("\n")}
+          </pre>
           <p style={{ margin: "10px 0 0", lineHeight: 1.5, color: "var(--ink-3)", fontSize: 12 }}>
             From now on, every Claude Code session can read your Brain (<code>brain_retrieve_knowledge</code>)
-            and report events back (<code>brain_log_event</code>). Cursor and Windsurf use the same
-            config shape. After your first session, the <strong>Connection status</strong> card on
+            and report events back (<code>brain_log_event</code>). Other clients differ — Windsurf
+            uses <code>serverUrl</code>, Gemini CLI uses <code>httpUrl</code>, and Claude Desktop
+            needs the <code>mcp-remote</code> bridge; the tokens page generates the exact snippet
+            per client. After your first session, the <strong>Connection status</strong> card on
             the dashboard will show your token with a green dot — that's the proof your machine is
             talking to Brain.
           </p>
