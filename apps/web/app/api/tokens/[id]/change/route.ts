@@ -1,3 +1,4 @@
+import { hashSecret } from "@brain/core/secret-hash";
 import { createHash, randomBytes } from "node:crypto";
 import { db } from "@brain/db";
 import { authErrorResponse, getCurrentUserId } from "@/lib/brain/auth";
@@ -71,7 +72,7 @@ export async function POST(
 
     // bp_ prefix + 32 bytes base64url ≈ 45 chars — same as token.create.
     const raw = `bp_${randomBytes(32).toString("base64url")}`;
-    const tokenHash = createHash("sha256").update(raw).digest("hex");
+    const tokenHash = hashSecret(raw);
 
     const updated = await db.mCPToken.update({
       where: { id },

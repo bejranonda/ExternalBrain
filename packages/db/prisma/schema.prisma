@@ -81,7 +81,10 @@ model UserCredential {
 model PasswordResetToken {
   id        String    @id @default(cuid())
   userId    String
-  token     String    @unique // 32 random bytes base64url
+  // SHA-256 of the 32-random-byte value sent in the reset link. Named
+  // `tokenHash`, not `token`, so a future reader cannot mistake it for
+  // something comparable against user input (KNOWN_ISSUES §0w).
+  tokenHash String    @unique
   createdAt DateTime  @default(now())
   expiresAt DateTime  // 1 hour from creation
   usedAt    DateTime?
@@ -125,7 +128,8 @@ model OrganizationInvite {
   email       String    // lowercased email of invitee
   role        String    @default("member") // role they'll get on accept
   invitedById String    // userId of inviter
-  token       String    @unique // random base64url; sent in invite link
+  // SHA-256 of the random value sent in the invite link. See PasswordResetToken.
+  tokenHash   String    @unique
   createdAt   DateTime  @default(now())
   expiresAt   DateTime  // 7-day default
   acceptedAt  DateTime?

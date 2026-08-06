@@ -651,6 +651,43 @@ of eleven lacked a note.
 
 ---
 
+## 0w. Reset and invite tokens were stored raw (2026-08-06)
+
+Found during a privacy audit — the request was to *prove* the privacy
+measures, and proving them is what surfaced this.
+
+`PasswordResetToken.token` and `OrganizationInvite.token` persisted the **exact
+value emailed to the user**. Lookup was `findUnique({ where: { token } })` on
+the raw string, confirming it. Anyone with database read access — a leaked
+dump, a compromised credential, an operator — held every live reset link
+(1 h window) and every live invite (**7 d** window). `MCPToken.tokenHash` in
+the same schema was already SHA-256: the rule existed and was applied
+inconsistently.
+
+Both tables were empty at the time (verified: 0 rows each), so there was no
+live exposure and no in-flight link to invalidate — which is also why the fix
+is a clean rename with no backfill.
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**Raw reset/invite tokens at rest.**~~ **Fixed.** Both columns renamed `token` → `tokenHash` and store `hashSecret()` output. The rename is deliberate: a column named `token` invites the next author to compare it against user input, which is how this arrived. Migration `20260806211500_hash_reset_and_invite_tokens`. | `packages/db/prisma/schema.prisma` | done |
+| ~~**Seven call sites, and `grep` found only five.**~~ **Fixed.** Two lived in server *page components* (`app/reset-password/page.tsx`, `app/signin/page.tsx`), not API routes, and were caught only because `tsc` rejected the renamed field. A rename that breaks the build is a safer refactor than an in-place semantic change that compiles. | `apps/web/app/**`, `packages/core/src/org.ts` | done |
+| ~~**The SHA-256 line was inlined at three MCPToken sites.**~~ **Fixed.** Extracted to `packages/core/src/secret-hash.ts` with the reasoning attached (why sha256 is right for 32-random-byte tokens and wrong for passwords), and adopted at all sites. One rule, one implementation. | `packages/core/src/secret-hash.ts` | done |
+| ~~**Nothing prevented the next model from adding a raw one.**~~ **Fixed.** `secrets-hashed-at-rest.test.ts` parses `schema.prisma` and fails on any scalar column named `token`/`secret`/`apiKey`/`accessToken`/`refreshToken` outside a justified allow-list. Schema-level on purpose: a test asserting "forgot-password hashes its token" passes while the *next* model adds a raw one. **Verified non-vacuous** — reintroducing a raw column fails it. | `packages/core/src/__tests__/secrets-hashed-at-rest.test.ts` | done |
+| **Backups now capture more than they used to.** Enabling nightly dumps (§0s) means any short-lived secret present at 03:00 is also on disk for 7 daily / 4 weekly / 6 monthly cycles. Hashing removes the sting for these two tables; the general point stands for whatever is added next. Off-host replication remains opt-in and disabled. | `deploy/docker-compose.yml` | **open** |
+
+**The class:** §0u was a test asserting a property weaker than the one that
+mattered. This is its security-shaped twin — the *codebase* knew the rule
+(`MCPToken` did it correctly) and applied it to one of three models. Neither a
+per-model review nor a per-endpoint test can see that; only a check that ranges
+over the whole schema can. Third time this week that the fix was "assert the
+invariant across all N", after §0u (all clients) and §0v (all routes).
+
+Documented in [`docs/PRIVACY.md`](./PRIVACY.md), written after the fix so it
+describes a posture that is actually true.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:

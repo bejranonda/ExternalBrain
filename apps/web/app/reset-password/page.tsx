@@ -7,6 +7,7 @@
  */
 import { redirect } from "next/navigation";
 import { db } from "@brain/db";
+import { hashSecret } from "@brain/core/secret-hash";
 import { LocalePicker } from "@/components/brain/locale-picker";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ async function getTokenValidity(token: string): Promise<{ valid: boolean }> {
   if (!token) return { valid: false };
   try {
     const row = await db.passwordResetToken.findUnique({
-      where: { token },
+      where: { tokenHash: hashSecret(token) },
       select: { expiresAt: true, usedAt: true },
     });
     if (!row || row.usedAt || row.expiresAt < new Date()) return { valid: false };

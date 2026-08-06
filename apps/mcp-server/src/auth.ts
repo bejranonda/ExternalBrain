@@ -4,6 +4,7 @@
  * Tokens are stored as SHA-256 hashes in the DB. The raw token is shown to
  * the user exactly once at creation time.
  */
+import { hashSecret } from "@brain/core/secret-hash";
 import { createHash } from "node:crypto";
 import { db } from "@brain/db";
 
@@ -27,7 +28,7 @@ export async function authenticate(
       "Missing BRAIN_MCP_TOKEN. Create one at https://brain.example/settings/tokens",
     );
   }
-  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  const tokenHash = hashSecret(rawToken);
   const token = await db.mCPToken.findUnique({
     where: { tokenHash },
   });

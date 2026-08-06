@@ -30,6 +30,7 @@ import {
 } from "@brain/core";
 import { getRateLimitStore } from "@/lib/brain/rate-limit-store";
 import crypto from "crypto";
+import { hashSecret } from "@brain/core/secret-hash";
 
 const log = getLogger("forgot-password");
 
@@ -108,7 +109,9 @@ export async function POST(req: Request): Promise<Response> {
   await db.passwordResetToken.create({
     data: {
       userId: user.id,
-      token: rawToken,
+      // Only the hash is persisted; `rawToken` below goes in the email and is
+      // never recoverable from the database.
+      tokenHash: hashSecret(rawToken),
       expiresAt,
     },
   });
