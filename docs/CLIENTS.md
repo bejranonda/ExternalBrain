@@ -37,6 +37,24 @@ The installer:
 
 After install, **restart Claude Code** so it picks up the new MCP entry and the skill.
 
+> **If you are re-pointing an existing `brain` entry at a different Brain, the
+> restart is not cosmetic — it is the whole operation.** Claude Code binds its
+> MCP config **at session start**. A running session keeps talking to whichever
+> Brain it connected to originally, so re-running the installer mid-session
+> repoints the *file* while every subsequent `brain_teach_knowledge` still
+> writes to the **old** instance. Nothing errors; the tool calls succeed and
+> return real IDs. See [`KNOWN_ISSUES §0t`](./KNOWN_ISSUES.md).
+>
+> After any repoint, confirm which Brain you actually reached before trusting a
+> write:
+>
+> ```bash
+> python3 -c "import json;print(json.load(open('$HOME/.claude.json'))['mcpServers']['brain']['url'])"
+> ```
+>
+> and check that a taught ID really landed —
+> `select id from "Knowledge" where id = '<id returned by the teach call>';`
+
 ### Audit-first variant (security-aware operators)
 
 Don't pipe untrusted scripts to `bash` / `iex`. Same effect, with inspection:
@@ -304,6 +322,8 @@ claude mcp list | grep brain   # → "✓ Connected" if token is good
 | Session works in one terminal but not another | Claude Code wrote to project scope (`<repo>/.claude.json`), and the second terminal is in a different repo. | Re-add with `--scope user` for cross-project availability. |
 | Skill appears but Claude doesn't use it | Claude Code hasn't restarted since the skill was dropped. | Restart Claude Code. |
 | Token works but `brain_*` tools missing from palette | Claude Code restarted, but didn't reload MCP registry. | Try `/mcp` inside Claude Code, or restart again. |
+| Taught knowledge "succeeds" but never appears in the webapp | You re-ran the installer against a different Brain **without restarting**, so writes went to the previously-connected instance. Tool calls return real IDs, so nothing looks wrong. | Restart Claude Code, verify the URL in `~/.claude.json`, then re-teach. Confirm the returned id exists: `select id from "Knowledge" where id='…'`. |
+| `brain_get_user_style` suddenly returns zero reflexes | Usually not a fault: you are now talking to a **different Brain**, or this token's user genuinely owns no knowledge yet (a fresh instance, or knowledge owned by other users/demo personas). | Check the URL and the token's user before treating it as a regression. An empty result is a signal about *which* instance you reached, not proof of breakage. |
 
 ---
 
