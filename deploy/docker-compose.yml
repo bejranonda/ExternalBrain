@@ -129,6 +129,12 @@ services:
       ORACLE_ENABLED: ${ORACLE_ENABLED:-true}
       V2_ORACLE_TASKS: ${V2_ORACLE_TASKS:-false}
       MEETING_UPLOAD_ENABLED: ${MEETING_UPLOAD_ENABLED:-false}
+      # Password-reset link in the web log when email delivery is unavailable.
+      # Fails closed. Listed here because compose forwards ONLY what it names:
+      # without this line the operator sets it in .env, sees no link, and has
+      # no way to tell the flag never reached the container (KNOWN_ISSUES §0p,
+      # and §0w for why this flag exists at all).
+      ALLOW_RESET_LINK_IN_LOGS: ${ALLOW_RESET_LINK_IN_LOGS:-false}
       RATE_LIMIT_MEETING_EXTRACT_PER_DAY: ${RATE_LIMIT_MEETING_EXTRACT_PER_DAY:-20}
       # Same routing/allowlist trap as worker's KEA_MODEL below: the route
       # defaults to qwen3-coder (DashScope) for cost reasons, and without
