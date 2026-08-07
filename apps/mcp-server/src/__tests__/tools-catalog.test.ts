@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-// The 12 brain_* tools the MCP server is contracted to expose to clients.
+// The 13 brain_* tools the MCP server is contracted to expose to clients.
 // If any tool is renamed, removed, or a new one is added, this list must
 // be updated in lock-step — the test then doubles as a guard against
 // accidental surface-area drift (the kind of change that should break
@@ -19,10 +19,11 @@ const EXPECTED_TOOL_NAMES = [
   "brain_log_event",
   "brain_find_skill",
   "brain_session_search",
+  "brain_whoami",
 ] as const;
 
 describe("tools catalog", () => {
-  it("exposes the 12 brain_* tools as a stable contract", async () => {
+  it("exposes the 13 brain_* tools as a stable contract", async () => {
     // Importing tools/index.js pulls in @brain/core (env validation) and
     // @brain/db (Prisma client). Both are happy with a dummy DATABASE_URL
     // here — they don't open a connection at import time, only on first

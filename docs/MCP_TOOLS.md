@@ -29,6 +29,32 @@ Mint a token at `/settings/tokens`. After mint, the wizard generates the exact i
 
 ## Tools
 
+### `brain_whoami` — which Brain am I talking to?
+
+Takes no arguments. Returns the deployment's own public hostname and database
+name (read from the **server's** env, so it is a fact the client cannot know or
+get wrong), the user and token the bearer resolves to including its capability
+list, and how much knowledge that user holds.
+
+Reach for it when a teach appears to succeed but the data never appears, when
+`brain_get_user_style` comes back empty, or after repointing a client — an MCP
+client binds its endpoint **at session start**, so the config file on disk is
+not proof of the live target ([`KNOWN_ISSUES §0t`](./KNOWN_ISSUES.md)).
+
+```json
+{
+  "instance":  { "mcpPublicHostname": "brain.example.com", "databaseName": "brain" },
+  "identity":  { "email": "you@example.com", "tokenName": "laptop",
+                 "capabilities": [], "capabilitiesMeaning": "unrestricted" },
+  "knowledgeHeld": { "knowledge": 128, "sessions": 40 }
+}
+```
+
+`knowledgeHeld: 0` on a healthy connection means *fresh instance* or *wrong
+instance* — not a fault. It is not capability-gated: a restricted token must
+still be able to ask what it is.
+
+
 | # | Name | When to call | Returns |
 |---|---|---|---|
 | 1 | `brain_start_session` | ONCE at the start of a coding task. Accepts optional `projectName` to file the session under a project (creating it on demand). | `{ sessionId, startedAt, relevantKnowledge?, openActionItems? }` — save `sessionId`; apply `relevantKnowledge` (inject-at-open, see below); `openActionItems` = your meeting to-dos (V2.0, flag-gated) |
