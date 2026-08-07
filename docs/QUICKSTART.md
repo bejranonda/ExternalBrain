@@ -159,7 +159,7 @@ Open `~/.codeium/windsurf/mcp_config.json` and add the same `brain` block as the
 
 ### Google Antigravity
 
-Open `~/.gemini/antigravity/mcp_config.json` (Settings → Customizations → Open MCP Config). Antigravity keys remote servers off **`serverUrl`** (not `url`):
+Open `~/.gemini/config/mcp_config.json` — one file shared by the Antigravity IDE and the Antigravity CLI (IDE route: Settings → Customizations → Open MCP Config; workspace-local alternative: `.agents/mcp_config.json`). Antigravity keys remote servers off **`serverUrl`** (not `url`):
 
 ```json
 {
