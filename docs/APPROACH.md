@@ -2447,3 +2447,57 @@ and prod restarted clean, recorded as a `decision`-tagged project rule so a
 later session doesn't read the asymmetry as damage and try to reconcile two
 divergent stores. Choosing which history to keep is cheaper than merging both,
 and writing down *that you chose* is what stops the question being reopened.
+
+## 5bo. A test can be right about the code and wrong about the world (2026-08-07)
+
+The operator's message was five words: *"gemini cli change to antigravity cli
+already."* Following it up found more than a rename to apply.
+
+Google retired Gemini CLI for consumer accounts on 2026-06-18 — seven weeks
+earlier — folding it into a new Go-based Antigravity CLI. Enterprise access
+continues on the old name, which is exactly the kind of detail that makes
+"just rename the label" the wrong fix. The merge also moved the MCP config
+file: the Antigravity IDE and the new CLI now share one path,
+`~/.gemini/config/mcp_config.json`. The installer had been emitting
+`~/.gemini/antigravity/mcp_config.json` — correct in v1.7.0 when written,
+silently wrong for the six weeks since.
+
+The JSON shape it generated was not the problem. `mcpServers` → `serverUrl` +
+`headers` was re-verified against Google's current docs and is still exactly
+right. So the failure mode was specific and quiet: a user pasted a
+syntactically perfect config into a directory the client had stopped reading.
+No error. No failed connection to debug. Just nothing, ever, with no reason
+offered.
+
+### What generalises
+
+**Every bug this week up to this one was reachable by a sweep across surfaces
+this repo controls** — all 11 install-client shapes (`§0u`), all ~24 routes
+(`§0v`), all 3 token models (`§0w`), every caller of an email predicate
+(`§0y`). Each had the same fix: write one test that ranges over every N,
+because per-item review cannot see "one of N disagrees with the rest."
+
+This one breaks that pattern, and it matters to say so plainly: **there is no
+sweep for a fact about a system you do not control.** The failing assertion
+here was `configPath.win32.toContain("antigravity")` — which the *dead* path
+also satisfied, so it kept passing precisely because it was pinned to the
+value that went stale. A test can be perfectly correct about what the code
+does and simultaneously wrong about whether that's still the right thing to
+do, and no amount of internal rigor closes that gap. The vendor's docs are the
+only source of truth for a vendor's own file path.
+
+**The tell, and the only defense available:** any hardcoded fact about an
+external product — a config path, a field name, a provider's base URL, a
+CLI's supported flags — is a claim with a shelf life the codebase cannot see
+expiring. The practical response isn't more internal testing; it's treating a
+vendor's rename, merger, retirement, or API-version bump as a trigger to
+re-open the docs and re-check anything pinned against it. That habit doesn't
+show up as a green check. It has to be a habit.
+
+**Kept the retired option rather than deleting it, once the reason was found.**
+Consumer Gemini CLI access ended; enterprise access did not. Deleting the
+`geminiCli` snippet outright would have silently stranded whichever pilot
+users are still on the enterprise path — a decision nobody had actually made,
+arrived at by tidiness. Relabelling it "legacy" and pointing its note at the
+successor served both populations; removing it would have served neither and
+looked, from the commit, like the more thorough fix.
