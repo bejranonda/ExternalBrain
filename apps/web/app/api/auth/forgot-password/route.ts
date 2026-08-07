@@ -16,15 +16,18 @@
  *
  * If email-sending is disabled (EMAIL_PROVIDER != "resend") or delivery fails,
  * the token is still created, but only its SHA-256 hash is persisted — the raw
- * value is unrecoverable from the database by design (KNOWN_ISSUES §0w). The
- * reset LINK is therefore written to the server log instead, so an operator
- * running without an email provider still has a recovery path.
+ * value is unrecoverable from the database by design (KNOWN_ISSUES §0w).
  *
- * That log line contains a live credential for one hour. It is emitted ONLY on
- * the non-delivery paths, is marked `sensitive: true`, and is the deliberate
- * trade: a secret that ages out of a log file beats a secret sitting in every
- * database backup for six months. Configure EMAIL_PROVIDER to avoid it
- * entirely.
+ * The log then records the userId and a non-usable hash prefix, so an operator
+ * can correlate the attempt without holding a credential. The reset LINK
+ * itself is logged ONLY when `ALLOW_RESET_LINK_IN_LOGS=true` is explicitly
+ * set — it fails closed, because a live credential in a log file is a
+ * deliberate choice, never a default.
+ *
+ * The honest ordering of options: configure EMAIL_PROVIDER (best), enable the
+ * flag on a single-operator instance and accept a one-hour credential in the
+ * log (workable), or have no recovery path at all (what shipping this without
+ * either would mean).
  */
 import { db } from "@brain/db";
 import { z } from "zod";
@@ -128,6 +131,15 @@ export async function POST(req: Request): Promise<Response> {
   const webUrl = getWebUrl(req);
   const resetLink = `${webUrl}/reset-password?token=${rawToken}`;
 
+  // Fails closed. Without the flag the log carries a correlatable but
+  // UNUSABLE prefix of the hash — enough to match an audit row, useless to
+  // anyone who reads the log file.
+  const linkLoggingAllowed = process.env.ALLOW_RESET_LINK_IN_LOGS === "true";
+  const linkFields = (link: string) =>
+    linkLoggingAllowed
+      ? { resetLink: link, sensitive: true as const }
+      : { tokenIdHash: hashSecret(rawToken).slice(0, 16) };
+
   if (process.env.EMAIL_PROVIDER === "resend") {
     const tpl = passwordResetEmail({
       userName: user.name ?? user.email,
@@ -149,25 +161,30 @@ export async function POST(req: Request): Promise<Response> {
         {
           userId: user.id,
           reason: result.reason,
-          resetLink,
-          sensitive: true,
+          ...linkFields(resetLink),
           expiresAt: expiresAt.toISOString(),
         },
-        "password reset email FAILED — link logged so the operator can deliver " +
-          "it manually; it is a live credential until it expires",
+        linkLoggingAllowed
+          ? "password reset email FAILED — link logged for manual delivery; " +
+              "it is a live credential until it expires"
+          : "password reset email FAILED and no link was logged. Set " +
+              "ALLOW_RESET_LINK_IN_LOGS=true to recover manually, or fix " +
+              "EMAIL_PROVIDER. The database stores only a hash.",
       );
     }
   } else {
     log.warn(
       {
         userId: user.id,
-        resetLink,
-        sensitive: true,
+        ...linkFields(resetLink),
         expiresAt: expiresAt.toISOString(),
       },
-      "EMAIL_PROVIDER not configured — password reset link logged for manual " +
-        "delivery. The database stores only a hash, so this log line is the " +
-        "ONLY way to complete the reset. It is a live credential until it expires.",
+      linkLoggingAllowed
+        ? "EMAIL_PROVIDER not configured — reset link logged for manual " +
+            "delivery. It is a live credential until it expires."
+        : "EMAIL_PROVIDER not configured and ALLOW_RESET_LINK_IN_LOGS is off, " +
+            "so this reset cannot be completed. Configure an email provider, " +
+            "or set the flag to log the link on a single-operator instance.",
     );
   }
 

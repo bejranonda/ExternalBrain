@@ -93,6 +93,12 @@ const WebExtra = z.object({
   // until the operator flips it. New LLM-cost-incurring surface, decoupled
   // from the rest of V2 (which is deterministic/zero-cost).
   MEETING_UPLOAD_ENABLED: boolish(false),
+  // Password-reset link in the server log when email delivery is unavailable.
+  // Fails CLOSED: a live credential in a log file is opt-in, never a default.
+  // See KNOWN_ISSUES §0w — the first version of this logged unconditionally,
+  // reasoning that a log beats a raw token in the database. Both are worse
+  // than neither, and "secure by default" is hard rule #2.
+  ALLOW_RESET_LINK_IN_LOGS: boolish(false),
 });
 
 const McpExtra = z.object({
