@@ -747,6 +747,15 @@ and fails on any local `EMAIL_PROVIDER ===` check. **Verified non-vacuous**
 both ways: reintroducing a caller-local check names the offending file, and
 removing the auto-detect fails the key-only case.
 
+**Confirmed live 2026-08-07 with a real Resend key**, which is the check the
+PR left open. Both callers now deliver: `forgot-password` logged
+`"password reset email sent"` with a Resend message id, and the org-invite
+route returned `emailSent: true` / HTTP 201 with its own id — sent to
+`delivered@resend.dev`, Resend's test sink, so no real inbox was involved.
+Before the fix both paths logged "EMAIL_PROVIDER not configured". The
+emailed invite token was also confirmed stored as its SHA-256 (§0w) with the
+raw value absent from the row.
+
 ---
 
 ## 1. Scaffolding-level issues (v0.1+)
