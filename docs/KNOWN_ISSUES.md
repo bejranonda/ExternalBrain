@@ -580,7 +580,7 @@ against the wrong target, identify the target as part of the check.
 
 Found while auditing the token wizard for copy-button consistency — the
 reported symptom was cosmetic; the defect underneath was that **five of the
-eleven generated configs did not work**, and one could destroy user data.
+eleven generated configs did not work**, and one could silently remove the user's *other* MCP server entries.
 
 All five JSON clients shared one helper, `mcpServersLines()`, emitting an
 invented shape:
@@ -625,7 +625,7 @@ Audited after §0u, on the same suspicion: if one affordance drifted across
 surfaces, others had too. `/admin/*` and `/docs/*` each own their
 back-to-Brain link in a **layout**, so every page under them gets it for
 free. `/settings/*` did not — its layout was an auth guard only, and each
-page hand-rolled its own link. Four did; the fifth didn't.
+page hand-rolled its own link. Four rendered a link to `/`; `/settings/password` rendered `← Settings` (pointing at `/settings`, which itself redirects to `/settings/tokens`); `/settings/org` rendered nothing at all.
 
 | Issue | Where | Status |
 |---|---|---|

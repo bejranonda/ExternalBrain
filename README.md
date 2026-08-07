@@ -288,10 +288,19 @@ while the live connection keeps writing to the instance it already had.
 > what you are checking.
 
 So if you point a client at a different Brain, restart it — then confirm where
-your writes actually went:
+your writes actually went. Note what each check does and does not prove:
 
 ```bash
+# The CONFIGURED target. Does NOT prove which endpoint the running session
+# uses — that mismatch is the whole incident.
 python3 -c "import json;print(json.load(open('$HOME/.claude.json'))['mcpServers']['brain']['url'])"
+```
+
+The only conclusive check is server-side: teach one rule, then confirm the id
+it returned exists in the Brain you meant.
+
+```sql
+select id from "Knowledge" where id = '<id returned by the teach call>';
 ```
 
 And treat an empty result as a question, not a pass: `brain_get_user_style`

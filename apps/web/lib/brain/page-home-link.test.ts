@@ -48,10 +48,17 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** A link to "/" in this file, in any of the forms the codebase uses. */
+/**
+ * A RENDERED link to "/" — an `<a>` or `<Link>` opening tag carrying href="/".
+ *
+ * Deliberately not a bare `href="/"` search: that also matches comments and
+ * string literals, so a page whose only occurrence is `// href="/"` would pass
+ * while rendering no way home. The test would then assert something weaker
+ * than the property it is named after — the §0u mistake.
+ */
 function hasHomeLink(file: string): boolean {
   const src = readFileSync(file, "utf8");
-  return /href=["']\/["']|href=\{["']\/["']\}/.test(src);
+  return /<(?:a|Link)\b[^>]*href=(?:["']\/["']|\{["']\/["']\})/s.test(src);
 }
 
 /**

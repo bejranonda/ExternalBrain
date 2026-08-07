@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 // same config shape" when all three differ. That is the §0r defect class —
 // one value rendered by several surfaces, fixed in one of them. Rendering from
 // the generator makes the modal structurally unable to drift again.
-import { rawMcpServersJson } from "@brain/core/install-snippets";
+import { claudeCodeCli } from "@brain/core/install-snippets";
 import { Icon } from "./icons";
 
 const STORAGE_KEY = "bp_onboarded";
@@ -19,6 +19,8 @@ interface Props {
   /** Real MCP endpoint from the deploy env, injected by the server component.
    *  Undefined in local dev, where localhost:3100 is correct. */
   mcpUrl?: string | undefined;
+  /** Public webapp URL — the onboard installer is served from it. */
+  webUrl?: string | undefined;
   knowledgeCount: number;
   /** True once the hosting app has fetched initial counts. Gates auto-open
    *  so we don't flash the modal during the pre-fetch window where every
@@ -44,6 +46,7 @@ interface Props {
  */
 export function Onboarding({
   mcpUrl,
+  webUrl,
   knowledgeCount,
   ready,
   onTeach,
@@ -117,7 +120,7 @@ export function Onboarding({
       body: (
         <div>
           <p style={{ margin: "0 0 10px", lineHeight: 1.55 }}>
-            Add this entry to <code>~/.claude/mcp.json</code> and restart Claude Code. Replace{" "}
+            Run this in your terminal, then restart Claude Code. Replace{" "}
             <code>&lt;TOKEN&gt;</code> with the token you copied.
             {!mcpUrl && (
               <>
@@ -141,10 +144,10 @@ export function Onboarding({
               lineHeight: 1.55,
             }}
           >
-            {rawMcpServersJson(
+            {claudeCodeCli(
               "<TOKEN>",
               mcpUrl ?? "http://localhost:3100/mcp",
-              "",
+              webUrl ?? "http://localhost:3000",
               "linux",
             ).lines.join("\n")}
           </pre>

@@ -25,7 +25,13 @@ import { LearnedToast } from "./learned-toast";
 /** `mcpUrl` is resolved server-side from BRAIN_MCP_PUBLIC_HOSTNAME and passed
  *  down so the onboarding snippet shows the real endpoint. Undefined in local
  *  dev, where Onboarding uses its own local fallback. */
-export function BrainApp({ mcpUrl }: { mcpUrl?: string | undefined }) {
+export function BrainApp({
+  mcpUrl,
+  webUrl,
+}: {
+  mcpUrl?: string | undefined;
+  webUrl?: string | undefined;
+}) {
   const [route, setRoute] = useRoute();
   const [cmdOpen, setCmdOpen] = useState(false);
   const [tweakOpen, setTweakOpen] = useState(false);
@@ -158,6 +164,7 @@ export function BrainApp({ mcpUrl }: { mcpUrl?: string | undefined }) {
       />
       <Onboarding
         mcpUrl={mcpUrl}
+        webUrl={webUrl}
         knowledgeCount={counts.skills}
         ready={liveCounts.loaded}
         onTeach={() => setTeachOpen(true)}
