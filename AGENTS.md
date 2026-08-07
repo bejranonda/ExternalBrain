@@ -203,6 +203,7 @@ third elicitation fix is needed.
 | [`docs/MCP_TOOLS.md`](./docs/MCP_TOOLS.md) | Touching the MCP tool surface |
 | [`docs/REST_API.md`](./docs/REST_API.md) | Adding/changing a REST endpoint |
 | [`docs/SECURITY.md`](./docs/SECURITY.md) | Anything touching auth, tokens, MCP gating |
+| [`docs/PRIVACY.md`](./docs/PRIVACY.md) | What user data is stored, what leaves the instance (LLM providers), what protects it |
 | [`docs/GUIDELINES.md`](./docs/GUIDELINES.md) | Code style, package boundaries, testing standards |
 | [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md) | Opening a PR, code conventions |
 | [`docs/CICD.md`](./docs/CICD.md) | CI checks + the two deploy scripts (forker-facing) |

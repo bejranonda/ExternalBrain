@@ -6,6 +6,14 @@ The External Brain exposes **12 tools** and **4 resources** over MCP. Any MCP-ca
 
 Mint a token at `/settings/tokens`. After mint, the wizard generates the exact install command for your client and OS — copy and run it. The manual snippet below is a fallback reference.
 
+> **Repointing an existing entry at a different Brain requires a client
+> restart.** MCP clients bind their endpoint at session start, so editing the
+> config (or re-running the installer) mid-session leaves the live connection
+> on the previous instance — every subsequent write lands there, succeeds, and
+> returns a real id. Knowledge does not federate across deployments
+> (`KNOWLEDGE.md` invariant 13), so those rows are simply absent from the Brain
+> you meant to use. See [`KNOWN_ISSUES §0t`](./KNOWN_ISSUES.md).
+
 ```bash
 # Claude Code — .mcp.json
 {

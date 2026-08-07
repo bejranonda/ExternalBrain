@@ -14,9 +14,20 @@
  *     PasswordResetToken (1-hour expiry) and send a reset email.
  *  3. Write audit row: user.password_reset_request (targetId = userId or null).
  *
- * If email-sending is disabled (EMAIL_PROVIDER != "resend") the token is still
- * created in the DB — the operator can look it up manually — but the user
- * won't receive the link automatically.
+ * If email-sending is disabled (EMAIL_PROVIDER != "resend") or delivery fails,
+ * the token is still created, but only its SHA-256 hash is persisted — the raw
+ * value is unrecoverable from the database by design (KNOWN_ISSUES §0w).
+ *
+ * The log then records the userId and a non-usable hash prefix, so an operator
+ * can correlate the attempt without holding a credential. The reset LINK
+ * itself is logged ONLY when `ALLOW_RESET_LINK_IN_LOGS=true` is explicitly
+ * set — it fails closed, because a live credential in a log file is a
+ * deliberate choice, never a default.
+ *
+ * The honest ordering of options: configure EMAIL_PROVIDER (best), enable the
+ * flag on a single-operator instance and accept a one-hour credential in the
+ * log (workable), or have no recovery path at all (what shipping this without
+ * either would mean).
  */
 import { db } from "@brain/db";
 import { z } from "zod";
@@ -30,6 +41,7 @@ import {
 } from "@brain/core";
 import { getRateLimitStore } from "@/lib/brain/rate-limit-store";
 import crypto from "crypto";
+import { hashSecret } from "@brain/core/secret-hash";
 
 const log = getLogger("forgot-password");
 
@@ -108,7 +120,9 @@ export async function POST(req: Request): Promise<Response> {
   await db.passwordResetToken.create({
     data: {
       userId: user.id,
-      token: rawToken,
+      // Only the hash is persisted; `rawToken` below goes in the email and is
+      // never recoverable from the database.
+      tokenHash: hashSecret(rawToken),
       expiresAt,
     },
   });
@@ -116,6 +130,15 @@ export async function POST(req: Request): Promise<Response> {
   // --- Send email (if configured) ---
   const webUrl = getWebUrl(req);
   const resetLink = `${webUrl}/reset-password?token=${rawToken}`;
+
+  // Fails closed. Without the flag the log carries a correlatable but
+  // UNUSABLE prefix of the hash — enough to match an audit row, useless to
+  // anyone who reads the log file.
+  const linkLoggingAllowed = process.env.ALLOW_RESET_LINK_IN_LOGS === "true";
+  const linkFields = (link: string) =>
+    linkLoggingAllowed
+      ? { resetLink: link, sensitive: true as const }
+      : { tokenIdHash: hashSecret(rawToken).slice(0, 16) };
 
   if (process.env.EMAIL_PROVIDER === "resend") {
     const tpl = passwordResetEmail({
@@ -135,14 +158,33 @@ export async function POST(req: Request): Promise<Response> {
       log.info({ userId: user.id, messageId: result.messageId }, "password reset email sent");
     } else {
       log.warn(
-        { userId: user.id, reason: result.reason },
-        "password reset email failed — token created but not delivered",
+        {
+          userId: user.id,
+          reason: result.reason,
+          ...linkFields(resetLink),
+          expiresAt: expiresAt.toISOString(),
+        },
+        linkLoggingAllowed
+          ? "password reset email FAILED — link logged for manual delivery; " +
+              "it is a live credential until it expires"
+          : "password reset email FAILED and no link was logged. Set " +
+              "ALLOW_RESET_LINK_IN_LOGS=true to recover manually, or fix " +
+              "EMAIL_PROVIDER. The database stores only a hash.",
       );
     }
   } else {
-    log.info(
-      { userId: user.id },
-      "EMAIL_PROVIDER not configured — password reset token created but not emailed; operator must look up token manually",
+    log.warn(
+      {
+        userId: user.id,
+        ...linkFields(resetLink),
+        expiresAt: expiresAt.toISOString(),
+      },
+      linkLoggingAllowed
+        ? "EMAIL_PROVIDER not configured — reset link logged for manual " +
+            "delivery. It is a live credential until it expires."
+        : "EMAIL_PROVIDER not configured and ALLOW_RESET_LINK_IN_LOGS is off, " +
+            "so this reset cannot be completed. Configure an email provider, " +
+            "or set the flag to log the link on a single-operator instance.",
     );
   }
 

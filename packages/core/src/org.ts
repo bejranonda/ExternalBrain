@@ -11,6 +11,7 @@
 import crypto from "crypto";
 import type { PrismaClient } from "@brain/db";
 import { BrainError } from "./logger.js";
+import { hashSecret } from "./secret-hash.js";
 
 // ---------------------------------------------------------------------------
 // Role constants
@@ -806,7 +807,9 @@ export async function createOrgInvite(
       email: email.toLowerCase().trim(),
       role,
       invitedById: callerUserId,
-      token,
+      // Persist only the hash; the raw `token` is returned to the caller for
+      // the invite link and is not recoverable from the database.
+      tokenHash: hashSecret(token),
       expiresAt,
     },
     select: { id: true },
@@ -830,7 +833,7 @@ export async function acceptOrgInvite(
   token: string,
 ): Promise<{ orgId: string }> {
   const invite = await db.organizationInvite.findUnique({
-    where: { token },
+    where: { tokenHash: hashSecret(token) },
     select: {
       id: true,
       orgId: true,

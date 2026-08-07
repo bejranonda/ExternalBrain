@@ -545,6 +545,150 @@ read the cert off the wire — not the process that claims to produce it.
 
 ---
 
+## 0t. Writes went to the wrong Brain (2026-08-06)
+
+The direct sequel to §0s, and the same lesson pointed at the product itself.
+While fixing the §0s defects, the agent recorded six knowledge rows — five
+rules and one decision — via
+`brain_teach_knowledge` and verified the loop end-to-end — teach, retrieve,
+inject, close, `SQS 88`. Every call succeeded and returned a real knowledge id.
+**All of it was written to the wrong instance.**
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**Re-onboarding mid-session silently writes to the previously-connected Brain.**~~ **Documented.** Claude Code binds its MCP configuration **at session start**. The operator re-ran `onboard.sh` against prod during a live session whose client had connected to `mcp.brain-dev.autobahn.bot`; the installer rewrote `~/.claude.json` correctly, but the open client kept using the dev connection. All six of those writes landed on **dev** and are absent from prod — confirmed by `select id from "Knowledge" where id in (…)` returning 0 rows on prod. Nothing errored at any point: the tool calls returned ids, the round-trip verification passed, and the agent reported the loop "verified end-to-end" while verifying the wrong host. The installer already prints "Restart Claude Code first", but it reads as a convenience note about tool visibility, not as *"until you do, your writes go somewhere else."* | `apps/web/app/api/onboard.sh`, `docs/CLIENTS.md` | documented |
+| **An empty MCP result is a signal, not a pass.** `brain_get_user_style` returned ~30 reflexes one day and **0** the next. The connection was healthy both times; the difference was which Brain answered. Two legitimate causes look identical to a fault: (a) you are talking to a different instance, (b) the token's user genuinely owns no knowledge — on this prod host all 34 pre-existing rows belong to two `alex@*` demo/seed personas, and the operator's `admin@…` account owned none. Reporting "connection works" on a non-error response would have concealed the misrouted writes for as long as nobody compared instances. | `docs/CLIENTS.md` troubleshooting table | documented |
+| **Diagnosing this requires DB access, which an ordinary user does not have.** The only conclusive check performed was `select id from "Knowledge" where id = '<returned-id>'` against the Postgres container. A self-hoster on a managed host, or any non-admin user, cannot run it — so the failure is undiagnosable from the client side, where it occurs. A `brain_whoami`-style tool returning the resolved instance URL, token identity and owned-knowledge count would make it a one-call check. **Not built** — filed here rather than smuggled into a docs PR. | MCP tool surface | **open** |
+
+**Operator decision (2026-08-06):** the stranded dev knowledge is **not**
+migrated. The prod Brain (`brain.autobahn.bot`) is the system of record from
+this date; the four host-specific ops rules from §0s were re-taught here (plus
+the start-fresh decision itself, five rows in total), and
+dev's remaining rules are historical. Prod's near-empty starting state is a
+deliberate choice, not data loss to repair — recorded as a `decision`-tagged
+project rule so a future session doesn't try to "fix" the asymmetry.
+
+**The class:** §0s was about mechanisms that report success while producing
+nothing. This is the same failure one level up — *the verification itself*
+reported success while measuring the wrong system. A round-trip test proves the
+loop is closed; it says nothing about **which** loop. When a check can pass
+against the wrong target, identify the target as part of the check.
+
+---
+
+## 0u. Every JSON install snippet was the wrong shape (2026-08-06)
+
+Found while auditing the token wizard for copy-button consistency — the
+reported symptom was cosmetic; the defect underneath was that **five of the
+eleven generated configs did not work**, and one could silently remove the user's *other* MCP server entries.
+
+All five JSON clients shared one helper, `mcpServersLines()`, emitting an
+invented shape:
+
+```json
+{ "mcpServers": { "brain": { "transport": { "type": "http", "url": "…" }, "headers": { … } } } }
+```
+
+No MCP client documents `transport: { type, url }` as a config key. Each of the
+five wants something different, and every one of them fails **silently** —
+the entry is ignored, not rejected:
+
+| Client | Needs | Got |
+|---|---|---|
+| Claude Desktop | `command`/`args` **stdio bridge** (`mcp-remote`) | `transport.url` — ignored, and can drop the whole `mcpServers` block on next save, taking the user's OTHER servers with it ([anthropics/claude-code#37286](https://github.com/anthropics/claude-code/issues/37286)) |
+| Cursor | flat `url` | `transport.url` |
+| Windsurf | `serverUrl` | `transport.url` |
+| Gemini CLI | `httpUrl` (it reserves `url` for SSE) | `transport.url` |
+| Generic fallback | flat `url` | `transport.url` |
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**Five JSON install snippets emitted a shape no client accepts.**~~ **Fixed.** Each generator now emits its client's documented field, and the generic fallback's note enumerates the deviations so a user on an unlisted client can adapt. The shared "one standard entry" helper is gone — replaced by `wrapServerEntry(entry, wrapper)`, which deliberately takes the entry shape as an argument, because assuming a shared shape is what caused this. | `packages/core/src/install-snippets.ts` | done |
+| ~~**`docs/CLIENTS.md` contradicted the wizard, and was itself half-stale.**~~ **Fixed.** The doc said Cursor and Windsurf were "stdio-only, wrap with `mcp-remote`" (true when written, now wrong — both speak native HTTP) while correctly specifying the `mcp-remote` bridge for Claude Desktop (which the wizard ignored). Two surfaces, opposite errors, neither checked against the other. | `docs/CLIENTS.md` | done |
+| ~~**The onboarding modal hardcoded its own copy of the same wrong JSON**~~ **Fixed.** It also told the reader "Cursor and Windsurf use the same config shape" — false for all three named clients. Now renders from `rawMcpServersJson()` so it cannot drift again. This is the §0r defect class exactly: one value rendered by several surfaces, fixed in one of them. | `apps/web/components/brain/onboarding.tsx` | done |
+| ~~**348 passing tests proved only that the output was valid JSON.**~~ **Fixed.** Per-client blocks asserted `JSON.parse` succeeded and the token appeared — both true of *any* shape, including a wrong one. Cursor's and Windsurf's tests still passed after their shape was corrected, which is the proof they were never testing the thing that mattered. Assertions now pin the specific field per client (`url` / `serverUrl` / `httpUrl` / `command`) and assert the *absence* of the others. | `packages/core/src/__tests__/install-snippets.test.ts` | done |
+| ~~**No test compared clients against each other.**~~ **Fixed.** Added a cross-client sweep over all 11 clients × 3 OSes asserting the invariants a pasteable snippet must satisfy. It immediately caught an unrelated drift: `claudeDesktop` was the only client of eleven with no `note`, so its users got a wall of JSON and a file path with no instruction. | `packages/core/src/__tests__/install-snippets.test.ts` | done |
+
+**The class:** §0s was a mechanism reporting success while producing nothing;
+§0t was a verification measuring the wrong system. This is the third form —
+**a test asserting a property weaker than the one that matters.** "Parses as
+JSON" is to "is a valid config" what "container is Up" is to "a backup exists".
+Each per-client test also only ever looked at its own client, so a property
+every client should satisfy was checked only where someone remembered to. When
+N surfaces implement one contract, at least one test must range over all N.
+
+---
+
+## 0v. Subpage navigation consistency (2026-08-06)
+
+Audited after §0u, on the same suspicion: if one affordance drifted across
+surfaces, others had too. `/admin/*` and `/docs/*` each own their
+back-to-Brain link in a **layout**, so every page under them gets it for
+free. `/settings/*` did not — its layout was an auth guard only, and each
+page hand-rolled its own link. Four rendered a link to `/`; `/settings/password` rendered `← Settings` (pointing at `/settings`, which itself redirects to `/settings/tokens`); `/settings/org` rendered nothing at all.
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**`/settings/org` had no route back to the app at all.**~~ **Fixed.** A user who reached Organization settings could leave only via the browser Back button. Not an oversight by one author so much as the predictable outcome of an affordance that lived in four sibling files and nowhere authoritative. | `apps/web/app/settings/org/page.tsx` | done |
+| ~~**The four pages that had it disagreed.**~~ **Fixed.** `audit`, `projects`, `reset-knowledge` and `tokens` each rendered their own `← back to Brain` → `/`; `password` rendered `← Settings` → `/settings` (which itself redirects to `/settings/tokens`, so "up" landed on a sibling). Ownership moved to `settings/layout.tsx`, matching `admin/` and `docs/`; the four inline copies are deleted. `password`'s up-level link is kept — it points somewhere different on purpose, and no longer duplicates the root link. | `apps/web/app/settings/layout.tsx` | done |
+| ~~**Nothing prevented the next settings page from repeating it.**~~ **Fixed.** `lib/brain/page-home-link.test.ts` walks every `page.tsx` and requires a home link on the page, an ancestor layout, or a component it imports. A new page under a nav-owning layout passes for free; a new top-level section fails until it provides one. **Verified non-vacuous:** reverting the layout link fails 6 settings routes. Source-level (no DB, no browser) so it runs unconditionally — §0r's 20-dormant-specs finding makes an e2e-only guard indistinguishable from no guard. | `apps/web/lib/brain/page-home-link.test.ts` | done |
+
+**Not defects, and worth recording so a later audit doesn't "fix" them:**
+`/` is home; `/signin`, `/signup`, `/signout`, `/forgot-password`,
+`/reset-password` and `/accept-invite` are pre-auth surfaces where a home link
+would bounce the visitor straight back; `/settings` renders nothing (it
+redirects to `/settings/tokens`); and `/[orgSlug]/[projectSlug]` renders the
+full SPA shell with its navigation rail — it *is* the app, scoped to a
+project, not a subpage to escape from.
+
+**The class, restated once more:** an affordance implemented per-page is an
+affordance that will be missing from some page. The fix is never "add it to
+the one that lacks it" — it is to move ownership somewhere the next author
+inherits without knowing it exists. Two sections of this app already did that;
+the third had drifted, and only a test that ranges over *all* routes could see
+it. Same shape as §0u, where only a sweep across all clients could see that one
+of eleven lacked a note.
+
+---
+
+## 0w. Reset and invite tokens were stored raw (2026-08-06)
+
+Found during a privacy audit — the request was to *prove* the privacy
+measures, and proving them is what surfaced this.
+
+`PasswordResetToken.token` and `OrganizationInvite.token` persisted the **exact
+value emailed to the user**. Lookup was `findUnique({ where: { token } })` on
+the raw string, confirming it. Anyone with database read access — a leaked
+dump, a compromised credential, an operator — held every live reset link
+(1 h window) and every live invite (**7 d** window). `MCPToken.tokenHash` in
+the same schema was already SHA-256: the rule existed and was applied
+inconsistently.
+
+Both tables were empty at the time (verified: 0 rows each), so there was no
+live exposure and no in-flight link to invalidate — which is also why the fix
+is a clean rename with no backfill.
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**Raw reset/invite tokens at rest.**~~ **Fixed.** Both columns renamed `token` → `tokenHash` and store `hashSecret()` output. The rename is deliberate: a column named `token` invites the next author to compare it against user input, which is how this arrived. Migration `20260806211500_hash_reset_and_invite_tokens`. | `packages/db/prisma/schema.prisma` | done |
+| ~~**Seven call sites, and `grep` found only five.**~~ **Fixed.** Two lived in server *page components* (`app/reset-password/page.tsx`, `app/signin/page.tsx`), not API routes, and were caught only because `tsc` rejected the renamed field. A rename that breaks the build is a safer refactor than an in-place semantic change that compiles. | `apps/web/app/**`, `packages/core/src/org.ts` | done |
+| ~~**The SHA-256 line was inlined at three MCPToken sites.**~~ **Fixed.** Extracted to `packages/core/src/secret-hash.ts` with the reasoning attached (why sha256 is right for 32-random-byte tokens and wrong for passwords), and adopted at all sites. One rule, one implementation. | `packages/core/src/secret-hash.ts` | done |
+| ~~**Nothing prevented the next model from adding a raw one.**~~ **Fixed.** `secrets-hashed-at-rest.test.ts` parses `schema.prisma` and fails on any scalar column named `token`/`secret`/`apiKey`/`accessToken`/`refreshToken` outside a justified allow-list. Schema-level on purpose: a test asserting "forgot-password hashes its token" passes while the *next* model adds a raw one. **Verified non-vacuous** — reintroducing a raw column fails it. | `packages/core/src/__tests__/secrets-hashed-at-rest.test.ts` | done |
+| ~~**Hashing broke the documented no-email recovery path.**~~ **Fixed.** The handler's own header promised that with `EMAIL_PROVIDER` unset "the operator can look it up manually" — true when the raw token sat in the DB, false the moment it was hashed. On an instance without an email provider, password reset became unrecoverable while the code still told the operator where to look. Caught in review, not by any test: no test asserts a comment is still true. The reset **link** is now written to the server log on both non-delivery paths (`warn`, `sensitive: true`), which stays on the host — `redactFields` applies only to `err.fields`, and Sentry receives `error`-or-worse, so `warn` does not leave the machine. The link is logged ONLY when `ALLOW_RESET_LINK_IN_LOGS=true`; unset, the log carries a non-usable 16-char hash prefix for correlation. **The first version logged unconditionally**, reasoning that a log beats a raw token in the database — a false dichotomy that ignored "neither", and default-on credential logging contradicts hard rule #2. Caught by automated security review, not by me. | `apps/web/app/api/auth/forgot-password/route.ts` | done |
+| **Backups now capture more than they used to.** Enabling nightly dumps (§0s) means any short-lived secret present at 03:00 is also on disk for 7 daily / 4 weekly / 6 monthly cycles. Hashing removes the sting for these two tables; the general point stands for whatever is added next. Off-host replication remains opt-in and disabled. | `deploy/docker-compose.yml` | **open** |
+
+**The class:** §0u was a test asserting a property weaker than the one that
+mattered. This is its security-shaped twin — the *codebase* knew the rule
+(`MCPToken` did it correctly) and applied it to one of three models. Neither a
+per-model review nor a per-endpoint test can see that; only a check that ranges
+over the whole schema can. Third time this week that the fix was "assert the
+invariant across all N", after §0u (all clients) and §0v (all routes).
+
+Documented in [`docs/PRIVACY.md`](./PRIVACY.md), written after the fix so it
+describes a posture that is actually true.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:

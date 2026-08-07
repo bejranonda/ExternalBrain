@@ -7,6 +7,7 @@ import {
   registrationRequiresVoucher,
 } from "@/auth";
 import { db } from "@brain/db";
+import { hashSecret } from "@brain/core/secret-hash";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { checkVoucherRateLimit } from "@/lib/brain/vouchers";
@@ -117,7 +118,7 @@ async function getInviteMeta(token: string | undefined) {
   if (!token) return null;
   try {
     const invite = await db.organizationInvite.findUnique({
-      where: { token },
+      where: { tokenHash: hashSecret(token) },
       select: {
         email: true,
         acceptedAt: true,

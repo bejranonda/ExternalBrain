@@ -119,13 +119,6 @@ export default function ResetKnowledgePage() {
         fontFamily: "var(--font-sans)",
       }}
     >
-      <a
-        href="/"
-        className="mono"
-        style={{ fontSize: 12, color: "var(--ink-3)", textDecoration: "none" }}
-      >
-        ← back to Brain
-      </a>
       <h1
         style={{
           fontSize: 22,

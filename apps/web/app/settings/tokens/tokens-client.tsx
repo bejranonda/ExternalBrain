@@ -323,9 +323,6 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
         fontFamily: "var(--font-sans)",
       }}
     >
-      <a href="/" className="mono" style={{ fontSize: 12, color: "var(--ink-3)", textDecoration: "none" }}>
-        ← back to Brain
-      </a>
       <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "18px 0 6px" }}>
         <h1 style={{ fontSize: 22, fontWeight: 500, margin: 0, letterSpacing: "-0.02em" }}>
           Access tokens

@@ -37,6 +37,33 @@ The installer:
 
 After install, **restart Claude Code** so it picks up the new MCP entry and the skill.
 
+> **If you are re-pointing an existing `brain` entry at a different Brain, the
+> restart is not cosmetic — it is the whole operation.** Claude Code binds its
+> MCP config **at session start**. A running session keeps talking to whichever
+> Brain it connected to originally, so re-running the installer mid-session
+> repoints the *file* while every subsequent `brain_teach_knowledge` still
+> writes to the **old** instance. Nothing errors; the tool calls succeed and
+> return real IDs. See [`KNOWN_ISSUES §0t`](./KNOWN_ISSUES.md).
+>
+> After any repoint, confirm which Brain you actually reached before trusting a
+> write:
+>
+> ```bash
+> # POSIX
+> python3 -c "import json;print(json.load(open('$HOME/.claude.json'))['mcpServers']['brain']['url'])"
+> ```
+>
+> ```powershell
+> # Windows PowerShell
+> (Get-Content "$env:USERPROFILE\.claude.json" | ConvertFrom-Json).mcpServers.brain.url
+> ```
+>
+> Then check that a taught id really landed in the Brain you meant:
+> `select id from "Knowledge" where id = '<id returned by the teach call>';`
+> Zero rows means the id is absent *there* — it may have gone to another
+> instance, or the write may have failed; the resolved URL above distinguishes
+> the two.
+
 ### Audit-first variant (security-aware operators)
 
 Don't pipe untrusted scripts to `bash` / `iex`. Same effect, with inspection:
@@ -128,7 +155,53 @@ Skills are loaded at session start. Claude Code in another terminal won't see th
 
 ### Cursor
 
-Cursor's MCP support is stdio-only as of writing. Wrap the HTTP transport with the [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) shim:
+Cursor speaks native streamable-HTTP MCP — the `mcp-remote` shim this page
+used to require is no longer needed. It keys the endpoint off a **flat `url`**:
+
+```json
+{
+  "mcpServers": {
+    "brain": {
+      "url": "https://<your-brain>/mcp",
+      "headers": { "Authorization": "Bearer bp_…" }
+    }
+  }
+}
+```
+
+Cursor reads `~/.cursor/mcp.json` (user-scope) or `<repo>/.cursor/mcp.json` (project-scope).
+
+### Windsurf
+
+Native HTTP, but Windsurf is the one client that names the field **`serverUrl`**
+instead of `url` — a `url` entry is silently ignored:
+
+```json
+{
+  "mcpServers": {
+    "brain": {
+      "serverUrl": "https://<your-brain>/mcp",
+      "headers": { "Authorization": "Bearer bp_…" }
+    }
+  }
+}
+```
+
+Config at `~/.codeium/windsurf/mcp_config.json`.
+
+### Claude Desktop
+
+Edit `claude_desktop_config.json`:
+
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+
+Claude Desktop validates **stdio servers only** — it is now the one client here
+that still needs the [`mcp-remote`](https://www.npmjs.com/package/mcp-remote)
+bridge. Do **not** paste a `url`-shaped entry: Desktop ignores it and can drop
+the whole `mcpServers` block on its next save, taking your other servers with it
+([anthropics/claude-code#37286](https://github.com/anthropics/claude-code/issues/37286)).
 
 ```json
 {
@@ -145,21 +218,7 @@ Cursor's MCP support is stdio-only as of writing. Wrap the HTTP transport with t
 }
 ```
 
-Cursor reads `~/.cursor/mcp.json` (user-scope) or `<repo>/.cursor/mcp.json` (project-scope). A native HTTP transport is on Cursor's roadmap.
-
-### Windsurf
-
-Same pattern as Cursor: stdio-only, wrap with `mcp-remote`. Config at `~/.codeium/windsurf/mcp_config.json`.
-
-### Claude Desktop
-
-Edit `claude_desktop_config.json`:
-
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-- **Linux**: `~/.config/Claude/claude_desktop_config.json`
-
-Same `mcp-remote` wrapper as Cursor, then **restart Claude Desktop fully** (quit from menu bar / system tray, not just close the window).
+Requires Node (for `npx`). Then **restart Claude Desktop fully** (quit from menu bar / system tray, not just close the window).
 
 ### Generic MCP / custom agent
 
@@ -304,6 +363,8 @@ claude mcp list | grep brain   # → "✓ Connected" if token is good
 | Session works in one terminal but not another | Claude Code wrote to project scope (`<repo>/.claude.json`), and the second terminal is in a different repo. | Re-add with `--scope user` for cross-project availability. |
 | Skill appears but Claude doesn't use it | Claude Code hasn't restarted since the skill was dropped. | Restart Claude Code. |
 | Token works but `brain_*` tools missing from palette | Claude Code restarted, but didn't reload MCP registry. | Try `/mcp` inside Claude Code, or restart again. |
+| Taught knowledge "succeeds" but never appears in the webapp | You re-ran the installer against a different Brain **without restarting**, so writes went to the previously-connected instance. Tool calls return real IDs, so nothing looks wrong. | Restart Claude Code, verify the URL in `~/.claude.json`, then re-teach. Confirm the returned id exists: `select id from "Knowledge" where id='…'`. |
+| `brain_get_user_style` suddenly returns zero reflexes | Usually not a fault: you are now talking to a **different Brain**, or this token's user genuinely owns no knowledge yet (a fresh instance, or knowledge owned by other users/demo personas). | Check the URL and the token's user before treating it as a regression. An empty result is a signal about *which* instance you reached, not proof of breakage. |
 
 ---
 

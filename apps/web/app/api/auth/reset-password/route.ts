@@ -14,6 +14,7 @@ import { db } from "@brain/db";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { writeAudit, validatePasswordPolicy, BCRYPT_COST, BrainError, getLogger } from "@brain/core";
+import { hashSecret } from "@brain/core/secret-hash";
 
 const log = getLogger("reset-password");
 
@@ -42,9 +43,9 @@ export async function POST(req: Request): Promise<Response> {
     throw err;
   }
 
-  // Look up the reset token
+  // Look up by HASH — the raw value is never stored (KNOWN_ISSUES §0w).
   const resetToken = await db.passwordResetToken.findUnique({
-    where: { token },
+    where: { tokenHash: hashSecret(token) },
     select: {
       id: true,
       userId: true,

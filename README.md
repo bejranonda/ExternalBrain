@@ -276,6 +276,37 @@ echo | openssl s_client -connect mcp.your-host.com:443 2>/dev/null \
   | openssl x509 -noout -dates                                     # expect a future date
 ```
 
+The 2026-08-06 sequel ([`§0t`](./docs/KNOWN_ISSUES.md)) turned the same rule on
+the verification itself. Five rules were taught over MCP and the loop was
+confirmed — teach, retrieve, inject, close — with every call returning a real
+id. All of it went to a **different Brain**: Claude Code binds its MCP config
+at session start, so re-running the installer mid-session repoints the file
+while the live connection keeps writing to the instance it already had.
+
+> **A round-trip test proves the loop is closed; it says nothing about *which*
+> loop.** When a check can pass against the wrong target, the target is part of
+> what you are checking.
+
+So if you point a client at a different Brain, restart it — then confirm where
+your writes actually went. Note what each check does and does not prove:
+
+```bash
+# The CONFIGURED target. Does NOT prove which endpoint the running session
+# uses — that mismatch is the whole incident.
+python3 -c "import json;print(json.load(open('$HOME/.claude.json'))['mcpServers']['brain']['url'])"
+```
+
+The only conclusive check is server-side: teach one rule, then confirm the id
+it returned exists in the Brain you meant.
+
+```sql
+select id from "Knowledge" where id = '<id returned by the teach call>';
+```
+
+And treat an empty result as a question, not a pass: `brain_get_user_style`
+returning zero reflexes usually means *a different instance answered*, or that
+this token's user owns no knowledge yet — not that anything is broken.
+
 ## Documentation & Guides
 
 | Doc | What it covers |

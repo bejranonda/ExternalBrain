@@ -15,6 +15,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { hashSecret } from "../secret-hash.js";
 import {
   listOrgMembers,
   setOrgMemberRole,
@@ -51,7 +52,7 @@ type InviteRow = {
   email: string;
   role: string;
   invitedById: string;
-  token: string;
+  tokenHash: string;
   createdAt: Date;
   expiresAt: Date;
   acceptedAt: Date | null;
@@ -184,9 +185,9 @@ function makeMock(store: Store): any {
         return out;
       },
 
-      findUnique: async ({ where, select }: { where: { token?: string; id?: string }; select?: Record<string, boolean> }) => {
+      findUnique: async ({ where, select }: { where: { tokenHash?: string; id?: string }; select?: Record<string, boolean> }) => {
         const row = store.invites.find((i) =>
-          (where.token && i.token === where.token) ||
+          (where.tokenHash && i.tokenHash === where.tokenHash) ||
           (where.id && i.id === where.id),
         );
         if (!row) return null;
@@ -597,7 +598,9 @@ describe("acceptOrgInvite", () => {
       email: "new@example.com",
       role: "member",
       invitedById: "owner_1",
-      token: "valid_token_abc123",
+      // Stored hashed, exactly as production does — the tests still pass the
+      // RAW value to acceptOrgInvite, which is the point of the round-trip.
+      tokenHash: hashSecret("valid_token_abc123"),
       createdAt: BASE_DATE,
       expiresAt: FUTURE,
       acceptedAt: null,
@@ -696,7 +699,7 @@ describe("revokeOrgInvite", () => {
       email: "new@example.com",
       role: "member",
       invitedById: "owner_1",
-      token: "tok_abc",
+      tokenHash: "tok_abc",
       createdAt: BASE_DATE,
       expiresAt: FUTURE,
       acceptedAt: null,
@@ -778,7 +781,7 @@ describe("listOrgInvites", () => {
             email: "a@example.com",
             role: "member",
             invitedById: "owner_1",
-            token: "t1",
+            tokenHash: "t1",
             createdAt: BASE_DATE,
             expiresAt: FUTURE,
             acceptedAt: null,
@@ -790,7 +793,7 @@ describe("listOrgInvites", () => {
             email: "b@example.com",
             role: "member",
             invitedById: "owner_1",
-            token: "t2",
+            tokenHash: "t2",
             createdAt: BASE_DATE,
             expiresAt: FUTURE,
             acceptedAt: BASE_DATE, // accepted
@@ -802,7 +805,7 @@ describe("listOrgInvites", () => {
             email: "c@example.com",
             role: "member",
             invitedById: "owner_1",
-            token: "t3",
+            tokenHash: "t3",
             createdAt: BASE_DATE,
             expiresAt: PAST, // expired
             acceptedAt: null,
@@ -829,7 +832,7 @@ describe("listOrgInvites", () => {
             email: "a@example.com",
             role: "member",
             invitedById: "owner_1",
-            token: "t1",
+            tokenHash: "t1",
             createdAt: BASE_DATE,
             expiresAt: FUTURE,
             acceptedAt: null,
@@ -841,7 +844,7 @@ describe("listOrgInvites", () => {
             email: "b@example.com",
             role: "member",
             invitedById: "owner_1",
-            token: "t2",
+            tokenHash: "t2",
             createdAt: BASE_DATE,
             expiresAt: FUTURE,
             acceptedAt: BASE_DATE,
@@ -866,7 +869,7 @@ describe("listOrgInvites", () => {
             email: "acc@example.com",
             role: "member",
             invitedById: "owner_1",
-            token: "t_acc",
+            tokenHash: "t_acc",
             createdAt: BASE_DATE,
             expiresAt: FUTURE,
             acceptedAt: BASE_DATE,
@@ -878,7 +881,7 @@ describe("listOrgInvites", () => {
             email: "rev@example.com",
             role: "member",
             invitedById: "owner_1",
-            token: "t_rev",
+            tokenHash: "t_rev",
             createdAt: BASE_DATE,
             expiresAt: FUTURE,
             acceptedAt: null,
@@ -890,7 +893,7 @@ describe("listOrgInvites", () => {
             email: "exp@example.com",
             role: "member",
             invitedById: "owner_1",
-            token: "t_exp",
+            tokenHash: "t_exp",
             createdAt: BASE_DATE,
             expiresAt: PAST,
             acceptedAt: null,
@@ -902,7 +905,7 @@ describe("listOrgInvites", () => {
             email: "act@example.com",
             role: "member",
             invitedById: "owner_1",
-            token: "t_act",
+            tokenHash: "t_act",
             createdAt: BASE_DATE,
             expiresAt: FUTURE,
             acceptedAt: null,

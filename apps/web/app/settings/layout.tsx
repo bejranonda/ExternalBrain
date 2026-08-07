@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, anySignInConfigured, devAuthAllowed } from "@/auth";
 
@@ -37,5 +38,49 @@ export default async function SettingsLayout({
   }
   // else: dev-shim only — pass through, matching app/page.tsx.
 
-  return <>{children}</>;
+  // The back-to-Brain link lives HERE, not in each page. It used to be
+  // hand-rolled per page, and the predictable happened: /settings/org shipped
+  // with no way back to the app at all, and /settings/password disagreed with
+  // its siblings about where "back" goes. `admin/layout.tsx` and
+  // `docs/layout.tsx` already own their nav this way; settings was the outlier.
+  // Owning it in the layout is what makes the next settings page correct by
+  // construction rather than by the author remembering.
+  return (
+    <>
+      <header
+        style={{
+          padding: "12px 24px",
+          borderBottom: "1px solid var(--line)",
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+          background: "var(--bg-elev-1)",
+        }}
+      >
+        <Link
+          href="/"
+          style={{
+            fontSize: 13,
+            fontWeight: 500,
+            color: "var(--ink)",
+            textDecoration: "none",
+          }}
+        >
+          ← Brain
+        </Link>
+        <span
+          className="mono"
+          style={{
+            fontSize: 10,
+            color: "var(--ink-4)",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+          }}
+        >
+          Settings
+        </span>
+      </header>
+      {children}
+    </>
+  );
 }

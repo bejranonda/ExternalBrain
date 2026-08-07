@@ -20,6 +20,7 @@
  *  7. Return redirectTo pointing at the invited org's first project.
  */
 import { db } from "@brain/db";
+import { hashSecret } from "@brain/core/secret-hash";
 import { z } from "zod";
 import {
   createUserCredential,
@@ -66,7 +67,7 @@ export async function POST(req: Request): Promise<Response> {
 
   // Look up the invite.
   const invite = await db.organizationInvite.findUnique({
-    where: { token },
+    where: { tokenHash: hashSecret(token) },
     select: {
       id: true,
       orgId: true,

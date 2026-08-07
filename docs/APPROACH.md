@@ -2384,3 +2384,66 @@ previous backup failure hid for three weeks (§5az). That surface existed here
 and would have caught this, had the service ever run to produce a first dump
 to age. **A freshness alarm cannot fire on a thing that has never existed
 once**; monitor for absence, not only staleness.
+
+## 5bn. The verification that measured the wrong system (2026-08-06)
+
+The immediate sequel to §5bm, and its sharper form. Having just spent a
+session on mechanisms that report success while producing nothing, the agent
+recorded the lessons into the Brain — the product's own dogfood — and verified
+the loop properly: teach five rules and record one decision, reopen a session,
+confirm retrieval injected them, close with `SQS 88`. All six calls returned a
+real knowledge id. The round-trip was genuine.
+
+It ran entirely against the **dev** Brain. The operator had re-onboarded the
+MCP token to prod mid-session, but Claude Code binds its MCP configuration at
+session start, so the open client kept using the connection it already had.
+`~/.claude.json` said prod; the live socket said dev. Nothing errored at any
+point, and the agent reported the loop "verified end-to-end" — which was true
+of a system nobody was asking about.
+
+It surfaced only on the next day's restart, when `brain_get_user_style`
+returned **0 reflexes** where it had returned ~30. That number was the whole
+signal, and it is one an agent is strongly disposed to wave through: the call
+succeeded, an empty list is not an error, and "no knowledge yet" is a
+perfectly ordinary state for a fresh instance. Querying the prod database for
+the six ids settled it — 0 rows.
+
+### What generalises
+
+**A round-trip test proves the loop is closed; it says nothing about which
+loop.** §5bm's rule was *inspect the output artifact, not the status*. This is
+that rule applied to the verification itself: the artifact was inspected, it
+existed, it was correct — in the wrong database. When a check can pass against
+the wrong target, **the target is part of what you are checking**. Resolve
+identity (URL, hostname, connection string) and assert the artifact exists
+*there*, rather than asserting that a call returned an id.
+
+**Empty is a question, not a pass.** Zero rows, zero reflexes, an empty list —
+never errors, always consistent with "you are querying a different system than
+you think". The instinct to treat a non-error response as confirmation is what
+would have kept this hidden indefinitely; the discipline is to ask *which
+instance answered* before drawing any conclusion about the data.
+
+**Config-on-disk is not connection-in-use.** Any long-lived client that reads
+configuration once — MCP clients, connection pools, a shell that has already
+exported its environment — will keep using what it bound at start. Rewriting
+the file is not repointing the client. The installer already printed "Restart
+Claude Code first", but as a note about tool visibility, so it read as
+convenience rather than *"until you do, your writes go elsewhere."* Guidance
+that describes the remedy without naming the consequence gets skipped exactly
+when it matters.
+
+**The diagnosis needed access the affected user doesn't have.** The only
+conclusive check was a `SELECT` against the Postgres container — unavailable
+to a self-hoster on a managed host, and to every non-admin user, i.e. to
+precisely the people this fails for. A failure diagnosable only from the
+server is undiagnosable where it occurs. That gap is filed as open in
+`KNOWN_ISSUES §0t` rather than quietly closed: a `brain_whoami` returning the
+resolved instance, token identity and owned-knowledge count would reduce it to
+one call, and not building it yet is a choice worth stating.
+
+**Recovery was a decision, not a repair.** The stranded rules were left on dev
+and prod restarted clean, recorded as a `decision`-tagged project rule so a
+later session doesn't read the asymmetry as damage and try to reconcile two
+divergent stores. Choosing which history to keep is cheaper than merging both,
+and writing down *that you chose* is what stops the question being reopened.

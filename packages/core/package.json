@@ -24,7 +24,8 @@
     "./logger": "./src/logger.ts",
     "./install-snippets": "./src/install-snippets.ts",
     "./capabilities": "./src/capabilities.ts",
-    "./format-relative": "./src/format-relative.ts"
+    "./format-relative": "./src/format-relative.ts",
+    "./secret-hash": "./src/secret-hash.ts"
   },
   "scripts": {
     "build": "tsc",

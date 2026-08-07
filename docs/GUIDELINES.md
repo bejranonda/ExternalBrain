@@ -247,6 +247,36 @@ attention is lowest — the mechanisms nobody watches are the ones that fail
 silently for months, and the cost is only ever discovered at the moment you
 needed them to have worked.
 
+### Identify the target as part of the check
+
+One level up from the above, and the sequel that produced it (`KNOWN_ISSUES
+§0t`): a round-trip test proves the loop is closed, but says nothing about
+**which** loop. An agent wrote six knowledge rows over MCP, verified
+teach → retrieve → inject → close, saw every call return a real id, and
+reported the loop "verified end-to-end" — against the wrong Brain. The client
+had bound its config at session start and was still talking to the previous
+instance; the config file on disk said something else.
+
+> **When a check can pass against the wrong target, the target is part of what
+> you are checking.**
+
+Two habits that catch it:
+
+- **Assert identity, not just success.** Before trusting a write, resolve where
+  it went (`~/.claude.json`'s URL, the hostname, the connection string) and
+  confirm the artifact exists *there* — `select id from "Knowledge" where
+  id = '<returned id>'`, not "the call returned an id".
+- **Treat an empty result as a question, not a pass.** Zero rows, zero
+  reflexes, an empty list — none of these are errors, and all of them are
+  consistent with "you are querying the wrong system". `brain_get_user_style`
+  returned ~30 reflexes one day and 0 the next with a perfectly healthy
+  connection both times. Ask *which instance answered* before concluding
+  anything about the data.
+
+This generalises past MCP to any environment-shaped work: a migration applied
+to the wrong database, a deploy verified against the wrong host, a test run
+against a stale container. The check was real; the subject was not.
+
 ### One rule, one implementation — and put the question in the PR
 
 The audit arc that produced most of this section found the same defect class
