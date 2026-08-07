@@ -11,6 +11,7 @@ import { startSession } from "./start-session.js";
 import { createProject } from "./create-project.js";
 import { listProjects } from "./list-projects.js";
 import { getActiveProject } from "./get-active-project.js";
+import { whoami } from "./whoami.js";
 
 export interface ToolDef<I = unknown, O = unknown> {
   name: string;
@@ -32,6 +33,9 @@ export const tools: ToolDef[] = [
   logEvent,
   findSkill,
   sessionSearch,
+  // Deliberately NOT capability-gated: a diagnostic a restricted token
+  // cannot call is useless precisely when the restriction is the confusion.
+  whoami,
 ];
 
 const byName = new Map(tools.map((t) => [t.name, t]));
