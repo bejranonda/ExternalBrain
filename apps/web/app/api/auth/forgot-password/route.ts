@@ -36,6 +36,7 @@ import {
   rateLimitCheck,
   writeAudit,
   sendEmail,
+  isEmailConfigured,
   passwordResetEmail,
   getLogger,
 } from "@brain/core";
@@ -140,7 +141,7 @@ export async function POST(req: Request): Promise<Response> {
       ? { resetLink: link, sensitive: true as const }
       : { tokenIdHash: hashSecret(rawToken).slice(0, 16) };
 
-  if (process.env.EMAIL_PROVIDER === "resend") {
+  if (isEmailConfigured()) {
     const tpl = passwordResetEmail({
       userName: user.name ?? user.email,
       resetLink,

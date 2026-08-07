@@ -689,6 +689,66 @@ describes a posture that is actually true.
 
 ---
 
+## 0x. Pilot-readiness validation (2026-08-07)
+
+Ran the whole customer journey against live prod before inviting anyone,
+rather than reasoning about it from the code.
+
+**Validated working** (probe user created, exercised, deleted; residue checks
+all zero):
+
+| Step | Result |
+|---|---|
+| Register with a valid voucher | account + personal org + default project created |
+| Reuse the same single-use voucher | rejected — `voucher_exhausted` |
+| Register with **no** voucher | rejected — `voucher_required` |
+| Sign in with email + password | real authenticated session |
+| Mint an MCP token | succeeds, scoped to the user's own org |
+| `/api/dashboard/health`, `/api/knowledge` | 200 |
+| `/admin` as a non-admin | **307** — correctly blocked |
+| `nav-smoke.sh` | PASS, no 5xx on any surface |
+| Demo-data isolation | all 34 seed rows are `visibility: project` in single-member personal orgs — invisible to a new user |
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**A seeded demo persona held `role=admin` on production.**~~ **Fixed.** `alex@brain.local` came from the seed fixture with admin rights. Not exploitable as it stands — the account has no `UserCredential` and `.local` is unroutable — but an admin-roled demo account on a customer-facing instance is the kind of thing that becomes exploitable the moment auth config changes. Demoted to `user`. | `User` table | done |
+| **Deleting a User leaves an orphaned Organization and Project.** Found while cleaning up the probe: `Organization` has no cascading FK from `User`, so the personal org and its default project survive the delete and had to be removed by hand. This matters for the GDPR erase path, whose header states "cascade-delete relations fire naturally via Prisma's `onDelete: Cascade`" — true for Knowledge and Sessions, **not** for the org tree. An erased user currently leaves a named, empty org behind. | `packages/db/prisma/schema.prisma`, `/api/admin/gdpr/erase` | **open** |
+
+**Not yet pilot-ready — blocked on operator input, not on code:** no email
+provider (so invites cannot be sent and a password reset produces a token
+nobody can use), `ADMIN_EMAILS` empty (nobody is granted admin on first
+sign-in), and zero vouchers minted. The signup *path* is proven; the
+*credentials to run it* are the operator's to supply.
+
+---
+
+## 0y. Email delivery could never work in Docker (2026-08-07)
+
+Surfaced by the operator asking a simple question while preparing the pilot:
+*"there's no place to put the Resend API key in .env"*. There wasn't — and
+following that thread found three independent breakages stacked on one path,
+each sufficient on its own to make outbound email impossible.
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**No email variable was forwarded by compose.**~~ **Fixed.** `EMAIL_PROVIDER`, `EMAIL_API_KEY`, `EMAIL_FROM`, `EMAIL_REPLY_TO` and both accepted aliases were absent from the `web` service's `environment:` block, so the container saw them **UNSET** no matter what `.env` said. `EMAIL_PROVIDER === "resend"` was unreachable on *every* containerised deployment — while `.env.example` and `DEPLOY_CHECKLIST` both instructed operators to configure it. Third occurrence of the §0p passthrough trap in two days. | `deploy/docker-compose.yml` | done |
+| ~~**Both callers ignored the auto-detect the library advertises.**~~ **Fixed.** `sendEmail()` deliberately treats a populated key as Resend even when `EMAIL_PROVIDER` is unset — its comment says that exists because "operators commonly drop a key into .env without remembering the toggle", and `.env.example` documents exactly that. But `forgot-password` and the org-invite route each tested `process.env.EMAIL_PROVIDER === "resend"` themselves, so an operator who set **only the key** got a system where `sendEmail()` would have delivered and nothing ever called it. One rule, three implementations. Now `isEmailConfigured()` in `email.ts`, used by both. | `packages/core/src/email.ts`, `apps/web/app/api/**` | done |
+| ~~**The live `.env` had no email block at all.**~~ **Fixed.** The deployed `.env` predates the template's email section, so the fields simply did not exist on disk — the operator's original observation, and correct. Added with setup instructions. Also clarified `.env.example`: the key field is named `EMAIL_API_KEY`, which is why searching for "RESEND_API_KEY" found nothing; the aliases are now named next to it. | `.env`, `.env.example` | done |
+
+**The class, again:** every layer looked right in isolation. `email.ts` was
+correct. `.env.example` documented the right key. The callers read plausibly.
+The defect lived in the *seams* — schema-to-compose, library-to-caller,
+template-to-deployed-file — which is the same shape as §0u (5 of 11 clients),
+§0v (4 of 5 pages), §0w (1 of 3 token models) and §0p. Nothing but a check
+that ranges across all N surfaces finds it.
+
+Guarded by `email-configured.test.ts`, which walks every file under `apps/`
+and fails on any local `EMAIL_PROVIDER ===` check. **Verified non-vacuous**
+both ways: reintroducing a caller-local check names the offending file, and
+removing the auto-detect fails the key-only case.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:

@@ -128,7 +128,7 @@ export type {
   ResetResult,
   ResetScope,
 } from "./knowledge-reset.js";
-export { sendEmail } from "./email.js";
+export { sendEmail, isEmailConfigured } from "./email.js";
 export type { EmailProvider, SendEmailArgs, SendResult } from "./email.js";
 export { inviteEmail, passwordResetEmail } from "./email-templates.js";
 export type {
