@@ -14,9 +14,17 @@
  *     PasswordResetToken (1-hour expiry) and send a reset email.
  *  3. Write audit row: user.password_reset_request (targetId = userId or null).
  *
- * If email-sending is disabled (EMAIL_PROVIDER != "resend") the token is still
- * created in the DB — the operator can look it up manually — but the user
- * won't receive the link automatically.
+ * If email-sending is disabled (EMAIL_PROVIDER != "resend") or delivery fails,
+ * the token is still created, but only its SHA-256 hash is persisted — the raw
+ * value is unrecoverable from the database by design (KNOWN_ISSUES §0w). The
+ * reset LINK is therefore written to the server log instead, so an operator
+ * running without an email provider still has a recovery path.
+ *
+ * That log line contains a live credential for one hour. It is emitted ONLY on
+ * the non-delivery paths, is marked `sensitive: true`, and is the deliberate
+ * trade: a secret that ages out of a log file beats a secret sitting in every
+ * database backup for six months. Configure EMAIL_PROVIDER to avoid it
+ * entirely.
  */
 import { db } from "@brain/db";
 import { z } from "zod";
@@ -138,14 +146,28 @@ export async function POST(req: Request): Promise<Response> {
       log.info({ userId: user.id, messageId: result.messageId }, "password reset email sent");
     } else {
       log.warn(
-        { userId: user.id, reason: result.reason },
-        "password reset email failed — token created but not delivered",
+        {
+          userId: user.id,
+          reason: result.reason,
+          resetLink,
+          sensitive: true,
+          expiresAt: expiresAt.toISOString(),
+        },
+        "password reset email FAILED — link logged so the operator can deliver " +
+          "it manually; it is a live credential until it expires",
       );
     }
   } else {
-    log.info(
-      { userId: user.id },
-      "EMAIL_PROVIDER not configured — password reset token created but not emailed; operator must look up token manually",
+    log.warn(
+      {
+        userId: user.id,
+        resetLink,
+        sensitive: true,
+        expiresAt: expiresAt.toISOString(),
+      },
+      "EMAIL_PROVIDER not configured — password reset link logged for manual " +
+        "delivery. The database stores only a hash, so this log line is the " +
+        "ONLY way to complete the reset. It is a live credential until it expires.",
     );
   }
 
