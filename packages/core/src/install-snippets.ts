@@ -192,7 +192,7 @@ export function geminiCli(
     // `url` for SSE). A `url` entry connects over the wrong transport or not
     // at all.
     lines: wrapServerEntry({ httpUrl: mcpUrl, headers: bearer(token) }),
-    note: "Paste into ~/.gemini/settings.json. Note: Gemini CLI uses `httpUrl` (not `url`) for streamable-HTTP servers.",
+    note: "LEGACY — Gemini CLI was retired for consumer accounts on 2026-06-18 and folded into Antigravity CLI; enterprise access continues. If you are on a current install, pick \"Google Antigravity\" instead. Gemini CLI uses `httpUrl` (not `url`) for streamable-HTTP servers.",
     configPath: {
       darwin: "~/.gemini/settings.json",
       linux: "~/.gemini/settings.json",
@@ -228,11 +228,14 @@ export function antigravity(
   return {
     kind: "json",
     lines: body.split("\n"),
-    note: "Antigravity → Settings → Customizations → Open MCP Config. Note: Antigravity uses `serverUrl` (not `url`) for HTTP servers.",
+    note: "Shared by the Antigravity IDE and the Antigravity CLI — one file serves both. IDE: Settings → Customizations → Open MCP Config. CLI: edit the path below directly, or use .agents/mcp_config.json for a workspace-local server. Note: Antigravity uses `serverUrl` (not `url`) for HTTP servers.",
+    // Path changed when Gemini CLI folded into Antigravity (2026-05-19): the
+    // IDE and the new Go-based CLI now share ~/.gemini/config/mcp_config.json.
+    // The old ~/.gemini/antigravity/ location silently loads nothing.
     configPath: {
-      darwin: "~/.gemini/antigravity/mcp_config.json",
-      linux: "~/.gemini/antigravity/mcp_config.json",
-      win32: "%USERPROFILE%\\.gemini\\antigravity\\mcp_config.json",
+      darwin: "~/.gemini/config/mcp_config.json",
+      linux: "~/.gemini/config/mcp_config.json",
+      win32: "%USERPROFILE%\\.gemini\\config\\mcp_config.json",
     },
   };
 }

@@ -42,8 +42,8 @@ const CLIENT_OPTIONS: ClientOption[] = [
   { id: "claudeDesktop", label: "Claude Desktop", needsOs: true },
   { id: "cursor", label: "Cursor", needsOs: false },
   { id: "windsurf", label: "Windsurf", needsOs: false },
-  { id: "geminiCli", label: "Gemini CLI", needsOs: false },
-  { id: "antigravity", label: "Google Antigravity", needsOs: false },
+  { id: "geminiCli", label: "Gemini CLI (legacy — retired 2026-06-18)", needsOs: false },
+  { id: "antigravity", label: "Google Antigravity (IDE + CLI)", needsOs: false },
   {
     id: "githubCopilotVscode",
     label: "GitHub Copilot — VS Code",

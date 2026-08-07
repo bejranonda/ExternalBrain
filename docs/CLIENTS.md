@@ -251,7 +251,7 @@ entry is silently ignored.
 }
 ```
 
-Config at `~/.gemini/antigravity/mcp_config.json` (Windows:
+Config at `~/.gemini/config/mcp_config.json` — shared by the Antigravity IDE and the Antigravity CLI since the 2026-05-19 merge (Windows:
 `%USERPROFILE%\.gemini\antigravity\mcp_config.json`). Open it from
 **Settings → Customizations → Open MCP Config**.
 

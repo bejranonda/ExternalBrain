@@ -295,19 +295,22 @@ describe("antigravity", () => {
     expect(joinLines(s.lines)).not.toContain('"url"');
   });
 
-  it("configPath is ~/.gemini/antigravity/mcp_config.json on unix", () => {
+  it("configPath is the SHARED ~/.gemini/config/mcp_config.json (IDE + CLI)", () => {
     const s = antigravity(TOKEN, MCP_URL, WEB_URL, "linux");
-    expect(s.configPath!.linux).toBe("~/.gemini/antigravity/mcp_config.json");
-    expect(s.configPath!.darwin).toBe("~/.gemini/antigravity/mcp_config.json");
+    expect(s.configPath!.linux).toBe("~/.gemini/config/mcp_config.json");
+    expect(s.configPath!.darwin).toBe("~/.gemini/config/mcp_config.json");
   });
 
-  it("configPath uses %USERPROFILE%\\.gemini\\antigravity on win32", () => {
+  it("configPath uses %USERPROFILE%\\.gemini\\config on win32", () => {
     const s = antigravity(TOKEN, MCP_URL, WEB_URL, "win32");
     expect(s.configPath!.win32).toContain("%USERPROFILE%");
-    expect(s.configPath!.win32).toContain("antigravity");
+    // Was ...\.gemini\antigravity\ before the 2026-05-19 merge; the IDE and
+    // CLI now share ...\.gemini\config\. Asserting the segment (not just
+    // "antigravity") is what makes this catch a regression to the dead path.
+    expect(s.configPath!.win32).toContain("\\.gemini\\config\\");
   });
 
-  it("note flags the serverUrl quirk", () => {
+  it("note flags the serverUrl quirk and covers both surfaces", () => {
     const s = antigravity(TOKEN, MCP_URL, WEB_URL, "linux");
     expect(s.note).toContain("serverUrl");
   });

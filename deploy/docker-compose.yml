@@ -135,6 +135,24 @@ services:
       # no way to tell the flag never reached the container (KNOWN_ISSUES §0p,
       # and §0w for why this flag exists at all).
       ALLOW_RESET_LINK_IN_LOGS: ${ALLOW_RESET_LINK_IN_LOGS:-false}
+      # ── Email delivery (password reset + org invites) ────────────────────
+      # NONE of these were forwarded before 2026-08-07, so `EMAIL_PROVIDER`
+      # could never be "resend" inside Docker: sendEmail() always returned
+      # {ok:false, reason:"disabled"}, invites were never delivered, and the
+      # reset flow produced a token nobody could use — on EVERY containerised
+      # deployment, while .env.example and DEPLOY_CHECKLIST told operators to
+      # configure it. Compose forwards only what it names (KNOWN_ISSUES §0p).
+      #
+      # Both aliases are listed because email.ts accepts them by design: an
+      # operator who drops in RESEND_API without setting EMAIL_PROVIDER gets
+      # the auto-detect path, and forwarding only the canonical name would
+      # have silently defeated that ergonomic.
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_API_KEY: ${EMAIL_API_KEY:-}
+      RESEND_API: ${RESEND_API:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      EMAIL_REPLY_TO: ${EMAIL_REPLY_TO:-}
       RATE_LIMIT_MEETING_EXTRACT_PER_DAY: ${RATE_LIMIT_MEETING_EXTRACT_PER_DAY:-20}
       # Same routing/allowlist trap as worker's KEA_MODEL below: the route
       # defaults to qwen3-coder (DashScope) for cost reasons, and without

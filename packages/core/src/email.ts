@@ -35,12 +35,26 @@ const RESEND_API = "https://api.resend.com/emails";
  * Send a transactional email through the configured provider.
  * Never throws — all errors are returned as { ok: false, reason }.
  */
-export async function sendEmail(args: SendEmailArgs): Promise<SendResult> {
-  // Provider auto-detect: if EMAIL_PROVIDER is unset but RESEND_API or
-  // EMAIL_API_KEY is populated, treat as Resend. Operators commonly drop
-  // a "RESEND_API" key into .env without remembering the platform's
-  // EMAIL_PROVIDER toggle — this ergonomic fallback prevents the silent
-  // "disabled" reason in that case.
+/**
+ * Is outbound email actually deliverable right now?
+ *
+ * Exported because callers were each deciding this for themselves with
+ * `process.env.EMAIL_PROVIDER === "resend"`, which ignores the auto-detect
+ * below — so an operator who set only the API key (the ergonomic this module
+ * deliberately provides, and the one .env.example documents) got a system
+ * where sendEmail() would have worked but nothing ever called it. One rule,
+ * three implementations, silently disagreeing. See KNOWN_ISSUES §0y.
+ */
+export function isEmailConfigured(): boolean {
+  return resolveProvider().provider === "resend";
+}
+
+/** Single source of truth for provider + key resolution. */
+function resolveProvider(): { provider: EmailProvider; apiKey: string } {
+  // Auto-detect: if EMAIL_PROVIDER is unset but a key is populated, treat as
+  // Resend. Operators commonly drop a key into .env without remembering the
+  // EMAIL_PROVIDER toggle, and .env.example documents that path — so the
+  // fallback prevents a silent "disabled".
   const explicitProvider = process.env.EMAIL_PROVIDER ?? "";
   const apiKey =
     process.env.EMAIL_API_KEY ||
@@ -51,6 +65,11 @@ export async function sendEmail(args: SendEmailArgs): Promise<SendResult> {
     explicitProvider === "resend" || (!explicitProvider && apiKey)
       ? "resend"
       : "disabled";
+  return { provider, apiKey };
+}
+
+export async function sendEmail(args: SendEmailArgs): Promise<SendResult> {
+  const { provider, apiKey } = resolveProvider();
 
   if (provider !== "resend") {
     return { ok: false, reason: "disabled" };

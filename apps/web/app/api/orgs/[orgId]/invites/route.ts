@@ -17,6 +17,7 @@ import {
   createOrgInvite,
   writeAudit,
   sendEmail,
+  isEmailConfigured,
   inviteEmail,
   getLogger,
 } from "@brain/core";
@@ -105,7 +106,7 @@ export async function POST(
     let emailSent = false;
 
     // Only attempt if EMAIL_PROVIDER is configured (non-disabled)
-    if (process.env.EMAIL_PROVIDER === "resend" && invite) {
+    if (isEmailConfigured() && invite) {
       const inviterName = inviter?.name ?? inviter?.email ?? "A team member";
       const orgName = org?.name ?? orgId;
       const tpl = inviteEmail({

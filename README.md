@@ -307,6 +307,23 @@ And treat an empty result as a question, not a pass: `brain_get_user_style`
 returning zero reflexes usually means *a different instance answered*, or that
 this token's user owns no knowledge yet — not that anything is broken.
 
+The 2026-08-07 finding ([`§0z`](./docs/KNOWN_ISSUES.md)) is the inverse of
+§0u below: not a shape no client accepts, but a **correct** shape written to a
+path the client no longer reads. Google folded Gemini CLI into Antigravity CLI
+and moved its MCP config file in the process; our installer kept emitting the
+old path for weeks. A user pasting the snippet got a syntactically perfect
+config sitting somewhere nothing would ever load it — no error, no server,
+nothing to diagnose.
+
+> **A passing test that pins an external product's file path is evidence
+> about your code, not about the vendor.** Nothing inside this repo could
+> have caught the drift; the assertion kept passing precisely because it was
+> pinned to the value that went stale.
+
+If a tool you integrate with announces a rename, merger, or retirement,
+that's the cue to re-check its config path — there is no internal test that
+substitutes for reading the vendor's current docs.
+
 ## Documentation & Guides
 
 | Doc | What it covers |
@@ -371,7 +388,8 @@ work — one server, every client.
 
 Any tool that supports the Model Context Protocol: **Claude Code**, **Cursor**,
 **Windsurf**, **GitHub Copilot** (VS Code, JetBrains, CLI), **Google
-Antigravity**, **Gemini CLI**, and any other MCP-capable agent. See
+Antigravity** (which folded in Gemini CLI as of 2026-05-19 — enterprise Gemini
+CLI access continues separately), and any other MCP-capable agent. See
 [docs/CLIENTS.md](./docs/CLIENTS.md) for wiring instructions.
 </details>
 
