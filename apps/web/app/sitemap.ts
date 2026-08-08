@@ -22,6 +22,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
   return [
     { url: `${base}/`, lastModified: now, changeFrequency: "daily", priority: 1 },
+    // The canonical front door for anyone holding a voucher code, and the
+    // target of every voucher error on /signin — it outranks /welcome, which
+    // assumes you already know which AI tool you're wiring up.
+    { url: `${base}/start`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     { url: `${base}/welcome`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/signin`, lastModified: now, changeFrequency: "monthly", priority: 0.3 },
     { url: `${base}/forgot-password`, lastModified: now, changeFrequency: "yearly", priority: 0.1 },

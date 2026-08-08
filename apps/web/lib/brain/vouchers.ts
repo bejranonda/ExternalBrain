@@ -12,7 +12,14 @@
  *      (`SELECT ... FOR UPDATE` inside a transaction) so two concurrent
  *      claims on the last seat of a multi-use voucher cannot both succeed.
  */
+import { randomBytes } from "node:crypto";
 import { db } from "@brain/db";
+import { hashSecret } from "@brain/core/secret-hash";
+import {
+  ensureDefaultProject,
+  ensurePersonalOrg,
+  type Capability,
+} from "@brain/core";
 
 export type VoucherFailure =
   | "invalid"    // code does not exist
@@ -121,10 +128,34 @@ export interface ClaimParams {
    * to hold the voucher row lock for that long.
    */
   passwordHash?: string;
+  /**
+   * Agentic onboarding (`/api/onboard/claim`): mint the user's first MCP token
+   * inside this same transaction and return the raw secret once.
+   *
+   * This has to be atomic with the voucher burn, and that is a stronger
+   * requirement than the OAuth/register paths carry. Those bootstrap the org
+   * *outside* their transaction, best-effort, because a user who lands without
+   * one self-heals on their next sign-in. An agentic claimant has no browser
+   * session to self-heal from: a crash between "voucher burned" and "token
+   * minted" would strand them holding a spent code and nothing else. So the
+   * org, the default project, and the token all join the voucher's row lock.
+   */
+  bootstrapToken?: {
+    name: string;
+    ttlDays: number;
+    capabilities: readonly Capability[];
+  };
 }
 
 export type ClaimResult =
-  | { ok: true; userId: string; voucherId: string }
+  | {
+      ok: true;
+      userId: string;
+      voucherId: string;
+      /** Present only when `bootstrapToken` was requested. Never stored. */
+      rawToken?: string;
+      tokenExpiresAt?: Date;
+    }
   | { ok: false; reason: VoucherFailure };
 
 /**
@@ -185,6 +216,41 @@ export async function claimVoucher(params: ClaimParams): Promise<ClaimResult> {
       data: { voucherId: locked.id, userId: user.id },
     });
 
-    return { ok: true, userId: user.id, voucherId: locked.id } as const;
+    if (!params.bootstrapToken) {
+      return { ok: true, userId: user.id, voucherId: locked.id } as const;
+    }
+
+    // `ensurePersonalOrg` / `ensureDefaultProject` accept a transaction client
+    // (see `DbClient` in packages/core/src/org.ts). MCPToken.organizationId is
+    // required, so the org must exist before the mint — and both must be in
+    // this transaction for the atomicity promised above to hold.
+    const { orgId } = await ensurePersonalOrg(tx, user.id);
+    await ensureDefaultProject(tx, user.id);
+
+    // Same shape as /api/tokens: bp_ prefix + 32 random bytes base64url.
+    const rawToken = `bp_${randomBytes(32).toString("base64url")}`;
+    const tokenExpiresAt = new Date(
+      Date.now() + params.bootstrapToken.ttlDays * 86_400_000,
+    );
+
+    await tx.mCPToken.create({
+      data: {
+        userId: user.id,
+        organizationId: orgId,
+        name: params.bootstrapToken.name,
+        tokenHash: hashSecret(rawToken),
+        scope: "personal",
+        capabilities: [...params.bootstrapToken.capabilities],
+        expiresAt: tokenExpiresAt,
+      },
+    });
+
+    return {
+      ok: true,
+      userId: user.id,
+      voucherId: locked.id,
+      rawToken,
+      tokenExpiresAt,
+    } as const;
   });
 }

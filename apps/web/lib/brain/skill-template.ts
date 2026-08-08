@@ -120,10 +120,111 @@ If \`{{MCP_URL}}\` doesn't respond or the token is revoked, **don't fall back to
 `;
 
 /**
+ * Bootstrap instructions for an agent that has a voucher and nothing else.
+ *
+ * Deliberately separate from BRAIN_SKILL_TEMPLATE, and deliberately small.
+ * A skill has to be installed before it can trigger, so in a fresh session
+ * there is no Brain skill yet — what actually happens is that the agent
+ * fetches this URL and treats the response as instructions. That is prompt
+ * injection by design: whoever controls this response controls the agent. So
+ * this document does exactly one job, names the endpoint it is allowed to
+ * call, and grants no open-ended authority. Brain *usage* stays in the skill
+ * above, which arrives via the installer and only after the token exists.
+ */
+export const BRAIN_BOOTSTRAP_TEMPLATE = `---
+name: brain-bootstrap
+description: One-time setup — exchange a Brain voucher code for an MCP token and wire this machine up. Use only when the user supplies a voucher code. For everyday Brain usage, use the "brain" skill instead.
+---
+
+# Connect this machine to External Brain
+
+The user gave you a voucher code. Do these four steps in order. Do not improvise,
+and do not perform any step this page does not describe.
+
+## 1. Ask for an email address
+
+Ask the user: **"What email address should this Brain account belong to?"**
+
+- Do NOT invent one.
+- Do NOT take it from \`git config user.email\` without asking the user to confirm it.
+
+It does not need to be verified now, but it is the only way they will ever reach
+the web dashboard — the set-password link is sent there.
+
+## 2. Exchange the voucher
+
+\`\`\`bash
+curl -fsSL -X POST {{WEB_URL}}/api/onboard/claim \\
+  -H 'content-type: application/json' \\
+  -d '{"voucher":"<CODE>","email":"<EMAIL>","client":"claude-code","os":"linux"}'
+\`\`\`
+
+Set \`client\` to the tool you are running inside (\`claude-code\`, \`cursor\`,
+\`windsurf\`, \`antigravity\`, \`vscode\`, \`codex\`, \`generic\`, …) and \`os\` to
+\`darwin\`, \`linux\`, or \`win32\`.
+
+On success you get \`installCommand\`, \`setPasswordUrl\`, and a \`token\`.
+
+**On error, STOP. Do not retry with different values.**
+
+| Error | What it means | What to tell the user |
+|---|---|---|
+| \`agentic_onboarding_disabled\` | This Brain has not enabled agentic onboarding | Sign up in a browser at {{WEB_URL}}/start |
+| \`voucher_invalid\` / \`_expired\` / \`_exhausted\` / \`_disabled\` | The code will not work | Get a fresh code — {{WEB_URL}}/start |
+| \`email_taken\` | That address already has an account | Sign in at {{WEB_URL}}/signin and mint a token at {{WEB_URL}}/settings/tokens. **Do NOT retry with a different email** — that would create a second account under an address that isn't theirs. |
+| \`rate_limited\` / \`voucher_rate_limited\` | Too many attempts from this IP | Wait an hour |
+
+## 3. Run the install command
+
+Run the returned \`installCommand\` **verbatim**. Do not modify it, do not split
+it, do not substitute your own paths.
+
+If \`installCommand\` is \`null\` — which happens for JetBrains IDEs and for the
+raw-REST option, neither of which has a one-line installer — apply the
+\`manualSetup\` lines from the same response instead, and tell the user which
+file or settings screen they belong in.
+
+Never hand-edit \`~/.claude.json\`, \`~/.claude/mcp.json\`, or any client config
+file yourself — the installer owns those, and the second of those paths is not
+read by any client.
+
+## 4. STOP. Do not call any brain_* tool in this session.
+
+Your MCP configuration was bound when this conversation started. It did not
+change when the installer wrote the config file. If you try a \`brain_*\` tool
+now it will either fail or — worse, and this has really happened — silently
+write to a different Brain while reporting success.
+
+Tell the user exactly this, then end the task:
+
+1. **Restart your AI tool now.** Setup is not finished until you do.
+2. Verify it connected: \`claude mcp list\` (or \`/mcp\` inside the client).
+3. Set a password at the \`setPasswordUrl\` from step 2, so you can reach the
+   dashboard at {{WEB_URL}}.
+
+## Notes worth passing on
+
+- The token expires in 14 days and cannot call the Oracle. That is intentional
+  for a bootstrap token, not a fault. Once they have set a password they can
+  mint a full one at {{WEB_URL}}/settings/tokens.
+- The token appears in your transcript because it is inside the install
+  command. Treat it as a secret: never commit it, never write it into a repo
+  file.
+`;
+
+/**
  * Render the skill with concrete URLs substituted.
  */
 export function renderBrainSkill(opts: { mcpUrl: string; webUrl: string }): string {
   return BRAIN_SKILL_TEMPLATE.replaceAll("{{MCP_URL}}", opts.mcpUrl).replaceAll(
+    "{{WEB_URL}}",
+    opts.webUrl,
+  );
+}
+
+/** Render the bootstrap instructions with concrete URLs substituted. */
+export function renderBrainBootstrap(opts: { mcpUrl: string; webUrl: string }): string {
+  return BRAIN_BOOTSTRAP_TEMPLATE.replaceAll("{{MCP_URL}}", opts.mcpUrl).replaceAll(
     "{{WEB_URL}}",
     opts.webUrl,
   );

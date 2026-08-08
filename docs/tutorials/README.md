@@ -12,6 +12,7 @@ first — they cover the server side.
 
 | You want to… | Tutorial | Time |
 |---|---|---|
+| **I have a voucher code and want my AI to set everything up** | **`https://<your-brain>/start`** — or the [shortcut section](./00-quick-start.md#shortcut--let-your-ai-do-all-three-steps) | **1 min** |
 | **Get running right now — token → install → first conversation** | **[00 — Quick start](./00-quick-start.md)** | **5 min** |
 | อ่านคู่มือเริ่มต้นเป็นภาษาไทย | [00 — คู่มือเริ่มต้น](./00-quick-start.th.md) | 5 นาที |
 | Den Schnellstart auf Deutsch lesen | [00 — Schnellstart](./00-quick-start.de.md) | 5 Min. |

@@ -136,11 +136,66 @@ async function getInviteMeta(token: string | undefined) {
   }
 }
 
+/**
+ * Every voucher failure used to terminate in "ask your admin" with no URL —
+ * six strings, zero links, on the highest-frequency failure path this page
+ * has. A person who mistyped a code, or whose code expired, had nowhere to go
+ * except back to whoever handed it out. `/start` is that somewhere: it is
+ * public, explains both setup paths, and takes `?voucher=` to prefill.
+ */
+const VOUCHER_ERROR_KEYS = new Set([
+  "voucher_required",
+  "voucher_invalid",
+  "voucher_expired",
+  "voucher_exhausted",
+  "voucher_disabled",
+  "voucher_rate_limited",
+]);
+
+/**
+ * The error banner, rendered once instead of three times.
+ *
+ * This markup was previously duplicated verbatim at three points in this file
+ * (credentials form, signup form, invite form). Adding the `/start` link to a
+ * copy-pasted block is precisely how KNOWN_ISSUES §0c keeps happening — one
+ * value rendered by several surfaces, corrected in some of them — so the
+ * duplication is removed in the same change that gives it something new to say.
+ */
+function ErrorBanner({ message, helpHref }: { message: string; helpHref?: string }) {
+  if (!message) return null;
+  return (
+    <div
+      role="alert"
+      style={{
+        padding: "10px 12px",
+        marginBottom: 18,
+        border: "1px solid var(--warn, #d97757)",
+        borderRadius: 6,
+        background: "rgba(217, 119, 87, 0.08)",
+        color: "var(--warn, #d97757)",
+        fontSize: 12.5,
+        lineHeight: 1.5,
+      }}
+    >
+      {message}
+      {helpHref && (
+        <>
+          {" "}
+          <a href={helpHref} style={{ color: "inherit", textDecoration: "underline" }}>
+            Get set up →
+          </a>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default async function SignIn({ searchParams }: Props) {
   const t = await getServerT();
   const params = await searchParams;
   const errorKey = params.error ?? "";
   const errorMessage = ERROR_MESSAGES[errorKey] ?? (errorKey ? "Sign-in failed. Try again." : "");
+  const errorHelpHref = VOUCHER_ERROR_KEYS.has(errorKey) ? "/start" : undefined;
   const inviteToken = params.invite ?? "";
   const postLoginRedirect = safeRedirect(params.callbackUrl ?? params.next);
 
@@ -225,23 +280,10 @@ export default async function SignIn({ searchParams }: Props) {
               below to join.
             </div>
 
-            {errorMessage && (
-              <div
-                role="alert"
-                style={{
-                  padding: "10px 12px",
-                  marginBottom: 18,
-                  border: "1px solid var(--warn, #d97757)",
-                  borderRadius: 6,
-                  background: "rgba(217, 119, 87, 0.08)",
-                  color: "var(--warn, #d97757)",
-                  fontSize: 12.5,
-                  lineHeight: 1.5,
-                }}
-              >
-                {errorMessage}
-              </div>
-            )}
+            <ErrorBanner
+              message={errorMessage}
+              {...(errorHelpHref ? { helpHref: errorHelpHref } : {})}
+            />
 
             <form
               action={async (formData: FormData) => {
@@ -377,23 +419,10 @@ export default async function SignIn({ searchParams }: Props) {
               teammates to later.
             </div>
 
-            {errorMessage && (
-              <div
-                role="alert"
-                style={{
-                  padding: "10px 12px",
-                  marginBottom: 18,
-                  border: "1px solid var(--warn, #d97757)",
-                  borderRadius: 6,
-                  background: "rgba(217, 119, 87, 0.08)",
-                  color: "var(--warn, #d97757)",
-                  fontSize: 12.5,
-                  lineHeight: 1.5,
-                }}
-              >
-                {errorMessage}
-              </div>
-            )}
+            <ErrorBanner
+              message={errorMessage}
+              {...(errorHelpHref ? { helpHref: errorHelpHref } : {})}
+            />
 
             <form
               action={async (formData: FormData) => {
@@ -564,23 +593,10 @@ export default async function SignIn({ searchParams }: Props) {
               </div>
             )}
 
-            {errorMessage && (
-              <div
-                role="alert"
-                style={{
-                  padding: "10px 12px",
-                  marginBottom: 18,
-                  border: "1px solid var(--warn, #d97757)",
-                  borderRadius: 6,
-                  background: "rgba(217, 119, 87, 0.08)",
-                  color: "var(--warn, #d97757)",
-                  fontSize: 12.5,
-                  lineHeight: 1.5,
-                }}
-              >
-                {errorMessage}
-              </div>
-            )}
+            <ErrorBanner
+              message={errorMessage}
+              {...(errorHelpHref ? { helpHref: errorHelpHref } : {})}
+            />
 
             {credentialsAllowed && (
               <form

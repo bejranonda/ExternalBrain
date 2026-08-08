@@ -364,6 +364,16 @@ Rules-shaped Knowledge is stored as global-scope rows tagged `rules-export` plus
 
 The 9th MCP tool, `brain_start_session`, is the only supported way to create a `Session` row from an external client. It returns `{ sessionId, startedAt }` and writes a synthetic `session_started` event so `SessionEvent` has something to anchor the FK chain. Earlier versions of the platform allowed clients to invent sessionIds and call `brain_log_event` directly — that path is removed: `brain_log_event` now requires a pre-existing Session row, or the FK rejects the write.
 
+### 12.8a Agentic onboarding — a Brain that bootstraps itself (v2.15.0)
+
+`POST /api/onboard/claim` is the only anonymous endpoint that creates knowledge-bearing state. It exchanges a voucher code for a `User`, a personal org, a default project and an `MCPToken` in **one transaction**, so an AI agent can go from "user pasted a code" to "connected Brain" with no browser.
+
+Two consequences for the knowledge model:
+
+**A freshly-onboarded agent can write knowledge but cannot ask the Oracle.** The bootstrap token carries `["knowledge", "skills", "sessions"]` and deliberately omits `oracle` (the billed capability). So the flywheel's *capture* half — `brain_start_session`, `brain_teach_knowledge`, `brain_retrieve_knowledge`, `brain_report_session_outcome` — works from the first minute, while cross-session reasoning waits until the user sets a password and mints a full token at `/settings/tokens`. That ordering is intentional: capture is what compounds, and it is the half that must not be gated behind a browser trip.
+
+**The org must exist before the token, so `ensurePersonalOrg` / `ensureDefaultProject` run inside the claim transaction.** `MCPToken.organizationId` is non-nullable, and every scope filter (`buildKnowledgeWhereV2`, `buildSessionWhere`) resolves through that org. `/api/auth/register` bootstraps the org *outside* its transaction, best-effort, because a browser user self-heals on next sign-in; an agentic claimant has no session to self-heal from, so a partial commit would leave a burned voucher, no token, and knowledge with nowhere to land. This is why `packages/core/src/org.ts` grew the `DbClient` type — see `docs/APPROACH.md §2.6c` for why the header claimed it already supported this and did not.
+
 ### 12.9 Provider routing via `ANTHROPIC_BASE_URL` (chat) + `EMBEDDING_BASE_URL` (vectors)
 
 `packages/core/src/oracle.ts::useAnthropicSdk(model)` returns `true` if the model name starts with `claude` OR if `ANTHROPIC_BASE_URL` is set. `packages/core/src/embedding.ts::getClient()` independently honours `EMBEDDING_BASE_URL` + `EMBEDDING_API_KEY` (with fallbacks). The two paths are **independent** — swapping chat providers doesn't imply embeddings come with; most Anthropic-compat gateways (Z.ai, Bedrock's anthropic shim) expose chat only.

@@ -370,6 +370,38 @@ export const I18N = {
         "Your AI client cached an old tool list — restart Claude Code / Cursor / Windsurf after editing the MCP config.",
       skip: "Skip welcome →",
     },
+    start: {
+      title: "Set up your Brain",
+      tagline:
+        "You have a voucher code. Pick how you'd like to use it — either way takes about a minute.",
+      voucherLabel: "Your voucher code",
+      voucherPlaceholder: "e.g. PILOT-2026-A1B2",
+      agentTitle: "Let your AI set it up",
+      agentBlurb:
+        "Paste one line into Claude Code, Cursor, or any AI tool that can fetch a URL. It creates your account, gets a token, and wires up the connection for you.",
+      agentNeedCode: "Enter your voucher code above to get your setup prompt.",
+      agentCopy: "Copy the prompt",
+      agentCopied: "Copied!",
+      agentRestart:
+        "When it finishes, restart your AI tool. The connection is not live until you do.",
+      agentDisabled:
+        "This Brain has agentic setup switched off. Use “Do it yourself” instead.",
+      selfTitle: "Do it yourself",
+      selfBlurb:
+        "Create an account in your browser, then copy a one-line install command for your tool.",
+      selfCta: "Create an account →",
+      tokenNote:
+        "The token your AI receives lasts 14 days and cannot call the Oracle. Set a password afterwards to mint a full one.",
+      noCode: "No voucher code?",
+      noCodeBlurb:
+        "Ask whoever runs this Brain for one. Codes are handed out individually and expire.",
+      whatIsTitle: "What is External Brain?",
+      whatIsBlurb:
+        "A memory layer for your AI coding sessions. It remembers what you decided and why — across sessions, projects, and machines.",
+      learnMore: "Read the concepts →",
+      tourLink: "See the guided tour →",
+      signinLink: "Already have an account? Sign in",
+    },
     tip: {
       mcp: "Model Context Protocol — the channel your AI tool uses to talk to Brain.",
       sqs: "Session Quality Score — 0–1, blends acceptance, errors, and useful knowledge applied across recent sessions.",
@@ -737,6 +769,40 @@ export const I18N = {
       cause3:
         "ไคลเอนต์ AI ของคุณแคชรายการเครื่องมือเก่าไว้ — รีสตาร์ท Claude Code / Cursor / Windsurf หลังแก้ไขการตั้งค่า MCP",
       skip: "ข้ามคำแนะนำ →",
+    },
+    // AI-generated TH copy, consistent with the `welcome.*` namespace — awaiting
+    // a native-speaker sweep (see KNOWN_ISSUES). English is authoritative.
+    start: {
+      title: "ตั้งค่า Brain ของคุณ",
+      tagline:
+        "คุณมีรหัสวอเชอร์แล้ว เลือกวิธีที่คุณต้องการใช้ — ทั้งสองวิธีใช้เวลาประมาณหนึ่งนาที",
+      voucherLabel: "รหัสวอเชอร์ของคุณ",
+      voucherPlaceholder: "เช่น PILOT-2026-A1B2",
+      agentTitle: "ให้ AI ตั้งค่าให้",
+      agentBlurb:
+        "วางข้อความบรรทัดเดียวลงใน Claude Code, Cursor หรือเครื่องมือ AI ใดก็ได้ที่ดึงข้อมูลจาก URL ได้ ระบบจะสร้างบัญชี รับโทเคน และเชื่อมต่อให้คุณ",
+      agentNeedCode: "กรอกรหัสวอเชอร์ด้านบนเพื่อรับคำสั่งตั้งค่าของคุณ",
+      agentCopy: "คัดลอกคำสั่ง",
+      agentCopied: "คัดลอกแล้ว!",
+      agentRestart:
+        "เมื่อเสร็จแล้ว ให้รีสตาร์ทเครื่องมือ AI ของคุณ การเชื่อมต่อจะยังไม่ทำงานจนกว่าคุณจะรีสตาร์ท",
+      agentDisabled:
+        "Brain นี้ปิดการตั้งค่าผ่าน AI ไว้ กรุณาใช้ “ทำด้วยตัวเอง” แทน",
+      selfTitle: "ทำด้วยตัวเอง",
+      selfBlurb:
+        "สร้างบัญชีในเบราว์เซอร์ จากนั้นคัดลอกคำสั่งติดตั้งบรรทัดเดียวสำหรับเครื่องมือของคุณ",
+      selfCta: "สร้างบัญชี →",
+      tokenNote:
+        "โทเคนที่ AI ได้รับมีอายุ 14 วัน และเรียกใช้ Oracle ไม่ได้ ตั้งรหัสผ่านภายหลังเพื่อออกโทเคนแบบเต็ม",
+      noCode: "ยังไม่มีรหัสวอเชอร์?",
+      noCodeBlurb:
+        "ขอจากผู้ดูแล Brain นี้ รหัสจะแจกเป็นรายบุคคลและมีวันหมดอายุ",
+      whatIsTitle: "External Brain คืออะไร?",
+      whatIsBlurb:
+        "ชั้นความจำสำหรับเซสชันเขียนโค้ดกับ AI ของคุณ จดจำสิ่งที่คุณตัดสินใจและเหตุผล ข้ามเซสชัน ข้ามโปรเจกต์ และข้ามเครื่อง",
+      learnMore: "อ่านแนวคิดพื้นฐาน →",
+      tourLink: "ดูคำแนะนำแบบทีละขั้น →",
+      signinLink: "มีบัญชีอยู่แล้ว? เข้าสู่ระบบ",
     },
     tip: {
       mcp: "Model Context Protocol — ช่องทางที่เครื่องมือ AI ของคุณใช้สื่อสารกับ Brain",
@@ -1107,6 +1173,39 @@ export const I18N = {
       cause3:
         "Dein KI-Client hat eine alte Tool-Liste zwischengespeichert — starte Claude Code / Cursor / Windsurf nach dem Bearbeiten der MCP-Konfiguration neu.",
       skip: "Willkommen überspringen →",
+    },
+    start: {
+      title: "Richte dein Brain ein",
+      tagline:
+        "Du hast einen Gutscheincode. Wähle, wie du ihn einlösen möchtest — beides dauert etwa eine Minute.",
+      voucherLabel: "Dein Gutscheincode",
+      voucherPlaceholder: "z. B. PILOT-2026-A1B2",
+      agentTitle: "Lass deine KI das übernehmen",
+      agentBlurb:
+        "Füge eine Zeile in Claude Code, Cursor oder ein beliebiges KI-Werkzeug ein, das eine URL abrufen kann. Es legt dein Konto an, holt ein Token und richtet die Verbindung ein.",
+      agentNeedCode:
+        "Gib oben deinen Gutscheincode ein, um deinen Einrichtungs-Prompt zu erhalten.",
+      agentCopy: "Prompt kopieren",
+      agentCopied: "Kopiert!",
+      agentRestart:
+        "Starte danach dein KI-Werkzeug neu. Die Verbindung ist erst dann aktiv.",
+      agentDisabled:
+        "Auf diesem Brain ist die KI-gesteuerte Einrichtung deaktiviert. Nutze stattdessen „Selbst einrichten“.",
+      selfTitle: "Selbst einrichten",
+      selfBlurb:
+        "Lege im Browser ein Konto an und kopiere dann den einzeiligen Installationsbefehl für dein Werkzeug.",
+      selfCta: "Konto anlegen →",
+      tokenNote:
+        "Das Token, das deine KI erhält, gilt 14 Tage und kann das Oracle nicht aufrufen. Vergib anschließend ein Passwort, um ein vollwertiges Token zu erzeugen.",
+      noCode: "Kein Gutscheincode?",
+      noCodeBlurb:
+        "Frag die Person, die dieses Brain betreibt. Codes werden einzeln vergeben und laufen ab.",
+      whatIsTitle: "Was ist External Brain?",
+      whatIsBlurb:
+        "Eine Gedächtnisschicht für deine KI-Coding-Sitzungen. Sie merkt sich, was du entschieden hast und warum — über Sitzungen, Projekte und Rechner hinweg.",
+      learnMore: "Konzepte lesen →",
+      tourLink: "Geführte Tour ansehen →",
+      signinLink: "Schon ein Konto? Anmelden",
     },
     tip: {
       mcp: "Model Context Protocol — der Kanal, über den dein KI-Tool mit Brain spricht.",

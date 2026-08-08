@@ -3,15 +3,42 @@
  *
  * Design rules:
  *  - Every function accepts a `db` client as the first argument so callers
- *    (API routes, workers, tests) can supply a transaction client or a mock.
+ *    (API routes, workers, tests) can supply a client or a mock.
  *  - No function imports `db` from "@brain/db" directly — keeps this module
  *    testable without a live database.
  *  - Errors use `BrainError` so the structured-log envelope stays consistent.
+ *
+ * Transaction clients: functions typed `DbClient` (rather than `PrismaClient`)
+ * may additionally be called with a `Prisma.TransactionClient` from inside a
+ * caller's `$transaction`. Today that is `ensurePersonalOrg` and
+ * `ensureDefaultProject` — the two an anonymous voucher exchange must run
+ * atomically with the token mint (see `/api/onboard/claim`). The rest still
+ * require a full client. This distinction used to be documented as universal
+ * and was not true of any function: `PrismaClient` is not structurally
+ * satisfied by a transaction client (no `$transaction`, `$connect`,
+ * `$extends`), so passing one never type-checked.
  */
 import crypto from "crypto";
-import type { PrismaClient } from "@brain/db";
+import type { Prisma, PrismaClient } from "@brain/db";
 import { BrainError } from "./logger.js";
 import { hashSecret } from "./secret-hash.js";
+
+/**
+ * A Prisma client that may or may not already be inside a transaction.
+ * Narrow it with `canOpenTransaction()` before reaching for `$transaction`.
+ */
+export type DbClient = PrismaClient | Prisma.TransactionClient;
+
+/**
+ * True when `db` is a top-level client that can open its own transaction.
+ * A `Prisma.TransactionClient` is `Omit<PrismaClient, ITXClientDenyList>` —
+ * `$transaction` is one of the omitted members, so its absence is the
+ * reliable discriminator (Prisma also throws on nested interactive
+ * transactions, so guessing wrong is a runtime error, not a slow path).
+ */
+function canOpenTransaction(db: DbClient): db is PrismaClient {
+  return typeof (db as PrismaClient).$transaction === "function";
+}
 
 // ---------------------------------------------------------------------------
 // Role constants
@@ -33,7 +60,7 @@ function roleRank(role: string): number {
  * membership and return the new orgId.
  */
 export async function ensurePersonalOrg(
-  db: PrismaClient,
+  db: DbClient,
   userId: string,
 ): Promise<{ orgId: string; created: boolean }> {
   // Fast path — look for an existing owner membership.
@@ -58,8 +85,9 @@ export async function ensurePersonalOrg(
     user.email.split("@")[0] ??
     "Personal";
 
-  // Use a transaction so the Org + Member are always created together.
-  await db.$transaction(async (tx) => {
+  // The Org + Member must always be created together — a user owning an org
+  // they aren't a member of is unreachable from every query in the app.
+  const createOrgWithOwner = async (tx: Prisma.TransactionClient) => {
     await tx.organization.upsert({
       where: { id: orgId },
       create: {
@@ -83,7 +111,15 @@ export async function ensurePersonalOrg(
       },
       update: {},
     });
-  });
+  };
+
+  if (canOpenTransaction(db)) {
+    await db.$transaction(createOrgWithOwner);
+  } else {
+    // Already inside the caller's transaction — the two upserts inherit its
+    // atomicity, and opening a nested one would throw.
+    await createOrgWithOwner(db);
+  }
 
   return { orgId, created: true };
 }
@@ -346,7 +382,7 @@ export async function getUserProjects(
  * org, return the first one. Otherwise create a default project.
  */
 export async function ensureDefaultProject(
-  db: PrismaClient,
+  db: DbClient,
   userId: string,
 ): Promise<{ projectId: string; slug: string; created: boolean }> {
   const { orgId } = await ensurePersonalOrg(db, userId);

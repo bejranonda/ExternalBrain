@@ -85,7 +85,7 @@ export {
   getAccessibleProjectIds,
   userCanAccessProject,
 } from "./org.js";
-export type { UserProject, OrgMemberView, OrgInviteView, CreatedOrg, DuplicateProjectGroup } from "./org.js";
+export type { DbClient, UserProject, OrgMemberView, OrgInviteView, CreatedOrg, DuplicateProjectGroup } from "./org.js";
 export {
   CAPABILITIES,
   CAPABILITY_LABELS,
