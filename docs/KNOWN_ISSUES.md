@@ -758,6 +758,42 @@ raw value absent from the row.
 
 ---
 
+## 0z. The Antigravity config path went stale under us (2026-08-07)
+
+Raised by the operator: *"gemini cli change to antigravity cli already"*. It
+had, and the consequence was larger than a rename.
+
+Google retired Gemini CLI for consumer accounts on **2026-06-18** and folded it
+into a new Go-based **Antigravity CLI**
+([announcement](https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli/)).
+Enterprise access continues. The merge also **moved the config file**: the
+Antigravity IDE and the new CLI now share
+`~/.gemini/config/mcp_config.json` (workspace-local: `.agents/mcp_config.json`),
+per [Google's MCP docs](https://antigravity.google/docs/mcp).
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**The Antigravity `configPath` pointed at a directory nothing reads.**~~ **Fixed.** We emitted `~/.gemini/antigravity/mcp_config.json`, correct when written (v1.7.0, §5ar) and dead since the 2026-05-19 merge. The JSON **shape** was right — `mcpServers` → `serverUrl` + `headers` is still exactly what Antigravity wants — so a user pasting our snippet into our path got a syntactically perfect config in a location the client never loads: no error, no server, nothing to diagnose. Now `~/.gemini/config/mcp_config.json`, with the note naming both the IDE route and the CLI's direct-edit route. | `packages/core/src/install-snippets.ts` | done |
+| ~~**"Gemini CLI" was offered as a current client.**~~ **Fixed.** Relabelled "Gemini CLI (legacy — retired 2026-06-18)" and its note now points at Antigravity. Kept rather than deleted because enterprise access continues, so removing it would strand those users — but a consumer picking it today would configure a tool they no longer have. | `token-install-wizard.tsx`, `install-snippets.ts` | done |
+| ~~**Three docs carried the dead path.**~~ **Fixed.** `CLIENTS.md`, `QUICKSTART.md` and `APPROACH.md` §5ar all named `~/.gemini/antigravity/`. The design spec under `docs/superpowers/specs/` deliberately retains it — it is a point-in-time record of what was true when written, the same convention the changelog rows follow. | `docs/` | done |
+
+**What this one adds to the pattern.** §0u was a shape no client accepts —
+wrong data, right place. This is the inverse: **right data, wrong place**, and
+it is the harder half to catch. Nothing in the repo could have detected it,
+because the defect was not in our code or our tests but in an external product
+changing under a value we had hardcoded and pinned with a passing assertion.
+The test asserting `~/.gemini/antigravity/...` kept passing precisely *because*
+it was pinned to the stale value.
+
+There is no clever fix for that class — an external path cannot be verified
+from inside the repo. What is available is cheap: when a snippet's target
+product announces a merge, retirement or rename, re-check its config path and
+treat "our test passes" as evidence about **us**, not about the vendor.
+
+Verified non-vacuous: reverting to the old path fails 2 assertions.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:

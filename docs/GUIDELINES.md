@@ -277,6 +277,34 @@ This generalises past MCP to any environment-shaped work: a migration applied
 to the wrong database, a deploy verified against the wrong host, a test run
 against a stale container. The check was real; the subject was not.
 
+### A passing test can be pinned to a fact that stopped being true
+
+The inverse of the sibling problem, and harder to catch by construction. Every
+example above (`§0u`, `§0v`, `§0w`) was *our* rule applied inconsistently
+across our own surfaces — reachable by a sweep over the code we control. This
+one isn't: an install snippet emitted `~/.gemini/antigravity/mcp_config.json`
+for Google Antigravity, correct the day it was written. Then Google folded
+Gemini CLI into Antigravity and moved the file to
+`~/.gemini/config/mcp_config.json` (`KNOWN_ISSUES §0z`). The snippet's JSON
+*shape* was still exactly right — the config was syntactically perfect and
+sat in a directory nothing would ever read. No error. Nothing to diagnose.
+
+The test asserting the old path kept passing throughout, **because it was
+pinned to the value that went stale.** That is not a bug in the test's logic;
+a unit test cannot know that a vendor moved a file six weeks after it was
+written. It only knows what it was told to assert.
+
+> **A passing test that pins an external fact — a file path, a config key
+> name, a provider's endpoint, another product's behaviour — is evidence
+> about your code, not about the world it assumes.**
+
+No sweep-over-N-surfaces habit fixes this one; the surface in question isn't
+in this repository. What is available, and cheap: when a tool this project
+integrates with announces a rename, merger, retirement, or API change, that
+is the trigger to re-read its current docs and re-verify anything hardcoded
+against it — a `git blame` on the constant plus "is this still true?" costs a
+few minutes and is the only check that exists for this class.
+
 ### One rule, one implementation — and put the question in the PR
 
 The audit arc that produced most of this section found the same defect class
