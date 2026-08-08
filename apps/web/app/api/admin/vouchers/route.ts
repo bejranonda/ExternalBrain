@@ -51,10 +51,25 @@ export async function GET(_req: Request): Promise<Response> {
   }
 }
 
+/**
+ * `kind` accepts only "personal".
+ *
+ * "organization" was accepted here and did nothing: redemption never reads
+ * `kind` or `organizationLabel`. Every signup path — credentials and OAuth —
+ * calls `ensurePersonalOrg()`, which creates `org_${userId}`, so an
+ * organization-kind voucher still produced one isolated personal tenant per
+ * redeemer. An operator minting "Acme Inc." for their team got N separate
+ * tenants and no error, discovering it only when the team could not see each
+ * other's knowledge.
+ *
+ * Rejected loudly rather than silently ignored, and rejected at the boundary
+ * rather than only hidden in the UI, so a direct API call gets the same
+ * answer as the form. Adding people to an existing org is what
+ * `OrganizationInvite` is for. See KNOWN_ISSUES §0ae.
+ */
 const createSchema = z.object({
   code: z.string().min(4).max(64).optional(),
-  kind: z.enum(["personal", "organization"]).default("personal"),
-  organizationLabel: z.string().max(120).nullish(),
+  kind: z.literal("personal").default("personal"),
   maxUses: z.number().int().positive().max(10_000).default(1),
   expiresAt: z.string().datetime().nullish(), // ISO 8601
   note: z.string().max(500).nullish(),
@@ -65,15 +80,13 @@ export async function POST(req: Request): Promise<Response> {
     const { userId: actorId } = await requireAdmin();
     const body = createSchema.parse(await req.json());
 
-    const desired = (body.code ?? generateCode(body.kind === "organization" ? "ORG" : "PILOT"))
-      .trim()
-      .toUpperCase();
+    const desired = (body.code ?? generateCode("PILOT")).trim().toUpperCase();
 
     const created = await db.voucherCode.create({
       data: {
         code: desired,
         kind: body.kind,
-        organizationLabel: body.organizationLabel ?? null,
+        organizationLabel: null,
         maxUses: body.maxUses,
         expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
         note: body.note ?? null,

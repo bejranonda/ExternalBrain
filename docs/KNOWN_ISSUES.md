@@ -983,6 +983,52 @@ instance of the §0u/§0v shape — a rule (cascade owned rows) applied to the
 
 ---
 
+## 0ae. A voucher option that promised shared tenants and delivered isolated ones (2026-08-08)
+
+Found while minting a 60-seat pilot voucher, when the operator asked whether
+one shared code would give each redeemer their own separate tenant. Verifying
+the answer instead of assuming it turned up a defect in the opposite direction.
+
+`VoucherCode.kind` (`personal` | `organization`) and `.organizationLabel` were
+settable through `POST /api/admin/vouchers` and offered in the admin UI as a
+`<select>` with an **Organization** option plus a label field that appeared
+when chosen. **Neither field is read at redemption.** Every signup path —
+credentials (`register/route.ts:188`) and the four NextAuth callbacks in
+`auth.ts` — calls `ensurePersonalOrg(db, userId)`, which creates
+`org_${userId}`, one per user.
+
+So an operator minting "Acme Inc." as an organization voucher for their team
+got **N separate isolated tenants**. Every redemption succeeded. Nothing
+errored. The only symptom was the team eventually noticing they could not see
+each other's knowledge — long after onboarding, and with no obvious cause.
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**The UI offered a kind that did nothing.**~~ **Fixed.** The selector is gone; the form now states plainly that every redeemer gets an isolated tenant, and points at organization invites — the flow that actually does add people to an existing org. Removing the broken option without saying where the real one lives would just send the operator looking elsewhere. | `app/admin/vouchers/page.tsx` | done |
+| ~~**The API accepted it too.**~~ **Fixed.** `kind` is now `z.literal("personal")` and `organizationLabel` is never persisted. Rejected at the boundary, not merely hidden in the UI, so a direct API call gets the same answer as the form. | `app/api/admin/vouchers/route.ts` | done |
+| ~~**Nothing pinned the isolation guarantee.**~~ **Fixed.** `voucher-tenancy.test.ts` asserts the API rejects the dead kind, the UI doesn't offer it, the UI names the real alternative, and **every** signup path still bootstraps a personal org — the mechanism the guarantee rests on. | `apps/web/lib/brain/voucher-tenancy.test.ts` | done |
+
+**Verified on production before closing.** Two accounts redeeming the same
+60-seat code landed in `org_cmsk0ae15…` and `org_cmsk0aeez…`, each `owner` of
+their own org with its own project, sharing none; knowledge isolation is
+enforced by `buildKnowledgeWhere` pinning `ownerUserId` (28 scope-filter tests).
+Concurrency is safe too — `claimVoucher` holds `SELECT … FOR UPDATE`, so 60
+simultaneous redemptions queue rather than race past `maxUses`. Both test
+accounts were then removed and the seat count reset.
+
+**What this adds to the pattern.** §0u was wrong data in the right place; §0z
+was right data in the wrong place. This is a third kind: **a control surface
+wired to nothing.** The field existed end-to-end — schema column, Zod schema,
+API persistence, admin `<select>`, list display — every layer present and
+consistent, with only the *consumer* missing. Nothing about reading any single
+layer reveals it; the absence is only visible by asking "who reads this?" and
+finding nobody. Worth a specific habit: when adding a settable field, the
+review question is not "is it stored?" but **"what changes when it changes?"**
+
+Verified non-vacuous: reverting the fix fails 4 assertions.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:
