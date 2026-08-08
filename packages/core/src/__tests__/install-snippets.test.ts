@@ -20,8 +20,13 @@ import {
   githubCopilotVscode,
   githubCopilotJetbrains,
   githubCopilotCli,
+  codexCli,
   rawMcpServersJson,
   restApiCurl,
+  CLIENTS,
+  clientById,
+  needsOsChoice,
+  type ClientId,
 } from "../install-snippets.js";
 
 const TOKEN = "bp_testtoken1234567890ABCDEF";
@@ -423,6 +428,30 @@ describe("githubCopilotCli", () => {
   });
 });
 
+// ─── codexCli ────────────────────────────────────────────────────────────────
+
+describe("codexCli", () => {
+  it("returns shell kind — Codex has no JSON to paste", () => {
+    const s = codexCli(TOKEN, MCP_URL, WEB_URL, "linux");
+    expect(s.kind).toBe("shell");
+    expect(s.configPath).toBeUndefined();
+  });
+
+  it("names the env-var handoff Codex requires", () => {
+    // Codex takes the NAME of an env var, not the bearer. A note that omits
+    // this leaves the user with a registered server that 401s forever.
+    const s = codexCli(TOKEN, MCP_URL, WEB_URL, "linux");
+    expect(s.command!.note).toContain("--bearer-token-env-var");
+    expect(s.command!.note).toContain("BRAIN_TOKEN");
+  });
+
+  it("routes through the installer so the round-trip is still proven", () => {
+    const s = codexCli(TOKEN, MCP_URL, WEB_URL, "linux");
+    expect(s.command!.via).toBe("native");
+    expect(s.lines.join("\n")).toContain("--client codex");
+  });
+});
+
 // ─── rawMcpServersJson ────────────────────────────────────────────────────────
 
 describe("rawMcpServersJson", () => {
@@ -512,19 +541,12 @@ describe("restApiCurl", () => {
  * rather than shipping a half-configured option.
  */
 
-const ALL_CLIENTS = [
-  ["claudeCodeCli", claudeCodeCli],
-  ["claudeDesktop", claudeDesktop],
-  ["cursor", cursor],
-  ["windsurf", windsurf],
-  ["geminiCli", geminiCli],
-  ["antigravity", antigravity],
-  ["githubCopilotVscode", githubCopilotVscode],
-  ["githubCopilotJetbrains", githubCopilotJetbrains],
-  ["githubCopilotCli", githubCopilotCli],
-  ["rawMcpServersJson", rawMcpServersJson],
-  ["restApiCurl", restApiCurl],
-] as const;
+// Derived from the registry, not hand-listed: a hand-listed sweep only sweeps
+// the clients someone remembered to add to it, which is the same failure the
+// sweep exists to catch one level down.
+const ALL_CLIENTS = CLIENTS.map(
+  (c) => [c.id, c.snippet] as const,
+);
 
 const ALL_OSES = ["darwin", "linux", "win32"] as const;
 
@@ -600,7 +622,161 @@ describe("every client × OS combination", () => {
           // failure on the one OS that cannot fix it by habit.
           expect(snippet.configPath.win32).not.toMatch(/\//);
         });
+
+        // ── install-command invariants ──────────────────────────────────
+        // The whole point of the command is that a user pastes it and is
+        // done. Each assertion below corresponds to a way that silently
+        // fails to be true.
+
+        it("emits a runnable command for the target shell", () => {
+          if (!snippet.command) return;
+          const cmd = snippet.command.lines.join("\n");
+          expect(cmd.trim()).not.toBe("");
+          if (os === "win32") {
+            // A bash pipe pasted into PowerShell fails with a syntax error
+            // that names nothing the user can act on.
+            expect(cmd).toContain("Install-Brain");
+            expect(cmd).not.toContain("curl -fsSL");
+          } else {
+            expect(cmd).toContain("curl -fsSL");
+            expect(cmd).not.toContain("Install-Brain");
+          }
+        });
+
+        it("names its own client id in the command", () => {
+          if (!snippet.command) return;
+          const cmd = snippet.command.lines.join("\n");
+          const flag = os === "win32" ? "-Client" : "--client";
+          expect(cmd).toContain(`${flag} ${name}`);
+        });
+
+        it("quotes the token inside the command", () => {
+          if (!snippet.command) return;
+          const cmd = snippet.command.lines.join("\n");
+          expect(cmd).toContain(TOKEN);
+          expect(cmd).toMatch(new RegExp(`'${TOKEN}'`));
+        });
+
+        it("targets the configured host in the command", () => {
+          if (!snippet.command) return;
+          const cmd = snippet.command.lines.join("\n");
+          expect(cmd).toContain(WEB_URL);
+          expect(cmd).not.toMatch(/localhost|127\.0\.0\.1/);
+        });
+
+        it("declares how the command installs", () => {
+          if (!snippet.command) return;
+          expect(["native", "installer"]).toContain(snippet.command.via);
+        });
+
+        it("needsOsChoice agrees with what the snippet actually varies by", () => {
+          expect(needsOsChoice(snippet)).toBe(
+            snippet.configPath !== undefined || snippet.command !== undefined,
+          );
+        });
       });
     }
   }
+});
+
+// ─── registry invariants ──────────────────────────────────────────────────────
+
+/**
+ * Clients that legitimately expose NO one-line install, and why. Listing them
+ * explicitly is the point: a new client that forgets its command fails here
+ * instead of quietly shipping as a paste-only option, which is how five
+ * clients once shipped a config shape no client accepts (KNOWN_ISSUES §0u).
+ */
+const NO_COMMAND_EXPECTED = new Set<ClientId>([
+  // JetBrains / Visual Studio / Eclipse / Xcode each open their own mcp.json
+  // editor — there is no stable path on disk to write to.
+  "jetbrains",
+  // Not an install at all: an example REST call for non-MCP tools.
+  "rest",
+]);
+
+describe("client registry", () => {
+  it("has unique, stable ids", () => {
+    const ids = CLIENTS.map((c) => c.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("is resolvable by id", () => {
+    for (const c of CLIENTS) {
+      expect(clientById(c.id)).toBe(c);
+    }
+    expect(clientById("no-such-client")).toBeUndefined();
+  });
+
+  it("exposes an install command for every client except the declared exceptions", () => {
+    const missing = CLIENTS.filter(
+      (c) =>
+        c.snippet(TOKEN, MCP_URL, WEB_URL, "linux").command === undefined &&
+        !NO_COMMAND_EXPECTED.has(c.id),
+    ).map((c) => c.id);
+    expect(missing).toEqual([]);
+  });
+
+  it("does not emit a command for the clients that cannot have one", () => {
+    for (const id of NO_COMMAND_EXPECTED) {
+      const client = clientById(id);
+      expect(client).toBeDefined();
+      expect(
+        client!.snippet(TOKEN, MCP_URL, WEB_URL, "linux").command,
+      ).toBeUndefined();
+    }
+  });
+
+  it("gives every installer-written client a config path to write", () => {
+    // `generic` is the documented exception — it takes --config-path instead,
+    // and its note says so.
+    for (const c of CLIENTS) {
+      const s = c.snippet(TOKEN, MCP_URL, WEB_URL, "linux");
+      if (s.command?.via !== "installer") continue;
+      if (c.id === "generic") {
+        expect(s.configPath).toBeUndefined();
+        expect(s.command.note).toContain("--config-path");
+        continue;
+      }
+      expect(s.configPath).toBeDefined();
+    }
+  });
+
+  it("records a clientType the MCP start_session tool accepts", () => {
+    // The install ping is posted with this value; an out-of-enum string is
+    // rejected and the install silently records nothing.
+    const allowed = new Set([
+      "claude_code",
+      "cursor",
+      "windsurf",
+      "antigravity",
+      "github_copilot",
+      "custom",
+    ]);
+    for (const c of CLIENTS) {
+      expect(allowed.has(c.sessionClientType)).toBe(true);
+    }
+  });
+
+  it("covers every generator exported from the module", () => {
+    // A generator that exists but is in no registry entry is invisible to the
+    // picker, the installer, and the sweep above.
+    const registered = new Set(CLIENTS.map((c) => c.snippet));
+    for (const fn of [
+      claudeCodeCli,
+      claudeDesktop,
+      cursor,
+      windsurf,
+      geminiCli,
+      antigravity,
+      githubCopilotVscode,
+      githubCopilotJetbrains,
+      githubCopilotCli,
+      codexCli,
+      rawMcpServersJson,
+      restApiCurl,
+    ]) {
+      expect(registered.has(fn)).toBe(true);
+    }
+  });
 });

@@ -1,67 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import {
-  claudeCodeCli,
-  claudeDesktop,
-  cursor,
-  windsurf,
-  geminiCli,
-  antigravity,
-  githubCopilotVscode,
-  githubCopilotJetbrains,
-  githubCopilotCli,
-  rawMcpServersJson,
-  restApiCurl,
-} from "@brain/core/install-snippets";
-import type { TargetOS } from "@brain/core/install-snippets";
+import { CLIENTS, clientById, needsOsChoice } from "@brain/core/install-snippets";
+import type { ClientId, TargetOS } from "@brain/core/install-snippets";
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
-type ClientId =
-  | "claudeCodeCli"
-  | "claudeDesktop"
-  | "cursor"
-  | "windsurf"
-  | "geminiCli"
-  | "antigravity"
-  | "githubCopilotVscode"
-  | "githubCopilotJetbrains"
-  | "githubCopilotCli"
-  | "rawMcpServersJson"
-  | "restApiCurl";
-
-interface ClientOption {
-  id: ClientId;
-  label: string;
-  needsOs: boolean;
-}
-
-const CLIENT_OPTIONS: ClientOption[] = [
-  { id: "claudeCodeCli", label: "Claude Code (CLI)", needsOs: true },
-  { id: "claudeDesktop", label: "Claude Desktop", needsOs: true },
-  { id: "cursor", label: "Cursor", needsOs: false },
-  { id: "windsurf", label: "Windsurf", needsOs: false },
-  { id: "geminiCli", label: "Gemini CLI (legacy — retired 2026-06-18)", needsOs: false },
-  { id: "antigravity", label: "Google Antigravity (IDE + CLI)", needsOs: false },
-  {
-    id: "githubCopilotVscode",
-    label: "GitHub Copilot — VS Code",
-    needsOs: false,
-  },
-  {
-    id: "githubCopilotJetbrains",
-    label: "GitHub Copilot — JetBrains / Visual Studio / Eclipse / Xcode",
-    needsOs: false,
-  },
-  { id: "githubCopilotCli", label: "GitHub Copilot — CLI", needsOs: false },
-  {
-    id: "rawMcpServersJson",
-    label: "Other MCP-aware client (raw JSON)",
-    needsOs: false,
-  },
-  { id: "restApiCurl", label: "Non-MCP tool (REST + cURL)", needsOs: false },
-];
+// The client list, its labels, and the snippet each one renders all come from
+// @brain/core's registry — the same list the `/api/onboard.*` installers are
+// generated from. Keeping a second copy here is how the picker and the
+// installer drift into disagreeing about what a client is called.
 
 const OS_OPTIONS: { id: TargetOS; label: string }[] = [
   { id: "darwin", label: "macOS" },
@@ -97,28 +45,6 @@ function detectOs(): TargetOS {
   return "linux";
 }
 
-const snippetFns: Record<
-  ClientId,
-  (
-    token: string,
-    mcpUrl: string,
-    webUrl: string,
-    os: TargetOS,
-  ) => ReturnType<typeof claudeCodeCli>
-> = {
-  claudeCodeCli,
-  claudeDesktop,
-  cursor,
-  windsurf,
-  geminiCli,
-  antigravity,
-  githubCopilotVscode,
-  githubCopilotJetbrains,
-  githubCopilotCli,
-  rawMcpServersJson,
-  restApiCurl,
-};
-
 // ─── component ────────────────────────────────────────────────────────────────
 
 export function TokenInstallWizard({
@@ -129,18 +55,21 @@ export function TokenInstallWizard({
   oldTokenScheduledRevokeAt,
   onClose,
 }: TokenInstallWizardProps) {
-  const [selectedClient, setSelectedClient] = useState<ClientId>("claudeCodeCli");
+  const [selectedClient, setSelectedClient] = useState<ClientId>("claude-code");
   // detectOs() reads `navigator`, but the wizard only mounts client-side after
   // a mint (it's never in the SSR HTML), so there's no hydration to mismatch —
   // initializing from detectOs() here is correct and avoids an OS-default flash.
   const [selectedOs, setSelectedOs] = useState<TargetOS>(detectOs);
   const [copiedSnippet, setCopiedSnippet] = useState(false);
+  const [copiedCommand, setCopiedCommand] = useState(false);
   const [copiedPath, setCopiedPath] = useState(false);
   const [copiedToken, setCopiedToken] = useState(false);
   // When the Clipboard API is unavailable (insecure context, browser
   // without permission, etc.) we surface a manual-select hint instead of
   // silently doing nothing. Keyed by which field the user just tried.
-  const [copyFailed, setCopyFailed] = useState<null | "token" | "snippet" | "path">(null);
+  const [copyFailed, setCopyFailed] = useState<
+    null | "token" | "snippet" | "path" | "command"
+  >(null);
   const [testStatus, setTestStatus] = useState<
     | null
     | { loading: true }
@@ -148,9 +77,13 @@ export function TokenInstallWizard({
     | { loading: false; ok: false; reason: string; detail?: string }
   >(null);
 
-  const clientOption = CLIENT_OPTIONS.find((c) => c.id === selectedClient)!;
-  const snippet = snippetFns[selectedClient](rawToken, mcpUrl, webUrl, selectedOs);
+  const clientOption = clientById(selectedClient)!;
+  const snippet = clientOption.snippet(rawToken, mcpUrl, webUrl, selectedOs);
   const snippetBody = snippet.lines.join("\n");
+  // A "shell" snippet already IS its command; rendering both would show the
+  // same line twice under two different headings.
+  const command = snippet.kind === "shell" ? undefined : snippet.command;
+  const commandBody = command?.lines.join("\n") ?? "";
 
   const configPathForOs = snippet.configPath
     ? snippet.configPath[selectedOs]
@@ -162,7 +95,10 @@ export function TokenInstallWizard({
    * the user knows to select manually rather than wondering why nothing
    * happened. The previous code silently swallowed the rejection.
    */
-  const tryCopy = async (text: string, kind: "token" | "snippet" | "path"): Promise<boolean> => {
+  const tryCopy = async (
+    text: string,
+    kind: "token" | "snippet" | "path" | "command",
+  ): Promise<boolean> => {
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(text);
@@ -180,6 +116,13 @@ export function TokenInstallWizard({
     if (await tryCopy(snippetBody, "snippet")) {
       setCopiedSnippet(true);
       window.setTimeout(() => setCopiedSnippet(false), 1500);
+    }
+  };
+
+  const copyCommand = async () => {
+    if (await tryCopy(commandBody, "command")) {
+      setCopiedCommand(true);
+      window.setTimeout(() => setCopiedCommand(false), 1500);
     }
   };
 
@@ -393,7 +336,7 @@ export function TokenInstallWizard({
           marginBottom: 14,
         }}
       >
-        {CLIENT_OPTIONS.map((opt) => (
+        {CLIENTS.map((opt) => (
           <label
             key={opt.id}
             style={{
@@ -418,7 +361,7 @@ export function TokenInstallWizard({
       </div>
 
       {/* ── Step 2: OS picker (only when relevant) ── */}
-      {clientOption.needsOs && (
+      {needsOsChoice(snippet) && (
         <>
           <div
             className="mono"
@@ -464,8 +407,80 @@ export function TokenInstallWizard({
         className="mono"
         style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 8 }}
       >
-        {clientOption.needsOs ? "STEP 3" : "STEP 2"} — COPY THE SNIPPET
+        {needsOsChoice(snippet) ? "STEP 3" : "STEP 2"} —{" "}
+        {command ? "RUN THIS COMMAND" : "COPY THE SNIPPET"}
       </div>
+
+      {/* One-line install. Shown above the JSON on purpose: pasting config by
+          hand is where onboarding goes wrong (wrong path, wrong field name,
+          clobbered sibling servers), and the command also verifies the token
+          actually reaches a tool — which pasting a file never does. */}
+      {command && (
+        <>
+          <pre
+            style={{
+              margin: "0 0 8px",
+              padding: "10px 12px",
+              background: "var(--bg)",
+              border: "1px solid var(--line)",
+              borderRadius: 4,
+              fontSize: 13,
+              fontFamily: "var(--font-mono)",
+              overflowX: "auto",
+              lineHeight: 1.55,
+              color: "var(--ink)",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-all",
+              userSelect: "all",
+            }}
+          >
+            {commandBody}
+          </pre>
+          {copyFailed === "command" && (
+            <div
+              style={{
+                marginTop: -2,
+                marginBottom: 8,
+                fontSize: 12,
+                color: "var(--warn, #f5a623)",
+                lineHeight: 1.45,
+              }}
+            >
+              Clipboard unavailable — click anywhere in the command to select
+              all, then ⌘/Ctrl+C.
+            </div>
+          )}
+          <div className="row" style={{ gap: 8, marginBottom: 10 }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ fontSize: 13 }}
+              onClick={() => void copyCommand()}
+            >
+              {copiedCommand ? "Copied" : "Copy command"}
+            </button>
+          </div>
+          <div
+            style={{
+              fontSize: 13,
+              color: "var(--ink-3)",
+              marginBottom: 14,
+              lineHeight: 1.5,
+            }}
+          >
+            {command.via === "native"
+              ? "Wires it up with the client's own MCP command, then verifies the connection end-to-end."
+              : "Merges into your existing config (other MCP servers are preserved and the file is backed up first), then verifies the connection end-to-end."}
+            {command.note ? ` ${command.note}` : ""}
+          </div>
+          <div
+            className="mono"
+            style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 8 }}
+          >
+            OR CONFIGURE IT BY HAND
+          </div>
+        </>
+      )}
 
       {/* Config path */}
       {configPathForOs && (

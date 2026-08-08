@@ -65,6 +65,15 @@ for svc in "${SERVICES[@]}"; do
   fi
 done
 
+# Stamp the build version, exactly as deploy.sh and dev-up.sh do. Without
+# this export, compose falls back to `${APP_VERSION:-dev}` and bakes "dev"
+# into NEXT_PUBLIC_APP_VERSION — permanently, since it is inlined into the
+# client bundle at build time. reload.sh handles most rebuilds, so the
+# omission meant a correctly-tagged deploy still reported `dev` in the rail
+# footer and on /api/healthz until the next full deploy.sh run.
+export APP_VERSION="${APP_VERSION:-$(git -C "$REPO_ROOT" describe --tags --always --dirty 2>/dev/null || echo dev)}"
+log "Build version: $APP_VERSION"
+
 log "Rebuilding: ${SERVICES[*]}"
 $COMPOSE build "${SERVICES[@]}"
 

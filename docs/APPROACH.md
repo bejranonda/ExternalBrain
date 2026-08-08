@@ -48,6 +48,24 @@ This is conservative, and it is correct. The wrong place to be clever is in the 
 ### 2.5 Failure modes before features
 Every new subsystem starts with "what goes wrong?" (`KNOWN_ISSUES.md`) and "what are the invariants?" (`KNOWLEDGE.md §5`). Only after those are written do we implement.
 
+### 2.6 One list, N surfaces — never N lists
+When a fact is true of N things, it lives in one place that all N derive from. Not a convention, not a checklist item: a single array the surfaces import.
+
+This is the repo's most expensive recurring defect, not a theoretical concern. Five of eleven install snippets shipped a config shape no MCP client accepts (`KNOWN_ISSUES §0u`); four sibling pages hand-rolled a home link and the fifth forgot (`§0v`); two token tables stored raw secrets while a third in the same schema hashed correctly (`§0w`); two of three build scripts stamped the version and the most-used one didn't (`§0ab`). Every one looked correct in isolation. Per-item review structurally cannot find this class — the defect is the *gap between* items, and nothing in a single diff shows it.
+
+Two disciplines follow:
+
+**Move ownership, don't patch the instance.** Fixing the fifth page is a fix; putting the link in the shared layout is a *repair*. The next author then inherits correctness without knowing the rule exists. Client identity now lives in one `CLIENTS` registry in `@brain/core`, from which the wizard, the `/welcome` picker, both installers and the test sweep all derive.
+
+**Write one test that ranges over all N.** Not N tests — the sweep is what finds the gap, because a hand-listed sweep only sweeps what someone remembered to add to it. All 12 clients × 3 OSes found a missing note; all ~24 routes found the missing home link; parsing `schema.prisma` found the raw-token columns. Two corollaries, both learned by getting them wrong: assert the sweep matched something (a detector that silently matches nothing passes every downstream assertion), and revert the fix to confirm the test actually fails.
+
+### 2.7 Depend on vendors' contracts, not on their internals
+Roughly a third of the surface here is other people's config formats, and they move. Two failures inside one week: we invented a `transport: {type, url}` shape no client documents (`§0u`), and Google's Gemini CLI → Antigravity merge moved a config path we had hardcoded and pinned with a passing assertion (`§0z`).
+
+The rule that falls out: **prefer the vendor's own verb to the vendor's file layout.** `claude mcp add`, `copilot mcp add` and `codex mcp add` are contracts their authors maintain across format changes; `~/.gemini/antigravity/mcp_config.json` was a fact that expired silently. Where no such verb exists — Cursor, Windsurf, Antigravity, Claude Desktop — we write the file ourselves and accept the maintenance debt knowingly, which means citing the vendor doc in a comment next to the shape and re-checking it whenever that product announces a merge, retirement or rename.
+
+And treat a green test as evidence about **us**, never about them. No test in this repo can detect an external path changing; that is what a dated source link in the code comment is for.
+
 ---
 
 ## 3. Decision framework (when stuck)

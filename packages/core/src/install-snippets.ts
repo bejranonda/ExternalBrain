@@ -13,6 +13,8 @@
  *   note        — optional short guidance shown below the snippet
  *   configPath  — per-OS path where the snippet should be pasted (omitted for
  *                 snippets that don't map to a config file, e.g. shell or REST)
+ *   command     — a copy-paste one-liner that performs the install, for the
+ *                 clients where one exists (see InstallCommand)
  */
 
 export type SnippetKind = "shell" | "json" | "rest";
@@ -23,14 +25,55 @@ export interface ConfigPath {
   win32: string;
 }
 
+/**
+ * A one-liner the user can paste into a terminal instead of hand-editing a
+ * config file.
+ *
+ * `via` records WHO does the writing, because the failure modes differ:
+ *   "native"    — the client ships its own `… mcp add` verb and we shell out
+ *                 to it (Claude Code, Copilot CLI, Codex). Survives the
+ *                 vendor changing its own config format.
+ *   "installer" — no vendor CLI exists, so `/api/onboard.{sh,ps1}` merges the
+ *                 entry into the client's config file itself.
+ *
+ * Clients with neither (no vendor verb AND no fixed config path — the
+ * JetBrains/Visual Studio/Eclipse/Xcode family) expose no command at all
+ * rather than a command that would guess at a path.
+ */
+export interface InstallCommand {
+  lines: string[];
+  via: "native" | "installer";
+  note?: string;
+}
+
 export interface InstallSnippet {
   kind: SnippetKind;
   lines: string[];
   note?: string;
   configPath?: ConfigPath;
+  command?: InstallCommand;
 }
 
 export type TargetOS = "darwin" | "linux" | "win32";
+
+/**
+ * Stable client identifiers. These are the `--client` / `-Client` values the
+ * installers accept, so they are a wire contract: renaming one breaks every
+ * command a user has already copied into a runbook.
+ */
+export type ClientId =
+  | "claude-code"
+  | "claude-desktop"
+  | "cursor"
+  | "windsurf"
+  | "gemini-cli"
+  | "antigravity"
+  | "vscode"
+  | "jetbrains"
+  | "copilot-cli"
+  | "codex"
+  | "generic"
+  | "rest";
 
 // ─── shared helper ────────────────────────────────────────────────────────────
 
@@ -57,6 +100,38 @@ function bearer(token: string): { Authorization: string } {
   return { Authorization: `Bearer ${token}` };
 }
 
+/**
+ * The `/api/onboard.*` one-liner, parameterised by client.
+ *
+ * Every client routes through the same installer rather than emitting a bare
+ * vendor command, because the installer is what proves the token actually
+ * works: it runs the MCP `initialize` + `tools/call` round-trip through the
+ * user's real network, TLS and auth path before declaring success. A vendor
+ * command that writes a config file exits 0 whether or not the bearer will
+ * ever be accepted — the same "reported success, produced nothing" trap that
+ * KNOWN_ISSUES keeps recording. Clients whose vendor CLI we shell out to are
+ * marked `via: "native"` so the UI can name the underlying command.
+ */
+function installerCommand(
+  clientId: ClientId,
+  token: string,
+  webUrl: string,
+  os: TargetOS,
+  via: "native" | "installer",
+  note?: string,
+): InstallCommand {
+  const lines =
+    os === "win32"
+      ? [
+          `iwr ${webUrl}/api/onboard.ps1 -UseBasicParsing | iex`,
+          `Install-Brain -Token '${token}' -Client ${clientId}`,
+        ]
+      : [
+          `curl -fsSL ${webUrl}/api/onboard.sh | bash -s '${token}' --client ${clientId}`,
+        ];
+  return note === undefined ? { lines, via } : { lines, via, note };
+}
+
 // ─── generators ───────────────────────────────────────────────────────────────
 
 /**
@@ -69,18 +144,22 @@ export function claudeCodeCli(
   webUrl: string,
   os: TargetOS,
 ): InstallSnippet {
-  const lines =
-    os === "win32"
-      ? [
-          `iwr ${webUrl}/api/onboard.ps1 -UseBasicParsing | iex`,
-          `Install-Brain -Token '${token}'`,
-        ]
-      : [`curl -fsSL ${webUrl}/api/onboard.sh | bash -s '${token}'`];
+  const command = installerCommand(
+    "claude-code",
+    token,
+    webUrl,
+    os,
+    "native",
+    "Runs `claude mcp add brain --scope user --transport http`, installs the Brain skill, and smoke-tests the round-trip.",
+  );
 
   return {
     kind: "shell",
-    lines,
+    // For a shell client the command IS the snippet — one array, two views,
+    // so `lines` and `command.lines` cannot drift apart.
+    lines: command.lines,
     note: "Run in your terminal.",
+    command,
   };
 }
 
@@ -91,8 +170,8 @@ export function claudeCodeCli(
 export function claudeDesktop(
   token: string,
   mcpUrl: string,
-  _webUrl: string,
-  _os: TargetOS,
+  webUrl: string,
+  os: TargetOS,
 ): InstallSnippet {
   return {
     kind: "json",
@@ -127,6 +206,14 @@ export function claudeDesktop(
       linux: "~/.config/Claude/claude_desktop_config.json",
       win32: "%APPDATA%\\Claude\\claude_desktop_config.json",
     },
+    command: installerCommand(
+      "claude-desktop",
+      token,
+      webUrl,
+      os,
+      "installer",
+      "Still requires a FULL quit of Claude Desktop afterwards — it reads this file only at startup.",
+    ),
   };
 }
 
@@ -136,8 +223,8 @@ export function claudeDesktop(
 export function cursor(
   token: string,
   mcpUrl: string,
-  _webUrl: string,
-  _os: TargetOS,
+  webUrl: string,
+  os: TargetOS,
 ): InstallSnippet {
   return {
     kind: "json",
@@ -150,6 +237,9 @@ export function cursor(
       linux: "~/.cursor/mcp.json",
       win32: "%USERPROFILE%\\.cursor\\mcp.json",
     },
+    // Cursor ships no `mcp add` verb — only the settings UI and a
+    // `cursor://` deeplink, neither of which is pasteable into a terminal.
+    command: installerCommand("cursor", token, webUrl, os, "installer"),
   };
 }
 
@@ -159,8 +249,8 @@ export function cursor(
 export function windsurf(
   token: string,
   mcpUrl: string,
-  _webUrl: string,
-  _os: TargetOS,
+  webUrl: string,
+  os: TargetOS,
 ): InstallSnippet {
   return {
     kind: "json",
@@ -173,6 +263,7 @@ export function windsurf(
       linux: "~/.codeium/windsurf/mcp_config.json",
       win32: "%USERPROFILE%\\.codeium\\windsurf\\mcp_config.json",
     },
+    command: installerCommand("windsurf", token, webUrl, os, "installer"),
   };
 }
 
@@ -183,8 +274,8 @@ export function windsurf(
 export function geminiCli(
   token: string,
   mcpUrl: string,
-  _webUrl: string,
-  _os: TargetOS,
+  webUrl: string,
+  os: TargetOS,
 ): InstallSnippet {
   return {
     kind: "json",
@@ -198,6 +289,7 @@ export function geminiCli(
       linux: "~/.gemini/settings.json",
       win32: "%USERPROFILE%\\.gemini\\settings.json",
     },
+    command: installerCommand("gemini-cli", token, webUrl, os, "installer"),
   };
 }
 
@@ -210,8 +302,8 @@ export function geminiCli(
 export function antigravity(
   token: string,
   mcpUrl: string,
-  _webUrl: string,
-  _os: TargetOS,
+  webUrl: string,
+  os: TargetOS,
 ): InstallSnippet {
   const body = JSON.stringify(
     {
@@ -237,6 +329,14 @@ export function antigravity(
       linux: "~/.gemini/config/mcp_config.json",
       win32: "%USERPROFILE%\\.gemini\\config\\mcp_config.json",
     },
+    command: installerCommand(
+      "antigravity",
+      token,
+      webUrl,
+      os,
+      "installer",
+      "Writes the config both the Antigravity IDE and the CLI read.",
+    ),
   };
 }
 
@@ -248,8 +348,8 @@ export function antigravity(
 export function githubCopilotVscode(
   token: string,
   mcpUrl: string,
-  _webUrl: string,
-  _os: TargetOS,
+  webUrl: string,
+  os: TargetOS,
 ): InstallSnippet {
   const body = JSON.stringify(
     {
@@ -273,6 +373,18 @@ export function githubCopilotVscode(
       linux: ".vscode/mcp.json",
       win32: ".vscode\\mcp.json",
     },
+    // Workspace-scoped on purpose: `.vscode/mcp.json` is relative, so the
+    // installer writes it under the CURRENT directory. The user-profile path
+    // varies by VS Code flavour (Code / Code - Insiders / VSCodium) and
+    // profile, and guessing it wrong writes a file nothing reads.
+    command: installerCommand(
+      "vscode",
+      token,
+      webUrl,
+      os,
+      "installer",
+      "Run this from your repo root — it writes ./.vscode/mcp.json (workspace scope). VS Code also accepts `code --add-mcp` for a user-profile install.",
+    ),
   };
 }
 
@@ -314,8 +426,8 @@ export function githubCopilotJetbrains(
 export function githubCopilotCli(
   token: string,
   mcpUrl: string,
-  _webUrl: string,
-  _os: TargetOS,
+  webUrl: string,
+  os: TargetOS,
 ): InstallSnippet {
   const body = JSON.stringify(
     {
@@ -339,6 +451,46 @@ export function githubCopilotCli(
       linux: "~/.copilot/mcp-config.json",
       win32: "%USERPROFILE%\\.copilot\\mcp-config.json",
     },
+    command: installerCommand(
+      "copilot-cli",
+      token,
+      webUrl,
+      os,
+      "native",
+      "Shells out to `copilot mcp add --transport http --header \"Authorization: Bearer …\" brain <url>`, then verifies the round-trip.",
+    ),
+  };
+}
+
+/**
+ * OpenAI Codex CLI.
+ *
+ * The only client here with no JSON to paste: Codex stores servers in
+ * `~/.codex/config.toml`, and it deliberately refuses an inline bearer —
+ * `codex mcp add` takes the NAME of an environment variable holding the
+ * token (`--bearer-token-env-var`) and reads it at connect time. Emitting a
+ * JSON snippet for this client would be emitting something Codex never reads,
+ * so the command is the whole install.
+ */
+export function codexCli(
+  token: string,
+  mcpUrl: string,
+  webUrl: string,
+  os: TargetOS,
+): InstallSnippet {
+  const command = installerCommand(
+    "codex",
+    token,
+    webUrl,
+    os,
+    "native",
+    `Shells out to \`codex mcp add brain --url ${mcpUrl} --bearer-token-env-var BRAIN_TOKEN\`. Codex reads the bearer from the environment at connect time, so the installer prints the export line to add to your shell profile — without it Codex starts with no token.`,
+  );
+  return {
+    kind: "shell",
+    lines: command.lines,
+    note: "Run in your terminal. Codex keeps MCP servers in ~/.codex/config.toml (TOML, not JSON) — let the CLI write it rather than hand-editing.",
+    command,
   };
 }
 
@@ -348,8 +500,8 @@ export function githubCopilotCli(
 export function rawMcpServersJson(
   token: string,
   mcpUrl: string,
-  _webUrl: string,
-  _os: TargetOS,
+  webUrl: string,
+  os: TargetOS,
 ): InstallSnippet {
   return {
     kind: "json",
@@ -358,6 +510,16 @@ export function rawMcpServersJson(
     // silently getting an entry their client ignores.
     lines: wrapServerEntry({ url: mcpUrl, headers: bearer(token) }),
     note: "Paste into the client's MCP config — exact path depends on the client. If it doesn't connect, check which field your client expects: `url` (most), `serverUrl` (Windsurf, Antigravity), `httpUrl` (Gemini CLI), or a `servers` wrapper instead of `mcpServers` (VS Code). stdio-only clients need the `mcp-remote` bridge.",
+    // No configPath to write into, so the installer takes the target path as
+    // an argument instead of guessing one.
+    command: installerCommand(
+      "generic",
+      token,
+      webUrl,
+      os,
+      "installer",
+      "Append `--config-path <file>` to merge this entry into a config file the installer doesn't know about; without it the command only prints the JSON and runs the connectivity check.",
+    ),
   };
 }
 
@@ -380,4 +542,129 @@ export function restApiCurl(
     ],
     note: "Use this only if your tool can't speak MCP. Slower (no session reuse) but works for any HTTP client.",
   };
+}
+
+// ─── registry ─────────────────────────────────────────────────────────────────
+
+export type SnippetFn = (
+  token: string,
+  mcpUrl: string,
+  webUrl: string,
+  os: TargetOS,
+) => InstallSnippet;
+
+export interface ClientDescriptor {
+  id: ClientId;
+  /** Human label for the picker. */
+  label: string;
+  snippet: SnippetFn;
+  /**
+   * `clientType` recorded on the install-ping session, so the dashboard can
+   * tell a Cursor install from a Copilot one. Must stay inside the enum the
+   * MCP `brain_start_session` tool accepts, or the ping is rejected.
+   */
+  sessionClientType:
+    | "claude_code"
+    | "cursor"
+    | "windsurf"
+    | "antigravity"
+    | "github_copilot"
+    | "custom";
+}
+
+/**
+ * The single list of supported clients.
+ *
+ * Every surface that enumerates clients — the token wizard, the /welcome
+ * picker, the `--client` table baked into the installers, and the test sweep
+ * — derives from this array. That is deliberate: the recurring defect in this
+ * repo is a rule applied to some of N surfaces but not all (KNOWN_ISSUES §0u
+ * shipped five clients with a config shape no client accepts, each with its
+ * own passing test). With one list, adding a client to the picker without
+ * teaching the installer about it is a type error, not a silent half-install.
+ */
+export const CLIENTS: readonly ClientDescriptor[] = [
+  {
+    id: "claude-code",
+    label: "Claude Code (CLI)",
+    snippet: claudeCodeCli,
+    sessionClientType: "claude_code",
+  },
+  {
+    id: "claude-desktop",
+    label: "Claude Desktop",
+    snippet: claudeDesktop,
+    sessionClientType: "custom",
+  },
+  { id: "cursor", label: "Cursor", snippet: cursor, sessionClientType: "cursor" },
+  {
+    id: "windsurf",
+    label: "Windsurf",
+    snippet: windsurf,
+    sessionClientType: "windsurf",
+  },
+  {
+    id: "gemini-cli",
+    label: "Gemini CLI (legacy — retired 2026-06-18)",
+    snippet: geminiCli,
+    sessionClientType: "custom",
+  },
+  {
+    id: "antigravity",
+    label: "Google Antigravity (IDE + CLI)",
+    snippet: antigravity,
+    sessionClientType: "antigravity",
+  },
+  {
+    id: "vscode",
+    label: "GitHub Copilot — VS Code",
+    snippet: githubCopilotVscode,
+    sessionClientType: "github_copilot",
+  },
+  {
+    id: "jetbrains",
+    label: "GitHub Copilot — JetBrains / Visual Studio / Eclipse / Xcode",
+    snippet: githubCopilotJetbrains,
+    sessionClientType: "github_copilot",
+  },
+  {
+    id: "copilot-cli",
+    label: "GitHub Copilot — CLI",
+    snippet: githubCopilotCli,
+    sessionClientType: "github_copilot",
+  },
+  {
+    id: "codex",
+    label: "OpenAI Codex (CLI)",
+    snippet: codexCli,
+    sessionClientType: "custom",
+  },
+  {
+    id: "generic",
+    label: "Other MCP-aware client (raw JSON)",
+    snippet: rawMcpServersJson,
+    sessionClientType: "custom",
+  },
+  {
+    id: "rest",
+    label: "Non-MCP tool (REST + cURL)",
+    snippet: restApiCurl,
+    sessionClientType: "custom",
+  },
+] as const;
+
+export function clientById(id: string): ClientDescriptor | undefined {
+  return CLIENTS.find((c) => c.id === id);
+}
+
+/**
+ * Whether the OS picker changes anything for this snippet.
+ *
+ * Derived rather than declared: a snippet varies by OS exactly when it has a
+ * per-OS config path or an installer command (bash vs PowerShell). Hand-
+ * maintaining this as a flag is how `needsOs` went stale for every client
+ * that gained a command.
+ */
+export function needsOsChoice(snippet: InstallSnippet): boolean {
+  return snippet.configPath !== undefined || snippet.command !== undefined;
 }

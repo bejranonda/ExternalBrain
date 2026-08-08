@@ -51,18 +51,34 @@ describe("installer-templates reconcile block — Tier 1 snapshot", () => {
     expect(SOURCE).toMatch(/#222/);
   });
 
+  // `\$VAR` and `$VAR` are the same bytes once the template literal is
+  // rendered — TypeScript only interpolates `${`, so the backslash is a style
+  // marker, not semantics. Pinning to one spelling made these assertions fail
+  // on a refactor that changed nothing about the emitted script, which is the
+  // "pinned to a fact that stopped being true" trap in GUIDELINES §4. Match
+  // either, and assert the guard's *shape* rather than its exact phrasing.
+  const bashVar = (name: string) => `\\\\?\\$${name}`;
+
   it("declares the legacy file path", () => {
-    expect(SOURCE).toMatch(/LEGACY_MCP_JSON="\\\$HOME\/\.claude\/mcp\.json"/);
+    expect(SOURCE).toMatch(
+      new RegExp(`LEGACY_MCP_JSON="${bashVar("HOME")}/\\.claude/mcp\\.json"`),
+    );
   });
 
   it("guards on file existence + brain entry presence", () => {
-    expect(SOURCE).toMatch(/if \[ -f "\\\$LEGACY_MCP_JSON" \]/);
-    expect(SOURCE).toMatch(/grep -q '"brain"' "\\\$LEGACY_MCP_JSON"/);
+    expect(SOURCE).toMatch(
+      new RegExp(`\\[ -f "${bashVar("LEGACY_MCP_JSON")}" \\]`),
+    );
+    expect(SOURCE).toMatch(
+      new RegExp(`grep -q '"brain"' "${bashVar("LEGACY_MCP_JSON")}"`),
+    );
   });
 
   it("prefers python3 when available", () => {
     expect(SOURCE).toMatch(/command -v python3/);
-    expect(SOURCE).toMatch(/python3 - "\\\$LEGACY_MCP_JSON" <<'PY'/);
+    expect(SOURCE).toMatch(
+      new RegExp(`python3 - "${bashVar("LEGACY_MCP_JSON")}" <<'PY'`),
+    );
   });
 
   it("ships the bash-only fallback for hosts without python3", () => {
@@ -80,7 +96,12 @@ describe("installer-templates reconcile block — Tier 1 snapshot", () => {
 // Extract the python3 heredoc contents (between the `<<'PY'` and the
 // closing `PY` line) and run them against fixture states.
 function extractPythonHeredoc(): string {
-  const m = SOURCE.match(/python3 - "\\\$LEGACY_MCP_JSON" <<'PY'\n([\s\S]*?)\nPY\n/);
+  // Keyed on LEGACY_MCP_JSON, not just `<<'PY'`: the installer now embeds a
+  // second python3 heredoc (the multi-client config merge), so an unqualified
+  // match would extract the wrong block and test it against these fixtures.
+  const m = SOURCE.match(
+    /python3 - "\\?\$LEGACY_MCP_JSON" <<'PY'\n([\s\S]*?)\nPY\n/,
+  );
   if (!m) throw new Error("could not find python3 heredoc in installer-templates.ts");
   return m[1]!;
 }

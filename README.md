@@ -146,15 +146,29 @@ fully. Any signed-in user can also create additional organizations from
 ### Connect your AI tool
 
 After signing in, the **`/welcome`** flow walks you through it: pick your tool,
-copy a one-line installer, run any task. For Claude Code:
+copy a one-line installer, run any task. Every supported client gets a
+command — pass `--client` to pick one (it defaults to `claude-code`):
 
 ```bash
 curl -fsSL https://<your-host>/api/onboard.sh | bash -s 'bp_<your-token>'
+curl -fsSL https://<your-host>/api/onboard.sh | bash -s 'bp_<your-token>' --client cursor
 ```
 
-The installer wires the MCP server, smoke-tests the round-trip, and seeds your
-first session so the brain starts learning from day zero. Manual wiring for
-Cursor / Windsurf / Antigravity / GitHub Copilot / any MCP client:
+```powershell
+iwr https://<your-host>/api/onboard.ps1 -UseBasicParsing | iex
+Install-Brain -Token 'bp_<your-token>' -Client windsurf
+```
+
+Clients: `claude-code`, `claude-desktop`, `cursor`, `windsurf`, `antigravity`,
+`vscode`, `copilot-cli`, `codex`, `gemini-cli`, `generic`. Where the vendor
+ships its own `mcp add` verb (Claude Code, Copilot CLI, Codex) the installer
+calls it; otherwise it merges into the client's config file — backing it up
+first and preserving every other MCP server already there.
+
+Either way it then **smoke-tests the round-trip** — a real MCP `initialize` +
+tool call through your network and auth path — and seeds your first session, so
+"installed" means "this token can call a tool", not "a file was written".
+Manual wiring and the per-client config shapes:
 [docs/CLIENTS.md](./docs/CLIENTS.md).
 
 Once connected, the dashboard's **"Talk to your Brain"** card and the in-app
