@@ -882,6 +882,65 @@ rule, the mechanism's output was inspected, not its exit code.
 
 ---
 
+## 0ac. A fresh `docker compose up` shipped an OPEN instance (2026-08-08)
+
+Found during the pilot-readiness audit. The most serious defect in this file,
+and the same shape as every other one: **one rule, N surfaces, one surface
+disagreeing — and the disagreeing surface was the one that runs.**
+
+`CLAUDE.md` states the posture: *"The platform is secure-by-default: a freshly-
+deployed instance is intentionally locked until you pick an auth mode."*
+`auth.ts`'s own docstring repeats it: *"better to be locked shut than serve
+every visitor as the first User row."* `.env.example` sets both dev-auth flags
+to `"false"`. `scripts/deploy.sh` reads both as `${VAR:-false}`.
+
+`deploy/docker-compose.yml` defaulted **both to `"true"`**.
+
+Resolved against a minimal `.env` (Postgres + one LLM key, which is what
+`QUICKSTART` asks for), a fresh deploy produced:
+
+```
+ADMIN_USERNAME: ""            # no Credentials
+AUTH_GITHUB_ID: ""            # no OAuth
+AUTH_SECRET: ""
+ALLOW_DEV_AUTH: "true"        # dev shim ON
+ALLOW_DEV_AUTH_IN_PRODUCTION: "true"   # production guard DISABLED
+NODE_ENV: production
+```
+
+That is every branch `getCurrentUserId()` needs to reach the dev shim:
+`anySignInConfigured()` false → `devAuthAllowed()` true →
+`refuseDevShimInProduction()` does not throw. **Every anonymous request
+resolves to the first `User` row**, with that user's knowledge, tokens and
+admin surfaces. No error, no warning — the instance simply answers as
+somebody.
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**Compose defaulted the dev shim ON.**~~ **Fixed.** Both flags now default `false`, matching `.env.example`, `deploy.sh` and the documented posture. A fresh deploy now throws `auth_not_configured` on every request until the operator picks a mode — locked, as promised. | `deploy/docker-compose.yml` | done |
+| ~~**Nothing checked what an unconfigured deploy resolves to.**~~ **Fixed.** `compose-secure-defaults.test.ts` runs `docker compose config` against a deliberately minimal env file and asserts the **resolved** values, including that they agree with `.env.example`. | `apps/web/lib/brain/compose-secure-defaults.test.ts` | done |
+
+**Why no existing gate caught it.** `verify-lockdown.sh` is the designated
+auth-posture audit and it passes on this host — because it probes a **running
+instance**, and any instance configured enough to probe has already set these
+in `.env`. The defect existed only in the gap between the template and an
+*unconfigured* deploy, which no running instance can exhibit. That is the
+`§0a` fresh-host class again: the checks all inspect a system that has already
+been rescued by a human.
+
+Mitigating factors, for honesty about severity: `scripts/deploy.sh` refuses
+this combination and `die`s with a "No production auth configured" message, so
+operators following `QUICKSTART`'s deploy path were protected. The exposure was
+anyone bringing the stack up with a bare `docker compose up` — which is a
+documented thing to do, and the first thing many people try.
+
+This instance was never affected: its `.env` sets `ALLOW_DEV_AUTH="false"`
+explicitly, and the audit above confirmed 401s on every gated surface.
+
+Verified non-vacuous: reverting either default fails 2 assertions.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:
