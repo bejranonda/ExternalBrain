@@ -3,12 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDashboardStats } from "@/lib/brain/use-dashboard";
 import { useT } from "@/lib/brain/i18n";
-import {
-  claudeCodeCli,
-  cursor,
-  windsurf,
-  rawMcpServersJson,
-} from "@brain/core/install-snippets";
+import { clientById, type ClientId } from "@brain/core/install-snippets";
 
 /**
  * /welcome — first-run guided flow (roadmap-1).
@@ -23,7 +18,17 @@ import {
  * strings were AI-generated and await a native sweep — see docs/KNOWN_ISSUES.md.
  */
 
-type ToolChoice = "claude-code" | "cursor" | "windsurf" | "other";
+/**
+ * /welcome deliberately shows a curated four, not all twelve clients — this
+ * is a first-run page, and a twelve-way radio group is a wall, not a choice.
+ * The ids are `ClientId`s so the subset cannot drift from the registry: rename
+ * a client in @brain/core and this fails to compile instead of silently
+ * falling through to the generic snippet.
+ */
+type ToolChoice = Extract<
+  ClientId,
+  "claude-code" | "cursor" | "windsurf" | "generic"
+>;
 
 interface ToolOption {
   id: ToolChoice;
@@ -35,7 +40,7 @@ const TOOLS: ToolOption[] = [
   { id: "claude-code", label: "Claude Code", blurb: "Anthropic's terminal coding agent" },
   { id: "cursor", label: "Cursor", blurb: "Editor with built-in MCP support" },
   { id: "windsurf", label: "Windsurf", blurb: "Codeium's MCP-aware IDE" },
-  { id: "other", label: "Other (any MCP client)", blurb: "Generic mcpServers JSON" },
+  { id: "generic", label: "Other (any MCP client)", blurb: "Generic mcpServers JSON" },
 ];
 
 // Fallbacks for dev (no env vars wired). On a real deployment, the
@@ -121,20 +126,14 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
   }, []);
 
   const snippet = useMemo(() => {
-    const os = client.os;
     const resolvedMcpUrl = mcpUrl ?? client.mcp;
     const resolvedWebUrl = webUrl ?? client.web;
-    switch (tool) {
-      case "claude-code":
-        return claudeCodeCli(PLACEHOLDER_TOKEN, resolvedMcpUrl, resolvedWebUrl, os);
-      case "cursor":
-        return cursor(PLACEHOLDER_TOKEN, resolvedMcpUrl, resolvedWebUrl, os);
-      case "windsurf":
-        return windsurf(PLACEHOLDER_TOKEN, resolvedMcpUrl, resolvedWebUrl, os);
-      case "other":
-      default:
-        return rawMcpServersJson(PLACEHOLDER_TOKEN, resolvedMcpUrl, resolvedWebUrl, os);
-    }
+    return clientById(tool)!.snippet(
+      PLACEHOLDER_TOKEN,
+      resolvedMcpUrl,
+      resolvedWebUrl,
+      client.os,
+    );
   }, [tool, mcpUrl, webUrl, client]);
 
   const snippetText = snippet.lines.join("\n");

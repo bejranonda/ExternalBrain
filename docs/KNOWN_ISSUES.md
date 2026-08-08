@@ -794,6 +794,94 @@ Verified non-vacuous: reverting to the old path fails 2 assertions.
 
 ---
 
+## 0aa. One-line install for every client — and two bugs no static check could see (2026-08-08)
+
+Raised by the operator: *"When I generate token, for claude code, I got command
+line to make it automatically. But for the other harness, I have to open the
+config and put the json."* Correct, and it had been that way since the wizard
+shipped: 1 of 11 clients had a command, 10 had a wall of JSON and a file path.
+
+**Why not just emit each vendor's own command?** Because we checked, and the
+coverage isn't there. Of the clients we support, exactly three ship a
+non-interactive `mcp add` verb: Claude Code, [GitHub Copilot
+CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers),
+and [Codex](https://github.com/openai/codex/pull/4904) — and Codex's takes the
+*name of an environment variable* rather than the bearer, so even the three do
+not share a shape. Cursor offers a `cursor://` deeplink and a settings UI;
+Windsurf, Antigravity and Claude Desktop offer a file. So `--client` routes
+through our own installer, which uses the vendor verb where one exists and
+merges the config file where one doesn't.
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**10 of 11 clients had no one-line install.**~~ **Fixed.** `--client <id>` / `-Client <id>` on both installers, covering 10 clients. JetBrains/VS/Eclipse/Xcode and the REST recipe deliberately have none — no stable path and not an install respectively — and now print an explanatory error instead of being silently absent. | `installer-templates.ts`, `install-snippets.ts` | done |
+| ~~**Client identity was duplicated across four surfaces.**~~ **Fixed.** The wizard, `/welcome`, the installers and the test sweep each had their own hand-maintained list. Now one `CLIENTS` registry in `@brain/core`; the installers' per-client config tables are *generated* from the same snippet functions the wizard renders, with the bearer as a `__BRAIN_TOKEN__` placeholder. A shape can no longer drift between "what we show" and "what we write". | `packages/core/src/install-snippets.ts` | done |
+| ~~**A config merge could destroy a user's other MCP servers.**~~ **Fixed.** The merge backs up (`<file>.bak.<ts>`), preserves every sibling server, writes via temp-file rename, `chmod 600`s the result, and **refuses to write** if the existing file doesn't parse (comments in `mcp.json` are the common cause). Destroying a config we merely failed to understand is the worst available outcome. | `installer-templates.ts` | done |
+| ~~**The install ping was hardcoded `claude_code`.**~~ **Fixed.** Every client carries a `sessionClientType`, asserted against the enum `brain_start_session` accepts — an out-of-enum value is rejected and the install records nothing. | `install-snippets.ts` | done |
+
+**The two bugs that only running it could find.** Both were the same mistake:
+the installers are TypeScript template literals that emit bash, which embeds
+Python in a heredoc. `\n` and `\"` written for Python were consumed by
+TypeScript, so the emitted Python read `"…(%s).` + a real newline, and
+`print("… under "%s"")`. Both produce `SyntaxError` **at run time**.
+
+Everything static passed. `tsc` passed — it's a valid string. The unit sweep
+passed — it asserted the *bash* was well-formed. `bash -n` passed, and this is
+the instructive part: **to bash, a quoted heredoc is data**, so a syntax error
+inside it parses perfectly clean. The first evidence of a broken installer was
+running it.
+
+The guard is now `installer-clients.test.ts`, which *executes* the generated
+script against a sandbox `HOME` with a stubbed `curl` (so the smoke test can't
+reach the network) and asserts the **resulting file**: brain entry present and
+byte-identical to the wizard's, siblings preserved, backup created, no
+placeholder left behind, bad JSON left untouched. Static checks verify the
+layer you wrote; only execution verifies the layer you generated.
+
+This is [§0u](#0u-every-json-install-snippet-was-the-wrong-shape-2026-08-06)'s
+lesson one level down: a test that asserts the artifact parses is not a test
+that the artifact works.
+
+Verified non-vacuous: both escaping bugs were found by the executed test, not
+by `tsc`, the unit sweep, or `bash -n`.
+
+---
+
+## 0ab. `reload.sh` stamped every build as version `dev` (2026-08-08)
+
+Raised by the operator: *"Why bottom left of menu bar show dev, not the real
+version?"* Because it genuinely was `dev` — not a display fallback.
+
+`deploy/docker-compose.yml` passes `APP_VERSION: ${APP_VERSION:-dev}` as a
+build arg, which the Dockerfile turns into `NEXT_PUBLIC_APP_VERSION`. That is
+**inlined into the client bundle at build time**, so it cannot be corrected by
+restarting a container — only by rebuilding. `deploy.sh` and `dev-up.sh` both
+exported `APP_VERSION` from `git describe`. `reload.sh` — the script that
+handles most rebuilds, by its own docstring — did not. Any service last
+rebuilt that way served the literal string `dev` from both the rail footer and
+`/api/healthz`, on a correctly-tagged release.
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**`reload.sh` didn't export `APP_VERSION`.**~~ **Fixed.** Same `git describe` line the other two entrypoints use, before the build. | `scripts/reload.sh` | done |
+| ~~**Nothing checked that build entrypoints stamp the version.**~~ **Fixed.** `build-version-stamp.test.ts` ranges over every `*.sh` that triggers a Docker build and asserts the export exists, derives from `git describe`, and precedes the build command. | `apps/web/lib/brain/build-version-stamp.test.ts` | done |
+
+Two details worth keeping. First, the sweep's first version matched
+`compose build` **inside a comment** — every one of these scripts documents its
+own build invocation in its header — so the ordering assertion compared against
+a position ~2500 chars before the real command. Comment-stripping was needed to
+make the test mean what its name says; this is the same trap as the home-link
+matcher that accepted `// href="/"` ([§0v](#0v-subpage-navigation-consistency-2026-08-06)).
+Second, the sweep asserts it found at least two build scripts, because a
+detector that silently matches nothing passes every downstream assertion.
+
+Verified non-vacuous: reverting `reload.sh` fails 3 assertions. Verified at the
+artifact level: `/api/healthz` went from `{"version":"dev"}` to
+`{"version":"v2.13.0-6-g3cee904-dirty"}` after a rebuild — per the standing
+rule, the mechanism's output was inspected, not its exit code.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:

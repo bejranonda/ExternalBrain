@@ -247,6 +247,38 @@ attention is lowest — the mechanisms nobody watches are the ones that fail
 silently for months, and the cost is only ever discovered at the moment you
 needed them to have worked.
 
+### Code you generate must be executed, not just parsed
+
+A static check verifies the layer you wrote. When that layer *emits* another
+language, it says nothing about the layer you emitted.
+
+The installers (`apps/web/lib/brain/installer-templates.ts`) are the worst
+case in this repo: a TypeScript template literal emits bash, and that bash
+embeds Python in a heredoc. Two escaping bugs shipped through every static
+gate — `\n` and `\"` written for Python were consumed by TypeScript first, so
+the emitted Python had a real newline inside a string literal and a stray
+unescaped quote. Both are `SyntaxError` at run time.
+
+What passed anyway:
+
+| Check | Why it passed |
+|---|---|
+| `tsc` | a valid TypeScript string is a valid TypeScript string |
+| the unit sweep | it asserted the *bash* was well-formed, which it was |
+| `bash -n` | **to bash, a quoted heredoc is data** — it never parses the contents |
+
+`bash -n` is the interesting one, because it looks exactly like the check that
+should have caught this. It is worth keeping — it catches slips in the bash
+layer — but it must not be mistaken for coverage of what the bash *contains*.
+
+So: **for any generated artifact, one test must run it and assert the result.**
+`installer-clients.test.ts` executes the generated installer against a sandbox
+`HOME` with a stubbed `curl` (so the network step can't run, and can't spend 15s
+per client timing out), then asserts the config file it produced — entry
+present and byte-identical to what the UI shows, sibling servers preserved,
+backup written, no placeholder left behind. Cheap, hermetic, and the only check
+that could have failed.
+
 ### Identify the target as part of the check
 
 One level up from the above, and the sequel that produced it (`KNOWN_ISSUES

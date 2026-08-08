@@ -54,7 +54,20 @@ test.describe("welcome public URLs (#293, #294)", () => {
   test("each tool snippet renders a reachable MCP URL", async ({ page, baseURL }) => {
     await page.goto("/welcome");
 
-    const variants = ["cursor", "windsurf", "other"] as const;
+    // Read the tool ids off the rendered page rather than hardcoding them.
+    // This spec was a FIFTH hand-maintained copy of the client id list (after
+    // the wizard, /welcome, the installers and the unit sweep) and broke the
+    // moment `other` was renamed `generic` to match the shared registry — a
+    // rename that was itself made to stop exactly this kind of drift. Deriving
+    // from the DOM means a future rename cannot break it, while an empty list
+    // still fails loudly via the guard below.
+    const variants = await page
+      .locator('input[type=radio][name="welcome-tool"]')
+      .evaluateAll((els) =>
+        els.map((e) => (e as HTMLInputElement).value).filter((v) => v !== "claude-code"),
+      );
+    expect(variants.length, "no tool radios found on /welcome").toBeGreaterThan(0);
+
     for (const variant of variants) {
       const radio = page.locator(`input[type=radio][value="${variant}"]`);
       await radio.click();

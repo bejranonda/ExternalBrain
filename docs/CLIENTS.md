@@ -16,26 +16,79 @@ This page covers all three on **macOS, Linux, Windows native (PowerShell), and W
 
 After you mint a token at `/settings/tokens`, the webapp shows a copy-paste command pre-filled with your bearer. The plain-text equivalents are below; substitute `<your-brain>` (e.g. `brain.example.com`) and your minted `bp_…` token.
 
+**Every supported client has a one-liner** — pass `--client` (POSIX) or
+`-Client` (PowerShell). It defaults to `claude-code`, so the original command
+below is unchanged.
+
 ### macOS / Linux / WSL / Git Bash
 
 ```bash
-curl -fsSL https://<your-brain>/api/onboard.sh | bash -s 'bp_…'
+curl -fsSL https://<your-brain>/api/onboard.sh | bash -s 'bp_…'                     # Claude Code
+curl -fsSL https://<your-brain>/api/onboard.sh | bash -s 'bp_…' --client cursor     # any other client
 ```
 
 ### Windows (PowerShell 5.1+ or 7+)
 
 ```powershell
 iwr https://<your-brain>/api/onboard.ps1 -UseBasicParsing | iex
-Install-Brain -Token 'bp_…'
+Install-Brain -Token 'bp_…' -Client cursor
 ```
 
-The installer:
+### Supported `--client` values
 
-1. Calls `claude mcp add brain --scope user --transport http <mcp-url> --header "Authorization: Bearer <token>"` — this writes to **`~/.claude.json`** (the canonical Claude Code config), NOT `~/.claude/mcp.json` (a common trap path; Claude Code does not read it).
-2. Downloads the Brain SKILL.md to `~/.claude/skills/brain/SKILL.md` (POSIX) or `%USERPROFILE%\.claude\skills\brain\SKILL.md` (Windows).
-3. Verifies via `claude mcp list | grep brain` and reports.
+| `--client` | Installs via | Writes |
+|---|---|---|
+| `claude-code` *(default)* | `claude mcp add` | `~/.claude.json` |
+| `copilot-cli` | `copilot mcp add` | `~/.copilot/mcp-config.json` |
+| `codex` | `codex mcp add` | `~/.codex/config.toml` (+ `BRAIN_TOKEN` env var — see below) |
+| `claude-desktop` | config merge | `claude_desktop_config.json` (per-OS) |
+| `cursor` | config merge | `~/.cursor/mcp.json` |
+| `windsurf` | config merge | `~/.codeium/windsurf/mcp_config.json` |
+| `antigravity` | config merge | `~/.gemini/config/mcp_config.json` (IDE **and** CLI) |
+| `gemini-cli` *(legacy)* | config merge | `~/.gemini/settings.json` |
+| `vscode` | config merge | `./.vscode/mcp.json` — run it from your repo root |
+| `generic` | config merge | requires `--config-path <file>` |
 
-After install, **restart Claude Code** so it picks up the new MCP entry and the skill.
+Two surfaces have **no** one-liner, on purpose: the JetBrains / Visual Studio /
+Eclipse / Xcode family (each IDE opens its own `mcp.json` editor — there is no
+stable path to write), and the REST + cURL recipe (which is example code, not
+an install). Both print an explanatory error rather than guessing.
+
+**Config merges are non-destructive.** The installer backs the file up
+(`<file>.bak.<timestamp>`), preserves every other MCP server in it, writes
+atomically, and `chmod 600`s the result (it holds a bearer). If the existing
+file is not valid JSON — comments in `mcp.json` are the usual cause — it
+**refuses to write** rather than destroy a config it could not parse.
+
+**Codex is the one client that needs a second step.** It stores the *name* of
+an environment variable rather than the token, so the installer prints an
+`export BRAIN_TOKEN='bp_…'` line to add to your shell profile. Without it,
+Codex connects with no `Authorization` header and gets a 401.
+
+The installer, for every client:
+
+1. Writes the config — via the vendor's own `mcp add` verb where one exists,
+   otherwise by merging into the client's config file (see the table above).
+   For `claude-code` this means `claude mcp add brain --scope user --transport
+   http <mcp-url> --header "Authorization: Bearer <token>"`, which writes
+   **`~/.claude.json`** (the canonical Claude Code config), NOT
+   `~/.claude/mcp.json` (a common trap path; Claude Code does not read it).
+2. **Proves the round-trip.** It performs a real MCP `initialize` +
+   `tools/call brain_get_user_style` through your network, TLS and auth path.
+   This is the step that distinguishes "a file was written" from "this token
+   can call a tool" — a config-only install exits 0 whether or not the bearer
+   will ever be accepted, and reports success against a firewall, a typo, or a
+   revoked token alike.
+3. Records an install ping so the first session shows up on the dashboard.
+
+For `claude-code` only, it additionally downloads the Brain SKILL.md to
+`~/.claude/skills/brain/SKILL.md` (POSIX) or
+`%USERPROFILE%\.claude\skills\brain\SKILL.md` (Windows), verifies via
+`claude mcp list | grep brain`, and reconciles the legacy
+`~/.claude/mcp.json` path.
+
+After install, **restart your client** — every one of them reads MCP config
+only at startup.
 
 > **If you are re-pointing an existing `brain` entry at a different Brain, the
 > restart is not cosmetic — it is the whole operation.** Claude Code binds its
@@ -155,6 +208,10 @@ Skills are loaded at session start. Claude Code in another terminal won't see th
 
 ### Cursor
 
+```bash
+curl -fsSL https://<your-brain>/api/onboard.sh | bash -s 'bp_…' --client cursor
+```
+
 Cursor speaks native streamable-HTTP MCP — the `mcp-remote` shim this page
 used to require is no longer needed. It keys the endpoint off a **flat `url`**:
 
@@ -172,6 +229,10 @@ used to require is no longer needed. It keys the endpoint off a **flat `url`**:
 Cursor reads `~/.cursor/mcp.json` (user-scope) or `<repo>/.cursor/mcp.json` (project-scope).
 
 ### Windsurf
+
+```bash
+curl -fsSL https://<your-brain>/api/onboard.sh | bash -s 'bp_…' --client windsurf
+```
 
 Native HTTP, but Windsurf is the one client that names the field **`serverUrl`**
 instead of `url` — a `url` entry is silently ignored:
@@ -236,6 +297,10 @@ After `initialize` returns, persist the `Mcp-Session-Id` response header and sen
 
 ### Google Antigravity
 
+```bash
+curl -fsSL https://<your-brain>/api/onboard.sh | bash -s 'bp_…' --client antigravity
+```
+
 Antigravity speaks native streamable-HTTP MCP — no `mcp-remote` shim needed. The
 catch: it keys remote servers off **`serverUrl`** (not `url`); a `url`-shaped
 entry is silently ignored.
@@ -252,8 +317,9 @@ entry is silently ignored.
 ```
 
 Config at `~/.gemini/config/mcp_config.json` — shared by the Antigravity IDE and the Antigravity CLI since the 2026-05-19 merge (Windows:
-`%USERPROFILE%\.gemini\antigravity\mcp_config.json`). Open it from
-**Settings → Customizations → Open MCP Config**.
+`%USERPROFILE%\.gemini\config\mcp_config.json`). Open it from
+**Settings → Customizations → Open MCP Config**. The old
+`~/.gemini/antigravity/` location silently loads nothing.
 
 ### GitHub Copilot (all surfaces)
 
