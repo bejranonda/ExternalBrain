@@ -402,6 +402,45 @@ export const I18N = {
       tourLink: "See the guided tour →",
       signinLink: "Already have an account? Sign in",
     },
+    landing: {
+      heroTitle: "Your AI coding sessions forget everything. This one doesn't.",
+      heroBody:
+        "External Brain is a memory layer your AI tools connect to over MCP. It remembers what you decided and why — across sessions, projects, and machines.",
+      ctaVoucher: "I have a voucher code",
+      ctaSignIn: "Sign in",
+      ctaSelfHost: "Self-host it →",
+      problemTitle: "The problem",
+      problemBody:
+        "Every new session starts from zero. You re-explain the same conventions, re-argue the same decisions, and rediscover the same fixes. The knowledge already exists — it is just trapped in transcripts nobody reads twice.",
+      featuresTitle: "What it does",
+      f1Title: "Injects what you already decided",
+      f1Body:
+        "Before your AI generates code, Brain retrieves the rules your past sessions produced and puts them in context — so it stops suggesting the library you rejected last month.",
+      f2Title: "Answers questions about your own history",
+      f2Body:
+        "Ask “what did we decide about auth?” and get a grounded answer, with citations to the sessions and rules it came from.",
+      f3Title: "Turns repeated fixes into rules",
+      f3Body:
+        "A background worker reads finished sessions, extracts what generalises, and scores whether each rule actually helped. Rules that never pay off decay away.",
+      f4Title: "Stays yours",
+      f4Body:
+        "Self-hostable on a single VM with Docker Compose. Your sessions, your database, your LLM keys, your data-retention rules.",
+      howTitle: "How it works",
+      howBody:
+        "Your AI tool talks to Brain over MCP-over-HTTP with a bearer token. Brain injects relevant knowledge before a task and records the outcome after; a background worker turns those outcomes into reusable rules and embeddings.",
+      clientsTitle: "Works with the tools you already use",
+      clientsBody:
+        "One command wires up any of these. Anything else that speaks MCP works too.",
+      docsTitle: "Read more",
+      docQuickstart: "Quick start",
+      docTutorials: "Tutorials",
+      docConcepts: "Concepts",
+      docMcp: "MCP tools",
+      docSecurity: "Security & privacy",
+      docSource: "Source on GitHub",
+      footerVersion: "Version",
+      footerLicence: "Open source — fork it and run your own",
+    },
     tip: {
       mcp: "Model Context Protocol — the channel your AI tool uses to talk to Brain.",
       sqs: "Session Quality Score — 0–1, blends acceptance, errors, and useful knowledge applied across recent sessions.",
@@ -803,6 +842,47 @@ export const I18N = {
       learnMore: "อ่านแนวคิดพื้นฐาน →",
       tourLink: "ดูคำแนะนำแบบทีละขั้น →",
       signinLink: "มีบัญชีอยู่แล้ว? เข้าสู่ระบบ",
+    },
+    // AI-generated TH copy — awaiting a native-speaker sweep. Marketing tone is
+    // where machine translation is weakest; English is authoritative.
+    landing: {
+      heroTitle: "เซสชันเขียนโค้ดกับ AI ลืมทุกอย่าง แต่ตัวนี้ไม่ลืม",
+      heroBody:
+        "External Brain คือชั้นความจำที่เครื่องมือ AI ของคุณเชื่อมต่อผ่าน MCP จดจำสิ่งที่คุณตัดสินใจและเหตุผลเบื้องหลัง ข้ามเซสชัน ข้ามโปรเจกต์ และข้ามเครื่อง",
+      ctaVoucher: "ฉันมีรหัสวอเชอร์",
+      ctaSignIn: "เข้าสู่ระบบ",
+      ctaSelfHost: "ติดตั้งบนเซิร์ฟเวอร์ของคุณเอง →",
+      problemTitle: "ปัญหาที่เจอ",
+      problemBody:
+        "ทุกเซสชันใหม่เริ่มจากศูนย์ คุณต้องอธิบายแนวทางเดิมซ้ำ ถกเถียงเรื่องที่ตัดสินใจไปแล้วใหม่ และค้นพบวิธีแก้เดิมอีกครั้ง ความรู้นั้นมีอยู่แล้ว เพียงแต่ติดอยู่ในบทสนทนาที่ไม่มีใครกลับไปอ่าน",
+      featuresTitle: "สิ่งที่ทำได้",
+      f1Title: "แทรกสิ่งที่คุณตัดสินใจไว้แล้ว",
+      f1Body:
+        "ก่อน AI จะเขียนโค้ด Brain จะดึงกฎที่ได้จากเซสชันก่อนหน้ามาใส่ในบริบท เพื่อไม่ให้มันเสนอไลบรารีที่คุณปฏิเสธไปเมื่อเดือนที่แล้วอีก",
+      f2Title: "ตอบคำถามเกี่ยวกับประวัติการทำงานของคุณเอง",
+      f2Body:
+        "ถามว่า “เราตัดสินใจเรื่อง auth ไว้ว่าอย่างไร?” แล้วได้คำตอบที่มีหลักฐานอ้างอิงถึงเซสชันและกฎที่เป็นที่มา",
+      f3Title: "เปลี่ยนการแก้ปัญหาซ้ำ ๆ ให้เป็นกฎ",
+      f3Body:
+        "ตัวประมวลผลเบื้องหลังอ่านเซสชันที่จบแล้ว สกัดสิ่งที่ใช้ซ้ำได้ และให้คะแนนว่ากฎนั้นช่วยได้จริงหรือไม่ กฎที่ไม่เคยถูกใช้จะเสื่อมหายไปเอง",
+      f4Title: "ยังเป็นของคุณ",
+      f4Body:
+        "ติดตั้งเองได้บนเครื่องเดียวด้วย Docker Compose เซสชันของคุณ ฐานข้อมูลของคุณ คีย์ LLM ของคุณ และนโยบายเก็บข้อมูลของคุณเอง",
+      howTitle: "ทำงานอย่างไร",
+      howBody:
+        "เครื่องมือ AI ของคุณคุยกับ Brain ผ่าน MCP-over-HTTP ด้วยโทเคน Brain จะแทรกความรู้ที่เกี่ยวข้องก่อนเริ่มงานและบันทึกผลลัพธ์หลังจบงาน จากนั้นตัวประมวลผลเบื้องหลังจะแปลงผลลัพธ์เหล่านั้นเป็นกฎและเวกเตอร์ที่นำกลับมาใช้ได้",
+      clientsTitle: "ใช้ได้กับเครื่องมือที่คุณใช้อยู่แล้ว",
+      clientsBody:
+        "คำสั่งเดียวตั้งค่าได้ทุกตัวที่แสดงไว้ และเครื่องมืออื่นที่รองรับ MCP ก็ใช้ได้เช่นกัน",
+      docsTitle: "อ่านเพิ่มเติม",
+      docQuickstart: "คู่มือเริ่มต้น",
+      docTutorials: "บทเรียน",
+      docConcepts: "แนวคิดพื้นฐาน",
+      docMcp: "เครื่องมือ MCP",
+      docSecurity: "ความปลอดภัยและความเป็นส่วนตัว",
+      docSource: "ซอร์สโค้ดบน GitHub",
+      footerVersion: "เวอร์ชัน",
+      footerLicence: "โอเพนซอร์ส — คัดลอกไปรันเองได้",
     },
     tip: {
       mcp: "Model Context Protocol — ช่องทางที่เครื่องมือ AI ของคุณใช้สื่อสารกับ Brain",
@@ -1206,6 +1286,45 @@ export const I18N = {
       learnMore: "Konzepte lesen →",
       tourLink: "Geführte Tour ansehen →",
       signinLink: "Schon ein Konto? Anmelden",
+    },
+    landing: {
+      heroTitle: "Deine KI-Coding-Sitzungen vergessen alles. Diese hier nicht.",
+      heroBody:
+        "External Brain ist eine Gedächtnisschicht, mit der sich deine KI-Werkzeuge über MCP verbinden. Sie merkt sich, was du entschieden hast und warum — über Sitzungen, Projekte und Rechner hinweg.",
+      ctaVoucher: "Ich habe einen Gutscheincode",
+      ctaSignIn: "Anmelden",
+      ctaSelfHost: "Selbst hosten →",
+      problemTitle: "Das Problem",
+      problemBody:
+        "Jede neue Sitzung beginnt bei null. Du erklärst dieselben Konventionen erneut, diskutierst dieselben Entscheidungen noch einmal und entdeckst dieselben Lösungen wieder. Das Wissen ist längst da — es steckt nur in Transkripten, die niemand ein zweites Mal liest.",
+      featuresTitle: "Was es tut",
+      f1Title: "Bringt zurück, was du längst entschieden hast",
+      f1Body:
+        "Bevor deine KI Code erzeugt, holt Brain die Regeln aus deinen früheren Sitzungen in den Kontext — damit sie nicht wieder die Bibliothek vorschlägt, die du letzten Monat verworfen hast.",
+      f2Title: "Beantwortet Fragen zu deiner eigenen Historie",
+      f2Body:
+        "Frag „was haben wir zu Auth entschieden?“ und bekomme eine belegte Antwort samt Verweisen auf die Sitzungen und Regeln, aus denen sie stammt.",
+      f3Title: "Macht aus wiederholten Fixes Regeln",
+      f3Body:
+        "Ein Hintergrundprozess liest abgeschlossene Sitzungen, extrahiert das Verallgemeinerbare und bewertet, ob eine Regel wirklich geholfen hat. Regeln ohne Nutzen verfallen von selbst.",
+      f4Title: "Bleibt deins",
+      f4Body:
+        "Auf einer einzelnen VM mit Docker Compose selbst hostbar. Deine Sitzungen, deine Datenbank, deine LLM-Schlüssel, deine Aufbewahrungsregeln.",
+      howTitle: "So funktioniert es",
+      howBody:
+        "Dein KI-Werkzeug spricht per MCP-over-HTTP mit einem Bearer-Token zu Brain. Brain spielt vor einer Aufgabe passendes Wissen ein und hält danach das Ergebnis fest; ein Hintergrundprozess macht daraus wiederverwendbare Regeln und Embeddings.",
+      clientsTitle: "Funktioniert mit den Werkzeugen, die du schon nutzt",
+      clientsBody:
+        "Ein Befehl richtet jedes davon ein. Alles andere, das MCP spricht, funktioniert ebenfalls.",
+      docsTitle: "Weiterlesen",
+      docQuickstart: "Schnellstart",
+      docTutorials: "Tutorials",
+      docConcepts: "Konzepte",
+      docMcp: "MCP-Werkzeuge",
+      docSecurity: "Sicherheit & Datenschutz",
+      docSource: "Quellcode auf GitHub",
+      footerVersion: "Version",
+      footerLicence: "Open Source — forke es und betreibe dein eigenes",
     },
     tip: {
       mcp: "Model Context Protocol — der Kanal, über den dein KI-Tool mit Brain spricht.",

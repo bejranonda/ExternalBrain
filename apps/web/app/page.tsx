@@ -1,10 +1,17 @@
 /**
- * Bare `/` route — redirects to the user's active project URL.
+ * Bare `/` route — public landing for anonymous visitors, router for everyone
+ * else.
  *
- * The canonical URL for the SPA shell is `/[orgSlug]/[projectSlug]`.
- * This page resolves the active project (cookie → first project → create
- * default) and issues a 307 redirect so bookmarks to `/` always land on
- * the right project URL.
+ * For a signed-in user this resolves the active project (cookie → first
+ * project → create default) and 307s to `/[orgSlug]/[projectSlug]`, which is
+ * the canonical URL for the SPA shell.
+ *
+ * For an anonymous visitor it used to `redirect("/signin")`, which meant the
+ * platform had no public face at all: a stranger's first impression of a
+ * deployment was a login form. It now renders `<Landing />`. Only that one
+ * branch changed — signed-in users never see the landing, so it costs them
+ * nothing, and the unconfigured-deployment branch below still fails loudly
+ * rather than showing a marketing page for an instance nobody can sign in to.
  *
  * `anySignInConfigured()` covers BOTH Credentials mode (ADMIN_USERNAME +
  * ADMIN_PASSWORD_HASH) and OAuth mode (AUTH_GITHUB_*). An earlier version
@@ -17,6 +24,8 @@ import { redirect } from "next/navigation";
 import { auth, anySignInConfigured, devAuthAllowed } from "@/auth";
 import { getCurrentUserId } from "@/lib/brain/auth";
 import { getActiveProject } from "@/lib/brain/active-project";
+import { Landing } from "@/components/brain/landing";
+import { LocalePicker } from "@/components/brain/locale-picker";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +33,12 @@ export default async function Page() {
   if (anySignInConfigured()) {
     const session = await auth();
     if (!(session as { userId?: string } | null)?.userId) {
-      redirect("/signin");
+      return (
+        <>
+          <LocalePicker />
+          <Landing />
+        </>
+      );
     }
   } else if (!devAuthAllowed()) {
     // Unconfigured deployment — refuse the request loudly instead of leaking

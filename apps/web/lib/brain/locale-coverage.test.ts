@@ -98,6 +98,7 @@ describe("locale coverage", () => {
 const UNAUTH_NAMESPACES: ReadonlyArray<{ ns: string; minKeys: number; probe: string }> = [
   { ns: "auth", minKeys: 30, probe: "auth.signIn" },
   { ns: "start", minKeys: 18, probe: "start.title" },
+  { ns: "landing", minKeys: 24, probe: "landing.heroTitle" },
 ];
 
 for (const { ns, minKeys, probe } of UNAUTH_NAMESPACES) {

@@ -27,6 +27,23 @@ There are exactly six primary surfaces. They are enumerated once in
 the i18n `nav.*` dictionary in the same change. No other file should
 hard-code a surface name.
 
+## 1b. The public funnel (anonymous visitors)
+
+Four public pages, each with one job. Adding a fifth needs a job none of these
+has — the recurring failure here has been breadth, not depth (see
+`KNOWN_ISSUES` on `/welcome`'s overlap with `/start`).
+
+| Page | Its one job | Sends you to |
+|---|---|---|
+| `/` | What is this, and which door do I take? Renders for anonymous visitors only; signed-in users are routed to `/[orgSlug]/[projectSlug]`. | `/start`, `/signin`, `/docs` |
+| `/start` | I hold a voucher code. Prefills `?voucher=`, offers agent-driven or browser setup. Target of every voucher error on `/signin`. | `/signup`, the agent prompt, `/welcome` |
+| `/welcome` | Pick a tool, copy an install command, watch for the first session. | `/settings/tokens` |
+| `/docs` | Concept primers, localised, no auth. | repo docs on GitHub |
+
+`/signin`, `/signup`, `/forgot-password`, `/reset-password` and `/accept-invite`
+are also anonymous-reachable but are transactional, not navigational — they are
+not part of the funnel and should not accumulate explanatory copy.
+
 ## 2. Entry points (must all work)
 
 | Entry point | Desktop | Mobile |

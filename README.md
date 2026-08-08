@@ -143,11 +143,19 @@ fully. Any signed-in user can also create additional organizations from
 **Settings → Organization → New organization**. See
 [docs/SECURITY.md](./docs/SECURITY.md) for the full posture.
 
-**Give people one URL: `https://<your-host>/start`.** That is the public front
-door for anyone holding a voucher code — it prefills from `?voucher=CODE`,
-explains both setup routes, and is where every voucher error on `/signin` sends
-people. It is the only onboarding link worth printing on a card or pasting into
-a channel.
+**Two public URLs matter.** `https://<your-host>/` is the landing page — what
+Brain is, what it does, which tools it works with, and links into the docs. It
+renders for anonymous visitors only; signed-in users are still routed straight
+to their project.
+
+`https://<your-host>/start` is the front door for anyone holding a **voucher
+code** — it prefills from `?voucher=CODE`, explains both setup routes, and is
+where every voucher error on `/signin` sends people. That is the link worth
+printing on a card or pasting into a channel.
+
+> Fresh deployments serve `robots.txt` with `Disallow: /`, because an
+> invite-only instance shouldn't be indexed. Set `BRAIN_ROBOTS_DISALLOW_ALL=false`
+> when you want your landing page found.
 
 ### Let your AI set itself up (no browser)
 
