@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { LangContext, SetLangContext, type Lang } from "@/lib/brain/i18n";
 
 const VALID = ["en", "th", "de"] as const;
@@ -29,6 +30,7 @@ export function LangProvider({
   children: ReactNode;
 }) {
   const [lang, setLangState] = useState<Lang>(initial);
+  const router = useRouter();
 
   const setLang = useCallback((next: Lang) => {
     setLangState(next);
@@ -52,7 +54,16 @@ export function LangProvider({
     } catch {
       /* no document */
     }
-  }, []);
+    // Re-render the SERVER components with the new cookie.
+    //
+    // Updating the context only re-renders client components. The auth
+    // surfaces (/signin, /forgot-password, /reset-password, /accept-invite)
+    // are async server components that read `bp_lang` at request time, so
+    // without this their markup keeps the previous language until a manual
+    // reload — the picker highlights the new choice and nothing else changes.
+    // That was half of why the switcher looked broken; see KNOWN_ISSUES §0af.
+    router.refresh();
+  }, [router]);
 
   // Post-mount reconcile: a returning user may have a language saved in
   // localStorage before the cookie ever existed. Adopt it (and write the

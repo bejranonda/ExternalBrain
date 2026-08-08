@@ -9,6 +9,7 @@ import { redirect } from "next/navigation";
 import { db } from "@brain/db";
 import { hashSecret } from "@brain/core/secret-hash";
 import { LocalePicker } from "@/components/brain/locale-picker";
+import { getServerT } from "@/lib/brain/i18n-server";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,7 @@ async function getTokenValidity(token: string): Promise<{ valid: boolean }> {
 }
 
 export default async function ResetPasswordPage({ searchParams }: Props) {
+  const t = await getServerT();
   const params = await searchParams;
   const token = params.token ?? "";
   const errorKey = params.error ?? "";
@@ -115,10 +117,8 @@ export default async function ResetPasswordPage({ searchParams }: Props) {
                 lineHeight: 1.6,
               }}
             >
-              <strong style={{ color: "var(--ink, #ececf0)" }}>Password reset.</strong>
-              <br />
-              Your new password is active. You can now sign in.
-            </div>
+              <strong style={{ color: "var(--ink, #ececf0)" }}>{t("auth.resetDone")}</strong>
+              <br />{t("auth.resetDoneBody")}</div>
             <a
               href="/signin"
               style={{
@@ -131,9 +131,7 @@ export default async function ResetPasswordPage({ searchParams }: Props) {
                 fontWeight: 500,
                 textDecoration: "none",
               }}
-            >
-              Go to sign in
-            </a>
+            >{t("auth.goToSignIn")}</a>
           </>
         ) : !valid ? (
           // ── Invalid / expired token ────────────────────────────────────
@@ -149,25 +147,17 @@ export default async function ResetPasswordPage({ searchParams }: Props) {
                 borderRadius: 6,
                 lineHeight: 1.6,
               }}
-            >
-              This reset link is invalid, expired, or has already been used.
-            </div>
+            >{t("auth.resetInvalid")}</div>
             <div style={{ fontSize: 12, color: "var(--ink-4, #6b6d7a)", lineHeight: 1.5 }}>
-              <a href="/forgot-password" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>
-                Request a new reset link
-              </a>
+              <a href="/forgot-password" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>{t("auth.requestNewLink")}</a>
               {" "}&mdash;{" "}
-              <a href="/signin" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>
-                Back to sign in
-              </a>
+              <a href="/signin" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>{t("auth.backToSignIn")}</a>
             </div>
           </>
         ) : (
           // ── Reset form ─────────────────────────────────────────────────
           <>
-            <div style={{ fontSize: 13, color: "var(--ink-3, #9a9cab)", marginBottom: 16 }}>
-              Choose a new password for your account.
-            </div>
+            <div style={{ fontSize: 13, color: "var(--ink-3, #9a9cab)", marginBottom: 16 }}>{t("auth.newPasswordIntro")}</div>
 
             {errorMessage && (
               <div
@@ -224,7 +214,7 @@ export default async function ResetPasswordPage({ searchParams }: Props) {
               <input type="hidden" name="token" value={token} />
 
               <label style={{ display: "block", marginBottom: 14 }}>
-                <span style={labelSpan}>New password</span>
+                <span style={labelSpan}>{t("auth.newPassword")}</span>
                 <input
                   type="password"
                   name="newPassword"
@@ -236,7 +226,7 @@ export default async function ResetPasswordPage({ searchParams }: Props) {
               </label>
 
               <label style={{ display: "block", marginBottom: 18 }}>
-                <span style={labelSpan}>Confirm new password</span>
+                <span style={labelSpan}>{t("auth.confirmNewPassword")}</span>
                 <input
                   type="password"
                   name="confirmPassword"
@@ -260,15 +250,11 @@ export default async function ResetPasswordPage({ searchParams }: Props) {
                   fontWeight: 500,
                   cursor: "pointer",
                 }}
-              >
-                Reset password
-              </button>
+              >{t("auth.newPasswordTitle")}</button>
             </form>
 
             <div style={{ fontSize: 12, color: "var(--ink-4, #6b6d7a)", marginTop: 16, lineHeight: 1.5 }}>
-              <a href="/signin" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>
-                Back to sign in
-              </a>
+              <a href="/signin" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>{t("auth.backToSignIn")}</a>
             </div>
           </>
         )}

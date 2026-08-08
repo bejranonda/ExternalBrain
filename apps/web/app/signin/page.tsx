@@ -12,6 +12,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { checkVoucherRateLimit } from "@/lib/brain/vouchers";
 import { LocalePicker } from "@/components/brain/locale-picker";
+import { getServerT } from "@/lib/brain/i18n-server";
 
 export const dynamic = "force-dynamic";
 
@@ -136,6 +137,7 @@ async function getInviteMeta(token: string | undefined) {
 }
 
 export default async function SignIn({ searchParams }: Props) {
+  const t = await getServerT();
   const params = await searchParams;
   const errorKey = params.error ?? "";
   const errorMessage = ERROR_MESSAGES[errorKey] ?? (errorKey ? "Sign-in failed. Try again." : "");
@@ -203,9 +205,7 @@ export default async function SignIn({ searchParams }: Props) {
         <h1 style={{ fontSize: 22, fontWeight: 500, margin: 0, letterSpacing: "-0.01em" }}>
           External Brain
         </h1>
-        <div style={{ fontSize: 13, color: "var(--ink-3, #9a9cab)", marginTop: 4, marginBottom: 18 }}>
-          The shared memory layer for your AI coding sessions.
-        </div>
+        <div style={{ fontSize: 13, color: "var(--ink-3, #9a9cab)", marginTop: 4, marginBottom: 18 }}>{t("auth.tagline")}</div>
 
         {showSignupForm ? (
           // ── Invite sign-up form ──────────────────────────────────────────
@@ -221,8 +221,7 @@ export default async function SignIn({ searchParams }: Props) {
                 borderRadius: 6,
                 lineHeight: 1.5,
               }}
-            >
-              You&apos;ve been invited to <strong>{inviteMeta.orgName}</strong>. Set your password
+            >{t("auth.invitedTo")}<strong>{inviteMeta.orgName}</strong>. Set your password
               below to join.
             </div>
 
@@ -315,7 +314,7 @@ export default async function SignIn({ searchParams }: Props) {
               <input type="hidden" name="inviteToken" value={inviteToken} />
 
               <label style={{ display: "block", marginBottom: 14 }}>
-                <span style={labelSpanStyle}>Email</span>
+                <span style={labelSpanStyle}>{t("auth.email")}</span>
                 <input
                   type="email"
                   value={inviteMeta.email}
@@ -325,7 +324,7 @@ export default async function SignIn({ searchParams }: Props) {
               </label>
 
               <label style={{ display: "block", marginBottom: 14 }}>
-                <span style={labelSpanStyle}>Display name</span>
+                <span style={labelSpanStyle}>{t("auth.displayName")}</span>
                 <input
                   type="text"
                   name="name"
@@ -336,7 +335,7 @@ export default async function SignIn({ searchParams }: Props) {
               </label>
 
               <label style={{ display: "block", marginBottom: 14 }}>
-                <span style={labelSpanStyle}>Password</span>
+                <span style={labelSpanStyle}>{t("auth.password")}</span>
                 <input
                   type="password"
                   name="password"
@@ -348,7 +347,7 @@ export default async function SignIn({ searchParams }: Props) {
               </label>
 
               <label style={{ display: "block", marginBottom: 18 }}>
-                <span style={labelSpanStyle}>Confirm password</span>
+                <span style={labelSpanStyle}>{t("auth.confirmPassword")}</span>
                 <input
                   type="password"
                   name="confirmPassword"
@@ -366,9 +365,7 @@ export default async function SignIn({ searchParams }: Props) {
 
             <div style={{ fontSize: 12, color: "var(--ink-4, #6b6d7a)", marginTop: 14, lineHeight: 1.5 }}>
               Already have an account?{" "}
-              <a href="/signin" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>
-                Sign in instead
-              </a>
+              <a href="/signin" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>{t("auth.signInInstead")}</a>
             </div>
           </>
         ) : showRegisterForm ? (
@@ -454,7 +451,7 @@ export default async function SignIn({ searchParams }: Props) {
               }}
             >
               <label style={{ display: "block", marginBottom: 14 }}>
-                <span style={labelSpanStyle}>Email</span>
+                <span style={labelSpanStyle}>{t("auth.email")}</span>
                 <input
                   type="email"
                   name="email"
@@ -468,7 +465,7 @@ export default async function SignIn({ searchParams }: Props) {
               </label>
 
               <label style={{ display: "block", marginBottom: 14 }}>
-                <span style={labelSpanStyle}>Password</span>
+                <span style={labelSpanStyle}>{t("auth.password")}</span>
                 <input
                   type="password"
                   name="password"
@@ -480,7 +477,7 @@ export default async function SignIn({ searchParams }: Props) {
               </label>
 
               <label style={{ display: "block", marginBottom: voucherRequiredForSignup ? 14 : 18 }}>
-                <span style={labelSpanStyle}>Confirm password</span>
+                <span style={labelSpanStyle}>{t("auth.confirmPassword")}</span>
                 <input
                   type="password"
                   name="confirmPassword"
@@ -511,9 +508,7 @@ export default async function SignIn({ searchParams }: Props) {
                 </label>
               )}
 
-              <button type="submit" style={primaryBtnStyle}>
-                Create account
-              </button>
+              <button type="submit" style={primaryBtnStyle}>{t("auth.createAccount")}</button>
             </form>
 
             {voucherRequiredForSignup && (
@@ -525,9 +520,7 @@ export default async function SignIn({ searchParams }: Props) {
 
             <div style={{ fontSize: 12, color: "var(--ink-4, #6b6d7a)", marginTop: 14, lineHeight: 1.5 }}>
               Already have an account?{" "}
-              <a href="/signin" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>
-                Sign in instead
-              </a>
+              <a href="/signin" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>{t("auth.signInInstead")}</a>
             </div>
           </>
         ) : (
@@ -614,9 +607,7 @@ export default async function SignIn({ searchParams }: Props) {
                 }}
               >
                 <label style={{ display: "block", marginBottom: 14 }}>
-                  <span style={labelSpanStyle}>
-                    Username or email
-                  </span>
+                  <span style={labelSpanStyle}>{t("auth.usernameOrEmail")}</span>
                   <input
                     type="text"
                     name="username"
@@ -630,7 +621,7 @@ export default async function SignIn({ searchParams }: Props) {
                 </label>
 
                 <label style={{ display: "block", marginBottom: 6 }}>
-                  <span style={labelSpanStyle}>Password</span>
+                  <span style={labelSpanStyle}>{t("auth.password")}</span>
                   <input
                     type="password"
                     name="password"
@@ -644,14 +635,10 @@ export default async function SignIn({ searchParams }: Props) {
                   <a
                     href="/forgot-password"
                     style={{ fontSize: 12, color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}
-                  >
-                    Forgot password?
-                  </a>
+                  >{t("auth.forgotPassword")}</a>
                 </div>
 
-                <button type="submit" style={primaryBtnStyle}>
-                  Sign in
-                </button>
+                <button type="submit" style={primaryBtnStyle}>{t("auth.signIn")}</button>
               </form>
             )}
 
@@ -690,9 +677,7 @@ export default async function SignIn({ searchParams }: Props) {
                       color: "var(--ink-4, #6b6d7a)",
                       marginBottom: 12,
                     }}
-                  >
-                    Or sign in with GitHub
-                  </div>
+                  >{t("auth.orGithub")}</div>
                 )}
                 <label style={{ display: "block", marginBottom: 14 }}>
                   <span style={labelSpanStyle}>
@@ -724,9 +709,7 @@ export default async function SignIn({ searchParams }: Props) {
                     fontWeight: 500,
                     cursor: "pointer",
                   }}
-                >
-                  Continue with GitHub
-                </button>
+                >{t("auth.continueGithub")}</button>
               </form>
             )}
 
@@ -741,9 +724,7 @@ export default async function SignIn({ searchParams }: Props) {
                   borderRadius: 6,
                   lineHeight: 1.6,
                 }}
-              >
-                The operator needs to set one of these before sign-in works:
-                <ul style={{ margin: "8px 0 0 18px", padding: 0 }}>
+              >{t("auth.operatorMustSet")}<ul style={{ margin: "8px 0 0 18px", padding: 0 }}>
                   <li>
                     <code>ADMIN_USERNAME</code> + <code>ADMIN_PASSWORD_HASH</code>{" "}
                     (credentials mode — current pilot), or
@@ -775,12 +756,8 @@ export default async function SignIn({ searchParams }: Props) {
                   lineHeight: 1.5,
                 }}
               >
-                <strong style={{ color: "var(--ink-3, #9a9cab)", fontWeight: 500 }}>
-                  Don&apos;t have an account?
-                </strong>{" "}
-                <a href="/signin?mode=register" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>
-                  Create one
-                </a>
+                <strong style={{ color: "var(--ink-3, #9a9cab)", fontWeight: 500 }}>{t("auth.noAccount")}</strong>{" "}
+                <a href="/signin?mode=register" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>{t("auth.createOne")}</a>
                 {voucherRequiredForSignup
                   ? " — you'll need a voucher code from the operator."
                   : "."}
@@ -798,9 +775,7 @@ export default async function SignIn({ searchParams }: Props) {
                   lineHeight: 1.5,
                 }}
               >
-                <strong style={{ color: "var(--ink-3, #9a9cab)", fontWeight: 500 }}>
-                  Don&apos;t have an account?
-                </strong>{" "}
+                <strong style={{ color: "var(--ink-3, #9a9cab)", fontWeight: 500 }}>{t("auth.noAccount")}</strong>{" "}
                 New GitHub users need a voucher code from the operator — enter
                 it above when you continue with GitHub.
               </div>
