@@ -94,7 +94,7 @@ Paste the wizard's command into a terminal on the machine where you'll
 use your AI tool. Example for Claude Code:
 
 ```bash
-curl -fsSL https://brain.your-team.com/api/onboard.sh | bash -s 'bp_…your_token_here…'
+curl -fsSL https://brain.your-team.com/api/onboard.sh | bash -s 'bp_…your_token_here…' --client claude-code
 ```
 
 (Audit the script first if you prefer — `curl ... -o /tmp/install.sh`,

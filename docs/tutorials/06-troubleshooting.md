@@ -75,7 +75,7 @@ points at the wrong host.
 ```bash
 # remove the existing brain entry and re-run the install with the right URL
 claude mcp remove brain --scope user
-curl -fsSL https://CORRECT-HOST/api/onboard.sh | bash -s 'bp_…'
+curl -fsSL https://CORRECT-HOST/api/onboard.sh | bash -s 'bp_…' --client claude-code
 ```
 
 ### 4. Auth-gate posture
@@ -146,7 +146,7 @@ output):
 
 ```bash
 claude mcp remove brain --scope user
-curl -fsSL https://your-brain/api/onboard.sh | bash -s 'bp_…your_token…'
+curl -fsSL https://your-brain/api/onboard.sh | bash -s 'bp_…your_token…' --client claude-code
 ```
 
 If you have BOTH a dev and a prod Brain you want to keep registered:

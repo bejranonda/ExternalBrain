@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LocalePicker } from "@/components/brain/locale-picker";
+import { getServerT } from "@/lib/brain/i18n-server";
 
 export const metadata: Metadata = {
   title: "Documentation — External Brain",
@@ -12,7 +13,8 @@ export const metadata: Metadata = {
  * because docs are intentionally calmer (no rail counts, no live status,
  * no command palette) — it's a reading surface, not a working surface.
  */
-export default function DocsLayout({ children }: { children: React.ReactNode }) {
+export default async function DocsLayout({ children }: { children: React.ReactNode }) {
+  const t = await getServerT();
   return (
     <main
       style={{
@@ -42,7 +44,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
             marginBottom: 24,
           }}
         >
-          ← back to Brain
+          {t("auth.backToBrain")}
         </Link>
         {children}
       </div>

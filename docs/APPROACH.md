@@ -66,6 +66,13 @@ The rule: **the convenient default and the safe default are the same default, or
 
 Corollary for review: when reading a diff that adds a default, ask what the value is for someone who configured **nothing**, and whether any test asserts that case. If the answer is "it works out of the box", find out what "works" means.
 
+### 2.6b Before writing a document, find out whether it already exists
+Asked for a getting-started tutorial, the reflex is to write one. The repo already had 1,452 lines of them — eight files under `docs/tutorials/`, plus `USING_BRAIN`, `QUICKSTART`, `END_USER` and `CLIENTS` all covering parts of the same ground. A ninth would have made the problem worse.
+
+The actual failure was not absence. It was **staleness** (no tutorial mentioned the `--client` flag that had shipped that morning) and **no single entry point** (four plausible places to start, none of them obviously first). So the work became: refresh the stale commands, write one short consolidated path, and link it from the top of each index — not author another parallel document.
+
+The generalisable question when asked for documentation: *is the reader missing information, or missing a route to it?* Those have opposite fixes, and writing new prose for the second one is how a docs tree grows to the point where nobody can find anything. Applies to code too — a "missing" helper is often an existing one nobody could locate.
+
 ### 2.7 Depend on vendors' contracts, not on their internals
 Roughly a third of the surface here is other people's config formats, and they move. Two failures inside one week: we invented a `transport: {type, url}` shape no client documents (`§0u`), and Google's Gemini CLI → Antigravity merge moved a config path we had hardcoded and pinned with a passing assertion (`§0z`).
 

@@ -13,8 +13,10 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
 import { LocalePicker } from "@/components/brain/locale-picker";
+import { useT } from "@/lib/brain/i18n";
 
 function AcceptInviteInner() {
+  const t = useT();
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token") ?? "";
@@ -90,18 +92,14 @@ function AcceptInviteInner() {
     <main style={containerStyle}>
       <LocalePicker />
       <div style={cardStyle}>
-        <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 16 }}>
-          Organization Invite
-        </h1>
+        <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 16 }}>{t("auth.inviteTitle")}</h1>
 
         {status === "idle" && (
-          <p style={{ color: "var(--ink-3)", fontSize: 14 }}>Preparing…</p>
+          <p style={{ color: "var(--ink-3)", fontSize: 14 }}>{t("auth.preparing")}</p>
         )}
 
         {status === "loading" && (
-          <p style={{ color: "var(--ink-3)", fontSize: 14 }}>
-            Accepting invite…
-          </p>
+          <p style={{ color: "var(--ink-3)", fontSize: 14 }}>{t("auth.accepting")}</p>
         )}
 
         {status === "success" && (
@@ -126,9 +124,7 @@ function AcceptInviteInner() {
                 color: "var(--ink-2)",
                 textDecoration: "underline",
               }}
-            >
-              Go to Brain
-            </a>
+            >{t("auth.goToBrain")}</a>
           </>
         )}
       </div>
@@ -137,6 +133,7 @@ function AcceptInviteInner() {
 }
 
 export default function AcceptInvitePage() {
+  const t = useT();
   return (
     <Suspense
       fallback={
@@ -150,9 +147,7 @@ export default function AcceptInvitePage() {
             color: "var(--ink-3)",
             fontSize: 14,
           }}
-        >
-          Loading…
-        </div>
+        >{t("auth.loading")}</div>
       }
     >
       <AcceptInviteInner />
