@@ -61,7 +61,6 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: Request): Promise<Response> {
-  // --- Master switch (default off) ---
   if (!agenticOnboardingEnabled()) {
     return Response.json(
       {
@@ -77,14 +76,12 @@ export async function POST(req: Request): Promise<Response> {
   const xff = hdrs.get("x-forwarded-for");
   const ip = xff ? xff.split(",")[0]!.trim() : "local";
 
-  // --- Rate limit (per IP) ---
   const store = await getRateLimitStore();
   const gate = await rateLimitCheck(store, `onboard-claim:${ip}`, LIMIT, Date.now());
   if (!gate.ok) {
     return Response.json({ error: "rate_limited" }, { status: 429 });
   }
 
-  // --- Parse body ---
   let parsed: z.infer<typeof bodySchema>;
   try {
     parsed = bodySchema.parse(await req.json());
@@ -183,23 +180,49 @@ export async function POST(req: Request): Promise<Response> {
     ...(os ? { os: os as TargetOS } : {}),
   });
 
-  // Awaited, per the reasoning at /api/tokens: token issuance is too
-  // security-sensitive to log best-effort. The raw secret is never logged.
-  await writeAudit({
-    actorUserId: result.userId,
-    action: "onboard.claim",
-    targetType: "user",
-    targetId: result.userId,
-    payload: {
-      voucherId: result.voucherId,
-      client: install.client,
-      os: install.os,
-      capabilities: [...BOOTSTRAP_TOKEN_CAPABILITIES],
-      expiresAt: result.tokenExpiresAt ?? null,
-    },
-    ip,
-    userAgent: req.headers.get("user-agent") ?? null,
-  });
+  // Awaited so a process restart can't drop the row, but NOT allowed to fail
+  // the request.
+  //
+  // /api/tokens awaits this and lets a throw become a 500, and that is right
+  // there: the caller has a session and can simply mint again. The precedent
+  // does not transfer here. By this line the voucher is burned, the user and
+  // token rows are committed, and `rawToken` exists only in this response —
+  // there is no second copy and no session to retry from. A 500 would strand
+  // the user holding a spent code, which is precisely the failure the
+  // single-transaction design above exists to prevent; throwing it away over a
+  // log write would be absurd.
+  //
+  // The audit row is the recoverable half: VoucherRedemption + MCPToken still
+  // record that this happened, so the event is reconstructable. Logged at
+  // error level with the ids needed to backfill.
+  try {
+    await writeAudit({
+      actorUserId: result.userId,
+      action: "onboard.claim",
+      targetType: "user",
+      targetId: result.userId,
+      payload: {
+        voucherId: result.voucherId,
+        client: install.client,
+        os: install.os,
+        capabilities: [...BOOTSTRAP_TOKEN_CAPABILITIES],
+        expiresAt: result.tokenExpiresAt ?? null,
+      },
+      ip,
+      userAgent: req.headers.get("user-agent") ?? null,
+    });
+  } catch (err) {
+    log.error(
+      {
+        err,
+        op: "onboard.claim",
+        outcome: "error",
+        userId: result.userId,
+        voucherId: result.voucherId,
+      },
+      "onboard.claim succeeded but its audit row failed to persist — backfill from VoucherRedemption",
+    );
+  }
 
   return Response.json(
     {

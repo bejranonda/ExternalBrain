@@ -167,8 +167,10 @@ VoucherRedemption
 
 `POST /api/onboard/claim` exchanges a voucher code for a live MCP token in one
 anonymous request, so an AI coding agent can onboard its user without a
-browser. **Gated off by default** — `AGENTIC_ONBOARDING` must be the literal
-`"true"` or the endpoint returns `403`.
+browser. **Gated off by default** — `AGENTIC_ONBOARDING` must be an affirmative
+(`1`/`true`/`yes`/`on`, any case) or the endpoint returns `403`. Parsed by the
+shared `envFlag`, so an unrecognised value keeps the default rather than
+guessing.
 
 Understand what enabling it changes. Before, a voucher only bought you an
 account that was still useless until you set a password. With this on, **the

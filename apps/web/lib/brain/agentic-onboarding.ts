@@ -143,3 +143,39 @@ export function setPasswordUrl(webUrl: string, email: string): string {
 export function startUrl(webUrl: string): string {
   return `${webUrl.replace(/\/$/, "")}/start`;
 }
+
+const VOUCHER_MAX_LEN = 32;
+
+/**
+ * Reduce free text to the shape a voucher code can actually have.
+ *
+ * SECURITY, not tidiness. `/start` renders the code inside a prompt the user is
+ * explicitly told to paste into an AI agent, and `?voucher=` is
+ * attacker-controllable: anyone can send `/start?voucher=<instructions>`, and
+ * those instructions would arrive inside a block the user hands to an agent
+ * that acts on them. React escapes HTML; nothing escapes *prose* aimed at a
+ * language model, so the defence has to be at the input.
+ *
+ * `[A-Z0-9-]` capped at 32 is the alphabet real codes use (`PILOT-WY2Y-773S`).
+ * A mangled code then fails `validateVoucher` — visible, recoverable, and the
+ * correct outcome. Lives here rather than in the component because it is a
+ * validation rule, not a rendering concern, and because policy in a plain
+ * module can be tested without mounting React.
+ *
+ * **Residual, stated honestly:** stripping leaves the letters, so a payload
+ * collapses to one long token rather than vanishing. Word boundaries,
+ * punctuation, newlines and shell metacharacters are all gone — no multi-word
+ * instruction, command, or extra prompt line can be formed — but this is not a
+ * proof that no model could ever read meaning into the residue. A stricter
+ * format match was considered and rejected: `POST /api/admin/vouchers` accepts
+ * an operator-supplied `body.code`, so codes are not guaranteed to fit the
+ * generated `PREFIX-XXXX-XXXX` shape, and rejecting on format would break
+ * legitimate custom codes.
+ */
+export function sanitizeVoucherInput(raw: string): string {
+  return raw
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]/g, "")
+    .slice(0, VOUCHER_MAX_LEN);
+}

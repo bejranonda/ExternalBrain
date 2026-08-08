@@ -65,14 +65,24 @@ describe("parseFlag semantics", () => {
 const RAW_COMPARISON_ALLOWED = /\b(NODE_ENV|SKIP_DB_INIT|SKIP_E2E|EMAIL_PROVIDER)\b/;
 
 const REPO = join(__dirname, "..", "..", "..", "..");
+/**
+ * Whole app roots, not hand-picked subdirectories.
+ *
+ * The first version listed `apps/web/{app,lib,components}` — which missed
+ * `apps/web/auth.ts`, the file holding two of the flags this change migrated.
+ * A sweep that does not cover the code it was written for is the vacuous-gate
+ * failure this repo keeps rediscovering (§0r), and it passed cleanly while
+ * guarding nothing.
+ */
 const ROOTS = [
-  join(REPO, "apps", "web", "app"),
-  join(REPO, "apps", "web", "lib"),
-  join(REPO, "apps", "web", "components"),
+  join(REPO, "apps", "web"),
   join(REPO, "apps", "mcp-server", "src"),
   join(REPO, "apps", "worker", "src"),
   join(REPO, "packages", "core", "src"),
 ];
+
+/** Not runtime code: build output, deps, and Playwright specs. */
+const SKIP_DIRS = new Set(["node_modules", ".next", "dist", "generated", "e2e", ".turbo"]);
 
 function walk(dir: string, out: string[] = []): string[] {
   let entries: string[];
@@ -82,7 +92,7 @@ function walk(dir: string, out: string[] = []): string[] {
     return out;
   }
   for (const e of entries) {
-    if (e === "node_modules" || e === ".next" || e === "dist" || e === "generated") continue;
+    if (SKIP_DIRS.has(e)) continue;
     const full = join(dir, e);
     if (statSync(full).isDirectory()) walk(full, out);
     else if (/\.tsx?$/.test(e) && !/\.test\.tsx?$/.test(e)) out.push(full);
@@ -91,16 +101,24 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 describe("no surface parses a boolean env var by hand", () => {
-  const files = ROOTS.flatMap((r) => walk(r));
+  const files = [...new Set(ROOTS.flatMap((r) => walk(r)))];
 
   it("sweeps a non-trivial number of files", () => {
     expect(files.length).toBeGreaterThan(100);
   });
 
+  it("actually covers apps/web/auth.ts", () => {
+    // Named explicitly because this is the file the first version of this
+    // sweep silently skipped. A count assertion alone would not have caught it.
+    expect(files.map((f) => relative(REPO, f))).toContain("apps/web/auth.ts");
+  });
+
   it("compares process.env to a string only where that is justified", () => {
     const offenders: string[] = [];
+    // Both quote styles: the repo formats with double quotes, but a single
+    // hand-typed `'true'` would otherwise slip straight through this gate.
     const pattern =
-      /process\.env(?:\.[A-Z_0-9]+|\["[A-Z_0-9]+"\])\s*(?:!==|===)\s*"[^"]*"/g;
+      /process\.env(?:\.[A-Z_0-9]+|\[["'][A-Z_0-9]+["']\])\s*(?:!==|===)\s*["'][^"']*["']/g;
 
     for (const f of files) {
       for (const m of readFileSync(f, "utf8").matchAll(pattern)) {

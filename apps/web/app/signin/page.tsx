@@ -195,7 +195,12 @@ export default async function SignIn({ searchParams }: Props) {
   const params = await searchParams;
   const errorKey = params.error ?? "";
   const errorMessage = ERROR_MESSAGES[errorKey] ?? (errorKey ? "Sign-in failed. Try again." : "");
-  const errorHelpHref = VOUCHER_ERROR_KEYS.has(errorKey) ? "/start" : undefined;
+  // Carry the code across so a user whose voucher errored doesn't have to
+  // retype it — /start prefills from ?voucher=.
+  const startHref = params.voucher
+    ? `/start?voucher=${encodeURIComponent(params.voucher)}`
+    : "/start";
+  const errorHelpHref = VOUCHER_ERROR_KEYS.has(errorKey) ? startHref : undefined;
   const inviteToken = params.invite ?? "";
   const postLoginRedirect = safeRedirect(params.callbackUrl ?? params.next);
 

@@ -154,7 +154,7 @@ the web dashboard — the set-password link is sent there.
 ## 2. Exchange the voucher
 
 \`\`\`bash
-curl -fsSL -X POST {{WEB_URL}}/api/onboard/claim \\
+curl -sS -X POST {{WEB_URL}}/api/onboard/claim \\
   -H 'content-type: application/json' \\
   -d '{"voucher":"<CODE>","email":"<EMAIL>","client":"claude-code","os":"linux"}'
 \`\`\`

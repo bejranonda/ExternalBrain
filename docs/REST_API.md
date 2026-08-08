@@ -533,7 +533,7 @@ GET    /api/graph/deadends
 
 ## Agentic onboarding (anonymous)
 
-```
+```text
 GET    /api/onboard/agent.md        bootstrap instructions an AI agent fetches and follows
 POST   /api/onboard/claim           { voucher, email, label?, client?, os? } → account + MCP token, ONCE
 GET    /api/skills/brain            the Brain SKILL.md (usage guide, not bootstrap)
@@ -541,14 +541,16 @@ GET    /api/onboard.sh              POSIX installer; takes the bearer as $1
 GET    /api/onboard.ps1             PowerShell installer
 ```
 
-These are the only **unauthenticated** endpoints that mutate state, and only
-`POST /api/onboard/claim` does. It exists so an AI coding agent can onboard its
+Of these, only `POST /api/onboard/claim` mutates state (`POST
+/api/auth/register` is the other unauthenticated writer on this API, documented
+under the voucher gate in SECURITY.md). It exists so an AI coding agent can onboard its
 user without a browser: the user pastes a voucher code and a URL into their
 harness, and the agent creates the account, mints a token, and wires up MCP.
 The public front door that hands out that paste is `/start`.
 
-**Gated off by default.** `AGENTIC_ONBOARDING` must be the literal `"true"`;
-anything else returns `403 agentic_onboarding_disabled`. A fresh
+**Gated off by default.** `AGENTIC_ONBOARDING` must be an affirmative
+(`1`/`true`/`yes`/`on`, any case, via `envFlag`); absent, negative or
+unrecognised values all return `403 agentic_onboarding_disabled`. A fresh
 `docker compose up` does not vend bearers.
 
 **`POST /api/onboard/claim`**

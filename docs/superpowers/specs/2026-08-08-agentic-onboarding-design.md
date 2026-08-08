@@ -98,7 +98,7 @@ free of anything that reads as open-ended authority.
 { "token": "bp_…", "expiresAt": "…",
   "mcpUrl": "https://mcp.example.com/mcp",
   "webUrl": "https://brain.example.com",
-  "installCommand": "curl -fsSL https://brain.example.com/api/onboard.sh | bash -s -- bp_…",
+  "installCommand": "curl -fsSL https://brain.example.com/api/onboard.sh | bash -s 'bp_…' --client claude-code",
   "setPasswordUrl": "https://brain.example.com/forgot-password?email=sam%40example.com" }
 ```
 
@@ -118,15 +118,20 @@ Gate order, mirroring `apps/web/app/api/auth/register/route.ts`:
 6. **One transaction**: lock the voucher `FOR UPDATE` → re-check → create `User`
    (no credential) → `ensurePersonalOrg` → `ensureDefaultProject` → increment
    `usedCount` → `VoucherRedemption` → `MCPToken`.
-7. `await writeAudit({ action: "onboard.claim" })` — awaited, per the reasoning
-   already recorded at `tokens/route.ts:162`.
+7. `writeAudit({ action: "onboard.claim" })` — awaited so a restart cannot drop
+   it, but wrapped in try/catch and **not** allowed to fail the request. By that
+   line the voucher is burned and `rawToken` exists only in the response; a 500
+   over a log write would strand the user, which is the exact failure the
+   transaction above exists to prevent. (`/api/tokens` lets this throw, and is
+   right to — its caller has a session and can just mint again.)
 
 **Why one transaction.** `register/route.ts:187` calls `ensurePersonalOrg`
 *outside* its transaction, best-effort, because a user who lands without an org
 self-heals on next sign-in. That is fine there and wrong here:
-`MCPToken.organizationId` is required, and a crash after the voucher burns but
-before the token is minted strands the user with a spent code, no token, and no
-browser session to self-heal from.
+a crash after the voucher burns but before the token is minted strands the user
+with a spent code, no token, and no browser session to self-heal from. (The
+`MCPToken.organizationId` column is nullable, but a token with no org is
+unusable — every scope filter resolves through it.)
 
 Delivering that atomicity required widening `packages/core/src/org.ts`. Its
 header documents the rule — *"Every function accepts a `db` client as the first
@@ -142,7 +147,7 @@ a `DbClient` alias exported from `@brain/core`.
 |---|---|---|---|
 | `ttlDays` | 90 | **14** | time-boxes a leaked voucher's blast radius |
 | `capabilities` | `[]` = unrestricted | **`["knowledge","skills","sessions"]`** | omits `oracle` |
-| `projectId` | caller's choice | `null` | default project only |
+| `projectId` | caller's choice | `null` | unscoped, same as the `/api/tokens` default |
 
 `oracle` is the billed capability ($0.01–$0.10/call, tracked in the admin cost
 ledger). A headless mint means a leaked voucher is a direct billing exposure.
@@ -196,7 +201,7 @@ Three concrete defects motivated `/start`:
 `/start` is public, trilingual, accepts `?voucher=CODE` to prefill, and presents
 exactly **one decision** — agent or self — instead of eighteen doors.
 
-```
+```text
 voucher card ──► /start ──┬──► "Let my AI do it"   (one copyable line)
                     ▲     └──► "I'll do it myself" (/signup → /welcome)
                     │

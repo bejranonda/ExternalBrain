@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { useT } from "@/lib/brain/i18n";
+import { sanitizeVoucherInput } from "@/lib/brain/agentic-onboarding";
 
 /**
  * /start — the one public URL that goes on a voucher card.
@@ -34,6 +35,8 @@ export interface StartFlowProps {
  *  - points at one URL and says "follow it", bounding what the agent may do
  *  - says "ask me for my email" so the agent doesn't invent one, which is the
  *    single most damaging thing it could improvise here
+ *
+ * `voucher` must already be through `sanitizeVoucherInput`.
  */
 function buildAgentPrompt(webUrl: string, voucher: string): string {
   return [
@@ -45,10 +48,13 @@ function buildAgentPrompt(webUrl: string, voucher: string): string {
 
 export function StartFlow({ webUrl, agenticEnabled, initialVoucher = "" }: StartFlowProps) {
   const tr = useT();
-  const [voucher, setVoucher] = useState(initialVoucher);
+  // Sanitize the URL-supplied value on the way IN as well as on the way out —
+  // otherwise the raw param would still be visible in the input box, which is
+  // where a curious user would copy it from.
+  const [voucher, setVoucher] = useState(() => sanitizeVoucherInput(initialVoucher));
   const [copied, setCopied] = useState(false);
 
-  const code = voucher.trim().toUpperCase();
+  const code = sanitizeVoucherInput(voucher);
   const prompt = useMemo(
     () => (code ? buildAgentPrompt(webUrl, code) : ""),
     [webUrl, code],
