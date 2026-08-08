@@ -4,6 +4,8 @@
 
 Three steps. Mint a token, run one command, then talk to it normally.
 
+> Also available in [ไทย](./00-quick-start.th.md) and [Deutsch](./00-quick-start.de.md) — both AI-translated and awaiting a native review.
+
 ---
 
 ## Step 1 — Mint a token

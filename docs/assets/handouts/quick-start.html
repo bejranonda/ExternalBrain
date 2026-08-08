@@ -1,5 +1,4 @@
-<title>External Brain — Quick start</title>
-
+<title>External Brain — Quick start · คู่มือเริ่มต้น · Schnellstart</title>
 <style>
   /* ── Tokens ─────────────────────────────────────────────────────────────
      Palette inherited from the product's own theme (apps/web globals +
@@ -235,8 +234,38 @@
     .mast { padding: 44px 0 32px; }
   }
 </style>
+<style>
+  /* Thai needs a face with Thai coverage; the CSP blocks webfonts, so lean on
+     what the OS ships. Loma/Garuda are the common Linux TLWG faces. */
+  [lang="th"] { font-family: "Noto Sans Thai", "Loma", "Garuda", "Leelawadee UI",
+                "Thonburi", system-ui, sans-serif; line-height: 1.78; }
+  [lang="th"] h1, [lang="th"] h2, [lang="th"] .habit-top p { font-family: inherit; letter-spacing: 0; }
+  [lang="th"] pre, [lang="th"] code { font-family: ui-monospace, "Loma", Menlo, Consolas, monospace; }
 
-<div class="wrap">
+  .langbar {
+    position: sticky; top: 0; z-index: 50; display: flex; justify-content: flex-end;
+    gap: 2px; padding: 10px 24px; background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px); border-bottom: 1px solid var(--line-soft);
+  }
+  .langbar button {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px; letter-spacing: .04em; cursor: pointer;
+    padding: 6px 11px; border-radius: 6px; border: 1px solid transparent;
+    background: transparent; color: var(--ink-3);
+  }
+  .langbar button:hover { color: var(--ink); }
+  .langbar button[aria-pressed="true"] {
+    background: var(--accent-bg); color: var(--accent-ink); font-weight: 700;
+  }
+  .pane[hidden] { display: none; }
+</style>
+
+<div class="langbar" role="group" aria-label="Language / ภาษา / Sprache">
+  <button type="button" data-l="en" aria-pressed="true" lang="en">EN</button>
+  <button type="button" data-l="th" aria-pressed="false" lang="th">ไทย</button>
+  <button type="button" data-l="de" aria-pressed="false" lang="de">DE</button>
+</div>
+<div class="pane" data-l="en" lang="en"><div class="wrap">
 
   <header class="mast">
     <div class="brand">External Brain</div>
@@ -460,3 +489,475 @@
   </nav>
 
 </div>
+</div><div class="pane" data-l="th" lang="th" hidden><div class="wrap">
+
+  <header class="mast">
+    <div class="brand">External Brain</div>
+    <h1>ให้ AI ของคุณมีความจำที่ไม่หายไปเมื่อจบเซสชัน</h1>
+    <p class="standfirst">
+      เครื่องมือเขียนโค้ดของคุณลืมทุกอย่างเมื่อจบแต่ละเซสชัน คู่มือนี้จะเชื่อมมันเข้ากับ
+      Brain ที่จำได้ว่าคุณตัดสินใจอะไรไว้และเพราะอะไร แล้วส่งกลับมาให้ก่อนที่คุณจะต้องอธิบายซ้ำ
+      ทั้งหมดสามขั้นตอน
+    </p>
+    <div class="meta">
+      <span class="chip">พร้อมใช้ใน <strong>5 นาที</strong></span>
+      <span class="chip">รองรับ 10 เครื่องมือ</span>
+      <span class="chip">คำสั่งเดียว</span>
+    </div>
+  </header>
+
+  <section class="step">
+    <div class="step-num"><b>1</b>โทเคน</div>
+    <div class="body">
+      <h2>สร้างโทเคน</h2>
+      <p>เข้าสู่ระบบแล้วไปที่ <strong>Settings → Tokens</strong> จากนั้นกด <strong>Create token</strong></p>
+      <p>
+        ตั้งชื่อตาม<em>เครื่อง</em> ไม่ใช่ชื่อคุณ เช่น <code>laptop</code>,
+        <code>work-desktop</code>, <code>ci-runner</code> เพราะการเพิกถอนสิทธิ์ทำทีละเครื่อง
+        ชื่อแบบนี้จึงทำให้การเพิกถอนมีความหมายจริง ๆ ในภายหลัง
+      </p>
+      <p class="note">
+        <strong>โทเคนจะแสดงเพียงครั้งเดียว</strong> ระบบเก็บเฉพาะค่าแฮช SHA-256 เท่านั้น
+        ไม่มีปุ่มดูย้อนหลังและกู้คืนไม่ได้ ถ้าทำหาย ให้สร้างใหม่แล้วเพิกถอนอันเดิม
+      </p>
+      <p>
+        จากนั้นหน้าจอจะแสดงคำสั่งติดตั้งที่ใส่โทเคนของคุณไว้ให้แล้ว
+        คำสั่งนั้นคือขั้นตอนที่&nbsp;2 คัดลอกแล้วข้ามไปได้เลย
+      </p>
+    </div>
+  </section>
+
+  <section class="step">
+    <div class="step-num"><b>2</b>เชื่อมต่อ</div>
+    <div class="body">
+      <h2>เชื่อมเครื่องมือ AI ของคุณ</h2>
+      <p>คำสั่งเดียว ใช้ได้กับทุกเครื่องมือ ค่าเริ่มต้นของ <code>--client</code> คือ <code>claude-code</code></p>
+
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i> macOS · Linux · WSL · Git Bash</div>
+<pre><span class="a">curl</span> -fsSL https://&lt;your-brain&gt;/api/onboard.sh \
+  | bash -s <span class="a">'bp_…'</span> --client claude-code</pre>
+      </div>
+
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i> Windows PowerShell 5.1+</div>
+<pre><span class="a">iwr</span> https://&lt;your-brain&gt;/api/onboard.ps1 -UseBasicParsing | iex
+<span class="a">Install-Brain</span> -Token <span class="a">'bp_…'</span> -Client claude-code</pre>
+      </div>
+
+      <h3>เลือกเครื่องมือของคุณ</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>เครื่องมือ</th><th>ค่าที่ใช้</th><th>ข้อควรรู้</th></tr></thead>
+          <tbody>
+            <tr><td>Claude Code</td><td><code>claude-code</code></td><td>ติดตั้งสกิลของ Brain ให้ด้วย</td></tr>
+            <tr><td>Claude Desktop</td><td><code>claude-desktop</code></td><td>ต้องมี Node และต้อง<strong>ปิดแอปทั้งหมด</strong>หลังติดตั้ง แค่ปิดหน้าต่างไม่พอ</td></tr>
+            <tr><td>Cursor</td><td><code>cursor</code></td><td></td></tr>
+            <tr><td>Windsurf</td><td><code>windsurf</code></td><td></td></tr>
+            <tr><td>Google Antigravity</td><td><code>antigravity</code></td><td>ไฟล์ตั้งค่าเดียวใช้ได้ทั้ง IDE และ CLI</td></tr>
+            <tr><td>VS Code + Copilot</td><td><code>vscode</code></td><td>ต้องรันจากโฟลเดอร์รากของโปรเจกต์ เพราะเขียนไฟล์ <code>./.vscode/mcp.json</code></td></tr>
+            <tr><td>GitHub Copilot CLI</td><td><code>copilot-cli</code></td><td></td></tr>
+            <tr><td>OpenAI Codex</td><td><code>codex</code></td><td>จะแสดงบรรทัด <code>export BRAIN_TOKEN=…</code> ด้วย ต้องใส่ในโปรไฟล์เชลล์ ไม่อย่างนั้น Codex จะได้ 401</td></tr>
+            <tr><td>เครื่องมืออื่น ๆ</td><td><code>generic</code></td><td>เพิ่ม <code>--config-path &lt;ไฟล์&gt;</code> แล้วระบบจะเขียนไฟล์นั้นให้</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:14px">
+        JetBrains, Visual Studio, Eclipse และ Xcode ไม่มีตำแหน่งไฟล์ตั้งค่าที่แน่นอน
+        จึงต้องคัดลอก JSON จากหน้าสร้างโทเคนไปวางเอง
+      </p>
+
+      <h3>คำสั่งนั้นทำอะไรบ้าง</h3>
+      <ol>
+        <li><strong>เขียนไฟล์ตั้งค่า</strong> โดยใช้คำสั่ง <code>mcp add</code> ของเครื่องมือนั้นเองถ้ามี ถ้าไม่มีก็จะ<em>ผสาน</em>เข้าไปในไฟล์ตั้งค่าเดิม เซิร์ฟเวอร์ MCP ตัวอื่นของคุณยังอยู่ครบ และมีการสำรองไฟล์ไว้ก่อน</li>
+        <li><strong>พิสูจน์ว่าใช้งานได้จริง</strong> ด้วยการเชื่อมต่อและเรียกเครื่องมือจริงผ่านเครือข่ายและระบบยืนยันตัวตนของคุณ นี่คือเหตุผลที่มันบอกว่าสำเร็จได้อย่างซื่อสัตย์ เพราะการเขียนไฟล์ลงดิสก์ไม่ได้พิสูจน์ว่าโทเคนเรียกอะไรได้จริง</li>
+        <li><strong>บันทึกเซสชันแรก</strong> เพื่อให้แดชบอร์ดไม่ว่างเปล่าตั้งแต่วันแรก</li>
+      </ol>
+
+      <p class="note">
+        <strong>จากนั้นให้รีสตาร์ตเครื่องมือ AI ของคุณ</strong> ทุกเครื่องมืออ่านไฟล์ตั้งค่า MCP
+        ตอนเริ่มโปรแกรมเท่านั้น นี่คือสาเหตุอันดับหนึ่งของอาการ “ติดตั้งแล้วแต่ไม่มีอะไรเกิดขึ้น”
+      </p>
+
+      <h3>อยากอ่านสคริปต์ก่อนรัน?</h3>
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i> ตรวจสอบก่อน</div>
+<pre><span class="a">curl</span> -fsSL https://&lt;your-brain&gt;/api/onboard.sh -o /tmp/brain-install.sh
+<span class="a">less</span> /tmp/brain-install.sh
+<span class="a">bash</span> /tmp/brain-install.sh <span class="a">'bp_…'</span> --client cursor</pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="step">
+    <div class="step-num"><b>3</b>สนทนา</div>
+    <div class="body">
+      <h2>คุยกับมันเหมือนคุยกับเพื่อนร่วมงาน</h2>
+      <p>
+        คุณไม่ต้องเรียกชื่อเครื่องมือใด ๆ แค่พูดตามปกติ
+        แล้วสกิลที่ติดตั้งไว้จะบอก AI เองว่าควรเรียกใช้อะไร
+      </p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>เมื่อคุณพูดว่า…</th><th>สิ่งที่เกิดขึ้น</th></tr></thead>
+          <tbody>
+            <tr><td class="say">(เริ่มงานจริงจังใด ๆ ก็ตาม)</td><td>เปิดเซสชัน แล้วส่งกฎเก่าที่เกี่ยวข้องให้โมเดลก่อนที่มันจะเริ่มเขียนโค้ด</td></tr>
+            <tr><td class="say">“จำไว้นะ: เราใช้ pgvector ไม่ใช่ Pinecone”</td><td>บันทึกเป็นกฎ และจะปรากฏในหน้า Skills</td></tr>
+            <tr><td class="say">“ถาม oracle หน่อย: ตอนนั้นเราแก้ปัญหาลำดับ migration ยังไง”</td><td>ได้คำตอบที่เรียบเรียงแล้ว พร้อมอ้างอิงกลับไปยังกฎที่ใช้</td></tr>
+            <tr><td class="say">“หากฎเกี่ยวกับ prisma migrations”</td><td>ผลลัพธ์ที่ใกล้เคียงตามความหมาย ทันทีและไม่มีค่าใช้จ่าย ไม่เรียกโมเดล</td></tr>
+            <tr><td class="say">“สัปดาห์ที่แล้วทำอะไรเรื่อง billing ไว้บ้าง”</td><td>เซสชันเก่าที่ตรงกับคำเหล่านั้น</td></tr>
+            <tr><td class="say"><strong>“ใช้ได้แล้ว” · “เสร็จแล้ว” · “ปิดงาน”</strong></td><td><strong>ปิดเซสชัน — นี่คือสิ่งที่ทำให้มันเรียนรู้</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="habit">
+        <div class="habit-top">
+          <span>นิสัยเดียวที่สำคัญที่สุด</span>
+          <p>พูดว่า “ใช้ได้แล้ว” ทุกครั้งที่ทำงานเสร็จ</p>
+        </div>
+        <div class="habit-body">
+          <p>
+            เซสชันที่ไม่ได้ปิดจะไม่สอนอะไร Brain เลย เพราะการสกัดความรู้จะทำงานตอนปิดเซสชันเท่านั้น
+            นี่คือสาเหตุอันดับหนึ่งที่ Brain ยังว่างเปล่าหลังใช้งานจริงมาทั้งสัปดาห์
+          </p>
+          <p>ทุกอย่างในหน้านี้เป็นทางเลือก ยกเว้นข้อนี้</p>
+        </div>
+      </div>
+
+      <h3>ตัวอย่างเซสชันตั้งแต่ต้นจนจบ</h3>
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i> หน้าตาการใช้งานจริง</div>
+<pre><span class="a">คุณ</span>     ผมต้องรีแฟกเตอร์ auth middleware ให้ใช้ credentials
+        adapter ตัวใหม่
+
+<span class="c">Claude  [เปิดเซสชัน ดึงกฎที่เกี่ยวข้องขึ้นมา]</span>
+        มีกฎของคุณสองข้อที่ใช้ได้ตรงนี้: เซสชันจะผูกค่าตอนเริ่ม
+        และการตรวจ credential อยู่ที่ชั้น repository
+
+<span class="a">คุณ</span>     ไม่ใช่ — เราย้ายการตรวจนั้นไป route handler เมื่อเดือนที่แล้ว
+
+<span class="c">Claude</span>  รับทราบ กำลังปรับให้
+
+<span class="a">คุณ</span>     ใช้ได้แล้ว เสร็จแล้วครับ
+
+<span class="c">Claude  [ปิดเซสชันพร้อมสิ่งที่เรียนรู้]</span>
+        บันทึกแล้ว: "การตรวจ credential อยู่ที่ route handler
+        ไม่ใช่ชั้น repository — ย้ายเมื่อ 2026-07"</pre>
+      </div>
+      <p>
+        การแก้ครั้งนั้นถูกจำไว้ถาวรแล้ว เดือนหน้าบนเครื่องอื่น
+        มันจะถูกส่งมาให้ก่อนที่คุณจะต้องนึกออกเอง
+      </p>
+
+      <h3>วิธีถามให้ได้คำตอบดี ๆ</h3>
+      <ul>
+        <li><strong>“หากฎเกี่ยวกับ X”</strong> — ทันที ฟรี ไม่เรียกโมเดล ใช้ทุกครั้งที่คุณกำลังจะคิดเรื่องที่เคยตัดสินใจไปแล้วซ้ำอีก</li>
+        <li><strong>“ถาม oracle หน่อย: …”</strong> — ช้ากว่าและมีค่าใช้จ่าย แต่ได้คำตอบที่เรียบเรียงพร้อมการอ้างอิง ใช้เมื่อต้องการเหตุผล ไม่ใช่แค่รายการ</li>
+        <li><strong>อย่า</strong>ถาม Oracle เรื่องการเขียนโปรแกรมทั่วไป มันคือความจำของโปรเจกต์คุณ ไม่ใช่อินเทอร์เน็ต “flexbox ทำงานยังไง” ควรค้นเว็บ ส่วน “<em>เรา</em>ตัดสินใจวางเลย์เอาต์แดชบอร์ดไว้ยังไง” นั่นแหละงานของ Oracle</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="step" style="border-bottom:0">
+    <div class="step-num" style="color:var(--ink-4)">✓<br>ตรวจสอบ</div>
+    <div class="body">
+      <h2>ยืนยันว่าใช้งานได้จริง</h2>
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i> ตรวจสอบ</div>
+<pre><span class="a">claude</span> mcp list | grep brain
+<span class="c"># brain: https://…/mcp (HTTP) - ✓ Connected</span></pre>
+      </div>
+      <p>
+        จากนั้นลองพิมพ์ในเครื่องมือของคุณว่า <em class="say">“ถาม brain หน่อยว่ารู้อะไรเกี่ยวกับโปรเจกต์นี้บ้าง”</em>
+        ถ้ามันตอบอะไรกลับมาได้ แปลว่าวงจรทำงานแล้ว
+      </p>
+
+      <h3>ถ้ายังไม่เรียบร้อย</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>อาการ</th><th>สาเหตุที่พบบ่อยที่สุด</th></tr></thead>
+          <tbody>
+            <tr><td>เครื่องมือไม่เห็น Brain</td><td>ยังไม่ได้รีสตาร์ตหลังติดตั้ง</td></tr>
+            <tr><td>ได้ 401 ทุกครั้ง</td><td>โทเคนถูกเพิกถอน หมดอายุ หรือสร้างจาก Brain คนละตัว</td></tr>
+            <tr><td>เฉพาะ Codex ที่ได้ 401</td><td>ไม่ได้ตั้ง <code>BRAIN_TOKEN</code> ในโปรไฟล์เชลล์</td></tr>
+            <tr><td>เชื่อมต่อได้ แต่หน้า Skills ยังว่าง</td><td>ไม่เคยปิดเซสชัน ลองพูดว่า “เสร็จแล้ว”</td></tr>
+            <tr><td>แก้ไฟล์ <code>~/.claude/mcp.json</code> แล้วไม่มีอะไรเปลี่ยน</td><td>ผิดไฟล์ Claude Code อ่าน <code>~/.claude.json</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <nav class="next">
+    <h2>อ่านต่อ</h2>
+    <div class="cards">
+      <a class="card" href="https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/01-getting-started.md"><b>เริ่มต้นใช้งาน</b><span>เนื้อหาเดียวกัน แต่ละเอียดกว่า พร้อมแผนภาพ</span></a>
+      <a class="card" href="https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/02-asking-the-oracle.md"><b>การถาม Oracle</b><span>รูปแบบคำถามที่ได้ผล</span></a>
+      <a class="card" href="https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/03-teaching-knowledge.md"><b>การสอนความรู้</b><span>เขียนกฎที่อยู่ได้นาน</span></a>
+      <a class="card" href="https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/04-managing-tokens.md"><b>การจัดการโทเคน</b><span>ขอบเขต การหมุนเวียน การเพิกถอน</span></a>
+      <a class="card" href="https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/06-troubleshooting.md"><b>แก้ปัญหา</b><span>เมื่อมันยังไม่ช่วยอะไร</span></a>
+      <a class="card" href="https://github.com/bejranonda/ExternalBrain/blob/main/docs/CLIENTS.md"><b>คู่มือเครื่องมือ</b><span>รูปแบบไฟล์ตั้งค่าและกับดักของแต่ละตัว</span></a>
+    </div>
+
+    <div class="colophon">
+      <span>External Brain · คู่มือเริ่มต้นใช้งาน</span>
+      <span>v2.14.1</span>
+      <span>github.com/bejranonda/ExternalBrain</span>
+    </div>
+  </nav>
+
+</div>
+</div><div class="pane" data-l="de" lang="de" hidden><div class="wrap">
+
+  <header class="mast">
+    <div class="brand">External Brain</div>
+    <h1>Gib deiner KI ein Gedächtnis, das die Sitzung überlebt.</h1>
+    <p class="standfirst">
+      Deine Coding-Tools vergessen zwischen zwei Sitzungen alles. Diese Anleitung
+      verbindet sie mit einem Brain, das sich merkt, was du entschieden hast und
+      warum — und es dir zurückgibt, bevor du es erneut erklären musst. Drei Schritte.
+    </p>
+    <div class="meta">
+      <span class="chip">In <strong>5 Minuten</strong> einsatzbereit</span>
+      <span class="chip">10 Clients unterstützt</span>
+      <span class="chip">Ein Befehl</span>
+    </div>
+  </header>
+
+  <section class="step">
+    <div class="step-num"><b>1</b>Token</div>
+    <div class="body">
+      <h2>Token erstellen</h2>
+      <p>Melde dich an, öffne <strong>Settings → Tokens</strong> und klicke auf <strong>Create token</strong>.</p>
+      <p>
+        Benenne ihn nach dem <em>Rechner</em>, nicht nach dir — <code>laptop</code>,
+        <code>work-desktop</code>, <code>ci-runner</code>. Widerrufen wird pro Rechner,
+        und genau deshalb machen rechnerbezogene Namen den Widerruf später überhaupt
+        erst nützlich.
+      </p>
+      <p class="note">
+        <strong>Der Token wird nur einmal angezeigt.</strong> Gespeichert wird
+        ausschließlich sein SHA-256-Hash — es gibt keine Anzeigen-Schaltfläche und keine
+        Wiederherstellung. Verloren? Erstelle einen neuen und widerrufe den alten.
+      </p>
+      <p>
+        Danach zeigt die Seite einen Installationsbefehl an, in dem dein Token bereits
+        eingesetzt ist. Dieser Befehl ist Schritt&nbsp;2 — kopieren und weiterspringen.
+      </p>
+    </div>
+  </section>
+
+  <section class="step">
+    <div class="step-num"><b>2</b>Verbinden</div>
+    <div class="body">
+      <h2>Verbinde dein KI-Tool</h2>
+      <p>Ein Befehl, unabhängig vom Tool. <code>--client</code> ist standardmäßig <code>claude-code</code>.</p>
+
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i> macOS · Linux · WSL · Git Bash</div>
+<pre><span class="a">curl</span> -fsSL https://&lt;your-brain&gt;/api/onboard.sh \
+  | bash -s <span class="a">'bp_…'</span> --client claude-code</pre>
+      </div>
+
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i> Windows PowerShell 5.1+</div>
+<pre><span class="a">iwr</span> https://&lt;your-brain&gt;/api/onboard.ps1 -UseBasicParsing | iex
+<span class="a">Install-Brain</span> -Token <span class="a">'bp_…'</span> -Client claude-code</pre>
+      </div>
+
+      <h3>Wähle deinen Client</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Dein Tool</th><th>Flag</th><th>Wissenswert</th></tr></thead>
+          <tbody>
+            <tr><td>Claude Code</td><td><code>claude-code</code></td><td>Installiert zusätzlich den Brain-Skill</td></tr>
+            <tr><td>Claude Desktop</td><td><code>claude-desktop</code></td><td>Benötigt Node. Danach die App <strong>vollständig beenden</strong> — das Fenster zu schließen genügt nicht</td></tr>
+            <tr><td>Cursor</td><td><code>cursor</code></td><td></td></tr>
+            <tr><td>Windsurf</td><td><code>windsurf</code></td><td></td></tr>
+            <tr><td>Google Antigravity</td><td><code>antigravity</code></td><td>Eine Konfiguration bedient IDE und CLI gemeinsam</td></tr>
+            <tr><td>VS Code + Copilot</td><td><code>vscode</code></td><td>Im Projektstammverzeichnis ausführen — schreibt <code>./.vscode/mcp.json</code></td></tr>
+            <tr><td>GitHub Copilot CLI</td><td><code>copilot-cli</code></td><td></td></tr>
+            <tr><td>OpenAI Codex</td><td><code>codex</code></td><td>Gibt zusätzlich eine <code>export BRAIN_TOKEN=…</code>-Zeile aus. Ohne sie im Shell-Profil bekommt Codex einen 401</td></tr>
+            <tr><td>Alles andere</td><td><code>generic</code></td><td>Mit <code>--config-path &lt;Datei&gt;</code> wird diese Datei für dich geschrieben</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:14px">
+        JetBrains, Visual Studio, Eclipse und Xcode haben keinen festen Konfigurationspfad
+        — füge dort stattdessen das JSON aus der Token-Seite ein.
+      </p>
+
+      <h3>Was dieser Befehl tatsächlich tut</h3>
+      <ol>
+        <li><strong>Schreibt die Konfiguration</strong> — über das eigene <code>mcp add</code> deines Tools, sofern vorhanden, sonst durch <em>Zusammenführen</em> mit der bestehenden Konfigurationsdatei. Deine anderen MCP-Server bleiben erhalten, und die Datei wird vorher gesichert.</li>
+        <li><strong>Beweist, dass es funktioniert</strong> — mit einer echten Verbindung und einem echten Tool-Aufruf über dein Netzwerk und deine Authentifizierung. Nur deshalb darf der Befehl Erfolg melden: dass eine Datei geschrieben wurde, sagt nichts darüber aus, ob der Token überhaupt etwas aufrufen kann.</li>
+        <li><strong>Protokolliert eine erste Sitzung</strong>, damit dein Dashboard nicht am ersten Tag leer ist.</li>
+      </ol>
+
+      <p class="note">
+        <strong>Starte danach dein KI-Tool neu.</strong> Alle lesen die MCP-Konfiguration
+        ausschließlich beim Start. Das ist mit Abstand die häufigste Ursache für
+        „installiert, aber es passiert nichts“.
+      </p>
+
+      <h3>Lieber erst lesen, bevor du in eine Shell pipest?</h3>
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i> vorher prüfen</div>
+<pre><span class="a">curl</span> -fsSL https://&lt;your-brain&gt;/api/onboard.sh -o /tmp/brain-install.sh
+<span class="a">less</span> /tmp/brain-install.sh
+<span class="a">bash</span> /tmp/brain-install.sh <span class="a">'bp_…'</span> --client cursor</pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="step">
+    <div class="step-num"><b>3</b>Sprechen</div>
+    <div class="body">
+      <h2>Sprich mit ihm wie mit einem Kollegen</h2>
+      <p>
+        Du rufst nie Tools beim Namen auf. Du sprichst normal, und der installierte Skill
+        sagt deiner KI, wonach sie greifen soll.
+      </p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Du sagst…</th><th>Was passiert</th></tr></thead>
+          <tbody>
+            <tr><td class="say">(du beginnst irgendeine echte Aufgabe)</td><td>Eine Sitzung startet; passende frühere Regeln gehen an das Modell, bevor es etwas schreibt</td></tr>
+            <tr><td class="say">„merk dir: wir nutzen pgvector, nicht Pinecone“</td><td>Wird als Regel gespeichert und erscheint unter Skills</td></tr>
+            <tr><td class="say">„frag das Oracle: wie haben wir die Migrationsreihenfolge gelöst?“</td><td>Eine zusammengefasste Antwort — mit Belegen zu den verwendeten Regeln</td></tr>
+            <tr><td class="say">„finde die Regel zu Prisma-Migrationen“</td><td>Die inhaltlich nächsten Treffer. Sofort und kostenlos — kein Modellaufruf</td></tr>
+            <tr><td class="say">„was habe ich letzte Woche an Billing gemacht?“</td><td>Frühere Sitzungen, die zu diesen Wörtern passen</td></tr>
+            <tr><td class="say"><strong>„hat funktioniert“ · „wir sind fertig“ · „ab damit“</strong></td><td><strong>Schließt die Sitzung — genau dadurch lernt es</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="habit">
+        <div class="habit-top">
+          <span>Die eine Gewohnheit, auf die es ankommt</span>
+          <p>Sag „hat funktioniert“, wenn du fertig bist.</p>
+        </div>
+        <div class="habit-body">
+          <p>
+            Eine nicht geschlossene Sitzung bringt dem Brain nichts bei — die Extraktion
+            läuft erst beim Schließen. Das ist der häufigste Grund, warum ein Brain nach
+            einer Woche echter Nutzung noch leer ist.
+          </p>
+          <p>Alles andere hier ist optional. Das hier nicht.</p>
+        </div>
+      </div>
+
+      <h3>Eine Sitzung von Anfang bis Ende</h3>
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i> so sieht es aus</div>
+<pre><span class="a">Du</span>      Ich muss die Auth-Middleware auf den neuen
+        Credentials-Adapter umbauen.
+
+<span class="c">Claude  [öffnet eine Sitzung, holt passende Regeln]</span>
+        Zwei deiner Regeln greifen hier: Sitzungen binden beim
+        Start, und Credential-Prüfungen gehören in die
+        Repository-Schicht.
+
+<span class="a">Du</span>      Nein — wir haben diese Prüfung letzten Monat in den
+        Route-Handler verschoben.
+
+<span class="c">Claude</span>  Notiert, wird angepasst.
+
+<span class="a">Du</span>      Hat funktioniert, wir sind fertig.
+
+<span class="c">Claude  [schließt die Sitzung mit dem Gelernten]</span>
+        Gespeichert: "Credential-Prüfungen liegen im
+        Route-Handler, nicht in der Repository-Schicht
+        — verschoben 2026-07."</pre>
+      </div>
+      <p>
+        Diese Korrektur ist jetzt dauerhaft. Nächsten Monat, auf einem anderen Rechner,
+        kommt sie an, bevor du dich daran erinnern musst.
+      </p>
+
+      <h3>Wie du gute Antworten bekommst</h3>
+      <ul>
+        <li><strong>„finde die Regel zu X“</strong> — sofort, kostenlos, kein Modellaufruf. Nimm es immer dann, wenn du sonst eine frühere Entscheidung neu herleiten würdest.</li>
+        <li><strong>„frag das Oracle: …“</strong> — langsamer und kostenpflichtig, dafür zusammengefasst und belegt. Nimm es, wenn du Begründungen willst, keine Liste.</li>
+        <li><strong>Frag das Oracle nicht</strong> nach allgemeinen Programmierfragen. Es ist das Gedächtnis deines Projekts, nicht das Internet. „Wie funktioniert Flexbox“ ist eine Websuche; „wie haben <em>wir</em> das Dashboard-Layout entschieden“ ist das Oracle.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="step" style="border-bottom:0">
+    <div class="step-num" style="color:var(--ink-4)">✓<br>Prüfen</div>
+    <div class="body">
+      <h2>Bestätigen, dass es läuft</h2>
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i> prüfen</div>
+<pre><span class="a">claude</span> mcp list | grep brain
+<span class="c"># brain: https://…/mcp (HTTP) - ✓ Connected</span></pre>
+      </div>
+      <p>
+        Frag es dann in deinem Tool: <em class="say">„frag das Brain, was es über dieses
+        Projekt weiß“</em>. Wenn überhaupt eine Antwort kommt, läuft der Kreislauf.
+      </p>
+
+      <h3>Falls etwas nicht stimmt</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Symptom</th><th>Fast immer</th></tr></thead>
+          <tbody>
+            <tr><td>Dein Tool sieht das Brain nicht</td><td>Nach der Installation nicht neu gestartet</td></tr>
+            <tr><td>401 bei jedem Aufruf</td><td>Token widerrufen, abgelaufen oder von einem anderen Brain</td></tr>
+            <tr><td>Nur Codex bekommt 401</td><td><code>BRAIN_TOKEN</code> fehlt im Shell-Profil</td></tr>
+            <tr><td>Verbunden, aber Skills bleibt leer</td><td>Sitzungen werden nie geschlossen — sag „wir sind fertig“</td></tr>
+            <tr><td><code>~/.claude/mcp.json</code> bearbeitet, nichts ändert sich</td><td>Falsche Datei. Claude Code liest <code>~/.claude.json</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <nav class="next">
+    <h2>Weiterlesen</h2>
+    <div class="cards">
+      <a class="card" href="https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/01-getting-started.md"><b>Erste Schritte</b><span>Dasselbe, langsamer, mit Diagrammen</span></a>
+      <a class="card" href="https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/02-asking-the-oracle.md"><b>Das Oracle fragen</b><span>Frageformen, die funktionieren</span></a>
+      <a class="card" href="https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/03-teaching-knowledge.md"><b>Wissen beibringen</b><span>Regeln schreiben, die bestehen</span></a>
+      <a class="card" href="https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/04-managing-tokens.md"><b>Tokens verwalten</b><span>Geltungsbereich, Rotation, Widerruf</span></a>
+      <a class="card" href="https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/06-troubleshooting.md"><b>Fehlersuche</b><span>Wenn es nicht hilft</span></a>
+      <a class="card" href="https://github.com/bejranonda/ExternalBrain/blob/main/docs/CLIENTS.md"><b>Client-Referenz</b><span>Konfigurationsformen und Fallstricke je Tool</span></a>
+    </div>
+
+    <div class="colophon">
+      <span>External Brain · Schnellstart</span>
+      <span>v2.14.1</span>
+      <span>github.com/bejranonda/ExternalBrain</span>
+    </div>
+  </nav>
+
+</div>
+</div>
+<script>
+(function () {
+  var bar = document.querySelector('.langbar');
+  var panes = document.querySelectorAll('.pane');
+  function show(l) {
+    panes.forEach(function (p) { p.hidden = p.dataset.l !== l; });
+    bar.querySelectorAll('button').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.l === l));
+    });
+    document.documentElement.setAttribute('lang', l);
+    try { localStorage.setItem('eb_qs_lang', l); } catch (e) {}
+  }
+  bar.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-l]');
+    if (b) show(b.dataset.l);
+  });
+  // Remember the reader's choice, else follow the browser.
+  var saved = null;
+  try { saved = localStorage.getItem('eb_qs_lang'); } catch (e) {}
+  var nav = (navigator.language || 'en').slice(0, 2);
+  var initial = saved || (['th', 'de'].indexOf(nav) > -1 ? nav : 'en');
+  if (initial !== 'en') show(initial);
+})();
+</script>

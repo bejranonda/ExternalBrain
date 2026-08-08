@@ -344,7 +344,7 @@ substitutes for reading the vendor's current docs.
 |---|---|
 | [EVIDENCE](./docs/EVIDENCE.md) | **Does it actually help?** — the capture→retrieve loop demonstrated on a real instance |
 | [QUICKSTART](./docs/QUICKSTART.md) | Zero to a running instance |
-| [**tutorials/00-quick-start**](./docs/tutorials/00-quick-start.md) | **Start here — token → install → first conversation, 5 min.** Also as a [printable PDF](./docs/assets/handouts/External-Brain-Quick-Start.pdf) |
+| [**tutorials/00-quick-start**](./docs/tutorials/00-quick-start.md) | **Start here — token → install → first conversation, 5 min.** Also in [ไทย](./docs/tutorials/00-quick-start.th.md) · [Deutsch](./docs/tutorials/00-quick-start.de.md), and as printable PDFs: [EN](./docs/assets/handouts/External-Brain-Quick-Start.pdf) · [TH](./docs/assets/handouts/External-Brain-Quick-Start-TH.pdf) · [DE](./docs/assets/handouts/External-Brain-Quick-Start-DE.pdf) |
 | [tutorials/](./docs/tutorials/README.md) | End-user tutorials 01–07: getting started → Oracle → teaching → tokens → exporting → troubleshooting → skill types for non-tech readers |
 | [HOW_IT_WORKS](./docs/HOW_IT_WORKS.md) | End-to-end mental model with examples |
 | [ARCHITECTURE](./docs/ARCHITECTURE.md) | System design, layers, data flow |

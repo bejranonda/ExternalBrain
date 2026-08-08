@@ -49,7 +49,7 @@ Visual diagrams live in [`assets/illustrations/`](./assets/illustrations/). Each
 | [USING_BRAIN.md](./USING_BRAIN.md) | **Daily workflow** — install one-liners, `claude mcp list` verification, trigger-phrase map, narrated session, debug recipes, operator habits that compound |
 | [HOW_IT_WORKS.md](./HOW_IT_WORKS.md) | End-to-end mental model: sign-up → token → first session → KEA → KRA → Oracle |
 | [END_USER.md](./END_USER.md) | If your team set up a Brain — sign in, wire your editor, ask the Oracle |
-| [**tutorials/00-quick-start**](./tutorials/00-quick-start.md) | **The 5-minute path: mint a token → connect any client → what to say.** Printable: [PDF](./assets/handouts/External-Brain-Quick-Start.pdf) |
+| [**tutorials/00-quick-start**](./tutorials/00-quick-start.md) | **The 5-minute path: mint a token → connect any client → what to say.** Also [ไทย](./tutorials/00-quick-start.th.md) · [Deutsch](./tutorials/00-quick-start.de.md). Printable: [EN](./assets/handouts/External-Brain-Quick-Start.pdf) · [TH](./assets/handouts/External-Brain-Quick-Start-TH.pdf) · [DE](./assets/handouts/External-Brain-Quick-Start-DE.pdf) |
 | [tutorials/](./tutorials/README.md) | **Step-by-step tutorials** — getting started, asking the Oracle, teaching knowledge, token scope, exporting rules, troubleshooting |
 
 ## Usecases & roadmap
