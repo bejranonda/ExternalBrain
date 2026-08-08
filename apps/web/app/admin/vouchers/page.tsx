@@ -138,28 +138,26 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
         alignItems: "end",
       }}
     >
+      {/* "Organization" was offered here and did nothing. Redemption never
+          reads `kind` or `organizationLabel` — every signup path calls
+          ensurePersonalOrg(), so a voucher minted as Organization with a
+          label still produced one isolated personal tenant per redeemer.
+          The operator's intent (a shared team tenant) failed silently, and
+          only became visible when the team couldn't see each other's
+          knowledge. Joining an existing org already has a working flow —
+          organization invites — so this offered a second, broken route to
+          the same outcome. See KNOWN_ISSUES §0ae. */}
       <Field label="Kind">
-        <select
-          value={kind}
-          onChange={(e) => setKind(e.target.value as "personal" | "organization")}
-          style={inputStyle}
-        >
-          <option value="personal">Personal</option>
-          <option value="organization">Organization</option>
-        </select>
+        <input type="text" value="Personal" disabled readOnly style={inputStyle} />
       </Field>
 
-      {kind === "organization" && (
-        <Field label="Org label">
-          <input
-            type="text"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder="e.g. Acme Inc."
-            style={inputStyle}
-          />
-        </Field>
-      )}
+      <div style={{ gridColumn: "1 / -1", fontSize: 12, color: "var(--ink-3)", lineHeight: 1.5 }}>
+        Every redeemer gets their <strong>own isolated tenant</strong> — a
+        personal organization and default project that no other redeemer can
+        see. To add people to an <em>existing</em> organization, use{" "}
+        <strong>Settings → Organization → Invite</strong> instead; a voucher
+        cannot do that.
+      </div>
 
       <Field label="Max uses">
         <input
