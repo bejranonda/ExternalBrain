@@ -59,6 +59,13 @@ Two disciplines follow:
 
 **Write one test that ranges over all N.** Not N tests — the sweep is what finds the gap, because a hand-listed sweep only sweeps what someone remembered to add to it. All 12 clients × 3 OSes found a missing note; all ~24 routes found the missing home link; parsing `schema.prisma` found the raw-token columns. Two corollaries, both learned by getting them wrong: assert the sweep matched something (a detector that silently matches nothing passes every downstream assertion), and revert the fix to confirm the test actually fails.
 
+### 2.6a Secure-by-default means the *default* is the locked state
+A posture stated in four places and implemented in three is not a posture. `CLAUDE.md`, `auth.ts` and `.env.example` all promised that a fresh instance is locked until an auth mode is chosen; `docker-compose.yml` defaulted the dev-auth shim **on**, and compose is the surface that actually runs (`KNOWN_ISSUES §0ac`).
+
+The rule: **the convenient default and the safe default are the same default, or the safe one wins.** A permissive default justified as "so a bare local `up` boots usable" trades a few seconds of a developer's setup against every forker who runs the documented quickstart on a public IP. That trade is never worth it, and it is invisible — an open instance produces no error, no warning, and no failing test. It simply answers as somebody.
+
+Corollary for review: when reading a diff that adds a default, ask what the value is for someone who configured **nothing**, and whether any test asserts that case. If the answer is "it works out of the box", find out what "works" means.
+
 ### 2.7 Depend on vendors' contracts, not on their internals
 Roughly a third of the surface here is other people's config formats, and they move. Two failures inside one week: we invented a `transport: {type, url}` shape no client documents (`§0u`), and Google's Gemini CLI → Antigravity merge moved a config path we had hardcoded and pinned with a passing assertion (`§0z`).
 

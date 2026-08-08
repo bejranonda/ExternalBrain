@@ -941,6 +941,48 @@ Verified non-vacuous: reverting either default fails 2 assertions.
 
 ---
 
+## 0ad. Pilot-readiness audit (2026-08-08, v2.14.0)
+
+Full sweep of the production instance before opening it to pilot customers.
+Recorded here because "we checked" is worthless without saying *what artifact
+was inspected* — the standing rule from §0s.
+
+**Verified working** (artifact inspected, not status believed):
+
+| Area | Evidence |
+|---|---|
+| TLS | `openssl s_client` off the wire: both hosts valid to Nov 2026 — read from the server, not from disk |
+| Backups | Fresh dump 585K containing 34 `COPY` blocks; the `User` rows were read out of the gzip before any deletion |
+| Queues | 2248 jobs `completed`, zero failed, zero dead-lettered, zero orphan sessions |
+| Email | Live send through Resend, message id `d9f19e08-…` in the `forgot-password` log line |
+| Oracle | Real answer with a citation, on prod, retrieving knowledge taught the same session |
+| MCP gate | 401 without a bearer; 401 with a bogus bearer; `initialize` does not leak `serverInfo` |
+| Auth | `verify-lockdown.sh` PASS, credentials mode locked |
+| Installer | The v3 multi-client installer run for real against prod: registered, skill installed, round-trip smoke-tested, install ping recorded |
+
+**Fixed during the audit:** §0ac (open instance on a fresh deploy) and §0ab
+(`dev` version stamp). Both shipped in v2.14.0.
+
+**Operational state corrected:** 34 of 45 `Knowledge` rows and 12 of 15
+`Session` rows belonged to seeded demo fixtures (`alex@example.local`,
+`alex@brain.local`) — a pilot customer's first view of the dashboard would have
+been mostly demo data presented as real activity. Removed, with a verified
+backup taken first. The agent's MCP token was also re-minted under the
+operator's real account: it had been writing as `admin@brain-platform.local`,
+so the operator signing in saw an empty Brain while their agent's learnings
+accumulated under a fixture identity.
+
+**Left open — `Project.organizationId` does not cascade.** Deleting an
+`Organization` that still has projects fails with
+`Project_organizationId_fkey`, where every FK referencing `User` is `CASCADE`.
+Found by hitting it during cleanup; the transaction rolled back with no damage,
+which is the correct failure but not a usable one. The admin UI exposes org
+deletion, so this is reachable by a user and surfaces as a 500. One more
+instance of the §0u/§0v shape — a rule (cascade owned rows) applied to the
+`User` graph and not the `Organization` graph.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:

@@ -21,6 +21,60 @@ The adversaries we defend against:
 
 Out of scope (for now): nation-state APT, physical VM compromise, side-channel attacks on embedding inference.
 
+## v2.14.0 — compose no longer ships a permissive auth default
+
+**If you self-host and you brought the stack up with a bare `docker compose up`
+rather than `scripts/deploy.sh`, re-read this one.**
+
+Until v2.14.0, `deploy/docker-compose.yml` defaulted **both** dev-auth flags to
+`true`:
+
+```yaml
+ALLOW_DEV_AUTH: ${ALLOW_DEV_AUTH:-true}
+ALLOW_DEV_AUTH_IN_PRODUCTION: ${ALLOW_DEV_AUTH_IN_PRODUCTION:-true}
+```
+
+With no auth variables in `.env` — the state right after `cp .env.example .env`
+and filling in only the database and an LLM key — that resolved to
+`ADMIN_USERNAME=""`, `AUTH_GITHUB_ID=""`, `ALLOW_DEV_AUTH="true"`,
+`ALLOW_DEV_AUTH_IN_PRODUCTION="true"`, `NODE_ENV=production`. That is every
+condition `getCurrentUserId()` needs to take the dev-shim branch, so **every
+anonymous request resolved to the first `User` row**, with that user's
+knowledge, tokens and admin surfaces. Silently — no error, no warning.
+
+Both now default to `false`, matching `.env.example` and `scripts/deploy.sh`.
+An unconfigured instance throws `auth_not_configured` on every request, which
+is the locked posture this document has always described.
+
+**Who was exposed.** Only deployments brought up without `scripts/deploy.sh`.
+That script explicitly refuses the combination and exits with "No production
+auth configured", so anyone following `QUICKSTART`'s deploy path was protected
+throughout.
+
+**What to check on an existing instance:**
+
+```bash
+# Should print false / false. Anything else and the shim may be live.
+docker compose -f deploy/docker-compose.yml --env-file .env config \
+  | grep -E 'ALLOW_DEV_AUTH'
+
+# The real proof — a gated route must refuse an unauthenticated caller:
+curl -s -o /dev/null -w '%{http_code}\n' https://<your-brain>/api/knowledge   # expect 401
+```
+
+If that second command returns `200`, your instance has been serving as its
+first user: set `ALLOW_DEV_AUTH=false` in `.env`, configure a real auth mode,
+recreate the containers, and rotate every MCP token.
+
+Note that `scripts/verify-lockdown.sh` **cannot** detect this class — it probes
+a running instance, and an instance configured enough to probe has already had
+these values set by hand. The regression guard is
+`apps/web/lib/brain/compose-secure-defaults.test.ts`, which resolves the compose
+file against a deliberately minimal env file and asserts the answer. See
+`KNOWN_ISSUES §0ac`.
+
+---
+
 ## Posture changes since v0.11.1
 
 The v0.11.2 audit sweep (catalog #103, closed 2026-05-07) materially improved the posture in five places. If you read older copies of this doc, here's what changed:
