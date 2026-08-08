@@ -71,13 +71,25 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       NODE_ENV: ${NODE_ENV:-production}
       DEV_USER_ID: ${DEV_USER_ID:-}
-      # Auth-hardening (2026-04-23): unconfigured deployments must EITHER
-      # set AUTH_GITHUB_* + AUTH_SECRET for OAuth, OR set ALLOW_DEV_AUTH=true
-      # for a local/VPN-only demo. Default "true" so a bare local `up` boots
-      # usable; scripts/deploy.sh REFUSES ALLOW_DEV_AUTH=true on the server,
-      # so the one server must set it false + configure real auth in .env.
-      ALLOW_DEV_AUTH: ${ALLOW_DEV_AUTH:-true}
-      ALLOW_DEV_AUTH_IN_PRODUCTION: ${ALLOW_DEV_AUTH_IN_PRODUCTION:-true}
+      # Auth-hardening: unconfigured deployments must EITHER set AUTH_GITHUB_*
+      # + AUTH_SECRET for OAuth, OR set ADMIN_USERNAME + ADMIN_PASSWORD_HASH
+      # for Credentials. Opting into the dev shim is explicit — see .env.example.
+      #
+      # These default to FALSE because the composed effect of defaulting them
+      # true was an open instance, not a convenient one. With no auth vars in
+      # .env a fresh `docker compose up` resolved to ADMIN_USERNAME="",
+      # AUTH_GITHUB_ID="", ALLOW_DEV_AUTH="true", NODE_ENV=production and
+      # ALLOW_DEV_AUTH_IN_PRODUCTION="true" — which makes getCurrentUserId()
+      # take the dev-shim branch and return the FIRST User row to every
+      # anonymous request. `.env.example` (both "false"), `scripts/deploy.sh`
+      # (both `:-false`) and auth.ts's own docstring all described the locked
+      # posture; this file was the one surface that did not implement it, and
+      # it is the one that actually runs. See KNOWN_ISSUES §0ac.
+      #
+      # `verify-lockdown.sh` cannot catch this: it probes a RUNNING instance,
+      # and any instance whose .env sets these explicitly passes.
+      ALLOW_DEV_AUTH: ${ALLOW_DEV_AUTH:-false}
+      ALLOW_DEV_AUTH_IN_PRODUCTION: ${ALLOW_DEV_AUTH_IN_PRODUCTION:-false}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       REGISTRATION_REQUIRES_VOUCHER: ${REGISTRATION_REQUIRES_VOUCHER:-true}
       # Default to the public HTTPS origin when BRAIN_PUBLIC_HOSTNAME is set
