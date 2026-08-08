@@ -1029,6 +1029,59 @@ Verified non-vacuous: reverting the fix fails 4 assertions.
 
 ---
 
+## 0af. The language picker changed nothing on five of six surfaces (2026-08-08)
+
+Reported by the operator: *"the sign-in page — we cannot change the language,
+EN/TH/DE."* Two independent defects, both of which had to be fixed.
+
+**1. The auth surfaces could not reach the dictionary.** `/signin`,
+`/forgot-password` and `/reset-password` are async **server** components, and
+`useT()` is a client hook reading React context. The dictionary itself lived
+inside `i18n.ts`, a `"use client"` module — so even the pure `translate()`
+function was unreachable from them. Every string on those pages was a hardcoded
+English literal.
+
+**2. Even translated, the picker would not have updated them.** `setLang` set
+React state and the `bp_lang` cookie but never called `router.refresh()`, so
+server-rendered markup kept the old language until a manual reload.
+
+Which is exactly why `/welcome` worked and the rest did not: it is the one
+surface whose copy lives in a client component, so a context change alone
+re-rendered it.
+
+Proven before fixing — `/signin` returned an identical **20883 bytes** for
+`bp_lang=en`, `th` and `de`, differing only in the `<html lang>` attribute,
+with zero Thai or German UI text.
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**Server components had no route to the dictionary.**~~ **Fixed.** Dictionary + `translate()` extracted to `i18n-dict.ts` with no `"use client"`; `i18n.ts` re-exports it, so every existing client import is untouched. New `getServerT()` resolves `bp_lang` exactly as the root layout does, so `<html lang>` and the copy cannot disagree. | `lib/brain/i18n-dict.ts`, `i18n-server.ts` | done |
+| ~~**Switching never re-rendered server markup.**~~ **Fixed.** `setLang` calls `router.refresh()`. | `components/brain/lang-provider.tsx` | done |
+| ~~**Four auth pages + the docs layout were untranslated.**~~ **Fixed.** 39 `auth.*` keys × 3 locales. TH/DE are AI-generated and await a native sweep — the same caveat the existing `welcome.*` strings carry. | `app/{signin,forgot-password,reset-password,accept-invite}`, `app/docs/layout.tsx` | done |
+| ~~**Nothing checked that a picker implied a translation.**~~ **Fixed.** `locale-coverage.test.ts` ranges over every page rendering `<LocalePicker />`. | `apps/web/lib/brain/locale-coverage.test.ts` | done |
+
+**What the sweep caught that the report didn't.** The operator named one page;
+five of the six carrying the picker were broken. The sweep also surfaced two
+docs surfaces, one of which was a **false positive in my own test**:
+`docs/page.tsx` translates via `useLang()` + `getDocsChrome(lang)` rather than
+`useT()`, so the detector was asserting the nearest signal instead of the
+property, and was widened. `docs/layout.tsx` was genuinely broken — one
+untranslated back-link, now translated so the rule has no carve-out.
+
+**The shape.** §0ae was a control surface wired to nothing. This is its
+sibling: **a control surface wired to a mechanism that cannot reach the
+content it controls.** The picker was real, the dictionary was real, the
+provider was real — and the one thing missing was any path between a *server*
+render and the dictionary. Every part was individually correct and demonstrably
+working somewhere (on `/welcome`), which is what made it invisible.
+
+Verified non-vacuous: reverting the wiring fails the per-page assertions;
+reverting `router.refresh()` is caught in review, not by the sweep — a limit
+worth stating, since the sweep proves the copy *can* translate, not that a
+click updates it without reload.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:

@@ -279,6 +279,41 @@ present and byte-identical to what the UI shows, sibling servers preserved,
 backup written, no placeholder left behind. Cheap, hermetic, and the only check
 that could have failed.
 
+### Offering a control implies responding to it
+
+A page that renders a language picker, a theme toggle, a sort selector or a
+filter is making a promise. The promise is not "this control exists" — it is
+"this page responds to it". Those are different properties, and only the first
+one is visible when you read the page.
+
+Five of the six surfaces rendering `<LocalePicker />` translated nothing
+(`KNOWN_ISSUES §0af`). Each looked fine in isolation: the picker was really
+there, the dictionary was really populated, the provider really worked — and it
+demonstrably worked on `/welcome`, which is what made the rest invisible. The
+gap was between *offering* the control and *responding* to it, and no per-page
+review can see a gap.
+
+So when a control is added to N surfaces, the test ranges over all N and
+asserts the **response**, not the presence:
+
+```ts
+// Wrong: asserts the control exists — true of every broken page.
+expect(src).toContain("<LocalePicker");
+
+// Right: asserts the page's copy varies with the thing the control sets.
+expect(translatesSomewhere(src)).toBe(true);
+```
+
+Two things that pass for this and are worth stealing:
+
+- **Accept any mechanism that achieves the property.** The first version of
+  that check required `useT()` and failed the docs pages, which translate
+  through `useLang()` + `getDocsChrome(lang)` — a different and equally working
+  route. Requiring one implementation is asserting the nearest signal again.
+- **Reject a locale that is a copy of English.** "Every key exists" passes
+  happily when a translation file was duplicated and never translated. Assert
+  that most values *differ* from the base locale.
+
 ### A gate that probes a running system cannot see an unconfigured one
 
 `verify-lockdown.sh` is the designated auth-posture audit, and it passed on

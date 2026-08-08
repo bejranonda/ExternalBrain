@@ -12,7 +12,8 @@ first — they cover the server side.
 
 | You want to… | Tutorial | Time |
 |---|---|---|
-| Wire your AI tool (Claude Code / Cursor / Windsurf) to your Brain for the first time | [01 — Getting started](./01-getting-started.md) | 10 min |
+| **Get running right now — token → install → first conversation** | **[00 — Quick start](./00-quick-start.md)** | **5 min** |
+| Wire your AI tool (Claude Code / Cursor / Windsurf) to your Brain, with the reasoning spelled out | [01 — Getting started](./01-getting-started.md) | 10 min |
 | Ask your Brain questions about your own coding history | [02 — Asking the Oracle](./02-asking-the-oracle.md) | 10 min |
 | Teach the Brain a new pattern, rule, or preference | [03 — Teaching the Brain](./03-teaching-knowledge.md) | 10 min |
 | Issue a token scoped to a specific organization or project | [04 — Token scope + management](./04-managing-tokens.md) | 10 min |
