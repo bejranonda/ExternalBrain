@@ -279,6 +279,38 @@ present and byte-identical to what the UI shows, sibling servers preserved,
 backup written, no placeholder left behind. Cheap, hermetic, and the only check
 that could have failed.
 
+### A gate that probes a running system cannot see an unconfigured one
+
+`verify-lockdown.sh` is the designated auth-posture audit, and it passed on
+production every single time while `docker-compose.yml` shipped defaults that
+made a fresh `docker compose up` serve every anonymous request as the first
+`User` row (`KNOWN_ISSUES §0ac`).
+
+It passed *correctly*. It probes a **running instance**, and any instance
+configured enough to be probed has already had a human set the values in
+`.env`. The defect lived only in the gap between the template and an
+**unconfigured** deploy — a state no running instance can exhibit, and
+therefore a state no runtime probe can test.
+
+The generalisation, and it covers `§0a` too: **every check that inspects a
+live system is inspecting a system somebody already rescued.** Whatever the
+operator had to fix by hand to make the probe possible is exactly what the
+probe can never test.
+
+So for anything with a default — compose interpolation, a config template, a
+CLI flag — assert the **resolved answer for the unconfigured case**, not the
+template text and not the running value:
+
+```ts
+// Resolve the compose file against a deliberately minimal env file and read
+// what a forker actually gets, not what the file appears to say.
+docker compose -f deploy/docker-compose.yml --env-file <3-line-env> config
+```
+
+And where two files must agree on that default (`.env.example` vs compose),
+pin them to each other in the same test, or they will drift the moment one is
+edited.
+
 ### Identify the target as part of the check
 
 One level up from the above, and the sequel that produced it (`KNOWN_ISSUES
