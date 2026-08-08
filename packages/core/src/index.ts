@@ -43,7 +43,7 @@ export {
   bucketFromRedisReply,
 } from "./rate-limit.js";
 export type { Bucket, Limit, Store, CheckResult } from "./rate-limit.js";
-export { envForWeb, envForMcp, envForWorker, _resetEnvCache } from "./env.js";
+export { envForWeb, envForMcp, envForWorker, _resetEnvCache, envFlag, parseFlag } from "./env.js";
 export type { WebEnv, McpEnv, WorkerEnv } from "./env.js";
 export * as cost from "./cost.js";
 export {

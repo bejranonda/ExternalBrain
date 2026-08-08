@@ -16,6 +16,7 @@ import {
   type TargetOS,
 } from "@brain/core/install-snippets";
 import type { Capability } from "@brain/core";
+import { envFlag } from "@brain/core/env";
 
 /**
  * Master switch, default OFF.
@@ -24,11 +25,19 @@ import type { Capability } from "@brain/core";
  * deployed instance is locked until the operator picks a posture. An endpoint
  * that vends bearers to anyone holding a voucher is exactly the kind of thing
  * that must not appear on a `docker compose up` a maintainer hasn't finished
- * configuring. Mirrors `registrationRequiresVoucher()`'s string handling, but
- * inverted: only the literal "true" opens it.
+ * configuring.
+ *
+ * Parsed by the shared `envFlag`, not a local comparison. The first version of
+ * this accepted ONLY the literal "true", reasoning that a security gate should
+ * demand the documented value — but that made it the fourth distinct way this
+ * codebase turned a string into a boolean, and the strictness bought nothing:
+ * an operator writing `AGENTIC_ONBOARDING=1` has unambiguously expressed
+ * intent to enable it, and silently ignoring them produces a support ticket,
+ * not safety. The property that matters is that the DEFAULT is off and an
+ * unrecognised value keeps it off, which `envFlag` guarantees.
  */
 export function agenticOnboardingEnabled(): boolean {
-  return (process.env.AGENTIC_ONBOARDING ?? "false").toLowerCase() === "true";
+  return envFlag("AGENTIC_ONBOARDING", false);
 }
 
 /**

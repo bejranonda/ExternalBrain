@@ -43,6 +43,7 @@ import {
 import { getRateLimitStore } from "@/lib/brain/rate-limit-store";
 import crypto from "crypto";
 import { hashSecret } from "@brain/core/secret-hash";
+import { envFlag } from "@brain/core/env";
 
 const log = getLogger("forgot-password");
 
@@ -135,7 +136,7 @@ export async function POST(req: Request): Promise<Response> {
   // Fails closed. Without the flag the log carries a correlatable but
   // UNUSABLE prefix of the hash — enough to match an audit row, useless to
   // anyone who reads the log file.
-  const linkLoggingAllowed = process.env.ALLOW_RESET_LINK_IN_LOGS === "true";
+  const linkLoggingAllowed = envFlag("ALLOW_RESET_LINK_IN_LOGS", false);
   const linkFields = (link: string) =>
     linkLoggingAllowed
       ? { resetLink: link, sensitive: true as const }
