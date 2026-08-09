@@ -39,9 +39,23 @@ The dotted line — *"no Brain context"* — is the path you'll see when
 your Brain doesn't have anything relevant. The Oracle says so
 explicitly rather than hallucinating; that's a feature, not a bug.
 
-## The Oracle UI
+## From your AI tool (the fast way)
 
-Visit `/#oracle`. You'll see:
+You don't need a browser tab. Inside Claude Code, Cursor, or Windsurf,
+just ask in plain language mid-session:
+
+| Say… | What happens |
+|---|---|
+| "ask the oracle: how did we solve the migration ordering problem?" | Same retrieval + citations, answered inline in your chat |
+| "ask the oracle: what did we decide about auth token expiry?" | Check before resuming old work, instead of re-deciding it |
+| ✗ "ask the oracle: how does flexbox work" | Wrong use — it's your project's memory, not a search engine |
+
+The model calls `brain_ask_oracle` under the hood. Same retrieval, same
+citations, same query patterns below — just without leaving your editor.
+
+## The Oracle UI (the web page)
+
+Prefer a browser, or want the Inspector panel? Visit `/#oracle`. You'll see:
 
 - **Question input** at the bottom. Press Enter to submit.
 - **Answer area** above. Streams back as the LLM generates.
