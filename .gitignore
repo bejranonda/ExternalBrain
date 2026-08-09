@@ -50,4 +50,6 @@ docs/internal/
 
 # Ad-hoc verification screenshots (Playwright MCP), never for commit
 *-current.png
+*-after.png
+*-before.png
 .playwright-mcp/

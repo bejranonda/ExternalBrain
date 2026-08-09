@@ -23,8 +23,21 @@ export const ACCENTS: Record<AccentKey, { c: string; ink: string }> = {
   blue: { c: "#7EC8FF", ink: "#0A0A0B" },
 };
 
+/**
+ * First-visit default (2026-08-09): light, not dark. A visitor with no
+ * `bp_tweaks` in localStorage — i.e. someone who has never used this
+ * platform before — gets the light theme. Anyone who already chose a theme
+ * (dark included) keeps it forever; this only changes what a stranger sees
+ * on their very first load.
+ *
+ * This constant is one of three places that must move together — the other
+ * two are the SSR `<html data-theme>` in `app/layout.tsx` and the
+ * pre-hydrate script's `t.theme || 'light'` fallback in the same file. All
+ * three disagreeing would reintroduce the flash-of-wrong-theme bug the
+ * pre-hydrate script exists to prevent (GUIDELINES §10).
+ */
 export const DEFAULT_TWEAKS: TweakState = {
-  theme: "dark",
+  theme: "light",
   accent: "lime",
   density: "balanced",
   language: "en",
