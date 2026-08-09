@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import { getDocsChrome } from "@/lib/brain/docs-content";
 import { useLang } from "@/lib/brain/i18n";
 import type { TutorialMeta } from "@/lib/brain/tutorial-meta";
+import { MermaidDiagram } from "./mermaid-diagram";
 
 interface Props {
   meta: TutorialMeta;
@@ -191,24 +192,43 @@ const MD_COMPONENTS: Components = {
   // an inline `` `code` `` span, so the two need distinct styling — the
   // common bug here is styling `code` only and getting a monospace-boxed
   // single word in the middle of a sentence.
-  pre: ({ children }) => (
-    <pre
-      className="mono"
-      style={{
-        fontSize: 13,
-        lineHeight: 1.6,
-        background: "var(--bg-elev-1)",
-        border: "1px solid var(--line)",
-        borderRadius: 6,
-        padding: "14px 16px",
-        margin: "0 0 16px",
-        overflowX: "auto",
-      }}
-    >
-      {children}
-    </pre>
-  ),
+  //
+  // ```mermaid blocks are the third case: react-markdown still nests them as
+  // <pre><code className="language-mermaid">, but they must render as a
+  // diagram, not text in a monospace box — so `pre` checks its child's
+  // className and skips its own box styling when it finds a mermaid block
+  // (MermaidDiagram draws its own container), delegating entirely to `code`.
+  pre: ({ children }) => {
+    const child = Array.isArray(children) ? children[0] : children;
+    const isMermaid =
+      child &&
+      typeof child === "object" &&
+      "props" in child &&
+      typeof child.props?.className === "string" &&
+      child.props.className.includes("language-mermaid");
+    if (isMermaid) return <>{children}</>;
+    return (
+      <pre
+        className="mono"
+        style={{
+          fontSize: 13,
+          lineHeight: 1.6,
+          background: "var(--bg-elev-1)",
+          border: "1px solid var(--line)",
+          borderRadius: 6,
+          padding: "14px 16px",
+          margin: "0 0 16px",
+          overflowX: "auto",
+        }}
+      >
+        {children}
+      </pre>
+    );
+  },
   code: ({ children, className }) => {
+    if (className?.includes("language-mermaid")) {
+      return <MermaidDiagram code={String(children).replace(/\n$/, "")} />;
+    }
     // react-markdown puts a `language-xxx` class on code inside a <pre>
     // (fenced block); inline code has no className. Only style the inline
     // case here — fenced blocks are already styled by the parent <pre>.

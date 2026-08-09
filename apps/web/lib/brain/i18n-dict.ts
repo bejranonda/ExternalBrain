@@ -423,10 +423,12 @@ export const I18N = {
       clientsTitle: "Works with the tools you already use",
       clientsBody:
         "One command wires up any of these. Anything else that speaks MCP works too.",
-      docsTitle: "Read more",
+      docsTitle: "Documentation",
+      docsIntro:
+        "In-app concept primers and step-by-step tutorials — or the full technical handbook on GitHub.",
+      docsCta: "Browse the docs →",
       docQuickstart: "Quick start",
       docTutorials: "Tutorials",
-      docConcepts: "Concepts",
       docMcp: "MCP tools",
       docSecurity: "Security & privacy",
       docSource: "Source on GitHub",
@@ -854,9 +856,11 @@ export const I18N = {
       clientsBody:
         "ตั้งค่าได้อย่างง่ายดายด้วยคำสั่งเดียว รองรับทั้ง Claude Code, Cursor, Windsurf, Antigravity และเครื่องมืออื่นๆ ที่รองรับ MCP",
       docsTitle: "เอกสารประกอบ",
+      docsIntro:
+        "แนวคิดพื้นฐานและบทเรียนทีละขั้นตอนในแอป หรือคู่มือทางเทคนิคฉบับเต็มบน GitHub",
+      docsCta: "ดูเอกสารทั้งหมด →",
       docQuickstart: "คู่มือเริ่มต้นใช้งาน",
       docTutorials: "บทเรียนและคู่มือการใช้งาน",
-      docConcepts: "แนวคิดหลัก",
       docMcp: "เครื่องมือ MCP",
       docSecurity: "ความปลอดภัยและความเป็นส่วนตัว",
       docSource: "ซอร์สโค้ดบน GitHub",
@@ -1287,10 +1291,12 @@ export const I18N = {
       clientsTitle: "Funktioniert mit den Werkzeugen, die du schon nutzt",
       clientsBody:
         "Ein Befehl richtet jedes davon ein. Alles andere, das MCP spricht, funktioniert ebenfalls.",
-      docsTitle: "Weiterlesen",
+      docsTitle: "Dokumentation",
+      docsIntro:
+        "Konzeptübersichten und Schritt-für-Schritt-Tutorials in der App — oder das vollständige technische Handbuch auf GitHub.",
+      docsCta: "Dokumentation durchsehen →",
       docQuickstart: "Schnellstart",
       docTutorials: "Tutorials",
-      docConcepts: "Konzepte",
       docMcp: "MCP-Werkzeuge",
       docSecurity: "Sicherheit & Datenschutz",
       docSource: "Quellcode auf GitHub",

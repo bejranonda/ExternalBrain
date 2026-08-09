@@ -187,7 +187,7 @@ export const DOCS: Record<string, DocPage> = {
       },
     ],
     related: ["autoskill", "oracle", "decay"],
-    repoDoc: { label: "Skill types explained for everyone (tutorial 07)", href: "https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/07-skill-types-explained.md" },
+    repoDoc: { label: "Skill types explained, in plain language →", href: "/docs/tutorials/07-skill-types-explained" },
   },
 
   oracle: {
@@ -404,7 +404,7 @@ export const DOCS: Record<string, DocPage> = {
       },
     ],
     related: ["connection-status", "sessions"],
-    repoDoc: { label: "tutorials/04-managing-tokens.md", href: "https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/04-managing-tokens.md" },
+    repoDoc: { label: "Token scope, rotation, and revocation →", href: "/docs/tutorials/04-managing-tokens" },
   },
 
   "connection-status": {
@@ -631,7 +631,7 @@ const DOCS_DE: Record<string, DocPage> = {
       },
     ],
     related: ["autoskill", "oracle", "decay"],
-    repoDoc: { label: "Skill types explained for everyone (tutorial 07)", href: "https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/07-skill-types-explained.md" },
+    repoDoc: { label: "Skill-Typen einfach erklärt →", href: "/docs/tutorials/07-skill-types-explained" },
   },
 
   oracle: {
@@ -846,7 +846,7 @@ const DOCS_DE: Record<string, DocPage> = {
       },
     ],
     related: ["connection-status", "sessions"],
-    repoDoc: { label: "tutorials/04-managing-tokens.md", href: "https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/04-managing-tokens.md" },
+    repoDoc: { label: "Token-Bereich, Rotation und Widerruf →", href: "/docs/tutorials/04-managing-tokens" },
   },
 
   "connection-status": {
@@ -1043,7 +1043,7 @@ const DOCS_TH: Record<string, DocPage> = {
       },
     ],
     related: ["autoskill", "oracle", "decay"],
-    repoDoc: { label: "คำอธิบายประเภทสกิลสำหรับทุกคน (Tutorial 07)", href: "https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/07-skill-types-explained.md" },
+    repoDoc: { label: "คำอธิบายประเภทสกิลสำหรับทุกคน →", href: "/docs/tutorials/07-skill-types-explained" },
   },
 
   oracle: {
@@ -1258,7 +1258,7 @@ const DOCS_TH: Record<string, DocPage> = {
       },
     ],
     related: ["connection-status", "sessions"],
-    repoDoc: { label: "คู่มือการจัดการโทเค็น (Tutorial 04)", href: "https://github.com/bejranonda/ExternalBrain/blob/main/docs/tutorials/04-managing-tokens.md" },
+    repoDoc: { label: "คู่มือการจัดการโทเค็น →", href: "/docs/tutorials/04-managing-tokens" },
   },
 
   "connection-status": {
@@ -1352,6 +1352,7 @@ export interface DocsChrome {
   allTutorials: string;
   sourceOnGithub: string;
   notYetTranslated: string;
+  guidesIntro: string;
   sections: Record<string, string>;
 }
 
@@ -1380,13 +1381,15 @@ const DOCS_CHROME: Record<Lang, DocsChrome> = {
     allTutorials: "← all tutorials",
     sourceOnGithub: "View source on GitHub",
     notYetTranslated: "Not yet translated — showing the English version.",
+    guidesIntro: "Already connected? Level up one specific thing.",
     deeperReference: "Deeper reference",
     sections: {
       start: "Start here",
       core: "Core concepts",
       connection: "Connection & setup",
       deeper: "Deeper",
-      tutorials: "Tutorials",
+      getStarted: "Get started",
+      guides: "Guides",
     },
   },
   th: {
@@ -1413,13 +1416,15 @@ const DOCS_CHROME: Record<Lang, DocsChrome> = {
     allTutorials: "← บทเรียนทั้งหมด",
     sourceOnGithub: "ดูต้นฉบับบน GitHub",
     notYetTranslated: "ยังไม่มีคำแปล — แสดงฉบับภาษาอังกฤษ",
+    guidesIntro: "เชื่อมต่อแล้ว? มาต่อยอดเรื่องใดเรื่องหนึ่งให้เชี่ยวชาญขึ้น",
     deeperReference: "อ้างอิงเชิงลึก",
     sections: {
       start: "เริ่มที่นี่",
       core: "แนวคิดหลัก",
       connection: "การเชื่อมต่อและการตั้งค่า",
       deeper: "เชิงลึก",
-      tutorials: "บทเรียน",
+      getStarted: "เริ่มต้นใช้งาน",
+      guides: "คู่มือ",
     },
   },
   de: {
@@ -1446,13 +1451,15 @@ const DOCS_CHROME: Record<Lang, DocsChrome> = {
     allTutorials: "← alle Tutorials",
     sourceOnGithub: "Quelle auf GitHub ansehen",
     notYetTranslated: "Noch nicht übersetzt — englische Version wird angezeigt.",
+    guidesIntro: "Schon verbunden? Vertiefe eine einzelne Sache.",
     deeperReference: "Tiefere Referenz",
     sections: {
       start: "Hier starten",
       core: "Kernkonzepte",
       connection: "Verbindung & Einrichtung",
       deeper: "Tiefer",
-      tutorials: "Tutorials",
+      getStarted: "Erste Schritte",
+      guides: "Anleitungen",
     },
   },
 };

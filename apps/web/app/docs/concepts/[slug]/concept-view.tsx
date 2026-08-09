@@ -206,14 +206,28 @@ export function ConceptView({ slug }: { slug: string }) {
               >
                 {c.deeperReference}
               </div>
-              <a
-                href={page.repoDoc.href}
-                target="_blank"
-                rel="noopener"
-                style={{ color: "var(--accent-text)", fontSize: 14 }}
-              >
-                {page.repoDoc.label} ↗
-              </a>
+              {/* repoDoc used to always be a GitHub link (hence "repo"), so
+                  target="_blank" + a trailing ↗ were unconditional. Two
+                  entries (tokens → tutorial 04, skills → tutorial 07) now
+                  point in-app instead — an external-link marker on a link
+                  that doesn't leave the page is a real, if small, lie to the
+                  reader. Distinguish by href shape rather than adding a
+                  second field: an in-app repoDoc.href always starts with
+                  "/", an external one is always a full https:// URL. */}
+              {page.repoDoc.href.startsWith("/") ? (
+                <Link href={page.repoDoc.href} style={{ color: "var(--accent-text)", fontSize: 14 }}>
+                  {page.repoDoc.label}
+                </Link>
+              ) : (
+                <a
+                  href={page.repoDoc.href}
+                  target="_blank"
+                  rel="noopener"
+                  style={{ color: "var(--accent-text)", fontSize: 14 }}
+                >
+                  {page.repoDoc.label} ↗
+                </a>
+              )}
             </div>
           )}
         </footer>

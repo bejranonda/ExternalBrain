@@ -50,3 +50,31 @@ export function readTutorialMarkdown(
   if (en === undefined) return null;
   return { content: en, isTranslated: lang === "en" };
 }
+
+/**
+ * Replace the `<your-brain>` placeholder with this deployment's real host.
+ *
+ * The markdown SOURCE stays generic on purpose — it is the same file GitHub
+ * serves to every self-hosted fork, so it cannot hardcode one operator's
+ * hostname. The IN-APP rendering can and should be concrete: a visitor
+ * reading this on a specific deployment should see that deployment's actual
+ * URL, not a placeholder they have to mentally substitute themselves.
+ *
+ * Deliberately a plain string replace at request time in the SERVER
+ * component (page.tsx), not baked in at build time alongside the markdown
+ * itself: `BRAIN_PUBLIC_HOSTNAME` is a runtime env var (the Docker image is
+ * built with dummy env — GUIDELINES §10), so substituting it at build time
+ * would freeze whatever the builder's dummy value happened to be, the exact
+ * #293 failure class. A `resolvePublicWebUrl()` env read is cheap and always
+ * current; unlike the markdown source itself it never needed baking, because
+ * env vars — unlike files — are available in the running container.
+ *
+ * Falls back to leaving `<your-brain>` untouched if the deployment has no
+ * `BRAIN_PUBLIC_HOSTNAME` set (e.g. local dev) — a visible placeholder is
+ * more honest than substituting `undefined` or `localhost` into copy-paste
+ * instructions.
+ */
+export function withResolvedHost(content: string, webUrl: string | undefined): string {
+  if (!webUrl) return content;
+  return content.replaceAll("<your-brain>", webUrl.replace(/^https?:\/\//, ""));
+}
