@@ -36,10 +36,17 @@ const INSTALLER_INVOCATION = [
  *  - installer-templates.ts authors the installer *script itself*, whose own
  *    header comments document how it is invoked. That is the script's usage
  *    text, not a command rendered for a user's token.
+ *  - tutorial-content.generated.ts is baked from docs/tutorials/00-quick-start.md
+ *    (scripts/generate-tutorial-content.mjs), which shows the command as
+ *    documentation prose inside a fenced code block — the same reason
+ *    installer-templates.ts is exempt. Generated, not hand-written; the
+ *    actual source of the literal text is the tutorial markdown, which this
+ *    sweep doesn't scan (docs/ isn't under apps/web).
  */
 const ALLOWED = new Set([
   "packages/core/src/install-snippets.ts",
   "apps/web/lib/brain/installer-templates.ts",
+  "apps/web/lib/brain/tutorial-content.generated.ts",
 ]);
 
 const SEARCH_ROOTS = [

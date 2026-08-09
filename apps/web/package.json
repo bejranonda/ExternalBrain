@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "next build --webpack",
+    "build": "node ../../scripts/generate-tutorial-content.mjs && next build --webpack",
     "//build-mem": "webpack compile peaks ~2.5GB; on hosts <8GB RAM with containers running, kernel may OOM-kill (exit 137). Fix options: (a) docker compose stop web mcp-server worker; pnpm build; (b) add 4GB swap once (sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile); (c) use ./scripts/reload.sh which builds inside Docker with its own budget. --webpack flag is required (see docs/KNOWLEDGE.md).",
-    "dev": "next dev -p 3000",
+    "dev": "node ../../scripts/generate-tutorial-content.mjs && next dev -p 3000",
     "start": "next start",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node ../../scripts/generate-tutorial-content.mjs && tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run",
+    "test": "node ../../scripts/generate-tutorial-content.mjs && vitest run",
     "clean": "rm -rf .next .turbo",
     "e2e": "playwright test",
     "e2e:install": "playwright install chromium"
