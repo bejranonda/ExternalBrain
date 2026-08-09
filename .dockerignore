@@ -10,6 +10,14 @@
 **/tsconfig.tsbuildinfo
 coverage
 research
-docs
+# Only docs/tutorials/ ships into the build context — read at build time to
+# bake in-app tutorial pages (apps/web/lib/brain/tutorial-content.ts). A bare
+# "docs" exclusion cannot be selectively re-included per Docker's own rule
+# ("not possible to re-include a file if a parent directory is excluded"),
+# so this excludes each direct child of docs/ individually and re-includes
+# just the one subdirectory that's actually needed.
+docs/*
+!docs/tutorials
 *.md
 !README.md
+!docs/tutorials/*.md
