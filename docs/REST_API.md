@@ -531,6 +531,72 @@ GET    /api/graph/orphans
 GET    /api/graph/deadends
 ```
 
+## Agentic onboarding (anonymous)
+
+```text
+GET    /api/onboard/agent.md        bootstrap instructions an AI agent fetches and follows
+POST   /api/onboard/claim           { voucher, email, label?, client?, os? } → account + MCP token, ONCE
+GET    /api/skills/brain            the Brain SKILL.md (usage guide, not bootstrap)
+GET    /api/onboard.sh              POSIX installer; takes the bearer as $1
+GET    /api/onboard.ps1             PowerShell installer
+```
+
+Of these, only `POST /api/onboard/claim` mutates state (`POST
+/api/auth/register` is the other unauthenticated writer on this API, documented
+under the voucher gate in SECURITY.md). It exists so an AI coding agent can onboard its
+user without a browser: the user pastes a voucher code and a URL into their
+harness, and the agent creates the account, mints a token, and wires up MCP.
+The public front door that hands out that paste is `/start`.
+
+**Gated off by default.** `AGENTIC_ONBOARDING` must be an affirmative
+(`1`/`true`/`yes`/`on`, any case, via `envFlag`); absent, negative or
+unrecognised values all return `403 agentic_onboarding_disabled`. A fresh
+`docker compose up` does not vend bearers.
+
+**`POST /api/onboard/claim`**
+
+| Field | Required | Notes |
+|---|---|---|
+| `voucher` | yes | Normalised `.trim().toUpperCase()` like every other voucher path |
+| `email` | yes | Supplied by the *user*, not invented by the agent. Not verified up front — verified by delivery of the set-password link |
+| `label` | no | Free text appended to the token name, e.g. `"claude-code / macbook"` |
+| `client` | no | A `ClientId` from `@brain/core/install-snippets`. Unknown ids degrade to `claude-code` rather than 400 |
+| `os` | no | `darwin` \| `linux` \| `win32`, default `linux` |
+
+Response `201`: `{ token, expiresAt, capabilities, mcpUrl, webUrl, installCommand, manualSetup, client, setPasswordUrl, startUrl, notes }`.
+
+`installCommand` is `null` for `jetbrains` and `rest`, which have no one-line
+installer — callers must fall back to `manualSetup`.
+
+Errors: `403 agentic_onboarding_disabled` · `400 invalid_request` ·
+`400 voucher_{invalid,expired,exhausted,disabled}` · `409 email_taken` ·
+`429 rate_limited` · `429 voucher_rate_limited`.
+
+**How this differs from `POST /api/tokens`**, and why:
+
+| | `/api/tokens` | `/api/onboard/claim` |
+|---|---|---|
+| Auth | NextAuth session cookie | none — the voucher authorises |
+| TTL | 90 days default | **14 days**, fixed |
+| Capabilities | `[]` = unrestricted | **`knowledge`, `skills`, `sessions`** — no `oracle` |
+| Creates a user | no | yes, **without a password** |
+
+`oracle` is excluded because it is the billed capability; a leaked voucher must
+not become LLM spend. The user adds it themselves from `/settings/tokens` after
+setting a password. The account is created without a `UserCredential` on
+purpose — an agent that invented a password would leak it into the session
+transcript and the user would never learn it.
+
+**`email_taken` is a hard stop.** The endpoint never mints for an existing
+user; doing so would make any voucher an account-takeover primitive. Clients
+must not retry under a different address.
+
+**Atomicity.** The voucher burn, the `User`, the personal org, the default
+project and the `MCPToken` are one transaction. Unlike `/api/auth/register`,
+which bootstraps the org best-effort outside its transaction, an agentic
+claimant has no browser session to self-heal from — a partial commit would
+strand them holding a spent code.
+
 ## MCP tokens
 
 ```

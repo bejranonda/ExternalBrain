@@ -125,6 +125,18 @@ This is the credential your AI coding tool will use to read + write your Brain.
 
 The token is a 90-day credential by default. You can create more (one per machine) and revoke any of them without affecting the others.
 
+**Onboarding other people?** Don't walk them through steps 4 and 5. Mint a
+voucher at `/admin`, hand them the code, and point them at
+`https://<your-host>/start` — one public URL that covers both routes (their AI
+does it, or they do it in a browser). If you also set `AGENTIC_ONBOARDING=true`,
+they never open a browser at all: their agent exchanges the voucher for a token
+via `POST /api/onboard/claim` and runs the installer itself.
+
+That switch is off by default and worth a deliberate decision — with it on, a
+voucher code is a bearer-equivalent secret rather than an account stub. Read
+[SECURITY.md § Agentic onboarding](./SECURITY.md#agentic-onboarding--the-voucher-becomes-a-credential-v2150)
+before enabling it on a public instance.
+
 ---
 
 ## 5. Wire it into your AI coding tool

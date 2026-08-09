@@ -50,6 +50,11 @@ export type Action =
   | "org.member.role"
   | "org.member.remove"
   | "user.register"
+  // Anonymous voucher → MCP-token exchange (/api/onboard/claim). Distinct from
+  // user.register + token.create so the agentic path is separable in the audit
+  // log: it is the only way an account and a live bearer appear together with
+  // no browser session behind them.
+  | "onboard.claim"
   | "user.password_change"
   | "user.password_reset_request"
   | "user.password_reset_complete";

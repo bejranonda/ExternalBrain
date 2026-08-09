@@ -73,4 +73,6 @@ The 7,900-line prior-art body lives at `../research/knowledge/`. Start with `../
 
 **To use the Brain day-to-day (operator on a team that already has one):** END_USER → tutorials/ (start at `01-getting-started.md`) → CLIENTS → USING_BRAIN → MCP_TOOLS (when curious).
 
+**You were handed a voucher code and nothing else:** don't start here — go to `https://<your-brain>/start`. It is the one public page written for exactly that situation, and it covers both routes (your AI does the setup, or you do it in a browser). Come back to `tutorials/00-quick-start.md` once you're connected.
+
 **To evaluate whether to build it (decision-maker):** BLUEPRINT → KNOWN_ISSUES → BUSINESS → ROADMAP.

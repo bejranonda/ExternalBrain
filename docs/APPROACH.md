@@ -73,6 +73,15 @@ The actual failure was not absence. It was **staleness** (no tutorial mentioned 
 
 The generalisable question when asked for documentation: *is the reader missing information, or missing a route to it?* Those have opposite fixes, and writing new prose for the second one is how a docs tree grows to the point where nobody can find anything. Applies to code too — a "missing" helper is often an existing one nobody could locate.
 
+### 2.6c A documented contract nobody can satisfy is decoration
+`packages/core/src/org.ts` opened with a design rule, stated as fact: *"Every function accepts a `db` client as the first argument so callers can supply a transaction client or a mock."* Nineteen functions, every one typed `db: PrismaClient`. Prisma's `TransactionClient` is `Omit<PrismaClient, ITXClientDenyList>`, so it is **not** structurally assignable to `PrismaClient` — passing one never type-checked, and in three years no caller had tried. The rule had been true as an intention and false as an interface since the day it was written.
+
+Nothing catches this. The docstring reads as documentation of existing behaviour, so reviewers trust it; the types compile, so CI is silent; and the first person who needs the capability discovers it does not exist while mid-way through something else. `/api/onboard/claim` needed exactly it — the voucher burn and the token mint have to be one transaction — and the header promised the tools were already there.
+
+The rule: **when a comment claims a capability, either a caller exercises it or the comment says "not yet".** Prose in a header is not enforced by anything, so it decays in the one direction that costs the reader most: toward optimism. Two cheap disciplines — write the narrowest true statement (here: name *which* functions take a transaction client, because only two do), and when adding a capability claim, add the caller that proves it in the same commit.
+
+Related to but distinct from §2.6: that is one fact spread across N surfaces; this is one fact that was never true anywhere, restated confidently enough that everyone assumed it had been checked.
+
 ### 2.7 Depend on vendors' contracts, not on their internals
 Roughly a third of the surface here is other people's config formats, and they move. Two failures inside one week: we invented a `transport: {type, url}` shape no client documents (`§0u`), and Google's Gemini CLI → Antigravity merge moved a config path we had hardcoded and pinned with a passing assertion (`§0z`).
 

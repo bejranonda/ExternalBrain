@@ -143,7 +143,42 @@ fully. Any signed-in user can also create additional organizations from
 **Settings → Organization → New organization**. See
 [docs/SECURITY.md](./docs/SECURITY.md) for the full posture.
 
-### Connect your AI tool
+**Two public URLs matter.** `https://<your-host>/` is the landing page — what
+Brain is, what it does, which tools it works with, and links into the docs. It
+renders for anonymous visitors only; signed-in users are still routed straight
+to their project.
+
+`https://<your-host>/start` is the front door for anyone holding a **voucher
+code** — it prefills from `?voucher=CODE`, explains both setup routes, and is
+where every voucher error on `/signin` sends people. That is the link worth
+printing on a card or pasting into a channel.
+
+> Fresh deployments serve `robots.txt` with `Disallow: /`, because an
+> invite-only instance shouldn't be indexed. Set `BRAIN_ROBOTS_DISALLOW_ALL=false`
+> when you want your landing page found.
+
+### Let your AI set itself up (no browser)
+
+If you'd rather not leave your editor, hand the voucher to your agent instead.
+Paste this into Claude Code, Cursor, or any AI tool that can fetch a URL:
+
+```text
+Set up External Brain on this machine. My voucher code is PILOT-XXXX-XXXX.
+Fetch https://<your-host>/api/onboard/agent.md and follow it exactly.
+Ask me for my email address first — don't guess it.
+```
+
+The agent creates your account, mints a token, and wires up MCP — then **stops
+and tells you to restart**, because MCP configuration is bound at session start
+and the connection isn't live until you do.
+
+**Operators must opt in:** set `AGENTIC_ONBOARDING=true`. It is off by default,
+because with it on a voucher code is a bearer-equivalent secret — anyone holding
+one can mint a token. The minted token is deliberately narrow (14 days, no
+Oracle access) so a leaked code can't run up LLM spend. Full posture and the
+trade-offs: [docs/SECURITY.md](./docs/SECURITY.md#agentic-onboarding--the-voucher-becomes-a-credential-v2150).
+
+### Connect your AI tool (browser route)
 
 After signing in, the **`/welcome`** flow walks you through it: pick your tool,
 copy a one-line installer, run any task. Every supported client gets a

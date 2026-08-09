@@ -370,6 +370,77 @@ export const I18N = {
         "Your AI client cached an old tool list — restart Claude Code / Cursor / Windsurf after editing the MCP config.",
       skip: "Skip welcome →",
     },
+    start: {
+      title: "Set up your Brain",
+      tagline:
+        "You have a voucher code. Pick how you'd like to use it — either way takes about a minute.",
+      voucherLabel: "Your voucher code",
+      voucherPlaceholder: "e.g. PILOT-2026-A1B2",
+      agentTitle: "Let your AI set it up",
+      agentBlurb:
+        "Paste one line into Claude Code, Cursor, or any AI tool that can fetch a URL. It creates your account, gets a token, and wires up the connection for you.",
+      agentNeedCode: "Enter your voucher code above to get your setup prompt.",
+      agentCopy: "Copy the prompt",
+      agentCopied: "Copied!",
+      agentRestart:
+        "When it finishes, restart your AI tool. The connection is not live until you do.",
+      agentDisabled:
+        "This Brain has agentic setup switched off. Use “Do it yourself” instead.",
+      selfTitle: "Do it yourself",
+      selfBlurb:
+        "Create an account in your browser, then copy a one-line install command for your tool.",
+      selfCta: "Create an account →",
+      tokenNote:
+        "The token your AI receives lasts 14 days and cannot call the Oracle. Set a password afterwards to mint a full one.",
+      noCode: "No voucher code?",
+      noCodeBlurb:
+        "Ask whoever runs this Brain for one. Codes are handed out individually and expire.",
+      whatIsTitle: "What is External Brain?",
+      whatIsBlurb:
+        "A memory layer for your AI coding sessions. It remembers what you decided and why — across sessions, projects, and machines.",
+      learnMore: "Read the concepts →",
+      tourLink: "See the guided tour →",
+      signinLink: "Already have an account? Sign in",
+    },
+    landing: {
+      heroTitle: "Your AI coding sessions forget everything. This one doesn't.",
+      heroBody:
+        "External Brain is a memory layer your AI tools connect to over MCP. It remembers what you decided and why — across sessions, projects, and machines.",
+      ctaVoucher: "I have a voucher code",
+      ctaSignIn: "Sign in",
+      ctaSelfHost: "Self-host it →",
+      problemTitle: "The problem",
+      problemBody:
+        "Every new session starts from zero. You re-explain the same conventions, re-argue the same decisions, and rediscover the same fixes. The knowledge already exists — it is just trapped in transcripts nobody reads twice.",
+      featuresTitle: "What it does",
+      f1Title: "Injects what you already decided",
+      f1Body:
+        "Before your AI generates code, Brain retrieves the rules your past sessions produced and puts them in context — so it stops suggesting the library you rejected last month.",
+      f2Title: "Answers questions about your own history",
+      f2Body:
+        "Ask “what did we decide about auth?” and get a grounded answer, with citations to the sessions and rules it came from.",
+      f3Title: "Turns repeated fixes into rules",
+      f3Body:
+        "A background worker reads finished sessions, extracts what generalises, and scores whether each rule actually helped. Rules that never pay off decay away.",
+      f4Title: "Stays yours",
+      f4Body:
+        "Self-hostable on a single VM with Docker Compose. Your sessions, your database, your LLM keys, your data-retention rules.",
+      howTitle: "How it works",
+      howBody:
+        "Your AI tool talks to Brain over MCP-over-HTTP with a bearer token. Brain injects relevant knowledge before a task and records the outcome after; a background worker turns those outcomes into reusable rules and embeddings.",
+      clientsTitle: "Works with the tools you already use",
+      clientsBody:
+        "One command wires up any of these. Anything else that speaks MCP works too.",
+      docsTitle: "Read more",
+      docQuickstart: "Quick start",
+      docTutorials: "Tutorials",
+      docConcepts: "Concepts",
+      docMcp: "MCP tools",
+      docSecurity: "Security & privacy",
+      docSource: "Source on GitHub",
+      footerVersion: "Version",
+      footerLicence: "Open source — fork it and run your own",
+    },
     tip: {
       mcp: "Model Context Protocol — the channel your AI tool uses to talk to Brain.",
       sqs: "Session Quality Score — 0–1, blends acceptance, errors, and useful knowledge applied across recent sessions.",
@@ -737,6 +808,81 @@ export const I18N = {
       cause3:
         "ไคลเอนต์ AI ของคุณแคชรายการเครื่องมือเก่าไว้ — รีสตาร์ท Claude Code / Cursor / Windsurf หลังแก้ไขการตั้งค่า MCP",
       skip: "ข้ามคำแนะนำ →",
+    },
+    // AI-generated TH copy, consistent with the `welcome.*` namespace — awaiting
+    // a native-speaker sweep (see KNOWN_ISSUES). English is authoritative.
+    start: {
+      title: "ตั้งค่า Brain ของคุณ",
+      tagline:
+        "คุณมีรหัสวอเชอร์แล้ว เลือกวิธีที่คุณต้องการใช้ — ทั้งสองวิธีใช้เวลาประมาณหนึ่งนาที",
+      voucherLabel: "รหัสวอเชอร์ของคุณ",
+      voucherPlaceholder: "เช่น PILOT-2026-A1B2",
+      agentTitle: "ให้ AI ตั้งค่าให้",
+      agentBlurb:
+        "วางข้อความบรรทัดเดียวลงใน Claude Code, Cursor หรือเครื่องมือ AI ใดก็ได้ที่ดึงข้อมูลจาก URL ได้ ระบบจะสร้างบัญชี รับโทเคน และเชื่อมต่อให้คุณ",
+      agentNeedCode: "กรอกรหัสวอเชอร์ด้านบนเพื่อรับคำสั่งตั้งค่าของคุณ",
+      agentCopy: "คัดลอกคำสั่ง",
+      agentCopied: "คัดลอกแล้ว!",
+      agentRestart:
+        "เมื่อเสร็จแล้ว ให้รีสตาร์ทเครื่องมือ AI ของคุณ การเชื่อมต่อจะยังไม่ทำงานจนกว่าคุณจะรีสตาร์ท",
+      agentDisabled:
+        "Brain นี้ปิดการตั้งค่าผ่าน AI ไว้ กรุณาใช้ “ทำด้วยตัวเอง” แทน",
+      selfTitle: "ทำด้วยตัวเอง",
+      selfBlurb:
+        "สร้างบัญชีในเบราว์เซอร์ จากนั้นคัดลอกคำสั่งติดตั้งบรรทัดเดียวสำหรับเครื่องมือของคุณ",
+      selfCta: "สร้างบัญชี →",
+      tokenNote:
+        "โทเคนที่ AI ได้รับมีอายุ 14 วัน และเรียกใช้ Oracle ไม่ได้ ตั้งรหัสผ่านภายหลังเพื่อออกโทเคนแบบเต็ม",
+      noCode: "ยังไม่มีรหัสวอเชอร์?",
+      noCodeBlurb:
+        "ขอจากผู้ดูแล Brain นี้ รหัสจะแจกเป็นรายบุคคลและมีวันหมดอายุ",
+      whatIsTitle: "External Brain คืออะไร?",
+      whatIsBlurb:
+        "ชั้นความจำสำหรับเซสชันเขียนโค้ดกับ AI ของคุณ จดจำสิ่งที่คุณตัดสินใจและเหตุผล ข้ามเซสชัน ข้ามโปรเจกต์ และข้ามเครื่อง",
+      learnMore: "อ่านแนวคิดพื้นฐาน →",
+      tourLink: "ดูคำแนะนำแบบทีละขั้น →",
+      signinLink: "มีบัญชีอยู่แล้ว? เข้าสู่ระบบ",
+    },
+    // AI-generated TH copy — awaiting a native-speaker sweep. Marketing tone is
+    // where machine translation is weakest; English is authoritative.
+    landing: {
+      heroTitle: "เซสชันเขียนโค้ดกับ AI ลืมทุกอย่าง แต่ตัวนี้ไม่ลืม",
+      heroBody:
+        "External Brain คือชั้นความจำที่เครื่องมือ AI ของคุณเชื่อมต่อผ่าน MCP จดจำสิ่งที่คุณตัดสินใจและเหตุผลเบื้องหลัง ข้ามเซสชัน ข้ามโปรเจกต์ และข้ามเครื่อง",
+      ctaVoucher: "ฉันมีรหัสวอเชอร์",
+      ctaSignIn: "เข้าสู่ระบบ",
+      ctaSelfHost: "ติดตั้งบนเซิร์ฟเวอร์ของคุณเอง →",
+      problemTitle: "ปัญหาที่เจอ",
+      problemBody:
+        "ทุกเซสชันใหม่เริ่มจากศูนย์ คุณต้องอธิบายแนวทางเดิมซ้ำ ถกเถียงเรื่องที่ตัดสินใจไปแล้วใหม่ และค้นพบวิธีแก้เดิมอีกครั้ง ความรู้นั้นมีอยู่แล้ว เพียงแต่ติดอยู่ในบทสนทนาที่ไม่มีใครกลับไปอ่าน",
+      featuresTitle: "สิ่งที่ทำได้",
+      f1Title: "แทรกสิ่งที่คุณตัดสินใจไว้แล้ว",
+      f1Body:
+        "ก่อน AI จะเขียนโค้ด Brain จะดึงกฎที่ได้จากเซสชันก่อนหน้ามาใส่ในบริบท เพื่อไม่ให้มันเสนอไลบรารีที่คุณปฏิเสธไปเมื่อเดือนที่แล้วอีก",
+      f2Title: "ตอบคำถามเกี่ยวกับประวัติการทำงานของคุณเอง",
+      f2Body:
+        "ถามว่า “เราตัดสินใจเรื่อง auth ไว้ว่าอย่างไร?” แล้วได้คำตอบที่มีหลักฐานอ้างอิงถึงเซสชันและกฎที่เป็นที่มา",
+      f3Title: "เปลี่ยนการแก้ปัญหาซ้ำ ๆ ให้เป็นกฎ",
+      f3Body:
+        "ตัวประมวลผลเบื้องหลังอ่านเซสชันที่จบแล้ว สกัดสิ่งที่ใช้ซ้ำได้ และให้คะแนนว่ากฎนั้นช่วยได้จริงหรือไม่ กฎที่ไม่เคยถูกใช้จะเสื่อมหายไปเอง",
+      f4Title: "ยังเป็นของคุณ",
+      f4Body:
+        "ติดตั้งเองได้บนเครื่องเดียวด้วย Docker Compose เซสชันของคุณ ฐานข้อมูลของคุณ คีย์ LLM ของคุณ และนโยบายเก็บข้อมูลของคุณเอง",
+      howTitle: "ทำงานอย่างไร",
+      howBody:
+        "เครื่องมือ AI ของคุณคุยกับ Brain ผ่าน MCP-over-HTTP ด้วยโทเคน Brain จะแทรกความรู้ที่เกี่ยวข้องก่อนเริ่มงานและบันทึกผลลัพธ์หลังจบงาน จากนั้นตัวประมวลผลเบื้องหลังจะแปลงผลลัพธ์เหล่านั้นเป็นกฎและเวกเตอร์ที่นำกลับมาใช้ได้",
+      clientsTitle: "ใช้ได้กับเครื่องมือที่คุณใช้อยู่แล้ว",
+      clientsBody:
+        "คำสั่งเดียวตั้งค่าได้ทุกตัวที่แสดงไว้ และเครื่องมืออื่นที่รองรับ MCP ก็ใช้ได้เช่นกัน",
+      docsTitle: "อ่านเพิ่มเติม",
+      docQuickstart: "คู่มือเริ่มต้น",
+      docTutorials: "บทเรียน",
+      docConcepts: "แนวคิดพื้นฐาน",
+      docMcp: "เครื่องมือ MCP",
+      docSecurity: "ความปลอดภัยและความเป็นส่วนตัว",
+      docSource: "ซอร์สโค้ดบน GitHub",
+      footerVersion: "เวอร์ชัน",
+      footerLicence: "โอเพนซอร์ส — คัดลอกไปรันเองได้",
     },
     tip: {
       mcp: "Model Context Protocol — ช่องทางที่เครื่องมือ AI ของคุณใช้สื่อสารกับ Brain",
@@ -1107,6 +1253,78 @@ export const I18N = {
       cause3:
         "Dein KI-Client hat eine alte Tool-Liste zwischengespeichert — starte Claude Code / Cursor / Windsurf nach dem Bearbeiten der MCP-Konfiguration neu.",
       skip: "Willkommen überspringen →",
+    },
+    start: {
+      title: "Richte dein Brain ein",
+      tagline:
+        "Du hast einen Gutscheincode. Wähle, wie du ihn einlösen möchtest — beides dauert etwa eine Minute.",
+      voucherLabel: "Dein Gutscheincode",
+      voucherPlaceholder: "z. B. PILOT-2026-A1B2",
+      agentTitle: "Lass deine KI das übernehmen",
+      agentBlurb:
+        "Füge eine Zeile in Claude Code, Cursor oder ein beliebiges KI-Werkzeug ein, das eine URL abrufen kann. Es legt dein Konto an, holt ein Token und richtet die Verbindung ein.",
+      agentNeedCode:
+        "Gib oben deinen Gutscheincode ein, um deinen Einrichtungs-Prompt zu erhalten.",
+      agentCopy: "Prompt kopieren",
+      agentCopied: "Kopiert!",
+      agentRestart:
+        "Starte danach dein KI-Werkzeug neu. Die Verbindung ist erst dann aktiv.",
+      agentDisabled:
+        "Auf diesem Brain ist die KI-gesteuerte Einrichtung deaktiviert. Nutze stattdessen „Selbst einrichten“.",
+      selfTitle: "Selbst einrichten",
+      selfBlurb:
+        "Lege im Browser ein Konto an und kopiere dann den einzeiligen Installationsbefehl für dein Werkzeug.",
+      selfCta: "Konto anlegen →",
+      tokenNote:
+        "Das Token, das deine KI erhält, gilt 14 Tage und kann das Oracle nicht aufrufen. Vergib anschließend ein Passwort, um ein vollwertiges Token zu erzeugen.",
+      noCode: "Kein Gutscheincode?",
+      noCodeBlurb:
+        "Frag die Person, die dieses Brain betreibt. Codes werden einzeln vergeben und laufen ab.",
+      whatIsTitle: "Was ist External Brain?",
+      whatIsBlurb:
+        "Eine Gedächtnisschicht für deine KI-Coding-Sitzungen. Sie merkt sich, was du entschieden hast und warum — über Sitzungen, Projekte und Rechner hinweg.",
+      learnMore: "Konzepte lesen →",
+      tourLink: "Geführte Tour ansehen →",
+      signinLink: "Schon ein Konto? Anmelden",
+    },
+    landing: {
+      heroTitle: "Deine KI-Coding-Sitzungen vergessen alles. Diese hier nicht.",
+      heroBody:
+        "External Brain ist eine Gedächtnisschicht, mit der sich deine KI-Werkzeuge über MCP verbinden. Sie merkt sich, was du entschieden hast und warum — über Sitzungen, Projekte und Rechner hinweg.",
+      ctaVoucher: "Ich habe einen Gutscheincode",
+      ctaSignIn: "Anmelden",
+      ctaSelfHost: "Selbst hosten →",
+      problemTitle: "Das Problem",
+      problemBody:
+        "Jede neue Sitzung beginnt bei null. Du erklärst dieselben Konventionen erneut, diskutierst dieselben Entscheidungen noch einmal und entdeckst dieselben Lösungen wieder. Das Wissen ist längst da — es steckt nur in Transkripten, die niemand ein zweites Mal liest.",
+      featuresTitle: "Was es tut",
+      f1Title: "Bringt zurück, was du längst entschieden hast",
+      f1Body:
+        "Bevor deine KI Code erzeugt, holt Brain die Regeln aus deinen früheren Sitzungen in den Kontext — damit sie nicht wieder die Bibliothek vorschlägt, die du letzten Monat verworfen hast.",
+      f2Title: "Beantwortet Fragen zu deiner eigenen Historie",
+      f2Body:
+        "Frag „was haben wir zu Auth entschieden?“ und bekomme eine belegte Antwort samt Verweisen auf die Sitzungen und Regeln, aus denen sie stammt.",
+      f3Title: "Macht aus wiederholten Fixes Regeln",
+      f3Body:
+        "Ein Hintergrundprozess liest abgeschlossene Sitzungen, extrahiert das Verallgemeinerbare und bewertet, ob eine Regel wirklich geholfen hat. Regeln ohne Nutzen verfallen von selbst.",
+      f4Title: "Bleibt deins",
+      f4Body:
+        "Auf einer einzelnen VM mit Docker Compose selbst hostbar. Deine Sitzungen, deine Datenbank, deine LLM-Schlüssel, deine Aufbewahrungsregeln.",
+      howTitle: "So funktioniert es",
+      howBody:
+        "Dein KI-Werkzeug spricht per MCP-over-HTTP mit einem Bearer-Token zu Brain. Brain spielt vor einer Aufgabe passendes Wissen ein und hält danach das Ergebnis fest; ein Hintergrundprozess macht daraus wiederverwendbare Regeln und Embeddings.",
+      clientsTitle: "Funktioniert mit den Werkzeugen, die du schon nutzt",
+      clientsBody:
+        "Ein Befehl richtet jedes davon ein. Alles andere, das MCP spricht, funktioniert ebenfalls.",
+      docsTitle: "Weiterlesen",
+      docQuickstart: "Schnellstart",
+      docTutorials: "Tutorials",
+      docConcepts: "Konzepte",
+      docMcp: "MCP-Werkzeuge",
+      docSecurity: "Sicherheit & Datenschutz",
+      docSource: "Quellcode auf GitHub",
+      footerVersion: "Version",
+      footerLicence: "Open Source — forke es und betreibe dein eigenes",
     },
     tip: {
       mcp: "Model Context Protocol — der Kanal, über den dein KI-Tool mit Brain spricht.",

@@ -163,6 +163,47 @@ VoucherRedemption
 6. `claimVoucher()` runs a Postgres transaction with `SELECT ... FOR UPDATE` on the voucher row, checks `disabled / expiresAt / usedCount < maxUses`, creates the User row, increments `usedCount`, writes the `VoucherRedemption` row. All four steps commit atomically, so two concurrent claims on the last seat of a multi-use code cannot both succeed.
 7. On failure, redirects `/signin?error=voucher_<reason>` with one of: `invalid | disabled | expired | exhausted`.
 
+### Agentic onboarding — the voucher becomes a credential (v2.15.0)
+
+`POST /api/onboard/claim` exchanges a voucher code for a live MCP token in one
+anonymous request, so an AI coding agent can onboard its user without a
+browser. **Gated off by default** — `AGENTIC_ONBOARDING` must be an affirmative
+(`1`/`true`/`yes`/`on`, any case) or the endpoint returns `403`. Parsed by the
+shared `envFlag`, so an unrecognised value keeps the default rather than
+guessing.
+
+Understand what enabling it changes. Before, a voucher only bought you an
+account that was still useless until you set a password. With this on, **the
+voucher is a bearer-equivalent secret**: it travels through chat prompts,
+screenshares and forwarded messages, and whoever holds it can mint a working
+token. Every mitigation below follows from that one fact.
+
+| Control | Value | Why |
+|---|---|---|
+| Master switch | `AGENTIC_ONBOARDING`, default `false` | Hard rule 2 — a fresh deploy does not vend bearers |
+| Per-IP limit | 5/hour (`onboard-claim`) | Tighter than register's 5/hour on accounts, because each success is a token |
+| Voucher brute-force | 10/hour, **shared counter with `/signin`** | Two surfaces validating the same code space must not grant 10 guesses each |
+| Token TTL | 14 days, not configurable per request | Time-boxes a leaked code |
+| Token capabilities | `knowledge`, `skills`, `sessions` | **No `oracle`** — the billed capability. A leaked voucher must not become LLM spend |
+| Existing email | `409`, hard stop | Minting for an existing user would make any voucher an account-takeover primitive |
+| Password | none created | An agent that invents one leaks it into the model transcript and the user never learns it |
+
+Order of operations matters and mirrors `/api/auth/register`: the voucher is
+validated **before** the email is looked up. Reversed, an anonymous caller
+could skip the voucher entirely and enumerate registered accounts through the
+`email_taken` response.
+
+**Accepted residual risk.** The minted bearer appears inside `installCommand`,
+so it lands in the agent's transcript and in the harness's on-disk session log
+(`~/.claude/projects/*.jsonl` for Claude Code). This is true of any
+token-in-terminal flow including the existing wizard; the 14-day TTL is the
+mitigation, and the response tells the user to mint a proper token afterwards.
+
+**Operator guidance.** Treat codes like credentials once this is on: one seat
+each, short expiry, handed out individually rather than posted to a channel.
+If you ever need to distribute codes to a list, do not enable this — build the
+device-code pairing flow instead (see the design spec's rejected alternatives).
+
 ### Email + password self-service registration
 
 The same voucher gate also governs a no-OAuth signup path, so a deployment that

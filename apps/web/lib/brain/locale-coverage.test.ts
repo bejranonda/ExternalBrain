@@ -87,41 +87,57 @@ describe("locale coverage", () => {
   }
 });
 
-describe("auth namespace", () => {
-  const locales = ["en", "th", "de"] as const;
-  const enKeys = Object.keys(
-    (I18N.en as unknown as Record<string, Record<string, string>>)["auth"] ?? {},
-  );
+/**
+ * Namespaces whose surfaces are reachable by someone who is NOT signed in,
+ * with the minimum key count that proves the namespace wasn't gutted.
+ *
+ * These get the strictest sweep because an anonymous visitor cannot work
+ * around a missing translation by switching to a page that has one — /signin
+ * and /start are frequently the only two pages they will ever see.
+ */
+const UNAUTH_NAMESPACES: ReadonlyArray<{ ns: string; minKeys: number; probe: string }> = [
+  { ns: "auth", minKeys: 30, probe: "auth.signIn" },
+  { ns: "start", minKeys: 18, probe: "start.title" },
+  { ns: "landing", minKeys: 24, probe: "landing.heroTitle" },
+];
 
-  it("exists and is non-trivial", () => {
-    expect(enKeys.length).toBeGreaterThanOrEqual(30);
-  });
+for (const { ns, minKeys, probe } of UNAUTH_NAMESPACES) {
+  describe(`${ns} namespace`, () => {
+    const locales = ["en", "th", "de"] as const;
+    const enKeys = Object.keys(
+      (I18N.en as unknown as Record<string, Record<string, string>>)[ns] ?? {},
+    );
 
-  for (const loc of locales) {
-    it(`${loc} defines every auth key`, () => {
-      const dict = (I18N[loc] as unknown as Record<string, Record<string, string>>)["auth"] ?? {};
-      const missing = enKeys.filter((k) => !(k in dict));
-      expect(missing).toEqual([]);
+    it("exists and is non-trivial", () => {
+      expect(enKeys.length).toBeGreaterThanOrEqual(minKeys);
     });
 
-    if (loc !== "en") {
-      it(`${loc} is actually translated, not copied from English`, () => {
-        // A locale that falls back to the English string for everything passes
-        // a "key exists" check while delivering no translation at all.
-        const dict = (I18N[loc] as unknown as Record<string, Record<string, string>>)["auth"]!;
-        const en = (I18N.en as unknown as Record<string, Record<string, string>>)["auth"]!;
-        const identical = enKeys.filter((k) => dict[k] === en[k]);
-        // Proper nouns / short tokens may legitimately match; most must not.
-        expect(identical.length).toBeLessThan(enKeys.length * 0.2);
-      });
-    }
-  }
-
-  it("resolves a real string per locale rather than echoing the key", () => {
     for (const loc of locales) {
-      const v = translate(loc, "auth.signIn");
-      expect(v).not.toBe("auth.signIn");
-      expect(v.trim().length).toBeGreaterThan(0);
+      it(`${loc} defines every ${ns} key`, () => {
+        const dict = (I18N[loc] as unknown as Record<string, Record<string, string>>)[ns] ?? {};
+        const missing = enKeys.filter((k) => !(k in dict));
+        expect(missing).toEqual([]);
+      });
+
+      if (loc !== "en") {
+        it(`${loc} is actually translated, not copied from English`, () => {
+          // A locale that falls back to the English string for everything passes
+          // a "key exists" check while delivering no translation at all.
+          const dict = (I18N[loc] as unknown as Record<string, Record<string, string>>)[ns]!;
+          const en = (I18N.en as unknown as Record<string, Record<string, string>>)[ns]!;
+          const identical = enKeys.filter((k) => dict[k] === en[k]);
+          // Proper nouns / short tokens may legitimately match; most must not.
+          expect(identical.length).toBeLessThan(enKeys.length * 0.2);
+        });
+      }
     }
+
+    it("resolves a real string per locale rather than echoing the key", () => {
+      for (const loc of locales) {
+        const v = translate(loc, probe);
+        expect(v).not.toBe(probe);
+        expect(v.trim().length).toBeGreaterThan(0);
+      }
+    });
   });
-});
+}

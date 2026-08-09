@@ -8,6 +8,37 @@ Drei Schritte. Token erstellen, einen Befehl ausführen, dann normal mit ihm spr
 
 ---
 
+## Abkürzung — lass deine KI alle drei Schritte erledigen
+
+Wenn du einen **Gutscheincode** statt eines Kontos bekommen hast, kannst du
+diese ganze Seite überspringen. Öffne `https://<dein-brain>/start`, füge deinen
+Code ein und kopiere den Prompt, den du bekommst — oder tippe das hier in
+Claude Code, Cursor oder ein beliebiges KI-Werkzeug, das eine URL abrufen kann:
+
+```text
+Set up External Brain on this machine. My voucher code is PILOT-XXXX-XXXX.
+Fetch https://<dein-brain>/api/onboard/agent.md and follow it exactly.
+Ask me for my email address first — don't guess it.
+```
+
+Deine KI legt das Konto an, erzeugt das Token und führt den Installationsbefehl
+aus. Danach hält sie an und bittet dich, **dein KI-Werkzeug neu zu starten**.
+Der Neustart ist nicht optional: Die MCP-Konfiguration wird nur einmal beim
+Sitzungsstart gelesen. Bis du neu startest, spricht dein Werkzeug weiterhin mit
+dem, womit es vorher verbunden war — möglicherweise mit gar nichts.
+
+Zwei Dinge zu diesem Token:
+
+- Es gilt **14 Tage** und **kann das Oracle nicht aufrufen**. Das ist so gewollt
+  für einen Code, der durch ein Chatfenster gereist ist, und kein Fehler.
+- Vergib über den Link, den deine KI dir zeigt, ein Passwort. Danach kannst du
+  jederzeit unter **Settings → Tokens** ein vollwertiges Token erzeugen.
+
+Kommt `agentic_onboarding_disabled` zurück, hat dieses Brain die Funktion nicht
+aktiviert — mach einfach mit Schritt 1 weiter.
+
+---
+
 ## Schritt 1 — Token erstellen
 
 1. Melde dich an und öffne **Settings → Tokens** (`/settings/tokens`).

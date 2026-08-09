@@ -37,6 +37,7 @@ import NextAuth, { type NextAuthConfig, type Session, type User } from "next-aut
 import CredentialsProvider from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import { cookies } from "next/headers";
+import { envFlag } from "@brain/core/env";
 import {
   adminCredentialsConfigured,
   verifyAdminCredentials,
@@ -77,7 +78,7 @@ export { adminCredentialsConfigured };
 
 /** True when the operator has explicitly opted into the dev-shim path. */
 export function devAuthAllowed(): boolean {
-  return (process.env.ALLOW_DEV_AUTH ?? "").toLowerCase() === "true";
+  return envFlag("ALLOW_DEV_AUTH", false);
 }
 
 /**
@@ -100,11 +101,15 @@ function parseAdminEmails(): Set<string> {
 
 export function registrationRequiresVoucher(): boolean {
   // Default true — a secure-by-default posture for a multi-tenant platform.
-  // Only the explicit string "false" disables the gate. Governs BOTH the
-  // GitHub-OAuth signup path (signIn callback below) and the email+password
-  // self-service registration endpoint (/api/auth/register), so the operator
-  // has a single knob for "is open signup allowed on this deployment".
-  return (process.env.REGISTRATION_REQUIRES_VOUCHER ?? "true").toLowerCase() !== "false";
+  // Governs BOTH the GitHub-OAuth signup path (signIn callback below) and the
+  // email+password self-service registration endpoint (/api/auth/register), so
+  // the operator has a single knob for "is open signup allowed here".
+  //
+  // `envFlag` rather than a local comparison: this flag is ALSO declared
+  // `boolish(true)` in the core env schema, and two parsers for one flag
+  // disagree eventually. It also makes a typo (`falsch`) keep the safe default
+  // instead of silently opening public signup.
+  return envFlag("REGISTRATION_REQUIRES_VOUCHER", true);
 }
 
 const providers: NextAuthConfig["providers"] = [

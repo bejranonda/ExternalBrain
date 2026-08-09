@@ -11,13 +11,47 @@
  */
 import { z } from "zod";
 
+const TRUTHY = /^(1|true|yes|on)$/i;
+const FALSY = /^(0|false|no|off)$/i;
+
+/**
+ * The one place a string becomes a boolean flag.
+ *
+ * Two properties that the ad-hoc string comparisons against `process.env` this
+ * replaced did not have:
+ *
+ * **Case- and spelling-tolerant.** `1`, `yes`, `on`, `TRUE` all mean true.
+ * Operators write env files by hand and this repo already accepted that here —
+ * the bug was that call sites re-implemented the comparison strictly, so
+ * `ALLOW_RESET_LINK_IN_LOGS=yes` parsed as `true` through the schema and
+ * `false` at the point that actually decided. One flag, two parsers, silently
+ * disagreeing (the §0y shape).
+ *
+ * **An unrecognised value falls back to the DEFAULT, not to false.** This is
+ * the security-relevant half. `REGISTRATION_REQUIRES_VOUCHER` defaults true;
+ * under the old regex a typo (`falsch`, `flase`) failed the truthy test and
+ * silently produced `false` — opening public signup because someone
+ * mistyped. Now anything unrecognised keeps the declared default, so a typo
+ * fails in whichever direction is safe for that particular flag.
+ */
+export function parseFlag(raw: string | undefined | null, dflt: boolean): boolean {
+  const v = raw?.trim();
+  if (!v) return dflt;
+  if (TRUTHY.test(v)) return true;
+  if (FALSY.test(v)) return false;
+  return dflt;
+}
+
+/** `parseFlag` against `process.env`, read at call time (never memoized). */
+export function envFlag(name: string, dflt: boolean): boolean {
+  return parseFlag(process.env[name], dflt);
+}
+
 const boolish = (dflt: boolean) =>
   z
     .string()
     .optional()
-    .transform((v) =>
-      v == null ? dflt : /^(1|true|yes|on)$/i.test(v),
-    );
+    .transform((v) => parseFlag(v, dflt));
 
 const intFrom = (dflt: number) =>
   z

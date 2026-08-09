@@ -8,6 +8,36 @@ Three steps. Mint a token, run one command, then talk to it normally.
 
 ---
 
+## Shortcut — let your AI do all three steps
+
+If you were given a **voucher code** rather than an account, you can skip this
+whole page. Open `https://<your-brain>/start`, paste your code, and copy the
+prompt it gives you — or type this into Claude Code, Cursor, or any AI tool
+that can fetch a URL:
+
+```text
+Set up External Brain on this machine. My voucher code is PILOT-XXXX-XXXX.
+Fetch https://<your-brain>/api/onboard/agent.md and follow it exactly.
+Ask me for my email address first — don't guess it.
+```
+
+Your agent creates the account, mints the token, and runs the install command,
+then stops and asks you to **restart your AI tool**. Restarting is not optional:
+MCP configuration is read once at session start, so until you restart, your tool
+is still talking to whatever it was connected to before — possibly nothing.
+
+Two things to know about the token you get this way:
+
+- It lasts **14 days** and **cannot call the Oracle**. That's deliberate for a
+  code that travelled through a chat window, not a fault.
+- Set a password using the link your agent shows you, then mint a full token at
+  **Settings → Tokens** whenever you're ready.
+
+If the exchange returns `agentic_onboarding_disabled`, this Brain hasn't enabled
+the feature — carry on with Step 1 below.
+
+---
+
 ## Step 1 — Mint a token
 
 1. Sign in and go to **Settings → Tokens** (`/settings/tokens`).

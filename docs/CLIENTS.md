@@ -12,6 +12,23 @@ This page covers all three on **macOS, Linux, Windows native (PowerShell), and W
 
 ---
 
+## TL;DR — zero-line install (voucher holders)
+
+If you were given a voucher code instead of an account, don't mint anything by
+hand. Visit `https://<your-brain>/start`, or paste this into any AI tool that
+can fetch a URL:
+
+```text
+Set up External Brain on this machine. My voucher code is PILOT-XXXX-XXXX.
+Fetch https://<your-brain>/api/onboard/agent.md and follow it exactly.
+Ask me for my email address first — don't guess it.
+```
+
+The agent picks the right `--client` for itself, runs the command below on your
+behalf, and then tells you to restart. Requires the operator to have set
+`AGENTIC_ONBOARDING=true`; otherwise you'll get `agentic_onboarding_disabled`
+and should use the one-liner instead.
+
 ## TL;DR — one-line install (recommended)
 
 After you mint a token at `/settings/tokens`, the webapp shows a copy-paste command pre-filled with your bearer. The plain-text equivalents are below; substitute `<your-brain>` (e.g. `brain.example.com`) and your minted `bp_…` token.

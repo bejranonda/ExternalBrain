@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { envFlag } from "@brain/core/env";
 
 // Force per-request rendering — see GUIDELINES §10 "Server-component env
 // vars need force-dynamic". The Dockerfile builds with dummy env, so any
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
 // vars need force-dynamic" — but a robots.ts is request-scoped by Next
 // (not statically rendered) so the directive isn't needed here.
 export default function robots(): MetadataRoute.Robots {
-  const disallowAll = process.env.BRAIN_ROBOTS_DISALLOW_ALL !== "false";
+  const disallowAll = envFlag("BRAIN_ROBOTS_DISALLOW_ALL", true);
   return {
     rules: [
       {

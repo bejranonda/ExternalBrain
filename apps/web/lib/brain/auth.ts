@@ -20,6 +20,7 @@
  */
 import { db } from "@brain/db";
 import { getLogger } from "@brain/core";
+import { envFlag } from "@brain/core/env";
 import { auth, anySignInConfigured, devAuthAllowed } from "@/auth";
 
 const log = getLogger("web").child({ subsystem: "auth" });
@@ -33,9 +34,11 @@ export class AuthError extends Error {
 let cachedDevUserId: string | null = null;
 
 function refuseDevShimInProduction(): void {
+  // NODE_ENV stays a raw comparison on purpose — bundlers statically replace
+  // `process.env.NODE_ENV`, and wrapping it in a call defeats that.
   if (
     process.env.NODE_ENV === "production" &&
-    process.env.ALLOW_DEV_AUTH_IN_PRODUCTION !== "true"
+    !envFlag("ALLOW_DEV_AUTH_IN_PRODUCTION", false)
   ) {
     throw new AuthError(
       "dev-auth shim is refused in NODE_ENV=production. Configure NextAuth (AUTH_GITHUB_ID, AUTH_GITHUB_SECRET, AUTH_SECRET) — or set ALLOW_DEV_AUTH_IN_PRODUCTION=true if this deployment is behind a VPN.",
