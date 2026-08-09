@@ -919,6 +919,35 @@ creation must mint a user-scoped token at `/settings/tokens`.
 
 ---
 
+### 12.32 An undefined CSS custom property fails silently, not loudly (2026-08-09)
+
+`var(--bg-2)` was written into two style objects on `/start` (v2.15.0) and is
+not declared anywhere in `globals.css`. This is not a typo that breaks the
+build: `var()` against an undefined custom property with no fallback resolves
+to the CSS-wide keyword `unset`, which for a `background` property means
+"transparent, and inherit nothing." No console warning, no failed type-check,
+no lint hit — the two elements (a voucher input, a code block) simply
+rendered with no fill, for the entire life of the feature, until someone
+looked at the rendered page and the boxes read as flat.
+
+**Why nothing catches it structurally:** TypeScript sees a string; it has no
+model of the CSS custom-property namespace, so `var(--anything)` type-checks
+regardless of whether `--anything` exists. A Playwright screenshot test would
+only catch it if the assertion specifically checked for a background fill on
+that element — a general "page renders" smoke test passes either way, because
+the page *does* render, just with a silent gap in one visual property.
+
+**The mitigation is procedural, not automatable within this stack:** verify
+any `var(--name)` against `globals.css`'s actual declarations
+(`grep -n "^\s*--name:" apps/web/app/globals.css`) at write time, because
+nothing downstream will tell you if it was wrong. See `APPROACH.md §2.6d` and
+`GUIDELINES.md §10` for the full incident (which also covered a monotone
+type-hierarchy defect on the same two pages, found by the operator looking at
+the live pages — the token bug was found afterward, while cross-referencing
+the fix against the real token list rather than assuming).
+
+---
+
 ### 12.24 Oracle thumbs feedback loop (MVP complete, 2026-04-29)
 
 Oracle thumbs up/down on an answer bumps `successCount` (up) or `failureCount` (down) on each cited Knowledge row owned by the user, in real time.

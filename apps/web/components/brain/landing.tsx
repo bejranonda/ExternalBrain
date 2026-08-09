@@ -18,6 +18,18 @@ import { APP_VERSION, REPO_URL, RELEASES_URL, repoDocUrl } from "@/lib/brain/ver
  * drift this repo keeps paying for (KNOWN_ISSUES §0c: one value rendered by
  * several surfaces, corrected in some of them). So: a claim, two doors, four
  * short highlights, and links out. Resist adding sections.
+ *
+ * Typography note (2026-08-09): the first version invented its own scale
+ * (11.5–16px, one uniform tiny gray label for every heading) instead of the
+ * app's actual tokens — `--text-xs/sm/base/lg/xl` (12/14/16/20/24, see
+ * globals.css) and the `--accent` lime used nowhere on the page. That made
+ * every section read as equally (un)important. Fixed here by giving section
+ * headings real weight (matching `/docs`'s 20px concept headings), reserving
+ * the small-caps "eyebrow" treatment for the one place it was already correct
+ * (the kicker above H1), and borrowing the `--accent` tick that
+ * `.rail-item.active::before` already uses to mark "this matters" elsewhere
+ * in the app — so the page reads as part of the same product, not a third
+ * visual dialect.
  */
 
 /**
@@ -43,7 +55,44 @@ function showcasedClientNames(): string[] {
   return [...new Set(names)];
 }
 
-const SECTION_GAP = 44;
+/**
+ * A real section heading — 20px / weight 600 / full-contrast ink, with a
+ * small accent tick to its left. This is the ONE new structural device this
+ * page introduces, and it replaces the old 13px `--ink-4` label used for
+ * every heading regardless of importance. Not a decoration: the tick is the
+ * same idiom `.rail-item.active::before` uses in the main app shell to mark
+ * "you are here" / "this matters" — reused here rather than inventing a new
+ * visual vocabulary for a page that otherwise shares the app's chrome.
+ */
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h2
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        fontSize: 20,
+        fontWeight: 600,
+        letterSpacing: "-0.01em",
+        color: "var(--ink)",
+        margin: "0 0 14px",
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          display: "inline-block",
+          width: 3,
+          height: 16,
+          borderRadius: 2,
+          background: "var(--accent)",
+          flexShrink: 0,
+        }}
+      />
+      {children}
+    </h2>
+  );
+}
 
 export function Landing() {
   const tr = useT();
@@ -76,7 +125,10 @@ export function Landing() {
       }}
     >
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <section style={{ marginBottom: SECTION_GAP }}>
+      {/* The eyebrow-caps treatment belongs here and nowhere else on the page
+          — a kicker sitting directly above a much larger headline is the one
+          place small-caps-over-big-type actually reads as intentional. */}
+      <section style={{ marginBottom: 64 }}>
         <div
           className="mono"
           style={{
@@ -90,11 +142,11 @@ export function Landing() {
         </div>
         <h1
           style={{
-            fontSize: 38,
-            fontWeight: 500,
+            fontSize: 40,
+            fontWeight: 600,
             letterSpacing: "-0.03em",
-            lineHeight: 1.2,
-            margin: "0 0 16px",
+            lineHeight: 1.15,
+            margin: "0 0 18px",
             maxWidth: 680,
           }}
         >
@@ -102,20 +154,25 @@ export function Landing() {
         </h1>
         <p
           style={{
-            fontSize: 16,
+            fontSize: 17,
             color: "var(--ink-2)",
             lineHeight: 1.6,
-            margin: "0 0 28px",
-            maxWidth: 620,
+            margin: "0 0 32px",
+            maxWidth: 600,
           }}
         >
           {tr("landing.heroBody")}
         </p>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <Link className="btn" href="/start">
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+          {/* Primary conversion action gets the accent fill — the app's own
+              .btn-primary — so it's visually distinct from "Sign in", which
+              most first-time visitors are not yet ready to do. The first
+              version gave both buttons the same plain .btn treatment, which
+              is the same "no hierarchy" mistake as the section headings. */}
+          <Link className="btn btn-primary" href="/start" style={{ height: 36, padding: "0 16px", fontSize: 14 }}>
             {tr("landing.ctaVoucher")}
           </Link>
-          <Link className="btn" href="/signin">
+          <Link className="btn" href="/signin" style={{ height: 36, padding: "0 16px", fontSize: 14 }}>
             {tr("landing.ctaSignIn")}
           </Link>
           <a
@@ -130,25 +187,23 @@ export function Landing() {
       </section>
 
       {/* ── The problem ──────────────────────────────────────────────────── */}
-      <section style={{ marginBottom: SECTION_GAP }}>
-        <h2 style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-4)", margin: "0 0 10px", letterSpacing: "0.02em" }}>
-          {tr("landing.problemTitle")}
-        </h2>
-        <p style={{ fontSize: 15, color: "var(--ink-2)", lineHeight: 1.6, margin: 0, maxWidth: 640 }}>
+      <section style={{ marginBottom: 48, paddingTop: 40, borderTop: "1px solid var(--line-soft)" }}>
+        <SectionHeading>{tr("landing.problemTitle")}</SectionHeading>
+        <p style={{ fontSize: 15, color: "var(--ink-2)", lineHeight: 1.65, margin: 0, maxWidth: 620 }}>
           {tr("landing.problemBody")}
         </p>
       </section>
 
-      {/* ── What it does ─────────────────────────────────────────────────── */}
-      <section style={{ marginBottom: SECTION_GAP }}>
-        <h2 style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-4)", margin: "0 0 16px", letterSpacing: "0.02em" }}>
-          {tr("landing.featuresTitle")}
-        </h2>
-        <div className="welcome-steps">
+      {/* ── What it does — the cornerstone section, gets the most room ──── */}
+      <section style={{ marginBottom: 64 }}>
+        <SectionHeading>{tr("landing.featuresTitle")}</SectionHeading>
+        <div className="welcome-steps" style={{ marginTop: 20 }}>
           {features.map((f) => (
-            <section key={f.t} className="panel" style={{ padding: "16px 18px" }}>
-              <h3 style={{ fontSize: 14, fontWeight: 500, margin: "0 0 6px" }}>{f.t}</h3>
-              <p style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.55, margin: 0 }}>
+            <section key={f.t} className="panel" style={{ padding: "18px 20px" }}>
+              <h3 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 8px", color: "var(--ink)" }}>
+                {f.t}
+              </h3>
+              <p style={{ fontSize: 13.5, color: "var(--ink-2)", lineHeight: 1.6, margin: 0 }}>
                 {f.b}
               </p>
             </section>
@@ -157,39 +212,35 @@ export function Landing() {
       </section>
 
       {/* ── How it works ─────────────────────────────────────────────────── */}
-      <section style={{ marginBottom: SECTION_GAP }}>
-        <h2 style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-4)", margin: "0 0 10px", letterSpacing: "0.02em" }}>
-          {tr("landing.howTitle")}
-        </h2>
-        <p style={{ fontSize: 15, color: "var(--ink-2)", lineHeight: 1.6, margin: "0 0 14px", maxWidth: 640 }}>
+      <section style={{ marginBottom: 48 }}>
+        <SectionHeading>{tr("landing.howTitle")}</SectionHeading>
+        <p style={{ fontSize: 15, color: "var(--ink-2)", lineHeight: 1.65, margin: "0 0 16px", maxWidth: 620 }}>
           {tr("landing.howBody")}
         </p>
         <pre
           className="mono"
           aria-hidden="true"
           style={{
-            fontSize: 11.5,
-            lineHeight: 1.7,
-            color: "var(--ink-3)",
-            background: "var(--bg-2)",
+            fontSize: 12,
+            lineHeight: 1.8,
+            color: "var(--ink-2)",
+            background: "var(--bg-elev-1)",
             border: "1px solid var(--line)",
-            borderRadius: 6,
-            padding: "14px 16px",
+            borderRadius: "var(--r)",
+            padding: "16px 18px",
             margin: 0,
             overflowX: "auto",
           }}
-        >{`your AI tool  ──MCP──▶  Brain  ──▶  Postgres + pgvector
+        >{`your AI tool  ──MCP──▶  `}<span style={{ color: "var(--accent-text)" }}>Brain</span>{`  ──▶  Postgres + pgvector
                          ├─ inject past rules   (before you code)
                          ├─ record the outcome  (after you code)
                          └─ worker: extract · score · decay`}</pre>
       </section>
 
       {/* ── Works with ───────────────────────────────────────────────────── */}
-      <section style={{ marginBottom: SECTION_GAP }}>
-        <h2 style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-4)", margin: "0 0 10px", letterSpacing: "0.02em" }}>
-          {tr("landing.clientsTitle")}
-        </h2>
-        <p style={{ fontSize: 14, color: "var(--ink-2)", lineHeight: 1.55, margin: "0 0 14px", maxWidth: 620 }}>
+      <section style={{ marginBottom: 48 }}>
+        <SectionHeading>{tr("landing.clientsTitle")}</SectionHeading>
+        <p style={{ fontSize: 14, color: "var(--ink-2)", lineHeight: 1.55, margin: "0 0 16px", maxWidth: 600 }}>
           {tr("landing.clientsBody")}
         </p>
         <ul
@@ -211,34 +262,48 @@ export function Landing() {
       </section>
 
       {/* ── Read more ────────────────────────────────────────────────────── */}
-      <section style={{ marginBottom: SECTION_GAP }}>
-        <h2 style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-4)", margin: "0 0 12px", letterSpacing: "0.02em" }}>
+      {/* Rendered as chips (the app's own tag idiom, same class as the client
+          row above) rather than a bare underlined-text list — a link row and
+          a tag row look identical unless something distinguishes "click to
+          leave the page" from "click to compare tools". */}
+      <section style={{ marginBottom: 40, paddingTop: 32, borderTop: "1px solid var(--line-soft)" }}>
+        <h2
+          className="mono"
+          style={{
+            fontSize: 12,
+            letterSpacing: "0.06em",
+            color: "var(--ink-4)",
+            margin: "0 0 14px",
+            textTransform: "uppercase",
+          }}
+        >
           {tr("landing.docsTitle")}
         </h2>
         <ul
           style={{
             display: "flex",
             flexWrap: "wrap",
-            gap: "8px 20px",
+            gap: 8,
             listStyle: "none",
             padding: 0,
             margin: 0,
-            fontSize: 14,
           }}
         >
-          {docLinks.map((d) => (
-            <li key={d.label}>
-              {d.external ? (
-                <a href={d.href} target="_blank" rel="noreferrer" style={{ color: "var(--ink-2)" }}>
-                  {d.label}
+          {docLinks.map((d) =>
+            d.external ? (
+              <li key={d.label}>
+                <a href={d.href} target="_blank" rel="noreferrer" className="chip" style={{ textDecoration: "none" }}>
+                  {d.label} ↗
                 </a>
-              ) : (
-                <Link href={d.href} style={{ color: "var(--ink-2)" }}>
+              </li>
+            ) : (
+              <li key={d.label}>
+                <Link href={d.href} className="chip" style={{ textDecoration: "none" }}>
                   {d.label}
                 </Link>
-              )}
-            </li>
-          ))}
+              </li>
+            ),
+          )}
         </ul>
       </section>
 

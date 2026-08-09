@@ -6,6 +6,18 @@ import { useT } from "@/lib/brain/i18n";
 import { sanitizeVoucherInput } from "@/lib/brain/agentic-onboarding";
 
 /**
+ * Typography note (2026-08-09): two fixes on top of the original build.
+ * `var(--bg-2)` was not a real token anywhere in globals.css — the voucher
+ * input and the agent-prompt box had NO fill and rendered as outline-only
+ * boxes; now `--bg-elev-1`, the same background the surrounding `.panel`
+ * uses. And every heading on the page (card titles, footer headers) used the
+ * same 13px weight-500 treatment regardless of role, which is the same
+ * "everything looks equally unimportant" mistake made on `/`. Card titles are
+ * now 16/600; both path CTAs are `.btn-primary` since this page's entire job
+ * is presenting two genuinely equal choices, not favoring one.
+ */
+
+/**
  * /start — the one public URL that goes on a voucher card.
  *
  * Before this page existed, roughly eighteen surfaces answered "how do I start
@@ -142,7 +154,7 @@ export function StartFlow({ webUrl, agenticEnabled, initialVoucher = "" }: Start
             fontSize: 14,
             borderRadius: 6,
             border: "1px solid var(--line)",
-            background: "var(--bg-2)",
+            background: "var(--bg-elev-1)",
             color: "var(--ink)",
           }}
         />
@@ -157,15 +169,15 @@ export function StartFlow({ webUrl, agenticEnabled, initialVoucher = "" }: Start
         >
           <h2
             id="start-agent-heading"
-            style={{ fontSize: 15, fontWeight: 500, margin: "0 0 8px" }}
+            style={{ fontSize: 16, fontWeight: 600, color: "var(--ink)", margin: "0 0 8px" }}
           >
             {tr("start.agentTitle")}
           </h2>
           <p
             style={{
-              fontSize: 13,
+              fontSize: 13.5,
               color: "var(--ink-2)",
-              lineHeight: 1.55,
+              lineHeight: 1.6,
               margin: "0 0 14px",
             }}
           >
@@ -187,7 +199,7 @@ export function StartFlow({ webUrl, agenticEnabled, initialVoucher = "" }: Start
                 style={{
                   fontSize: 12,
                   lineHeight: 1.6,
-                  background: "var(--bg-2)",
+                  background: "var(--bg-elev-1)",
                   border: "1px solid var(--line)",
                   borderRadius: 6,
                   padding: "12px 14px",
@@ -198,7 +210,7 @@ export function StartFlow({ webUrl, agenticEnabled, initialVoucher = "" }: Start
               >
                 {prompt}
               </pre>
-              <button type="button" className="btn" onClick={onCopy}>
+              <button type="button" className="btn btn-primary" onClick={onCopy}>
                 {copied ? tr("start.agentCopied") : tr("start.agentCopy")}
               </button>
               <p
@@ -233,22 +245,22 @@ export function StartFlow({ webUrl, agenticEnabled, initialVoucher = "" }: Start
         >
           <h2
             id="start-self-heading"
-            style={{ fontSize: 15, fontWeight: 500, margin: "0 0 8px" }}
+            style={{ fontSize: 16, fontWeight: 600, color: "var(--ink)", margin: "0 0 8px" }}
           >
             {tr("start.selfTitle")}
           </h2>
           <p
             style={{
-              fontSize: 13,
+              fontSize: 13.5,
               color: "var(--ink-2)",
-              lineHeight: 1.55,
+              lineHeight: 1.6,
               margin: "0 0 14px",
             }}
           >
             {tr("start.selfBlurb")}
           </p>
           <Link
-            className="btn"
+            className="btn btn-primary"
             href={code ? `/signup?voucher=${encodeURIComponent(code)}` : "/signup"}
           >
             {tr("start.selfCta")}
@@ -261,16 +273,27 @@ export function StartFlow({ webUrl, agenticEnabled, initialVoucher = "" }: Start
         </section>
       </div>
 
-      <footer style={{ marginTop: 32, display: "grid", gap: 18 }}>
+      {/* A divider before the footer, matching the one `/` uses before its own
+          closing section — without it this block read as loose paragraphs
+          trailing off the page rather than a deliberate closing section. */}
+      <footer
+        style={{
+          marginTop: 48,
+          paddingTop: 32,
+          borderTop: "1px solid var(--line-soft)",
+          display: "grid",
+          gap: 24,
+        }}
+      >
         <div>
-          <h3 style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", margin: "0 0 6px" }}>
             {tr("start.noCode")}
           </h3>
           <p
             style={{
-              fontSize: 13,
+              fontSize: 13.5,
               color: "var(--ink-3)",
-              lineHeight: 1.55,
+              lineHeight: 1.6,
               margin: 0,
             }}
           >
@@ -278,14 +301,14 @@ export function StartFlow({ webUrl, agenticEnabled, initialVoucher = "" }: Start
           </p>
         </div>
         <div>
-          <h3 style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", margin: "0 0 6px" }}>
             {tr("start.whatIsTitle")}
           </h3>
           <p
             style={{
-              fontSize: 13,
+              fontSize: 13.5,
               color: "var(--ink-3)",
-              lineHeight: 1.55,
+              lineHeight: 1.6,
               margin: "0 0 8px",
             }}
           >
