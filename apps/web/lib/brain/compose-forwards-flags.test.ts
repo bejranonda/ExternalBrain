@@ -29,12 +29,18 @@ import { describe, expect, it } from "vitest";
 
 const REPO = join(__dirname, "..", "..", "..", "..");
 const COMPOSE = join(REPO, "deploy", "docker-compose.yml");
-const WEB_SRC = [
-  join(REPO, "apps", "web", "app"),
-  join(REPO, "apps", "web", "lib"),
-  join(REPO, "apps", "web", "components"),
-  join(REPO, "apps", "web", "auth.ts"),
-];
+
+/**
+ * The whole app, not a list of subdirectories.
+ *
+ * The first version of this file enumerated `app`, `lib`, `components` and
+ * `auth.ts` — which is precisely the mistake `env-flag.test.ts` had made the
+ * day before (it omitted `auth.ts` and so never checked the file its change
+ * was about). Writing a sweep and then hand-listing its inputs re-creates the
+ * gap the sweep exists to close: a new `envFlag` call anywhere else in
+ * `apps/web` would silently bypass this gate.
+ */
+const WEB_ROOT = join(REPO, "apps", "web");
 
 const SKIP_DIRS = new Set(["node_modules", ".next", "dist", "generated", "e2e", ".turbo"]);
 
@@ -72,9 +78,10 @@ function webServiceEnvBlock(): string {
 }
 
 describe("compose forwards every flag the web app reads", () => {
-  const files = walk(WEB_SRC[0]!)
-    .concat(...WEB_SRC.slice(1).map((r) => walk(r)))
-    .map((f) => ({ rel: relative(REPO, f), src: readFileSync(f, "utf8") }));
+  const files = walk(WEB_ROOT).map((f) => ({
+    rel: relative(REPO, f),
+    src: readFileSync(f, "utf8"),
+  }));
 
   // `envFlag("NAME", …)` is the single sanctioned way to read a boolean
   // operator flag (see GUIDELINES §7), which makes it a reliable index of
@@ -107,15 +114,32 @@ describe("compose forwards every flag the web app reads", () => {
     ).toEqual([]);
   });
 
-  it("gives every forwarded flag an explicit default", () => {
-    // `FOO: ${FOO}` with no `:-default` resolves to an empty string when unset,
-    // which `parseFlag` then treats as "absent" — correct today, but it makes
-    // the intended default invisible to anyone reading the compose file.
+  it("forwards each one from its OWN variable, with an explicit default", () => {
+    // Being named is not enough. All three of these are named and all three
+    // are broken:
+    //   AGENTIC_ONBOARDING: false                 — hardcoded, ignores .env
+    //   AGENTIC_ONBOARDING: ${OTHER_FLAG:-false}  — forwards the wrong variable
+    //   AGENTIC_ONBOARDING: ${AGENTIC_ONBOARDING} — no visible default
+    // The first two silently disconnect the operator's .env from the container
+    // while looking correct in review, which is the same "config says on,
+    // feature is off" shape this whole file exists to prevent.
     const envBlock = webServiceEnvBlock();
-    const noDefault = [...referenced.keys()].filter((name) => {
+    const wrong: string[] = [];
+
+    for (const name of referenced.keys()) {
       const line = envBlock.match(new RegExp(`^\\s*${name}:.*$`, "m"))?.[0];
-      return line ? /\$\{[A-Z_0-9]+\}\s*$/.test(line) : false;
-    });
-    expect(noDefault, "use ${NAME:-default} so the default is readable").toEqual([]);
+      if (!line) continue; // absence is the previous test's job
+      const wellFormed = new RegExp(
+        `^\\s*${name}:\\s*\\$\\{${name}:-[^}]*\\}\\s*$`,
+      ).test(line);
+      if (!wellFormed) wrong.push(line.trim());
+    }
+
+    expect(
+      wrong,
+      "Each flag must be forwarded as NAME: ${NAME:-<default>} — same variable " +
+        "on both sides, and a default that a reader can see without opening " +
+        ".env.example.",
+    ).toEqual([]);
   });
 });
