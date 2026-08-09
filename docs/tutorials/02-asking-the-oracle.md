@@ -39,9 +39,23 @@ The dotted line — *"no Brain context"* — is the path you'll see when
 your Brain doesn't have anything relevant. The Oracle says so
 explicitly rather than hallucinating; that's a feature, not a bug.
 
-## The Oracle UI
+## From your AI tool (the fast way)
 
-Visit `/#oracle`. You'll see:
+You don't need a browser tab. Inside Claude Code, Cursor, or Windsurf,
+just ask in plain language mid-session:
+
+| Say… | What happens |
+|---|---|
+| "ask the oracle: how did we solve the migration ordering problem?" | Same retrieval + citations, answered inline in your chat |
+| "ask the oracle: what did we decide about auth token expiry?" | Check before resuming old work, instead of re-deciding it |
+| ✗ "ask the oracle: how does flexbox work" | Wrong use — it's your project's memory, not a search engine |
+
+The model calls `brain_ask_oracle` under the hood. Same retrieval, same
+citations, same query patterns below — just without leaving your editor.
+
+## The Oracle UI (the web page)
+
+Prefer a browser, or want the Inspector panel? Visit `/#oracle`. You'll see:
 
 - **Question input** at the bottom. Press Enter to submit.
 - **Answer area** above. Streams back as the LLM generates.
@@ -59,35 +73,15 @@ Visit `/#oracle`. You'll see:
 
 ## Query patterns that work
 
-The Oracle answers best when the question implies a clear semantic
-target. Compare:
+The Oracle answers best when the question implies a clear semantic target:
 
-✗ **Vague:** *"How do I do auth?"*
-
-The Oracle has no signal about which auth, which framework, which
-project. You'll get a generic answer or "I don't have enough context".
-
-✓ **Specific:** *"How did I solve the CORS issue in the MCP server last
-month?"*
-
-Includes the framework (MCP), the symptom (CORS), and a time anchor
-(last month). The Oracle will retrieve the relevant session + any
-Knowledge extracted from it.
-
-✓ **Pattern-style:** *"What do I usually use for forms in Next.js?"*
-
-The Oracle looks for high-confidence Knowledge of type `recipe` or
-`heuristic` matching the trigger.
-
-✓ **Anti-pattern:** *"What React patterns do I avoid?"*
-
-Specifically retrieves Knowledge of type `anti_principle`.
-
-✓ **Decision history:** *"Why did I switch from Formik to react-hook-form
-on brain-platform?"*
-
-The Oracle can string together a session that contained the switch +
-any rule that recorded the rationale.
+| Ask… | Because… |
+|---|---|
+| ✗ "How do I do auth?" | Too vague — no framework, no project signal. Generic answer or "not enough context" |
+| ✓ "How did I solve the CORS issue in the MCP server last month?" | Framework + symptom + time anchor → retrieves the exact session and its Knowledge |
+| ✓ "What do I usually use for forms in Next.js?" | Matches high-confidence `recipe`/`heuristic` Knowledge by trigger |
+| ✓ "What React patterns do I avoid?" | Targets `anti_principle` Knowledge specifically |
+| ✓ "Why did I switch from Formik to react-hook-form?" | Strings together the session that made the switch + the rule that recorded why |
 
 ## Reading the answer
 

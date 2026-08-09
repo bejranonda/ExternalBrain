@@ -26,13 +26,9 @@ Kein Gutscheincode, oder `agentic_onboarding_disabled`? Weiter mit Schritt 1.
 
 ## Schritt 1 — Token erstellen
 
-1. Melde dich an und öffne **Settings → Tokens** (`/settings/tokens`).
-2. **Create token** → benenne ihn nach dem *Rechner*, nicht nach dir: `laptop`, `work-desktop`, `ci-runner`. Widerrufen wird pro Rechner, und genau deshalb machen rechnerbezogene Namen den Widerruf später überhaupt erst nützlich.
-3. Kopiere den `bp_…`-Wert.
-
-> **Der Token wird nur einmal angezeigt.** Die Datenbank speichert ausschließlich seinen SHA-256-Hash — es gibt keine Anzeigen-Schaltfläche, und auch der Support kann ihn nicht wiederherstellen. Verloren? Erstelle einen neuen und widerrufe den alten.
-
-Danach zeigt die Seite einen Installationsbefehl mit deinem bereits eingesetzten Token. Dieser Befehl ist Schritt 2 — kopieren und weiterspringen.
+1. Anmelden → **Settings → Tokens** (`/settings/tokens`).
+2. **Create token** → benenne ihn nach dem *Rechner* (`laptop`, `ci-runner`).
+3. Kopiere den `bp_…`-Wert — nur einmal angezeigt, und der nächste Bildschirm hat deinen Installationsbefehl schon fertig. Details (Rotation, Geltungsbereich, Widerruf): [Tutorial 04](./04-managing-tokens.md).
 
 ---
 
@@ -67,67 +63,46 @@ Install-Brain -Token 'bp_…' -Client claude-code
 
 JetBrains / Visual Studio / Eclipse / Xcode haben keinen festen Konfigurationspfad — füge dort stattdessen das JSON aus der Token-Seite ein.
 
-### Was dieser Befehl tatsächlich tut
-
-1. **Schreibt die Konfiguration** — über das eigene `mcp add` deines Tools, sofern vorhanden, sonst durch **Zusammenführen** mit der bestehenden Datei. Deine anderen MCP-Server bleiben erhalten, und die Datei wird vorher gesichert.
-2. **Beweist, dass es funktioniert** — mit einem echten MCP-`initialize` und Tool-Aufruf über dein Netzwerk und deine Authentifizierung. Nur deshalb darf er Erfolg melden: dass eine Datei geschrieben wurde, sagt nichts darüber aus, ob der Token überhaupt etwas aufrufen kann.
-3. **Protokolliert eine erste Sitzung**, damit dein Dashboard nicht leer bleibt.
-
 **Starte danach dein KI-Tool neu.** Alle lesen die MCP-Konfiguration ausschließlich beim Start — das ist mit Abstand die häufigste Ursache für „installiert, aber nichts passiert“.
 
-Lieber erst lesen, bevor du in eine Shell pipest?
-
-```bash
-curl -fsSL https://<your-brain>/api/onboard.sh -o /tmp/brain-install.sh
-less /tmp/brain-install.sh
-bash /tmp/brain-install.sh 'bp_…' --client cursor
-```
+Willst du genau wissen, was das Skript macht, oder es erst lesen, bevor du es in eine Shell pipest? [Tutorial 01](./01-getting-started.md) geht es Schritt für Schritt durch.
 
 ---
 
 ## Schritt 3 — Sprich mit ihm
 
-Du rufst nie Tools beim Namen auf. Du sprichst normal, und der installierte Skill sagt deiner KI, wonach sie greifen soll.
+Keine Toolnamen zu merken. Du sprichst einfach normal — in Claude Code, Cursor, Windsurf oder jedem anderen MCP-Client — und der Skill wählt den richtigen `brain_*`-Aufruf.
 
+**Verbindung beweisen**
 | Du sagst… | Was passiert |
 |---|---|
-| *(du beginnst irgendeine echte Aufgabe)* | Eine Sitzung startet; passende frühere Regeln werden eingespielt |
+| „frag das Brain, was es über dieses Projekt weiß“ | Kostenlos, sofort — beweist, dass die Verbindung steht |
+
+**Ihm etwas beibringen**
+| Du sagst… | Was passiert |
+|---|---|
 | „merk dir: wir nutzen pgvector, nicht Pinecone“ | Wird als Regel gespeichert; erscheint unter **Skills** |
-| „frag das Oracle: wie haben wir die Migrationsreihenfolge gelöst?“ | Zusammengefasste Antwort **mit Belegen** |
-| „finde die Regel zu Prisma-Migrationen“ | Inhaltlich nächste Treffer, sofort und kostenlos |
+| „nein — das haben wir letzten Monat in den Route-Handler verschoben“ | Korrektur mitten in der Sitzung; bringt ihm bei, veraltete Ratschläge zu verlernen |
+| „wir haben uns für Redis statt Postgres für Sessions entschieden“ | Als Projektentscheidung gespeichert (geteilt, verfällt nicht) |
+
+**Abrufen — sofort, kostenlos, kein Modellaufruf**
+| Du sagst… | Was passiert |
+|---|---|
+| „finde die Regel zu Prisma-Migrationen“ | Inhaltlich nächste Treffer |
 | „was habe ich letzte Woche an Billing gemacht?“ | Frühere Sitzungen zu diesen Wörtern |
-| **„hat funktioniert“ / „wir sind fertig“ / „ab damit“** | **Schließt die Sitzung — dadurch lernt es** |
 
-### Die eine Gewohnheit, auf die es ankommt
+**Das Oracle fragen — langsamer, kostenpflichtig, begründete Antwort mit Belegen**
+| Du sagst… | Was passiert |
+|---|---|
+| „frag das Oracle: wie haben wir die Migrationsreihenfolge gelöst?“ | Zusammengefasste Antwort, belegt mit den Ursprungs-Sitzungen |
+| ✗ „frag das Oracle: wie funktioniert flexbox?“ | Falsche Nutzung — es ist das Gedächtnis deines Projekts, nicht das Internet |
 
-**Schließe deine Sitzungen.** Sag *„hat funktioniert“* oder *„wir sind fertig“*, wenn du fertig bist.
+**Den Kreis schließen — die eine Gewohnheit, auf die es ankommt**
+| Du sagst… | Was passiert |
+|---|---|
+| „hat funktioniert“ / „wir sind fertig“ / „ab damit“ | **Schließt die Sitzung — dadurch lernt es.** Eine nicht geschlossene Sitzung bringt dem Brain nichts bei; das ist der häufigste Grund, warum ein Brain nach einer Woche echter Nutzung noch leer ist |
 
-Eine nicht geschlossene Sitzung bringt dem Brain nichts bei — die Extraktion läuft erst beim Schließen. Das ist der häufigste Grund, warum ein Brain nach einer Woche echter Nutzung noch leer ist. Alles andere ist optional, das hier nicht.
-
-### Eine Sitzung von Anfang bis Ende
-
-```
-Du      Ich muss die Auth-Middleware auf den neuen Credentials-Adapter umbauen.
-Claude  [öffnet eine Sitzung, holt passende Regeln]
-        Zwei deiner Regeln greifen hier: Sitzungen binden beim Start,
-        und Credential-Prüfungen gehören in die Repository-Schicht.
-
-Du      Nein — wir haben das letzten Monat in den Route-Handler verschoben.
-Claude  Notiert, wird angepasst.
-
-Du      Hat funktioniert, wir sind fertig.
-Claude  [schließt die Sitzung mit dem Gelernten]
-        Gespeichert: "Credential-Prüfungen liegen im Route-Handler,
-        nicht in der Repository-Schicht — verschoben 2026-07."
-```
-
-Diese Korrektur ist jetzt dauerhaft. Nächsten Monat, auf einem anderen Rechner, kommt sie an, bevor du dich daran erinnern musst.
-
-### Wie du gute Antworten bekommst
-
-- **„finde die Regel zu X“** — sofort, kostenlos, kein Modellaufruf. Nimm es immer dann, wenn du sonst eine frühere Entscheidung neu herleiten würdest.
-- **„frag das Oracle: …“** — langsamer und kostenpflichtig, dafür zusammengefasst und belegt. Nimm es, wenn du Begründungen willst, keine Liste.
-- **Frag das Oracle nicht** nach allgemeinen Programmierfragen. Es ist das Gedächtnis deines Projekts, nicht das Internet.
+Weitere Kategorien und ein vollständiges Beispiel: [Tutorial 01](./01-getting-started.md), [Tutorial 02 — Das Oracle fragen](./02-asking-the-oracle.md), [Tutorial 03 — Wissen beibringen](./03-teaching-knowledge.md)
 
 ---
 
@@ -155,7 +130,7 @@ Mehr dazu: [Fehlersuche](./06-troubleshooting.md)
 
 | | |
 |---|---|
-| [01 — Erste Schritte](./01-getting-started.md) | Dasselbe, langsamer, mit Diagrammen |
+| [01 — Erste Schritte](./01-getting-started.md) | Dasselbe, langsamer, mit ausführlicher Begründung |
 | [02 — Das Oracle fragen](./02-asking-the-oracle.md) | Frageformen, die funktionieren |
 | [03 — Wissen beibringen](./03-teaching-knowledge.md) | Regeln schreiben, die bestehen |
 | [04 — Tokens verwalten](./04-managing-tokens.md) | Geltungsbereich, Rotation, Widerruf |

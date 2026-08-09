@@ -10,32 +10,10 @@ your tool knows when to call it.
 either an admin account at that URL or an invite link a teammate sent
 you.
 
-## What you're wiring up
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Browser as You · Browser
-    participant Brain as Brain webapp + DB
-    participant CLI as You · Terminal
-    participant Tool as Claude Code / Cursor
-    Browser->>Brain: Sign in → Settings → Create token
-    Brain-->>Browser: bp_… raw token (shown ONCE)
-    Browser->>CLI: copy install command
-    CLI->>CLI: claude mcp add brain → ~/.claude.json
-    CLI->>Brain: Download SKILL.md
-    Tool->>Brain: brain_start_session (over MCP)
-    Brain-->>Tool: sessionId
-    Tool->>Brain: brain_log_event ×N (file edits, corrections)
-    Tool->>Brain: brain_report_session_outcome
-    Brain->>Brain: KEA extract → new Knowledge rows
-    Browser->>Brain: visit /dashboard
-    Brain-->>Browser: session listed + Knowledge growing
-```
-
-After the install (steps 1-5 above), every coding session feeds the
-Brain automatically. The next sections walk through each of these
-steps end-to-end.
+Six steps: sign in, mint a token, install, smoke-test, run a real task,
+ask the Oracle. After that, every session feeds the Brain automatically.
+(Want the sequence-diagram + under-the-hood version first? See
+[HOW_IT_WORKS.md, Step 3](../HOW_IT_WORKS.md#step-3--bob-wires-claude-code-to-the-brain).)
 
 ---
 
@@ -66,19 +44,12 @@ desktop, bottom nav on mobile). Then **Create new token**:
    to you; the Brain logs it on every request so a hygiene-conscious
    operator can revoke a leaked token without affecting others.
 
-2. **Organization scope** (only shown if you're in 2+ orgs): pick the
-   org this token can write to. Default is your personal org. Most
-   solo users leave it on the default. Team users pick the team org so
-   knowledge from this tool lands in the team-shared pool.
+2. **Org / project scope** — only shown if you belong to more than one.
+   Solo users can ignore both and leave the defaults. What each picker
+   actually restricts is covered in
+   [Tutorial 04](./04-managing-tokens.md#the-scope-hierarchy).
 
-3. **Project scope** (only shown if the chosen org has 2+ projects):
-   pick a project to restrict the token to that one project, or leave
-   blank for "any project the user can access". When set, the token
-   refuses to log sessions or teach knowledge against any other
-   project — useful for client work where you want to keep context
-   isolated.
-
-4. Click **Create**. You'll see a one-time install wizard with a single
+3. Click **Create**. You'll see a one-time install wizard with a single
    shell command. **Copy it now** — the raw token is shown exactly once
    and is never recoverable. The wizard auto-detects whether you have
    `claude` (Claude Code), `cursor`, or `windsurf` on PATH and tailors
@@ -156,6 +127,28 @@ If you don't see the session, the most common cause is the
 `brain_start_session` tool wasn't called. The skill file's job is to
 prompt the model to call it; if the model is being terse, you can ask
 explicitly: *"start a brain session for this task before proceeding"*.
+
+### What a full session looks like
+
+```
+You:     I need to refactor the auth middleware to use the new credentials adapter.
+Claude:  [opens a session, retrieves matching rules]
+         Two of your rules apply here: sessions bind at start, and
+         credential checks belong at the repository layer.
+
+You:     no — we moved that check to the route handler last month.
+Claude:  Noted, updating.
+
+You:     that worked, we're done.
+Claude:  [closes the session with what it learned]
+         Saved: "credential checks live at the route handler, not the
+         repository layer — moved 2026-07."
+```
+
+That correction is now permanent. Next month, on a different machine,
+it arrives before you have to remember it. **Closing the session
+("that worked" / "we're done") is what makes this happen** — an
+unclosed session teaches the Brain nothing.
 
 ## Step 6 — Ask the Oracle a question
 

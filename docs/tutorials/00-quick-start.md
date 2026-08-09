@@ -24,13 +24,9 @@ No voucher, or `agentic_onboarding_disabled`? Continue with Step 1 below.
 
 ## Step 1 — Mint a token
 
-1. Sign in and go to **Settings → Tokens** (`/settings/tokens`).
-2. **Create token** → name it after the *machine*, not yourself: `laptop`, `work-desktop`, `ci-runner`. You revoke per machine, so per-machine names are what make revocation useful later.
-3. Copy the `bp_…` value.
-
-> **It is shown once.** The database stores only its SHA-256 hash — there is no "reveal" button, and support cannot recover it. Lost it? Mint a new one and revoke the old.
-
-The mint screen then shows a per-client install command with your token already in it. That command is Step 2 — you can copy it and skip ahead.
+1. Sign in → **Settings → Tokens** (`/settings/tokens`).
+2. **Create token** → name it after the *machine* (`laptop`, `ci-runner`).
+3. Copy the `bp_…` value — shown once, and the next screen has your install command ready. Details (rotation, scope, revocation): [Tutorial 04](./04-managing-tokens.md).
 
 ---
 
@@ -65,67 +61,47 @@ Install-Brain -Token 'bp_…' -Client claude-code
 
 JetBrains / Visual Studio / Eclipse / Xcode have no stable config path, so paste the JSON from the mint screen instead.
 
-### What the command actually does
-
-1. Writes the config — via your tool's own `mcp add` where one exists, otherwise by **merging** into its config file. Your other MCP servers are preserved and the file is backed up first.
-2. **Proves it works** — a real MCP `initialize` + tool call through your network and auth. This is why it can say "installed" honestly: a config file being written proves nothing about whether the token can call anything.
-3. Logs a first session so your dashboard isn't empty.
-
 **Then restart your AI tool.** Every one of them reads MCP config only at startup — this is the single most common "it didn't work" cause.
 
-Prefer to read before you pipe to a shell? Download it first:
-
-```bash
-curl -fsSL https://<your-brain>/api/onboard.sh -o /tmp/brain-install.sh
-less /tmp/brain-install.sh
-bash /tmp/brain-install.sh 'bp_…' --client cursor
-```
+Want to know exactly what the script does, or read it before piping to a shell? [Tutorial 01](./01-getting-started.md) walks through it step by step.
 
 ---
 
 ## Step 3 — Talk to it
 
-You never call tools by name. You speak normally; the skill tells your AI which tool to reach for.
+No tool names to memorize. You speak normally, in Claude Code, Cursor,
+Windsurf, or anything MCP — the skill picks the right `brain_*` call.
 
-| You say… | What happens |
+**Prove the connection**
+| Say… | What happens |
 |---|---|
-| *(you start any real task)* | Session opens; past rules that match get injected |
+| "ask the brain what it knows about this project" | Free, instant — proves the link is live |
+
+**Teach it something**
+| Say… | What happens |
+|---|---|
 | "remember this: we use pgvector, not Pinecone" | Saved as a rule; appears under **Skills** |
-| "ask the oracle: how did we solve the migration ordering?" | Synthesised answer **with citations** |
-| "find the rule about prisma migrations" | Top matches by meaning, instant, free |
+| "no — we moved that check to the route handler last month" | Mid-session correction; teaches it to unlearn stale advice |
+| "we decided to use Redis for sessions, not Postgres" | Recorded as a project decision (shared, doesn't decay) |
+
+**Recall — instant, free, no LLM call**
+| Say… | What happens |
+|---|---|
+| "find the rule about prisma migrations" | Top matches by meaning |
 | "what did I do last week on billing?" | Past sessions matching those words |
-| **"that worked" / "we're done" / "ship it"** | **Closes the session — this is what makes it learn** |
 
-### The one habit that matters
+**Ask the Oracle — slower, billed, reasoned answer with citations**
+| Say… | What happens |
+|---|---|
+| "ask the oracle: how did we solve the migration ordering?" | Synthesised answer, cited to the sessions it came from |
+| ✗ "ask the oracle: how does flexbox work" | Wrong use — it's your project's memory, not the internet |
 
-**Close your sessions.** Say *"that worked"* or *"we're done"* when you finish.
+**Close the loop — the one habit that matters**
+| Say… | What happens |
+|---|---|
+| "that worked" / "we're done" / "ship it" | **Closes the session — this is what makes it learn.** Unclosed sessions teach nothing; this is the #1 reason a Brain sits empty after a week of real use |
 
-An unclosed session teaches the Brain nothing — the extraction pipeline only fires on close. This is the number one reason a Brain sits empty after a week of real use. Everything else is optional; this isn't.
-
-### A session, start to finish
-
-```
-You:     I need to refactor the auth middleware to use the new credentials adapter.
-Claude:  [opens a session, retrieves matching rules]
-         Two of your rules apply here: sessions bind at start, and
-         credential checks belong at the repository layer.
-
-You:     no — we moved that check to the route handler last month.
-Claude:  Noted, updating.
-
-You:     that worked, we're done.
-Claude:  [closes the session with what it learned]
-         Saved: "credential checks live at the route handler, not the
-         repository layer — moved 2026-07."
-```
-
-That correction is now permanent. Next month, on a different machine, it arrives before you have to remember it.
-
-### Getting good answers
-
-- **"find the rule about X"** — instant, free, no LLM call. Use it whenever you'd otherwise re-derive a past decision.
-- **"ask the oracle: …"** — slower and billed, but synthesised with citations. Use it when you want reasoning, not a list.
-- **Don't** ask the Oracle general programming questions. It's your project's memory, not the internet. "How does flexbox work" is a web search; "how did *we* decide to lay out the dashboard" is the Oracle.
+More categories, and a full worked example: [Tutorial 01](./01-getting-started.md), [Tutorial 02 — Asking the Oracle](./02-asking-the-oracle.md), [Tutorial 03 — Teaching the Brain](./03-teaching-knowledge.md).
 
 ---
 
@@ -156,7 +132,7 @@ Deeper help: [troubleshooting](./06-troubleshooting.md).
 
 | | |
 |---|---|
-| [01 — Getting started](./01-getting-started.md) | The same ground, slower, with diagrams |
+| [01 — Getting started](./01-getting-started.md) | The same ground, slower, with the reasoning spelled out |
 | [02 — Asking the Oracle](./02-asking-the-oracle.md) | Question patterns that work |
 | [03 — Teaching knowledge](./03-teaching-knowledge.md) | Writing rules that survive |
 | [04 — Managing tokens](./04-managing-tokens.md) | Scope, rotation, revocation |
