@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { CLIENTS, type ClientId } from "@brain/core/install-snippets";
+import { SectionHeading } from "@/components/brain/section-heading";
 import { useT } from "@/lib/brain/i18n";
 import { APP_VERSION, REPO_URL, RELEASES_URL, repoDocUrl } from "@/lib/brain/version";
 
@@ -53,45 +54,6 @@ function showcasedClientNames(): string[] {
     c.label.split(/[—(]/)[0]!.trim(),
   );
   return [...new Set(names)];
-}
-
-/**
- * A real section heading — 20px / weight 600 / full-contrast ink, with a
- * small accent tick to its left. This is the ONE new structural device this
- * page introduces, and it replaces the old 13px `--ink-4` label used for
- * every heading regardless of importance. Not a decoration: the tick is the
- * same idiom `.rail-item.active::before` uses in the main app shell to mark
- * "you are here" / "this matters" — reused here rather than inventing a new
- * visual vocabulary for a page that otherwise shares the app's chrome.
- */
-function SectionHeading({ children }: { children: React.ReactNode }) {
-  return (
-    <h2
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        fontSize: 20,
-        fontWeight: 600,
-        letterSpacing: "-0.01em",
-        color: "var(--ink)",
-        margin: "0 0 14px",
-      }}
-    >
-      <span
-        aria-hidden="true"
-        style={{
-          display: "inline-block",
-          width: 3,
-          height: 16,
-          borderRadius: 2,
-          background: "var(--accent)",
-          flexShrink: 0,
-        }}
-      />
-      {children}
-    </h2>
-  );
 }
 
 export function Landing() {
