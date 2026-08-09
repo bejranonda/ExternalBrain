@@ -47,3 +47,7 @@ CLAUDE.local.md
 GEMINI.local.md
 AGENTS.local.md
 docs/internal/
+
+# Ad-hoc verification screenshots (Playwright MCP), never for commit
+*-current.png
+.playwright-mcp/
