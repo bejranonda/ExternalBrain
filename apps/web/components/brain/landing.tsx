@@ -100,7 +100,14 @@ export function Landing() {
 
   const docLinks: Array<{ label: string; href: string; external?: boolean }> = [
     { label: tr("landing.docConcepts"), href: "/docs" },
-    { label: tr("landing.docQuickstart"), href: repoDocUrl("docs/QUICKSTART.md"), external: true },
+    // NOT docs/QUICKSTART.md — that guide is for someone self-hosting a NEW
+    // instance (Docker Engine, .env, an LLM provider key). A visitor on an
+    // existing deployment has no use for it; clicking it used to strand them
+    // in infrastructure setup instructions for a task they weren't doing.
+    // /welcome is the actual in-app quick-start: pick your AI tool, copy the
+    // install command, watch for your first session to land — already public
+    // (no sign-in required to view it) and already localized.
+    { label: tr("landing.docQuickstart"), href: "/welcome" },
     { label: tr("landing.docTutorials"), href: repoDocUrl("docs/tutorials/README.md"), external: true },
     { label: tr("landing.docMcp"), href: repoDocUrl("docs/MCP_TOOLS.md"), external: true },
     { label: tr("landing.docSecurity"), href: repoDocUrl("docs/SECURITY.md"), external: true },
