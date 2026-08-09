@@ -46,6 +46,14 @@ export function MermaidDiagram({ code }: { code: string }) {
 
   useEffect(() => {
     let cancelled = false;
+    // Clear a stale failure at the start of every attempt — without this, a
+    // component that once failed stays on the fallback <pre> forever even if
+    // a later `code` value would render fine, because `error` is state that
+    // outlives this effect's re-runs. In practice `code` here is derived from
+    // static, build-time-baked markdown and never changes for a mounted
+    // instance, but the component shouldn't silently depend on that being
+    // true forever. CodeRabbit review, PR #233.
+    setError(null);
     (async () => {
       try {
         const { default: mermaid } = await import("mermaid");

@@ -13,7 +13,7 @@ Drei Schritte. Token erstellen, einen Befehl ausführen, dann normal mit ihm spr
 Öffne `https://<your-brain>/start`, füge deinen Code ein und kopiere den Prompt,
 den du bekommst, in Claude Code, Cursor oder ein beliebiges KI-Werkzeug, das
 eine URL abrufen kann. Deine KI legt das Konto an, erzeugt das Token und führt
-den Installationsbefehl aus — **dann dein KI-Werkzeug neu starten**, denn die
+den Installationsbefehl aus — **dann starte dein KI-Werkzeug neu**, denn die
 MCP-Konfiguration wird nur beim Start gelesen.
 
 Das Token ist eingeschränkt (14 Tage, kein Oracle), weil der Code durch ein
