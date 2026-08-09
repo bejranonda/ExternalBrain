@@ -92,6 +92,10 @@ services:
       ALLOW_DEV_AUTH_IN_PRODUCTION: ${ALLOW_DEV_AUTH_IN_PRODUCTION:-false}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       REGISTRATION_REQUIRES_VOUCHER: ${REGISTRATION_REQUIRES_VOUCHER:-true}
+      # Anonymous voucher → MCP-token exchange (POST /api/onboard/claim).
+      # Fails closed. Independent of the voucher gate above: that one governs
+      # browser signup, this one governs headless token issuance.
+      AGENTIC_ONBOARDING: ${AGENTIC_ONBOARDING:-false}
       # Default to the public HTTPS origin when BRAIN_PUBLIC_HOSTNAME is set
       # (server); empty otherwise (local) so NextAuth uses the request host.
       AUTH_URL: ${AUTH_URL:-}
@@ -104,6 +108,10 @@ services:
       # deploy so the generated `claude mcp add` URL is the public HTTPS one.
       BRAIN_PUBLIC_HOSTNAME: ${BRAIN_PUBLIC_HOSTNAME:-}
       BRAIN_MCP_PUBLIC_HOSTNAME: ${BRAIN_MCP_PUBLIC_HOSTNAME:-}
+      # robots.txt posture. "true" (default) serves Disallow: / — correct for
+      # an invite-only instance. Set false once you want the landing page
+      # indexed. Affects crawling only, never access control.
+      BRAIN_ROBOTS_DISALLOW_ALL: ${BRAIN_ROBOTS_DISALLOW_ALL:-true}
       # Nightly-dump age alarm (KNOWN_ISSUES §0f follow-up): /api/admin/
       # backup-status warns when the newest /data/backups/last dump is older
       # than this (seconds). Default 26 h = daily 03:00 schedule + slack.
