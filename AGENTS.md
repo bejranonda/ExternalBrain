@@ -1,8 +1,9 @@
 # Contributor & AI-agent guide
 
-You are working in the **External Brain** repository — an MCP server + webapp
-that captures knowledge from AI coding sessions and serves it back as typed
-skills and a grounded Oracle. This file orients humans and AI assistants
+You are working in the **External Brain** repository — a self-improving,
+compounding AI coding intelligence engine (MCP server + webapp) that captures
+knowledge from AI coding sessions and serves it back as typed skills and a
+grounded Oracle. This file orients humans and AI assistants
 (Claude Code, Gemini CLI, Cursor, Windsurf, Google Antigravity, GitHub Copilot,
 etc.) before their first edit.
 

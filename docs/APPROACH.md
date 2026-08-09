@@ -678,6 +678,19 @@ A comprehensive native-speaker pass was performed across `/`, `/start`, `/docs`,
 
 ---
 
+## 5av. Positioning pivot: from passive memory to self-improving compounding AI intelligence (2026-08-09)
+
+The initial hero headline ("Your AI coding sessions forget everything. This one doesn't.") suffered from commoditization bias. Memory features are now commonplace across AI coding tools (Claude Code, Cursor, ChatGPT memory, Mem0). Pitching passive memory or a generic "second brain" sells storage rather than outcome.
+
+Developers want **AI agents that get 10× smarter, faster, and more aligned over time**.
+
+The positioning was systematically updated across the web app hero sections (`i18n-dict.ts` in EN, TH, DE), `README.md`, and core documentation:
+1. **From Passive Storage to Active Extraction**: Highlight that External Brain automatically mines finished sessions to extract structured rules, recipes, anti-patterns, and project decisions.
+2. **Self-Improving Flywheel**: Emphasize how Autoskill, decay scores, and execution feedback continuously refine rules — high-payoff rules reinforce while unused ones decay away.
+3. **Cross-Tool Compounding Intelligence**: Emphasize that when one agent or engineer solves a bug, every AI tool (Claude Code, Cursor, Windsurf) and teammate inherits the intelligence instantly via MCP.
+
+---
+
 ## 5au. Audit before you build; review live where it's free (2026-06-22 → 06-23, v1.9.0/v1.9.1, orientation layer)
 
 A request to "add onboarding, a glossary, tooltips, and example agent

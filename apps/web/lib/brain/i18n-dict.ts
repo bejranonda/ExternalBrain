@@ -403,31 +403,31 @@ export const I18N = {
       signinLink: "Already have an account? Sign in",
     },
     landing: {
-      heroTitle: "Your AI coding sessions forget everything. This one doesn't.",
+      heroTitle: "Make your AI coding tools 10× smarter with self-improving team intelligence.",
       heroBody:
-        "External Brain is a memory layer your AI tools connect to over MCP. It remembers what you decided and why — across sessions, projects, and machines.",
+        "External Brain is a self-improving intelligence engine for your AI agents over MCP. It automatically extracts rules, decisions, and recipes from finished sessions — turning past fixes into instant, compounding knowledge across Claude Code, Cursor, and Windsurf.",
       ctaVoucher: "I have a voucher code",
       ctaSignIn: "Sign in",
       ctaSelfHost: "Self-host it →",
       problemTitle: "The problem",
       problemBody:
-        "Every new session starts from zero. You re-explain the same conventions, re-argue the same decisions, and rediscover the same fixes. The knowledge already exists — it is just trapped in transcripts nobody reads twice.",
+        "Every new session starts from zero. You re-explain the same conventions, re-argue the same decisions, and rediscover the same fixes. The intelligence already exists — it is just trapped in transcripts nobody reads twice.",
       featuresTitle: "What it does",
-      f1Title: "Injects what you already decided",
+      f1Title: "Injects compounding team intelligence",
       f1Body:
         "Before your AI generates code, Brain retrieves the rules your past sessions produced and puts them in context — so it stops suggesting the library you rejected last month.",
       f2Title: "Answers questions about your own history",
       f2Body:
         "Ask “what did we decide about auth?” and get a grounded answer, with citations to the sessions and rules it came from.",
-      f3Title: "Turns repeated fixes into rules",
+      f3Title: "Self-improving flywheel turns fixes into rules",
       f3Body:
-        "A background worker reads finished sessions, extracts what generalises, and scores whether each rule actually helped. Rules that never pay off decay away.",
+        "A background worker reads finished sessions, extracts what generalises, and scores whether each rule actually helped. High-payoff rules reinforce while unused ones decay away.",
       f4Title: "Stays yours",
       f4Body:
         "Self-hostable on a single VM with Docker Compose. Your sessions, your database, your LLM keys, your data-retention rules.",
       howTitle: "How it works",
       howBody:
-        "Your AI tool talks to Brain over MCP-over-HTTP with a bearer token. Brain injects relevant knowledge before a task and records the outcome after; a background worker turns those outcomes into reusable rules and embeddings.",
+        "Your AI tool talks to Brain over MCP-over-HTTP with a bearer token. Brain injects relevant knowledge before a task and records the outcome after; a self-improving background worker turns those outcomes into reusable rules and embeddings.",
       clientsTitle: "Works with the tools you already use",
       clientsBody:
         "One command wires up any of these. Anything else that speaks MCP works too.",
@@ -841,31 +841,31 @@ export const I18N = {
       signinLink: "มีบัญชีผู้ใช้อยู่แล้ว? เข้าสู่ระบบ",
     },
     landing: {
-      heroTitle: "เซสชันเขียนโค้ด AI มักจะลืมบริบทเดิม — แต่ External Brain ช่วยจำให้",
+      heroTitle: "ยกระดับ AI เขียนโค้ดของคุณให้ฉลาดขึ้น 10 เท่า ด้วยระบบเรียนรู้และพัฒนาตัวเองอัตโนมัติ",
       heroBody:
-        "External Brain คือระบบคลังความรู้และหน่วยความจำกลางสำหรับเครื่องมือเขียนโค้ด AI ที่เชื่อมต่อผ่าน MCP ช่วยจดจำการตัดสินใจ เหตุผล และรูปแบบโค้ดข้ามเซสชัน ข้ามโปรเจกต์ และข้ามอุปกรณ์",
+        "External Brain คือระบบประมวลผลความรู้อัจฉริยะสำหรับ AI Agents ผ่าน MCP ที่เรียนรู้และพัฒนาตัวเองอย่างต่อเนื่อง โดยสกัดกฎ ข้อสรุป และแนวทางแก้ไขจากเซสชันที่จบแล้ว แปลงเป็นความรู้ที่สั่งสมและฉลาดขึ้นทุกวันใน Claude Code, Cursor และ Windsurf",
       ctaVoucher: "ใช้รหัสวอเชอร์",
       ctaSignIn: "เข้าสู่ระบบ",
       ctaSelfHost: "ติดตั้งใช้งานเอง (Self-Host) →",
       problemTitle: "ปัญหาที่คุณพบบ่อย",
       problemBody:
-        "ทุกครั้งที่เริ่มเซสชันใหม่ AI จะเริ่มนับหนึ่งใหม่ คุณต้องอธิบายกติกาเดิมซ้ำๆ ถกเถียงเรื่องที่เคยได้ข้อสรุปไปแล้ว หรือแก้ไขปัญหาเดิมที่เคยแก้ไปแล้ว ความรู้และบทเรียนเหล่านั้นหายไปกับแชตเก่าโดยไม่มีใครนำกลับมาใช้",
+        "ทุกครั้งที่เริ่มเซสชันใหม่ AI จะเริ่มนับหนึ่งใหม่ คุณต้องอธิบายกติกาเดิมซ้ำๆ ถกเถียงเรื่องที่เคยได้ข้อสรุปไปแล้ว หรือแก้ไขปัญหาเดิมที่เคยแก้ไปแล้ว ความรู้และบทเรียนเหล่านั้นขังอยู่ในแชตเก่าโดยไม่ได้พัฒนาให้ฉลาดขึ้น",
       featuresTitle: "คุณสมบัติเด่น",
-      f1Title: "ดึงข้อสรุปและแนวทางที่เคยตัดสินใจไว้มาใช้อัตโนมัติ",
+      f1Title: "ส่งต่อความรู้อัจฉริยะที่สั่งสมในทีมแบบเรียลไทม์",
       f1Body:
-        "ก่อนที่ AI จะเริ่มเขียนโค้ด Brain จะค้นหาและส่งบริบทหรือกฎเกณฑ์ที่ได้จากเซสชันก่อนหน้าไปให้ AI ทันที เพื่อป้องกันไม่ให้ AI เสนอโซลูชันหรือไลบรารีที่คุณเคยปฏิเสธไปแล้ว",
+        "ก่อนที่ AI จะเริ่มเขียนโค้ด Brain จะค้นหาและป้อนบทเรียนที่สกัดไว้จากเซสชันก่อนหน้าเข้าบริบททันที เพื่อป้องกันไม่ให้ AI เสนอโซลูชันหรือไลบรารีที่คุณเคยปฏิเสธไปแล้ว",
       f2Title: "ถาม-ตอบเกี่ยวกับประวัติและข้อสรุปการทำงานของคุณ",
       f2Body:
         "ถามเช่น “เราตกลงเรื่องระบบล็อกอินไว้ว่าอย่างไร?” Oracle จะตอบพร้อมอ้างอิงลิงก์ตรงไปยังเซสชันและสกิลต้นทาง",
-      f3Title: "แปลงวิธีแก้ปัญหาซ้ำๆ ให้เป็นสกิลที่นำกลับมาใช้ได้",
+      f3Title: "ระบบพัฒนาตัวเอง สกัดวิธีแก้ปัญหาให้เป็นสกิลทีม",
       f3Body:
-        "ระบบเบื้องหลังจะวิเคราะห์เซสชันที่เสร็จสิ้น สกัดเป็นสกิลที่ใช้ซ้ำได้ และประเมินคะแนนความคุ้มค่า สกิลที่ไม่ถูกใช้งานจะค่อยๆ เสื่อมถอยไปเองตามธรรมชาติ",
+        "ระบบประมวลผลเบื้องหลังจะสแกนวิเคราะห์เซสชันที่เสร็จสิ้น สกัดเป็นสกิลใหม่ และประเมินคะแนนความคุ้มค่าจากการใช้งานจริง สกิลที่ช่วยแก้ปัญหาได้ดีจะได้รับการยกระดับ ส่วนสกิลที่ไม่คุ้มค่าจะค่อยๆ เสื่อมถอยไป",
       f4Title: "เป็นเจ้าของข้อมูล 100%",
       f4Body:
         "ติดตั้งใช้งานง่ายบนเซิร์ฟเวอร์ของคุณเองด้วย Docker Compose ข้อมูลเซสชัน ฐานข้อมูล API keys ของ LLM และนโยบายจัดเก็บข้อมูลอยู่ภายใต้การควบคุมของคุณทั้งหมด",
       howTitle: "หลักการทำงาน",
       howBody:
-        "เครื่องมือ AI สื่อสารกับ Brain ผ่านโปรโตคอล MCP (over HTTP) โดยใช้โทเค็น Brain จะดึงความรู้ที่เกี่ยวข้องป้อนให้ก่อนเริ่มงาน และบันทึกผลลัพธ์หลังจบงาน จากนั้นระบบประมวลผลเบื้องหลังจะสกัดความรู้นั้นเป็นสกิลและเวกเตอร์สำหรับนำกลับมาใช้ซ้ำ",
+        "เครื่องมือ AI สื่อสารกับ Brain ผ่านโปรโตคอล MCP (over HTTP) โดยใช้โทเค็น Brain จะดึงความรู้ที่เกี่ยวข้องป้อนให้ก่อนเริ่มงาน และบันทึกผลลัพธ์หลังจบงาน จากนั้นระบบประมวลผลเบื้องหลังที่พัฒนาตัวเองได้จะสกัดความรู้นั้นเป็นสกิลและเวกเตอร์สำหรับนำกลับมาใช้ซ้ำ",
       clientsTitle: "รองรับเครื่องมือพัฒนา AI ที่คุณใช้อยู่แล้ว",
       clientsBody:
         "ตั้งค่าได้อย่างง่ายดายด้วยคำสั่งเดียว รองรับทั้ง Claude Code, Cursor, Windsurf, Antigravity และเครื่องมืออื่นๆ ที่รองรับ MCP",
@@ -1283,31 +1283,31 @@ export const I18N = {
       signinLink: "Schon ein Konto? Anmelden",
     },
     landing: {
-      heroTitle: "Deine KI-Coding-Sitzungen vergessen alles. Diese hier nicht.",
+      heroTitle: "Mache deine KI-Coding-Tools 10-mal intelligenter durch selbstverbessernde Team-Intelligenz.",
       heroBody:
-        "External Brain ist eine Gedächtnisschicht, mit der sich deine KI-Werkzeuge über MCP verbinden. Sie merkt sich, was du entschieden hast und warum — über Sitzungen, Projekte und Rechner hinweg.",
+        "External Brain ist eine selbstverbessernde Intelligenz-Engine für deine KI-Agents über MCP. Sie extrahiert automatisch Regeln, Entscheidungen und Rezepte aus vergangenen Sitzungen — und verwandelt alte Fixes in kumulatives Wissen für Claude Code, Cursor und Windsurf.",
       ctaVoucher: "Ich habe einen Gutscheincode",
       ctaSignIn: "Anmelden",
       ctaSelfHost: "Selbst hosten →",
       problemTitle: "Das Problem",
       problemBody:
-        "Jede neue Sitzung beginnt bei null. Du erklärst dieselben Konventionen erneut, diskutierst dieselben Entscheidungen noch einmal und entdeckst dieselben Lösungen wieder. Das Wissen ist längst da — es steckt nur in Transkripten, die niemand ein zweites Mal liest.",
+        "Jede neue Sitzung beginnt bei null. Du erklärst dieselben Konventionen erneut, diskutierst dieselben Entscheidungen noch einmal und entdeckst dieselben Lösungen wieder. Die Intelligenz ist längst da — sie steckt nur in Transkripten, die niemand ein zweites Mal liest.",
       featuresTitle: "Was es tut",
-      f1Title: "Bringt zurück, was du längst entschieden hast",
+      f1Title: "Spielt lernende Team-Intelligenz ein",
       f1Body:
         "Bevor deine KI Code erzeugt, holt Brain die Regeln aus deinen früheren Sitzungen in den Kontext — damit sie nicht wieder die Bibliothek vorschlägt, die du letzten Monat verworfen hast.",
       f2Title: "Beantwortet Fragen zu deiner eigenen Historie",
       f2Body:
         "Frag „was haben wir zu Auth entschieden?“ und bekomme eine belegte Antwort samt Verweisen auf die Sitzungen und Regeln, aus denen sie stammt.",
-      f3Title: "Macht aus wiederholten Fixes Regeln",
+      f3Title: "Selbstverbesserndes Schwungrad macht aus Fixes Regeln",
       f3Body:
-        "Ein Hintergrundprozess liest abgeschlossene Sitzungen, extrahiert das Verallgemeinerbare und bewertet, ob eine Regel wirklich geholfen hat. Regeln ohne Nutzen verfallen von selbst.",
+        "Ein Hintergrundprozess liest abgeschlossene Sitzungen, extrahiert das Verallgemeinerbare und bewertet, ob eine Regel wirklich geholfen hat. Regeln mit hohem Nutzen verstärken sich, ungenutzte verfallen von selbst.",
       f4Title: "Bleibt deins",
       f4Body:
         "Auf einer einzelnen VM mit Docker Compose selbst hostbar. Deine Sitzungen, deine Datenbank, deine LLM-Schlüssel, deine Aufbewahrungsregeln.",
       howTitle: "So funktioniert es",
       howBody:
-        "Dein KI-Werkzeug spricht per MCP-over-HTTP mit einem Bearer-Token zu Brain. Brain spielt vor einer Aufgabe passendes Wissen ein und hält danach das Ergebnis fest; ein Hintergrundprozess macht daraus wiederverwendbare Regeln und Embeddings.",
+        "Dein KI-Werkzeug spricht per MCP-over-HTTP mit einem Bearer-Token zu Brain. Brain spielt vor einer Aufgabe passendes Wissen ein und hält danach das Ergebnis fest; ein selbstverbessernder Hintergrundprozess macht daraus wiederverwendbare Regeln und Embeddings.",
       clientsTitle: "Funktioniert mit den Werkzeugen, die du schon nutzt",
       clientsBody:
         "Ein Befehl richtet jedes davon ein. Alles andere, das MCP spricht, funktioniert ebenfalls.",

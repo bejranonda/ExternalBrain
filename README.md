@@ -1,14 +1,12 @@
-# External Brain: Self-Improving, Self-Hosted AI Coding Memory Across Every Tool, Project, and Team
+# External Brain: Self-Improving, Compounding AI Coding Intelligence Across Every Tool, Project, and Team
 
-> **Your AI's memory is trapped in one tool, one project, one person.** Claude
-> Code doesn't share with Cursor, a lesson learned on one repo doesn't carry to
-> the next, and your teammates each start from zero. External Brain is **one
-> shared, self-hosted knowledge layer across every MCP tool, project, and team**.
-> A skill learned once applies everywhere it's relevant, you can inspect and edit
-> what it knows, and answers cite your own work. Best of all, it improves on its
-> own: after each session it proposes new skills from what you did, so every
-> project gets sharper without anyone hand-writing rules. Built for teams and
-> enterprise, on your own infrastructure.
+> **Standard AI memory is trapped in one tool, one project, one person — and stays static.** Claude
+> Code doesn't share with Cursor, lessons learned on one repo don't carry to
+> the next, and basic memory just accumulates raw chat history. External Brain is **a
+> self-improving, compounding intelligence engine across every MCP tool, project, and team**.
+> It extracts structured rules and recipes from finished sessions, reinforces what pays off,
+> decays obsolete guidance, and makes every AI tool 10× smarter from your team's real work.
+> Built for teams and enterprise, on your own infrastructure.
 
 <img width="1416" height="320" alt="image" src="https://github.com/user-attachments/assets/74d9c69c-145a-452d-aead-b00f8447025c" />
 
@@ -24,14 +22,14 @@
 </p>
 
 **External Brain** is a self-hosted **MCP (Model Context Protocol) server +
-webapp** that gives AI coding agents persistent, long-term memory. It ingests
+webapp** that powers self-improving AI coding intelligence. It ingests
 your coding sessions, **extracts durable knowledge** (skills, rules, recipes,
-anti-patterns), **retrieves it by semantic meaning** when you start a new task,
+anti-patterns, project decisions), **retrieves it by semantic meaning** when you start a new task,
 and answers questions about your own codebase through a grounded **Oracle** —
 every answer cited back to the sessions and skills that support it.
 
-Unlike the memory built into each AI tool, that store is **one shared,
-inspectable layer across every MCP client** — it stays on your own
+Unlike basic memory built into individual AI tools, that intelligence is **one shared,
+self-improving, inspectable layer across every MCP client** — it stays on your own
 infrastructure instead of sitting in a separate black box locked inside each
 tool.
 
@@ -43,12 +41,12 @@ own.
 
 ---
 
-## Why Use External Brain? — One Memory Across Every Tool, Project, and Team
+## Why Use External Brain? — Self-Improving Compounding Intelligence Across Every Tool, Project, and Team
 
 Modern AI coding tools have memory now. The real problem is *where* that memory
-lives and *how far it reaches*:
+lives, *how static it remains*, and *how far it reaches*:
 
-- **Siloed — per tool, per project, per person.** Claude Code doesn't share with
+- **Siloed & Static — per tool, per project, per person.** Claude Code doesn't share with
   Cursor or Copilot; a lesson learned on one repo doesn't carry to the next; and
   your teammates each start from zero. Knowledge that should compound stays stuck
   in one place.
@@ -57,7 +55,7 @@ lives and *how far it reaches*:
 - **Not yours.** It's locked inside one vendor's cloud, tied to that one tool.
   You can't inspect it, move it, or share it on your terms.
 
-External Brain is the missing **knowledge layer that spans every AI coding tool,
+External Brain is the missing **self-improving intelligence layer that spans every AI coding tool,
 every project, and your whole team**: one shared, inspectable, self-hosted store
 you actually own. A rule captured once ("we use Zod not Yup", "the deploy breaks
 if you skip the migration step", "this service owns auth") is served back to
@@ -67,8 +65,7 @@ the lessons one engineer learns become the team's, not a silo's.
 
 And it doesn't sit still. **Autoskill** watches your sessions, proposes new skills
 it notices you reusing, reinforces the rules that pay off, and lets the weak ones
-fade. Each project gets better day by day, on its own, without anyone stopping to
-hand-write a rules file.
+fade. Each project gets better day by day, on its own, through **self-improving feedback loops**.
 
 ### Key Features
 
