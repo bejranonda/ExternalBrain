@@ -977,6 +977,43 @@ problem it was raised to fix. Tracked as an open item, not a bug —
 
 ---
 
+### 12.34 A page's job survives its own fixes only if every fix checks the job (2026-08-09)
+
+`/welcome` was fixed three separate times this session — a raw i18n key,
+a stale 4-of-12 tool list, a landing-page link pointed at it — before the
+underlying question got asked: *what is this page actually for, now that
+`/start` and the quick-start tutorial exist?* Once asked, the answer was that
+none of the three fixes should have happened, because the content they were
+patching (a tool picker, an install command) belonged on a different page
+entirely. `/welcome`'s unique job — the live "did the install work?" check —
+was never broken by any of it.
+
+**The pattern generalises.** Four public pages now exist —
+`/`, `/start`, `/docs`, `/welcome` — each with one job (`NAVIGATION.md §1b`).
+A bug on one of them has two possible causes: the page is failing its own
+job, or the page is doing a job that migrated to a different page and left a
+stale copy behind. Fixing the symptom (wrong string, wrong list, wrong link)
+addresses the first cause and is invisible to the second. The question that
+catches the second — "does this content still belong on this page, or did
+its job move somewhere else?" — has to be asked explicitly; a diff review
+that only checks "is this fix correct" will approve a technically-correct
+patch to content that shouldn't exist.
+
+**The tell, in retrospect:** every one of the three earlier `/welcome` fixes
+this session was small, self-contained, and left the page's actual shape
+unchanged. A page whose job has migrated tends to keep failing in exactly
+that way — small, patchable symptoms, because the structural problem is
+never IN the diff being reviewed. Worth a beat of suspicion the next time a
+page needs its second unrelated small fix in one sitting.
+
+Repointing every surface that linked to the old `/welcome` (`landing.tsx`,
+`empty-brain-callout.tsx`, `start-flow.tsx`, two e2e specs) required a grep
+for the href, not a memory of who might reference it — the same "enumerate
+before you close" discipline as `APPROACH.md §5q`, applied to links instead
+of a bug pattern.
+
+---
+
 ### 12.24 Oracle thumbs feedback loop (MVP complete, 2026-04-29)
 
 Oracle thumbs up/down on an answer bumps `successCount` (up) or `failureCount` (down) on each cited Knowledge row owned by the user, in real time.

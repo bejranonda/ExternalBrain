@@ -2575,3 +2575,38 @@ users are still on the enterprise path — a decision nobody had actually made,
 arrived at by tidiness. Relabelling it "legacy" and pointing its note at the
 successor served both populations; removing it would have served neither and
 looked, from the commit, like the more thorough fix.
+
+## 5bp. A page fixed three times had one bug the whole time (2026-08-09)
+
+`/welcome` took three separate fixes in one session: a raw i18n key on
+screen, a tool list stale against the client registry, a landing-page link
+that (correctly, at the time) pointed at it as the install flow. Each fix
+was reviewed, correct, and shipped. None of them was the actual problem.
+
+The actual problem surfaced only when the operator asked a different kind of
+question — not "is this fix right" but "does this page still need to exist
+in this shape, given `/start` and the quick-start tutorial now exist too."
+The answer was no: `/welcome`'s tool-picker and install command had migrated
+to better homes weeks earlier, and every subsequent "fix" was polishing
+content that should have been deleted, not repaired.
+
+**The generalisable tell:** a page needing its second unrelated small fix in
+one sitting is a specific, checkable signal — not proof, but reason enough to
+stop and ask the structural question before shipping fix number two. A diff
+review answers "is this change correct" by construction; it cannot answer
+"should this content exist here at all," because that question is about
+everything the diff *doesn't* touch. The two questions need to be asked
+separately, and only the second one catches this class.
+
+This is `§5q`'s discipline ("enumerate before you close") aimed at pages
+instead of bug patterns: once the structural fix is decided, it does not
+stop at the one file that prompted the question. Grepping `href="/welcome"`
+across `apps/web` — rather than trusting memory of who might link there —
+found three more callers still treating it as an install flow, including
+`landing.tsx`, itself patched to point at `/welcome` in an *earlier commit
+the same day*. That is not a contradiction to paper over; it is what
+"content moved" looks like from the outside; a link is correct until the
+page underneath it changes shape, and nothing announces when that happens.
+
+Full instance: `KNOWLEDGE.md §12.34`. Mechanical rule from it:
+`GUIDELINES.md`, "removing or narrowing a page's job."
