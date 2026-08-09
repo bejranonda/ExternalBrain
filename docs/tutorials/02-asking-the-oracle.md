@@ -59,35 +59,15 @@ Visit `/#oracle`. You'll see:
 
 ## Query patterns that work
 
-The Oracle answers best when the question implies a clear semantic
-target. Compare:
+The Oracle answers best when the question implies a clear semantic target:
 
-✗ **Vague:** *"How do I do auth?"*
-
-The Oracle has no signal about which auth, which framework, which
-project. You'll get a generic answer or "I don't have enough context".
-
-✓ **Specific:** *"How did I solve the CORS issue in the MCP server last
-month?"*
-
-Includes the framework (MCP), the symptom (CORS), and a time anchor
-(last month). The Oracle will retrieve the relevant session + any
-Knowledge extracted from it.
-
-✓ **Pattern-style:** *"What do I usually use for forms in Next.js?"*
-
-The Oracle looks for high-confidence Knowledge of type `recipe` or
-`heuristic` matching the trigger.
-
-✓ **Anti-pattern:** *"What React patterns do I avoid?"*
-
-Specifically retrieves Knowledge of type `anti_principle`.
-
-✓ **Decision history:** *"Why did I switch from Formik to react-hook-form
-on brain-platform?"*
-
-The Oracle can string together a session that contained the switch +
-any rule that recorded the rationale.
+| Ask… | Because… |
+|---|---|
+| ✗ "How do I do auth?" | Too vague — no framework, no project signal. Generic answer or "not enough context" |
+| ✓ "How did I solve the CORS issue in the MCP server last month?" | Framework + symptom + time anchor → retrieves the exact session and its Knowledge |
+| ✓ "What do I usually use for forms in Next.js?" | Matches high-confidence `recipe`/`heuristic` Knowledge by trigger |
+| ✓ "What React patterns do I avoid?" | Targets `anti_principle` Knowledge specifically |
+| ✓ "Why did I switch from Formik to react-hook-form?" | Strings together the session that made the switch + the rule that recorded why |
 
 ## Reading the answer
 

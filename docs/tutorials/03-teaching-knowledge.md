@@ -91,10 +91,15 @@ Click **Teach** and the rule lands instantly with confidence 1.0.
 
 ### Option B: from your AI tool, mid-session
 
-Inside Claude Code / Cursor / Windsurf, just say to the model:
+Inside Claude Code / Cursor / Windsurf, just say it to the model — no
+special syntax, the phrasing shapes the type:
 
-> *"Remember that I always use react-hook-form + zod for any form with
-> 3+ fields, never Formik. Teach this to the brain as a heuristic."*
+| Say… | Lands as… |
+|---|---|
+| "always use `useId()` for form ids, never `Math.random()`" | `reflex` |
+| "for forms with 3+ fields use react-hook-form + zod, not Formik" | `heuristic` |
+| "we decided to use Redis for session storage, not Postgres" | project `decision` |
+| "no — that check moved to the route handler last month" | correction, mid-session |
 
 The model calls `brain_teach_knowledge` and the rule lands the same way
 as the webapp form. This is the natural flow when you're mid-task and
