@@ -62,7 +62,11 @@ test.describe("empty-state dashboard", () => {
     // spinner and no way to install anything — the exact dead end this spec
     // exists to prevent.
     await expect(page.getByText("Your Brain is just getting started", { exact: false })).toBeVisible();
-    const guided = page.getByRole("link", { name: /get started|guided tour/i });
+    // Match only the current label. The old `/get started|guided tour/i`
+    // accepted both the current and the retired copy, so a rollback of the
+    // empty-state CTA back to "guided tour" would have passed this
+    // assertion silently — CodeRabbit review, PR #232.
+    const guided = page.getByRole("link", { name: /get started.*quick start/i });
     await expect(guided).toBeVisible();
     await expect(guided).toHaveAttribute("href", "/docs/tutorials/00-quick-start");
 

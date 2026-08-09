@@ -338,7 +338,7 @@ export const I18N = {
       title: "Welcome to your Brain",
       tagline:
         "Check that your AI tool is connected and your Brain is learning from it.",
-      step: "STEP",
+      status_label: "STATUS",
       install_title: "Not installed yet?",
       install_body:
         "The quick start walks you through minting a token and running one install command — it covers every supported tool, with the exact command for each.",
@@ -768,7 +768,7 @@ export const I18N = {
       title: "ยินดีต้อนรับสู่ External Brain",
       tagline:
         "ตรวจสอบว่าเครื่องมือ AI ของคุณเชื่อมต่อแล้ว และ Brain กำลังเรียนรู้จากการใช้งาน",
-      step: "ขั้นตอนที่",
+      status_label: "สถานะ",
       install_title: "ยังไม่ได้ติดตั้ง?",
       install_body:
         "คู่มือเริ่มต้นใช้งานจะพาคุณสร้างโทเคนและรันคำสั่งติดตั้งเพียงคำสั่งเดียว ครอบคลุมเครื่องมือที่รองรับทั้งหมด พร้อมคำสั่งที่ถูกต้องสำหรับแต่ละตัว",
@@ -1201,7 +1201,7 @@ export const I18N = {
       title: "Willkommen bei deinem Gehirn",
       tagline:
         "Prüfe, ob dein KI-Tool verbunden ist und dein Gehirn davon lernt.",
-      step: "SCHRITT",
+      status_label: "STATUS",
       install_title: "Noch nicht installiert?",
       install_body:
         "Der Schnellstart führt dich durch das Erstellen eines Tokens und einen einzigen Installationsbefehl — für jedes unterstützte Werkzeug, mit dem passenden Befehl.",

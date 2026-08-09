@@ -41,7 +41,7 @@ surfaced.
 | `/` | What is this, and which door do I take? Renders for anonymous visitors only; signed-in users are routed to `/[orgSlug]/[projectSlug]`. | `/start`, `/signin`, `/docs` |
 | `/start` | I hold a voucher code. Prefills `?voucher=`, offers agent-driven or browser setup. Target of every voucher error on `/signin`. | `/signup` (voucher forwarded), the agent prompt, `/welcome` (labelled "Already installed? Check your connection" — not "guided tour", which described a flow `/welcome` no longer has) |
 | `/docs` | Concept primers + tutorials (in-app, real markdown), localised, no auth. Tutorials lead the page — a first-timer needs "how do I connect" before "what is Autoskill". | `/docs/tutorials/[slug]`, `/docs/concepts/[slug]`, repo docs on GitHub |
-| `/welcome` | Post-install verification only: has your Brain actually learned anything yet? Live poll with 90s/5min stuck-state escalation — the one thing none of the other three pages do. Not an entry point; this is where the installer and the quick-start tutorial send people AFTER install. | `/docs/tutorials/00-quick-start` (if not installed yet), `/` (once it worked) |
+| `/welcome` | Post-install verification only: has your Brain actually learned anything yet? Live poll with 90s/5min stuck-state escalation — the one thing none of the other three pages do. Not an entry point; this is where the installer and the quick-start tutorial send people AFTER install. | `/docs/tutorials/00-quick-start` (not installed yet), `/settings/tokens` (need a token — authed only), `/` (once it worked) |
 
 `/signin`, `/signup`, `/forgot-password`, `/reset-password` and `/accept-invite`
 are also anonymous-reachable but are transactional, not navigational — they are

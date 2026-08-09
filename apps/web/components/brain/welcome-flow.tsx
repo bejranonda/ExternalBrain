@@ -169,7 +169,7 @@ export function WelcomeFlow({ authed = false }: WelcomeFlowProps = {}) {
             marginBottom: 4,
           }}
         >
-          {tr("welcome.step")} 3
+          {tr("welcome.status_label")}
         </div>
         <h2
           id="welcome-step3-heading"
