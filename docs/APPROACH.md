@@ -666,6 +666,18 @@ native sweep — same discipline as every other machine-translated block
 
 ---
 
+## 5au-2. Complete native-speaker sweep across document pages & i18n dictionaries (2026-08-09)
+
+Machine-translated copy gets basic keys onto screens, but marketing, concept pages, and contextual UI text require native polish.
+Machine translations introduced subtle errors (e.g., translating "last 12 sessions" as "12 สัปดาห์" [12 weeks], using generic Siri-like terms like "ผู้ช่วยอัจฉริยะ" instead of product term "Oracle", or transliterating jargon like "ฟลายวีล" instead of "สุขภาพของสมอง" [Brain health]).
+
+A comprehensive native-speaker pass was performed across `/`, `/start`, `/docs`, `i18n-dict.ts`, and `docs-content.ts`:
+1. **Product Terminology Alignment**: Enforced consistent terminology across English, Thai, and German (keeping "Brain", "Oracle", "Skill", "Session", "Proposal" intact and clear).
+2. **Contextual Accuracy & Smoothness**: Rewrote awkward literal machine translations into clear, natural, professional developer Thai language.
+3. **Docs & Guidelines Synchronization**: Closed the open i18n native-sweep debt items in `docs/KNOWN_ISSUES.md` and updated repository docs accordingly.
+
+---
+
 ## 5au. Audit before you build; review live where it's free (2026-06-22 → 06-23, v1.9.0/v1.9.1, orientation layer)
 
 A request to "add onboarding, a glossary, tooltips, and example agent
