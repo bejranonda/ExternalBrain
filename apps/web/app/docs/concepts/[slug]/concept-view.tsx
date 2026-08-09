@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { SectionHeading } from "@/components/brain/section-heading";
 import { getDoc, getDocsChrome } from "@/lib/brain/docs-content";
 import { useLang } from "@/lib/brain/i18n";
 
@@ -77,16 +78,7 @@ export function ConceptView({ slug }: { slug: string }) {
 
       {page.sections.map((section, i) => (
         <section key={i} style={{ marginBottom: 32 }}>
-          <h2
-            style={{
-              fontSize: 20,
-              fontWeight: 500,
-              letterSpacing: "-0.01em",
-              margin: "0 0 14px",
-            }}
-          >
-            {section.heading}
-          </h2>
+          <SectionHeading>{section.heading}</SectionHeading>
           {section.body.map((para, j) => (
             <p
               key={j}

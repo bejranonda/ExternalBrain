@@ -3,6 +3,7 @@
 import Link from "next/link";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { SectionHeading } from "@/components/brain/section-heading";
 import { getDocsChrome } from "@/lib/brain/docs-content";
 import { useLang } from "@/lib/brain/i18n";
 import type { TutorialMeta } from "@/lib/brain/tutorial-meta";
@@ -137,9 +138,9 @@ export function TutorialView({ meta, content, translated }: Props) {
 const MD_COMPONENTS: Components = {
   h1: () => null,
   h2: ({ children }) => (
-    <h2 style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.01em", margin: "36px 0 14px" }}>
-      {children}
-    </h2>
+    <div style={{ marginTop: 36 }}>
+      <SectionHeading>{children}</SectionHeading>
+    </div>
   ),
   h3: ({ children }) => (
     <h3 style={{ fontSize: 16, fontWeight: 600, margin: "24px 0 10px" }}>{children}</h3>
@@ -248,8 +249,13 @@ const MD_COMPONENTS: Components = {
       </code>
     );
   },
+  // Card-wrapped rather than a bare hairline table — matches the `.panel`
+  // treatment every other grouped-content block in the app uses (the /docs
+  // index cards, the landing page's feature grid). A naked <table> was the
+  // one element on this page that still looked like raw markdown instead of
+  // part of the product (2026-08-09).
   table: ({ children }) => (
-    <div style={{ overflowX: "auto", margin: "0 0 16px" }}>
+    <div className="panel" style={{ overflowX: "auto", margin: "0 0 16px", padding: "4px 14px" }}>
       <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 14 }}>{children}</table>
     </div>
   ),
@@ -257,8 +263,8 @@ const MD_COMPONENTS: Components = {
     <th
       style={{
         textAlign: "left",
-        padding: "8px 12px",
-        borderBottom: "2px solid var(--line)",
+        padding: "10px 12px",
+        borderBottom: "1px solid var(--line)",
         color: "var(--ink)",
         fontWeight: 600,
         whiteSpace: "nowrap",
@@ -268,7 +274,7 @@ const MD_COMPONENTS: Components = {
     </th>
   ),
   td: ({ children }) => (
-    <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--line-soft)", color: "var(--ink-2)" }}>
+    <td style={{ padding: "10px 12px", borderBottom: "1px solid var(--line-soft)", color: "var(--ink-2)" }}>
       {children}
     </td>
   ),
