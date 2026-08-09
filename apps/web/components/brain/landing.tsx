@@ -99,7 +99,12 @@ export function Landing() {
   const clients = showcasedClientNames();
 
   const docLinks: Array<{ label: string; href: string; external?: boolean }> = [
-    { label: tr("landing.docConcepts"), href: "/docs" },
+    // docConcepts ("Concepts" → /docs) removed 2026-08-09 — /docs is now the
+    // section's own primary CTA above, so listing it again as one chip among
+    // five external GitHub links was a redundant second click to the same
+    // place, framed as if it were a peer of "Security & privacy" instead of
+    // the section's actual point.
+    //
     // NOT docs/QUICKSTART.md — that guide is for someone self-hosting a NEW
     // instance (Docker Engine, .env, an LLM provider key). A visitor on an
     // existing deployment has no use for it; clicking it used to strand them
@@ -276,24 +281,31 @@ export function Landing() {
         </ul>
       </section>
 
-      {/* ── Read more ────────────────────────────────────────────────────── */}
-      {/* Rendered as chips (the app's own tag idiom, same class as the client
-          row above) rather than a bare underlined-text list — a link row and
-          a tag row look identical unless something distinguishes "click to
-          leave the page" from "click to compare tools". */}
+      {/* ── Documentation ────────────────────────────────────────────────── */}
+      {/* Promoted to a real SectionHeading (2026-08-09) — this used to be a
+          13px mono "READ MORE" utility label, the same demoted-relative-to-
+          everything-else treatment the whole page got fixed for elsewhere
+          (see the SectionHeading component's own history). /docs is a real
+          destination with real content (tutorials + concept primers), not a
+          footnote — it deserves the same visual weight as "What it does" or
+          "How it works" above it, and a real primary link instead of being
+          one chip among six external GitHub URLs. */}
       <section style={{ marginBottom: 40, paddingTop: 32, borderTop: "1px solid var(--line-soft)" }}>
-        <h2
-          className="mono"
-          style={{
-            fontSize: 12,
-            letterSpacing: "0.06em",
-            color: "var(--ink-4)",
-            margin: "0 0 14px",
-            textTransform: "uppercase",
-          }}
-        >
-          {tr("landing.docsTitle")}
-        </h2>
+        <SectionHeading>{tr("landing.docsTitle")}</SectionHeading>
+        <p style={{ fontSize: 14, color: "var(--ink-2)", lineHeight: 1.55, margin: "0 0 16px", maxWidth: 600 }}>
+          {tr("landing.docsIntro")}
+        </p>
+        <div style={{ marginBottom: 16 }}>
+          <Link className="btn btn-primary" href="/docs" style={{ textDecoration: "none" }}>
+            {tr("landing.docsCta")}
+          </Link>
+        </div>
+        {/* Rendered as chips (the app's own tag idiom, same class as the
+            client row above) rather than a bare underlined-text list — a
+            link row and a tag row look identical unless something
+            distinguishes "click to leave the page" from "click to compare
+            tools". These are the deeper, occasional-reference links; /docs
+            itself (above) is the one most visitors actually want. */}
         <ul
           style={{
             display: "flex",

@@ -20,6 +20,7 @@
     "@brain/db": "workspace:*",
     "@brain/types": "workspace:*",
     "bcryptjs": "^3.0.3",
+    "mermaid": "^11.16.1",
     "next": "^16.0.0",
     "next-auth": "^5.0.0-beta.25",
     "react": "^19.0.0",
