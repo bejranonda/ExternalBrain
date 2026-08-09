@@ -34,7 +34,7 @@ test.describe("docs i18n (#59)", () => {
 
     // Switch to Thai and assert a translated section heading appears.
     await page.getByRole("button", { name: "ภาษาไทย (Thai)" }).click();
-    await expect(page.getByRole("heading", { name: "Skill คืออะไร" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "สกิลคืออะไร" })).toBeVisible();
 
     // Switch to German and assert a translated section heading appears.
     await page.getByRole("button", { name: "Deutsch (German)" }).click();

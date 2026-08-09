@@ -47,6 +47,13 @@ RUN --mount=type=cache,target=/pnpm/store,sharing=locked \
 # Now copy source and generate Prisma client.
 COPY packages        packages
 COPY apps            apps
+# Build-time only: /docs/tutorials/*.md is read during `next build`'s static
+# generation (apps/web/lib/brain/tutorial-content.ts) so the in-app tutorial
+# pages render from the same source the repo's GitHub tutorials do — one
+# tutorial, not two divergent copies. Deliberately not copied into the final
+# runtime stage below: content is baked into .next/ output by SSG, so the
+# running container never touches these files and doesn't ship them.
+COPY docs             docs
 RUN pnpm --filter @brain/db exec prisma generate
 
 # ---------- Builder: produce per-app build artifacts ----------

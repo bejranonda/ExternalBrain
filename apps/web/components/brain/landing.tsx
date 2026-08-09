@@ -108,7 +108,10 @@ export function Landing() {
     // install command, watch for your first session to land — already public
     // (no sign-in required to view it) and already localized.
     { label: tr("landing.docQuickstart"), href: "/welcome" },
-    { label: tr("landing.docTutorials"), href: repoDocUrl("docs/tutorials/README.md"), external: true },
+    // In-app as of 2026-08-09 (was repoDocUrl("docs/tutorials/README.md")) —
+    // see apps/web/lib/brain/tutorial-content.ts for why tutorials get their
+    // own markdown renderer instead of the concept-page format.
+    { label: tr("landing.docTutorials"), href: "/docs/tutorials/00-quick-start" },
     { label: tr("landing.docMcp"), href: repoDocUrl("docs/MCP_TOOLS.md"), external: true },
     { label: tr("landing.docSecurity"), href: repoDocUrl("docs/SECURITY.md"), external: true },
     { label: tr("landing.docSource"), href: REPO_URL, external: true },

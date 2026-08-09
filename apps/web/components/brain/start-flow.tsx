@@ -161,7 +161,48 @@ export function StartFlow({ webUrl, agenticEnabled, initialVoucher = "" }: Start
       </section>
 
       <div className="welcome-steps">
-        {/* Path A — the agent does it */}
+        {/* Path B — the browser — first/left. Reordered 2026-08-09: the
+            no-prior-setup, no-trust-required path belongs first for a general
+            pilot audience; the agentic path is the power-user enhancement,
+            not the default recommendation. Swapping JSX order (not a CSS
+            `order:` override) moves DOM order, grid position, and tab order
+            together — a visual-only reorder would leave keyboard users
+            landing on the visually-second card first. */}
+        <section
+          className="panel"
+          style={{ padding: "18px 20px" }}
+          aria-labelledby="start-self-heading"
+        >
+          <h2
+            id="start-self-heading"
+            style={{ fontSize: 16, fontWeight: 600, color: "var(--ink)", margin: "0 0 8px" }}
+          >
+            {tr("start.selfTitle")}
+          </h2>
+          <p
+            style={{
+              fontSize: 13.5,
+              color: "var(--ink-2)",
+              lineHeight: 1.6,
+              margin: "0 0 14px",
+            }}
+          >
+            {tr("start.selfBlurb")}
+          </p>
+          <Link
+            className="btn btn-primary"
+            href={code ? `/signup?voucher=${encodeURIComponent(code)}` : "/signup"}
+          >
+            {tr("start.selfCta")}
+          </Link>
+          <p style={{ fontSize: 12, margin: "14px 0 0" }}>
+            <Link href="/welcome" style={{ color: "var(--ink-3)" }}>
+              {tr("start.tourLink")}
+            </Link>
+          </p>
+        </section>
+
+        {/* Path A — the agent does it — second/right */}
         <section
           className="panel"
           style={{ padding: "18px 20px" }}
@@ -235,41 +276,6 @@ export function StartFlow({ webUrl, agenticEnabled, initialVoucher = "" }: Start
               </p>
             </>
           )}
-        </section>
-
-        {/* Path B — the browser */}
-        <section
-          className="panel"
-          style={{ padding: "18px 20px" }}
-          aria-labelledby="start-self-heading"
-        >
-          <h2
-            id="start-self-heading"
-            style={{ fontSize: 16, fontWeight: 600, color: "var(--ink)", margin: "0 0 8px" }}
-          >
-            {tr("start.selfTitle")}
-          </h2>
-          <p
-            style={{
-              fontSize: 13.5,
-              color: "var(--ink-2)",
-              lineHeight: 1.6,
-              margin: "0 0 14px",
-            }}
-          >
-            {tr("start.selfBlurb")}
-          </p>
-          <Link
-            className="btn btn-primary"
-            href={code ? `/signup?voucher=${encodeURIComponent(code)}` : "/signup"}
-          >
-            {tr("start.selfCta")}
-          </Link>
-          <p style={{ fontSize: 12, margin: "14px 0 0" }}>
-            <Link href="/welcome" style={{ color: "var(--ink-3)" }}>
-              {tr("start.tourLink")}
-            </Link>
-          </p>
         </section>
       </div>
 

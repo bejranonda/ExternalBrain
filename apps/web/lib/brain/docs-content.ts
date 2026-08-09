@@ -1349,6 +1349,9 @@ export interface DocsChrome {
   whereYouSee: string;
   relatedConcepts: string;
   deeperReference: string;
+  allTutorials: string;
+  sourceOnGithub: string;
+  notYetTranslated: string;
   sections: Record<string, string>;
 }
 
@@ -1374,12 +1377,16 @@ const DOCS_CHROME: Record<Lang, DocsChrome> = {
     allConcepts: "← all concepts",
     whereYouSee: "Where you see this",
     relatedConcepts: "Related concepts",
+    allTutorials: "← all tutorials",
+    sourceOnGithub: "View source on GitHub",
+    notYetTranslated: "Not yet translated — showing the English version.",
     deeperReference: "Deeper reference",
     sections: {
       start: "Start here",
       core: "Core concepts",
       connection: "Connection & setup",
       deeper: "Deeper",
+      tutorials: "Tutorials",
     },
   },
   th: {
@@ -1403,12 +1410,16 @@ const DOCS_CHROME: Record<Lang, DocsChrome> = {
     allConcepts: "← แนวคิดทั้งหมด",
     whereYouSee: "คุณเห็นสิ่งนี้ที่ไหน",
     relatedConcepts: "แนวคิดที่เกี่ยวข้อง",
+    allTutorials: "← บทเรียนทั้งหมด",
+    sourceOnGithub: "ดูต้นฉบับบน GitHub",
+    notYetTranslated: "ยังไม่มีคำแปล — แสดงฉบับภาษาอังกฤษ",
     deeperReference: "อ้างอิงเชิงลึก",
     sections: {
       start: "เริ่มที่นี่",
       core: "แนวคิดหลัก",
       connection: "การเชื่อมต่อและการตั้งค่า",
       deeper: "เชิงลึก",
+      tutorials: "บทเรียน",
     },
   },
   de: {
@@ -1432,12 +1443,16 @@ const DOCS_CHROME: Record<Lang, DocsChrome> = {
     allConcepts: "← alle Konzepte",
     whereYouSee: "Wo du das siehst",
     relatedConcepts: "Verwandte Konzepte",
+    allTutorials: "← alle Tutorials",
+    sourceOnGithub: "Quelle auf GitHub ansehen",
+    notYetTranslated: "Noch nicht übersetzt — englische Version wird angezeigt.",
     deeperReference: "Tiefere Referenz",
     sections: {
       start: "Hier starten",
       core: "Kernkonzepte",
       connection: "Verbindung & Einrichtung",
       deeper: "Tiefer",
+      tutorials: "Tutorials",
     },
   },
 };

@@ -386,7 +386,7 @@ export const I18N = {
         "When it finishes, restart your AI tool. The connection is not live until you do.",
       agentDisabled:
         "This Brain has agentic setup switched off. Use “Do it yourself” instead.",
-      selfTitle: "Do it yourself",
+      selfTitle: "Set it up in your browser",
       selfBlurb:
         "Create an account in your browser, then copy a one-line install command for your tool.",
       selfCta: "Create an account →",
@@ -824,7 +824,7 @@ export const I18N = {
         "เมื่อตั้งค่าเรียบร้อยแล้ว ให้รีสตาร์ทเครื่องมือ AI เพื่อเริ่มใช้งานการเชื่อมต่อใหม่",
       agentDisabled:
         "ระบบปิดการตั้งค่าผ่าน AI ในขณะนี้ กรุณาเลือกวิธี “ตั้งค่าด้วยตนเอง” แทน",
-      selfTitle: "ตั้งค่าด้วยตนเอง",
+      selfTitle: "ตั้งค่าในเบราว์เซอร์",
       selfBlurb:
         "สร้างบัญชีผู้ใช้ในเบราว์เซอร์ จากนั้นคัดลอกคำสั่งติดตั้งสำหรับเครื่องมือของคุณ",
       selfCta: "สร้างบัญชีผู้ใช้ →",
@@ -1266,7 +1266,7 @@ export const I18N = {
         "Starte danach dein KI-Werkzeug neu. Die Verbindung ist erst dann aktiv.",
       agentDisabled:
         "Auf diesem Brain ist die KI-gesteuerte Einrichtung deaktiviert. Nutze stattdessen „Selbst einrichten“.",
-      selfTitle: "Selbst einrichten",
+      selfTitle: "Im Browser einrichten",
       selfBlurb:
         "Lege im Browser ein Konto an und kopiere dann den einzeiligen Installationsbefehl für dein Werkzeug.",
       selfCta: "Konto anlegen →",
