@@ -1,93 +1,40 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useDashboardStats } from "@/lib/brain/use-dashboard";
 import { useT } from "@/lib/brain/i18n";
-import { clientById, type ClientId } from "@brain/core/install-snippets";
 
 /**
- * /welcome — first-run guided flow (roadmap-1).
+ * /welcome — post-install verification.
  *
- * The previous empty-state assumed the user already understood Brain.
- * This page replaces that assumption with three concrete steps:
- *   1. Pick an AI tool — sets the install-snippet variant
- *   2. Copy the install command — auto-updates per tool choice
- *   3. Run any AI task — live status polls until first session arrives
+ * Scope narrowed 2026-08-09. This page used to be a three-step flow: pick a
+ * tool, copy an install command, then watch for the first session. Steps 1
+ * and 2 were removed because /docs/tutorials/00-quick-start does the same job
+ * better — 12 clients from the CLIENTS registry with a real comparison table,
+ * versus a hardcoded 4-tool radio group and a command containing a
+ * placeholder token you could not actually run.
  *
- * Copy is wired through i18n (the `welcome.*` namespace, en/th/de). The TH/DE
- * strings were AI-generated and await a native sweep — see docs/KNOWN_ISSUES.md.
+ * What is left is the part nothing else in the app does: a live poll that
+ * answers "did the install actually work — has my Brain learned anything
+ * yet?", with stuck-state escalation at 90s and 5min. That makes /welcome the
+ * page the installer sends people to AFTER installing, rather than a fourth
+ * competing answer to "how do I get started".
+ *
+ * Copy is wired through i18n (the `welcome.*` namespace, en/th/de).
  */
-
-/**
- * /welcome deliberately shows a curated four, not all twelve clients — this
- * is a first-run page, and a twelve-way radio group is a wall, not a choice.
- * The ids are `ClientId`s so the subset cannot drift from the registry: rename
- * a client in @brain/core and this fails to compile instead of silently
- * falling through to the generic snippet.
- */
-type ToolChoice = Extract<
-  ClientId,
-  "claude-code" | "cursor" | "windsurf" | "generic"
->;
-
-interface ToolOption {
-  id: ToolChoice;
-  label: string;
-  blurb: string;
-}
-
-const TOOLS: ToolOption[] = [
-  { id: "claude-code", label: "Claude Code", blurb: "Anthropic's terminal coding agent" },
-  { id: "cursor", label: "Cursor", blurb: "Editor with built-in MCP support" },
-  { id: "windsurf", label: "Windsurf", blurb: "Codeium's MCP-aware IDE" },
-  { id: "generic", label: "Other (any MCP client)", blurb: "Generic mcpServers JSON" },
-];
-
-// Fallbacks for dev (no env vars wired). On a real deployment, the
-// /welcome server component reads BRAIN_MCP_PUBLIC_HOSTNAME and
-// BRAIN_PUBLIC_HOSTNAME from process.env and passes them down — see #293.
-function fallbackMcpUrl(): string {
-  if (typeof window === "undefined") return "http://localhost:3100/mcp";
-  return `${window.location.protocol}//${window.location.hostname}:3100/mcp`;
-}
-
-function fallbackWebUrl(): string {
-  if (typeof window === "undefined") return "http://localhost:3000";
-  return `${window.location.protocol}//${window.location.host}`;
-}
-
-function detectOs(): "darwin" | "linux" | "win32" {
-  if (typeof navigator === "undefined") return "linux";
-  const p = navigator.platform.toLowerCase();
-  if (p.includes("mac")) return "darwin";
-  if (p.includes("win")) return "win32";
-  return "linux";
-}
-
-/**
- * The /welcome page intentionally renders the install snippet with a
- * placeholder token instead of minting one — minting requires a name and
- * commits a row, which is the wrong default for an exploratory landing
- * page. The "Generate your token" link routes to /settings/tokens where
- * the real wizard lives.
- */
-const PLACEHOLDER_TOKEN = "<YOUR_TOKEN_HERE>";
 
 export interface WelcomeFlowProps {
-  /** Public MCP URL (e.g. https://mcp.brain.example.com/mcp). Server-injected
-   *  from BRAIN_MCP_PUBLIC_HOSTNAME; falls back to ${origin}:3100/mcp for dev. */
-  mcpUrl?: string | undefined;
-  /** Public webapp URL (e.g. https://brain.example.com). */
-  webUrl?: string | undefined;
   /** Whether the viewer has a session. Anonymous visitors skip the dashboard
-   *  poll so /welcome doesn't fire an auth-failing 401. #33. */
+   *  poll so /welcome doesn't fire an auth-failing 401. #33.
+   *
+   *  `mcpUrl` / `webUrl` were removed with the install snippet — this page no
+   *  longer renders any URL, so it no longer needs them injected. The
+   *  quick-start tutorial it links to resolves its own. */
   authed?: boolean;
 }
 
-export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps = {}) {
+export function WelcomeFlow({ authed = false }: WelcomeFlowProps = {}) {
   const tr = useT();
-  const [tool, setTool] = useState<ToolChoice>("claude-code");
-  const [copied, setCopied] = useState(false);
   // Closes ExternalBrain #10 — the 60-second promise had no stuck-state
   // diagnostic. Track wall-clock elapsed since the page loaded so we can
   // escalate the "Waiting for first session…" copy once it's clear the
@@ -110,44 +57,6 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
     }, 4000);
     return () => window.clearInterval(id);
   }, [authed, stats.sessionsAllTime, loadState, refresh, waitStartedAt]);
-
-  // window/navigator are client-only. Read them post-mount and keep SSR-safe
-  // defaults for the first render, so the install snippet's text matches
-  // between server and client (reading them during render returned
-  // localhost:3000 on SSR but window.location.host on the client → a React
-  // #418 text mismatch whenever BRAIN_*_PUBLIC_HOSTNAME isn't injected).
-  const [client, setClient] = useState<{ mcp: string; web: string; os: "darwin" | "linux" | "win32" }>({
-    mcp: "http://localhost:3100/mcp",
-    web: "http://localhost:3000",
-    os: "linux",
-  });
-  useEffect(() => {
-    setClient({ mcp: fallbackMcpUrl(), web: fallbackWebUrl(), os: detectOs() });
-  }, []);
-
-  const snippet = useMemo(() => {
-    const resolvedMcpUrl = mcpUrl ?? client.mcp;
-    const resolvedWebUrl = webUrl ?? client.web;
-    return clientById(tool)!.snippet(
-      PLACEHOLDER_TOKEN,
-      resolvedMcpUrl,
-      resolvedWebUrl,
-      client.os,
-    );
-  }, [tool, mcpUrl, webUrl, client]);
-
-  const snippetText = snippet.lines.join("\n");
-
-  const onCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(snippetText);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard API can fail in restricted contexts (iframe, no HTTPS);
-      // fall back to a select-all hint by not toggling copied state.
-    }
-  }, [snippetText]);
 
   const firstSessionArrived = stats.sessionsAllTime > 0;
 
@@ -186,177 +95,59 @@ export function WelcomeFlow({ mcpUrl, webUrl, authed = false }: WelcomeFlowProps
         </p>
       </header>
 
-      {/* Steps 1 + 2 — side by side on desktop, stacked on mobile
-          (.welcome-steps in globals.css) */}
-      <div className="welcome-steps">
-        {/* Step 1 — pick a tool */}
-        <section
-          className="panel"
-          style={{ padding: "18px 20px" }}
-          aria-labelledby="welcome-step1-heading"
-        >
-          <div
-            className="mono"
-            style={{
-              fontSize: 11,
-              color: "var(--ink-4)",
-              letterSpacing: "0.06em",
-              marginBottom: 4,
-            }}
-          >
-            {tr("welcome.step")} 1
-          </div>
-          <h2
-            id="welcome-step1-heading"
-            style={{
-              fontSize: 14,
-              fontWeight: 500,
-              margin: "0 0 14px",
-              letterSpacing: "-0.01em",
-            }}
-          >
-            {tr("welcome.step1_title")}
-          </h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {TOOLS.map((t) => {
-              const checked = tool === t.id;
-              return (
-                <label
-                  key={t.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 10,
-                    padding: "8px 10px",
-                    borderRadius: 4,
-                    cursor: "pointer",
-                    border: `1px solid ${checked ? "var(--accent)" : "var(--line)"}`,
-                    background: checked ? "var(--accent-wash, var(--bg))" : "var(--bg)",
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="welcome-tool"
-                    value={t.id}
-                    checked={checked}
-                    onChange={() => setTool(t.id)}
-                    style={{ marginTop: 3 }}
-                  />
-                  <span style={{ display: "block" }}>
-                    <span style={{ fontSize: 13, fontWeight: 500 }}>{t.label}</span>
-                    <span
-                      style={{
-                        display: "block",
-                        fontSize: 12,
-                        color: "var(--ink-3)",
-                        marginTop: 1,
-                      }}
-                    >
-                      {tr(`welcome.tool_blurb.${t.id}`)}
-                    </span>
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-        </section>
+      {/* Install pointer — replaces the old Steps 1 + 2 (tool picker +
+          install command), removed 2026-08-09.
 
-        {/* Step 2 — install command */}
-        <section
-          className="panel"
-          style={{ padding: "18px 20px", display: "flex", flexDirection: "column" }}
-          aria-labelledby="welcome-step2-heading"
+          Those two steps duplicated /docs/tutorials/00-quick-start, and did it
+          worse: a hardcoded 4-tool list against the 12 in the CLIENTS registry,
+          and a placeholder-token command you couldn't actually run. The stale
+          list also carried a live bug — the "Other" option's id is `generic`
+          but its i18n key was `other`, so the raw string
+          "welcome.tool_blurb.generic" rendered on screen in all three locales.
+
+          This page's unique job is the one thing nothing else does: the live
+          "has your Brain actually learned anything yet?" check below. It is
+          where the installer sends people AFTER installing, not a competing
+          place to learn how to install. */}
+      <section
+        className="panel"
+        style={{ padding: "18px 22px", marginBottom: 24 }}
+        aria-labelledby="welcome-install-heading"
+      >
+        <h2
+          id="welcome-install-heading"
+          style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: "0 0 8px" }}
         >
-          <div
-            className="mono"
-            style={{
-              fontSize: 11,
-              color: "var(--ink-4)",
-              letterSpacing: "0.06em",
-              marginBottom: 4,
-            }}
+          {tr("welcome.install_title")}
+        </h2>
+        <p
+          style={{
+            fontSize: 13.5,
+            color: "var(--ink-2)",
+            lineHeight: 1.6,
+            margin: "0 0 14px",
+            maxWidth: 620,
+          }}
+        >
+          {tr("welcome.install_body")}
+        </p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <a
+            href="/docs/tutorials/00-quick-start"
+            className="btn btn-primary"
+            style={{ fontSize: 13, textDecoration: "none" }}
           >
-            {tr("welcome.step")} 2
-          </div>
-          <h2
-            id="welcome-step2-heading"
-            style={{
-              fontSize: 14,
-              fontWeight: 500,
-              margin: "0 0 14px",
-              letterSpacing: "-0.01em",
-            }}
+            {tr("welcome.install_cta")}
+          </a>
+          <a
+            href="/settings/tokens"
+            className="btn btn-ghost"
+            style={{ fontSize: 13, textDecoration: "none" }}
           >
-            {tr("welcome.step2_title")}
-          </h2>
-          <pre
-            className="mono"
-            style={{
-              margin: 0,
-              padding: "12px 14px",
-              fontSize: 12,
-              lineHeight: 1.55,
-              background: "var(--bg)",
-              border: "1px solid var(--line)",
-              borderRadius: 4,
-              color: "var(--ink)",
-              // Wrap the command so the whole thing is visible — a one-line
-              // curl was overflowing off the right edge (cut off at "| bash"
-              // on desktop, at "https://" on mobile) inside a box that `flex:1`
-              // had ballooned to match the tall tool-picker column. Live audit
-              // 2026-05-29: a first-timer was told to "Replace <YOUR_TOKEN>" in
-              // a command they couldn't fully see. Size to content + wrap.
-              overflowX: "auto",
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-              maxHeight: 280,
-            }}
-          >
-            {snippetText}
-          </pre>
-          {snippet.note && (
-            <p
-              style={{
-                fontSize: 12,
-                color: "var(--ink-3)",
-                margin: "8px 0 0",
-                lineHeight: 1.5,
-              }}
-            >
-              {snippet.note}
-            </p>
-          )}
-          <div
-            className="row"
-            style={{ gap: 8, marginTop: 12, alignItems: "center", flexWrap: "wrap" }}
-          >
-            <button
-              type="button"
-              className="btn btn-primary"
-              style={{ fontSize: 13 }}
-              onClick={() => void onCopy()}
-            >
-              {copied ? tr("welcome.copied") : tr("welcome.copy")}
-            </button>
-            <a
-              href="/settings/tokens"
-              className="btn btn-ghost"
-              style={{ fontSize: 13, textDecoration: "none" }}
-            >
-              {tr("welcome.get_token")}
-            </a>
-            <span
-              style={{
-                fontSize: 11,
-                color: "var(--ink-4)",
-                marginLeft: "auto",
-              }}
-            >
-              {tr("welcome.replace_prefix")} <code className="mono">{PLACEHOLDER_TOKEN}</code> {tr("welcome.replace_suffix")}
-            </span>
-          </div>
-        </section>
-      </div>
+            {tr("welcome.get_token")}
+          </a>
+        </div>
+      </section>
 
       {/* Step 3 — live status */}
       <section

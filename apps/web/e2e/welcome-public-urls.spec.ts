@@ -35,8 +35,6 @@ import { test, expect } from "@playwright/test";
 // locale-independent guard for the whole class is the source-level test in
 // lib/brain/public-urls.test.ts, which runs unconditionally.
 
-const EXPECTED_HOST = process.env["E2E_EXPECTED_MCP_HOST"]?.trim();
-
 test.describe("welcome public URLs (#293, #294)", () => {
   // Defeat the storageState that pre-marks bp_onboarded — we want a true
   // anon visit to /welcome with no app-state preconditions.
@@ -51,49 +49,25 @@ test.describe("welcome public URLs (#293, #294)", () => {
     // the bug is the red-herring connection error in unauth state.
   });
 
-  test("each tool snippet renders a reachable MCP URL", async ({ page, baseURL }) => {
-    await page.goto("/welcome");
-
-    // Read the tool ids off the rendered page rather than hardcoding them.
-    // This spec was a FIFTH hand-maintained copy of the client id list (after
-    // the wizard, /welcome, the installers and the unit sweep) and broke the
-    // moment `other` was renamed `generic` to match the shared registry — a
-    // rename that was itself made to stop exactly this kind of drift. Deriving
-    // from the DOM means a future rename cannot break it, while an empty list
-    // still fails loudly via the guard below.
-    const variants = await page
-      .locator('input[type=radio][name="welcome-tool"]')
-      .evaluateAll((els) =>
-        els.map((e) => (e as HTMLInputElement).value).filter((v) => v !== "claude-code"),
-      );
-    expect(variants.length, "no tool radios found on /welcome").toBeGreaterThan(0);
-
-    for (const variant of variants) {
-      const radio = page.locator(`input[type=radio][value="${variant}"]`);
-      await radio.click();
-      const text = await page.locator("body").innerText();
-      const urls = text.match(/https?:\/\/[^\s'"]+\/mcp/g) ?? [];
-      expect(
-        urls.length,
-        `expected at least one MCP URL in ${variant} snippet`,
-      ).toBeGreaterThan(0);
-
-      for (const url of urls) {
-        // When running against anything other than bare localhost, the
-        // brittle ${host}:3100 fallback must NOT appear — that was the
-        // #293 bug. Allow it on localhost because that's the legit dev
-        // path (no nginx, port 3100 is real).
-        const baseIsLocalhost = (baseURL ?? "").includes("localhost");
-        if (!baseIsLocalhost) {
-          expect(url, `${variant}: snippet still contains :3100`).not.toContain(":3100");
-        }
-        if (EXPECTED_HOST) {
-          expect(
-            url,
-            `${variant}: snippet host doesn't match E2E_EXPECTED_MCP_HOST`,
-          ).toContain(EXPECTED_HOST);
-        }
-      }
-    }
-  });
+  // REMOVED 2026-08-09: "each tool snippet renders a reachable MCP URL".
+  //
+  // /welcome no longer renders install snippets at all — its tool picker and
+  // install command were removed because they duplicated (worse: with a stale
+  // 4-of-12 tool list) /docs/tutorials/00-quick-start. There are no
+  // `input[name=welcome-tool]` radios left for that test to drive.
+  //
+  // The coverage did NOT move to another anon spec, and that is a real gap
+  // worth stating rather than quietly dropping: the quick-start tutorial
+  // renders `https://<your-brain>/...` placeholders from static markdown, not
+  // env-resolved URLs, so there is no longer ANY anonymous surface that
+  // renders a real BRAIN_MCP_PUBLIC_HOSTNAME-derived URL for this job to
+  // assert against.
+  //
+  // What still guards the #293 class:
+  //   - lib/brain/public-urls.test.ts — source-level, runs unconditionally,
+  //     and is the check that actually generalises (it catches the bug in any
+  //     surface, which is why it exists after the defect shipped three times).
+  //   - e2e/tokens.spec.ts — the authed token wizard, which is now the only
+  //     UI that renders a token-bearing install command with a resolved host.
+  // See docs/KNOWN_ISSUES.md for the tracked gap.
 });

@@ -54,11 +54,17 @@ test.describe("empty-state dashboard", () => {
     const screen = page.locator('[data-screen-label="dashboard"]');
     await expect(screen).toBeVisible({ timeout: 15_000 });
 
-    // Empty-state subtitle + the primary "guided tour" CTA into /welcome.
+    // Empty-state subtitle + the primary get-started CTA.
+    //
+    // Target changed 2026-08-09: /welcome → the quick-start tutorial.
+    // /welcome is now post-install verification only, so pointing a user with
+    // an EMPTY brain at it showed them a "waiting for your first session"
+    // spinner and no way to install anything — the exact dead end this spec
+    // exists to prevent.
     await expect(page.getByText("Your Brain is just getting started", { exact: false })).toBeVisible();
-    const guided = page.getByRole("link", { name: /guided tour/i });
+    const guided = page.getByRole("link", { name: /get started|guided tour/i });
     await expect(guided).toBeVisible();
-    await expect(guided).toHaveAttribute("href", "/welcome");
+    await expect(guided).toHaveAttribute("href", "/docs/tutorials/00-quick-start");
 
     // The populated-state hero must NOT render for an empty brain — this is
     // the regression the spec guards (empty state silently falling back to

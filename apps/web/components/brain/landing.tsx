@@ -107,7 +107,12 @@ export function Landing() {
     // /welcome is the actual in-app quick-start: pick your AI tool, copy the
     // install command, watch for your first session to land — already public
     // (no sign-in required to view it) and already localized.
-    { label: tr("landing.docQuickstart"), href: "/welcome" },
+    // Repointed /welcome → the real quick-start tutorial (2026-08-09).
+    // Earlier today this was moved off docs/QUICKSTART.md (the self-hosting
+    // operator guide) onto /welcome, which was then the in-app install flow.
+    // /welcome is now verification-only, so "Quick start" has to point at the
+    // tutorial that actually teaches the install.
+    { label: tr("landing.docQuickstart"), href: "/docs/tutorials/00-quick-start" },
     // In-app as of 2026-08-09 (was repoDocUrl("docs/tutorials/README.md")) —
     // see apps/web/lib/brain/tutorial-content.ts for why tutorials get their
     // own markdown renderer instead of the concept-page format.

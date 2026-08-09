@@ -69,12 +69,14 @@ export function EmptyBrainCallout({ onTeach }: Props) {
             </li>
           </ol>
           <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-            {/* roadmap-1: guided /welcome flow is the new primary CTA —
-                it teaches the product before asking the user to mint a
-                token. The token path stays available as a secondary
-                ghost button for users who already know what they want. */}
+            {/* Primary CTA repointed /welcome → quick start (2026-08-09).
+                /welcome was the right target when it taught install in three
+                steps; it is now post-install verification only, so sending
+                someone with an empty Brain there showed them a "waiting for
+                your first session" spinner and no way to install. The quick
+                start is the page that actually teaches the install. */}
             <a
-              href="/welcome"
+              href="/docs/tutorials/00-quick-start"
               className="btn btn-primary"
               style={{ fontSize: 13, textDecoration: "none" }}
             >

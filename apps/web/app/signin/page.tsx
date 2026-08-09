@@ -537,6 +537,12 @@ export default async function SignIn({ searchParams }: Props) {
                     autoComplete="off"
                     spellCheck={false}
                     required
+                    // Prefilled from ?voucher= so someone arriving from
+                    // /start doesn't retype a code they already entered.
+                    // `defaultValue` (uncontrolled), not `value` — this is a
+                    // server component rendering a plain form, and `value`
+                    // without an onChange would render it read-only.
+                    defaultValue={params.voucher ?? ""}
                     style={inputStyle}
                   />
                 </label>
@@ -713,6 +719,10 @@ export default async function SignIn({ searchParams }: Props) {
                     placeholder="e.g. PILOT-2026-A1B2"
                     autoComplete="off"
                     spellCheck={false}
+                    // Same prefill as the credentials form above — a voucher
+                    // holder arriving from /start shouldn't retype the code
+                    // just because they chose the GitHub path.
+                    defaultValue={params.voucher ?? ""}
                     style={inputStyle}
                   />
                 </label>

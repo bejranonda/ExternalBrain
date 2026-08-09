@@ -332,26 +332,18 @@ export const I18N = {
       step2_lead: "Or teach a rule directly",
       step2_rest:
         " — type a pattern you already follow. The Oracle can cite it on the next question.",
-      get_started: "Get started — guided tour →",
+      get_started: "Get started — quick start →",
     },
     welcome: {
       title: "Welcome to your Brain",
       tagline:
-        "Connect an AI tool. We'll show you what your Brain learned 60 seconds after your first session.",
+        "Check that your AI tool is connected and your Brain is learning from it.",
       step: "STEP",
-      step1_title: "Pick your AI tool",
-      tool_blurb: {
-        "claude-code": "Anthropic's terminal coding agent",
-        cursor: "Editor with built-in MCP support",
-        windsurf: "Codeium's MCP-aware IDE",
-        other: "Generic mcpServers JSON",
-      },
-      step2_title: "Copy the install command",
-      copy: "Copy",
-      copied: "Copied!",
+      install_title: "Not installed yet?",
+      install_body:
+        "The quick start walks you through minting a token and running one install command — it covers every supported tool, with the exact command for each.",
+      install_cta: "Open the quick start →",
       get_token: "Get a token →",
-      replace_prefix: "Replace",
-      replace_suffix: "with your token",
       step3_title: "Run any AI task",
       success: "Got it! Your first session arrived.",
       go_dashboard: "Go to dashboard →",
@@ -399,7 +391,7 @@ export const I18N = {
       whatIsBlurb:
         "A memory layer for your AI coding sessions. It remembers what you decided and why — across sessions, projects, and machines.",
       learnMore: "Read the concepts →",
-      tourLink: "See the guided tour →",
+      tourLink: "Already installed? Check your connection →",
       signinLink: "Already have an account? Sign in",
     },
     landing: {
@@ -770,26 +762,18 @@ export const I18N = {
       step2_lead: "2. หรือสอนสกิลโดยตรง",
       step2_rest:
         " — เพิ่มแนวทางที่คุณใช้งานอยู่แล้ว เพื่อให้ Oracle นำไปใช้อ้างอิงตอบคำถามได้ทันที",
-      get_started: "เริ่มต้นใช้งาน — ดูแนะนำทีละขั้นตอน →",
+      get_started: "เริ่มต้นใช้งาน — คู่มือเริ่มต้น →",
     },
     welcome: {
       title: "ยินดีต้อนรับสู่ External Brain",
       tagline:
-        "เชื่อมต่อเครื่องมือ AI แล้วระบบจะเริ่มเรียนรู้บทเรียนแรกของคุณภายใน 60 วินาทีหลังจบเซสชัน",
+        "ตรวจสอบว่าเครื่องมือ AI ของคุณเชื่อมต่อแล้ว และ Brain กำลังเรียนรู้จากการใช้งาน",
       step: "ขั้นตอนที่",
-      step1_title: "เลือกเครื่องมือ AI ของคุณ",
-      tool_blurb: {
-        "claude-code": "เอเจนต์เขียนโค้ดบนเทอร์มินัลจาก Anthropic",
-        cursor: "โค้ดเอดิเตอร์ที่รองรับ MCP ในตัว",
-        windsurf: "IDE สำหรับงานพัฒนาที่รองรับ MCP จาก Codeium",
-        other: "การตั้งค่า mcpServers JSON ทั่วไป",
-      },
-      step2_title: "คัดลอกคำสั่งติดตั้ง",
-      copy: "คัดลอกคำสั่ง",
-      copied: "คัดลอกแล้ว!",
+      install_title: "ยังไม่ได้ติดตั้ง?",
+      install_body:
+        "คู่มือเริ่มต้นใช้งานจะพาคุณสร้างโทเคนและรันคำสั่งติดตั้งเพียงคำสั่งเดียว ครอบคลุมเครื่องมือที่รองรับทั้งหมด พร้อมคำสั่งที่ถูกต้องสำหรับแต่ละตัว",
+      install_cta: "เปิดคู่มือเริ่มต้นใช้งาน →",
       get_token: "รับโทเค็น →",
-      replace_prefix: "แทนที่",
-      replace_suffix: "ด้วยโทเค็นของคุณ",
       step3_title: "เริ่มสั่งงาน AI เขียนโค้ดตามปกติ",
       success: "สำเร็จ! เซสชันแรกของคุณถูกบันทึกเข้ามาแล้ว",
       go_dashboard: "ไปที่แดชบอร์ด →",
@@ -837,7 +821,7 @@ export const I18N = {
       whatIsBlurb:
         "คลังความรู้และหน่วยความจำกลางสำหรับเซสชันเขียนโค้ด AI ช่วยจดจำการตัดสินใจ เหตุผล และแนวทางปฏิบัติข้ามเซสชัน โปรเจกต์ และอุปกรณ์",
       learnMore: "อ่านแนวคิดหลักของระบบ →",
-      tourLink: "ดูคู่มือการใช้งานทีละขั้นตอน →",
+      tourLink: "ติดตั้งแล้ว? ตรวจสอบการเชื่อมต่อ →",
       signinLink: "มีบัญชีผู้ใช้อยู่แล้ว? เข้าสู่ระบบ",
     },
     landing: {
@@ -1210,27 +1194,19 @@ export const I18N = {
       step2_lead: "Oder eine Regel direkt lehren",
       step2_rest:
         " — tippe ein Muster, das du bereits befolgst. Der Assistent kann es bei der nächsten Frage zitieren.",
-      get_started: "Loslegen — geführte Tour →",
+      get_started: "Loslegen — Schnellstart →",
     },
     // AI-generated DE — awaiting native sweep (see docs/KNOWN_ISSUES.md).
     welcome: {
       title: "Willkommen bei deinem Gehirn",
       tagline:
-        "Verbinde ein KI-Tool. 60 Sekunden nach deiner ersten Sitzung zeigen wir dir, was dein Gehirn gelernt hat.",
+        "Prüfe, ob dein KI-Tool verbunden ist und dein Gehirn davon lernt.",
       step: "SCHRITT",
-      step1_title: "Wähle dein KI-Tool",
-      tool_blurb: {
-        "claude-code": "Anthropics Terminal-Coding-Agent",
-        cursor: "Editor mit integrierter MCP-Unterstützung",
-        windsurf: "Codeiums MCP-fähige IDE",
-        other: "Generisches mcpServers-JSON",
-      },
-      step2_title: "Installationsbefehl kopieren",
-      copy: "Kopieren",
-      copied: "Kopiert!",
+      install_title: "Noch nicht installiert?",
+      install_body:
+        "Der Schnellstart führt dich durch das Erstellen eines Tokens und einen einzigen Installationsbefehl — für jedes unterstützte Werkzeug, mit dem passenden Befehl.",
+      install_cta: "Schnellstart öffnen →",
       get_token: "Token holen →",
-      replace_prefix: "Ersetze",
-      replace_suffix: "durch dein Token",
       step3_title: "Beliebige KI-Aufgabe ausführen",
       success: "Geschafft! Deine erste Sitzung ist da.",
       go_dashboard: "Zum Dashboard →",
@@ -1279,7 +1255,7 @@ export const I18N = {
       whatIsBlurb:
         "Eine Gedächtnisschicht für deine KI-Coding-Sitzungen. Sie merkt sich, was du entschieden hast und warum — über Sitzungen, Projekte und Rechner hinweg.",
       learnMore: "Konzepte lesen →",
-      tourLink: "Geführte Tour ansehen →",
+      tourLink: "Schon installiert? Verbindung prüfen →",
       signinLink: "Schon ein Konto? Anmelden",
     },
     landing: {
