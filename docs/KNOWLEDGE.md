@@ -948,6 +948,35 @@ the fix against the real token list rather than assuming).
 
 ---
 
+### 12.33 Theme default is a first-visit fallback, not a hardcoded value (2026-08-09)
+
+First-time visitors (no `bp_tweaks` in `localStorage`) get the light theme as
+of v2.15.0, changed from dark. This is a **default for the unrecognised
+case**, not a removal of choice: `apps/web/components/brain/tweaks.tsx`'s two
+theme buttons call `onChange({ theme: "dark" | "light" })` unconditionally,
+`useTweaks`'s `update()` (`lib/brain/tweaks.ts`) persists the *full* resulting
+state to `localStorage` and applies it to the DOM immediately, and
+`DEFAULT_TWEAKS` is consulted only twice: as the pre-mount React state, and as
+the fallback baseline when merging a *partial* stored object on load. A real
+toggle click touches neither path. Once a user has chosen either theme, this
+default never runs for them again — it only governs the render before anyone
+has expressed a preference.
+
+**A real gap surfaced while verifying this, left open rather than silently
+patched:** `<Tweaks>` (the only component with theme buttons) mounts
+exclusively inside `components/brain/app.tsx`, the signed-in shell. The
+five anonymous surfaces that reuse `<LocalePicker>` — `/`, `/start`,
+`/signin`, `/welcome`, `/docs` — carry a language switcher but no theme
+control. A first-time visitor who dislikes the new light default currently
+has no self-service way to change it before creating an account. Not fixed in
+the same change that introduced the new default: expanding UI scope
+unrequested, in the same session the operator flagged for excess PR churn
+(`APPROACH.md §5`'s "opening a PR before verifying" row), would compound the
+problem it was raised to fix. Tracked as an open item, not a bug —
+`KNOWN_ISSUES.md`.
+
+---
+
 ### 12.24 Oracle thumbs feedback loop (MVP complete, 2026-04-29)
 
 Oracle thumbs up/down on an answer bumps `successCount` (up) or `failureCount` (down) on each cited Knowledge row owned by the user, in real time.

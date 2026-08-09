@@ -170,6 +170,7 @@ KEA extraction is LLM-driven because deterministic keyword matching was the bott
 | Logging full prompts / embeddings | Expensive, privacy-risky, and almost never useful. |
 | Naming a regression test after the page you found the bug on | It passes forever while the sibling surface ships the same defect. Name it after the bug class. See §5q. |
 | Citing a test file as evidence of coverage without checking it runs | 20 of 31 e2e specs were referenced by no workflow. Existing ≠ gating. |
+| Opening a PR before verifying with the real tool (curl the endpoint, screenshot the page, `grep` the token list) | Two of four PRs in the 2026-08-09 onboarding/landing session existed only to fix something the prior PR shipped unverified — a config flag never wired into compose, a UI never opened in a browser. Each follow-up cost a full CI run plus a live prod container restart. "I'll verify after merging" turns one PR into two. |
 
 ---
 

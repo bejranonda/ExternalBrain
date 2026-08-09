@@ -54,7 +54,11 @@ const preHydrateTweaks = `
       coral:  { c: '#FF9571', cText: '#B8462A', ink: '#0A0A0B' },
       blue:   { c: '#7EC8FF', cText: '#1F5C99', ink: '#0A0A0B' }
     };
-    var theme = t.theme || 'dark';
+    // First-visit default is light (2026-08-09) — see DEFAULT_TWEAKS in
+    // tweaks.ts for the full rationale. This fallback only fires when
+    // localStorage has no stored preference; an existing user's saved theme
+    // (dark included) always wins.
+    var theme = t.theme || 'light';
     // Prefer the bp_lang cookie (the server-readable source the root layout
     // renders <html lang> from) over localStorage, so this pre-hydrate script
     // doesn't clobber the cookie-derived SSR value when localStorage is empty
@@ -89,7 +93,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html
       lang={lang}
-      data-theme="dark"
+      // Server-rendered default, matching DEFAULT_TWEAKS.theme in tweaks.ts.
+      // A visitor with a saved dark preference still gets dark — the
+      // pre-hydrate script (below) overwrites this from localStorage before
+      // first paint. This value is what a no-JS client or the very first
+      // parsed frame sees, so it has to agree with the other two defaults.
+      data-theme="light"
       data-density="balanced"
       className={`${geist.variable} ${jetbrains.variable} ${fraunces.variable} ${notoThai.variable}`}
       suppressHydrationWarning
