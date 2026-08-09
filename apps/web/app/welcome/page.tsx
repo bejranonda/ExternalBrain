@@ -1,44 +1,35 @@
 import { WelcomeFlow } from "@/components/brain/welcome-flow";
 import { LocalePicker } from "@/components/brain/locale-picker";
 import { auth } from "@/auth";
-import { resolvePublicMcpUrl, resolvePublicWebUrl } from "@/lib/brain/public-urls";
 
 export const metadata = {
   title: "Welcome — External Brain",
   description:
-    "First-run guided tour: connect an AI tool to Brain in three steps.",
+    "Check that your Brain is connected and learning from your first session.",
 };
 
-// Force SSR at request time. The Dockerfile builds with dummy env vars
-// (see deploy/Dockerfile — "Dummy env so env validation at top-level
-// doesn't crash the build"), so any page that reads BRAIN_*_PUBLIC_HOSTNAME
-// would otherwise be pre-rendered with an empty value and the
-// server-injected URLs would never reach the client. #293 round 2.
+/**
+ * Force SSR at request time — this page reads the session to decide whether
+ * to poll /api/dashboard (#33).
+ *
+ * The public-URL resolution that used to live here (resolvePublicMcpUrl /
+ * resolvePublicWebUrl, #293) was removed 2026-08-09 along with the install
+ * snippet this page no longer renders. The quick-start tutorial it now links
+ * to is the one place that shows install commands, and it resolves its own
+ * URLs — so there is no longer a second surface that can drift from the
+ * first, which was the whole #293 defect class.
+ */
 export const dynamic = "force-dynamic";
 
-// Resolve the public URLs server-side from the deploy env so the JSON
-// snippets shown to Cursor/Windsurf/Other users point at the real
-// TLS-fronted endpoints (e.g. https://mcp.brain.example.com/mcp), not
-// at `${host}:3100` which is the internal host port behind nginx.
-// Falls back to undefined for local dev (welcome-flow then uses the
-// client-side `${origin}:3100` heuristic). Closes #293.
-//
-// Shared with /settings/tokens and the SPA shell — the same snippet bug
-// resurfaced on both because each surface resolved its own URLs.
-
 export default async function WelcomePage() {
-  // Anonymous visitors (this is a public exploratory landing page) shouldn't
-  // poll /api/dashboard — it 401s and the browser logs it. Resolve auth state
-  // server-side and let WelcomeFlow gate the poll on it. #33.
+  // Anonymous visitors (this is a public page) shouldn't poll /api/dashboard
+  // — it 401s and the browser logs it. Resolve auth state server-side and let
+  // WelcomeFlow gate the poll on it. #33.
   const session = await auth();
   return (
     <>
       <LocalePicker />
-      <WelcomeFlow
-        mcpUrl={resolvePublicMcpUrl()}
-        webUrl={resolvePublicWebUrl()}
-        authed={!!session?.user}
-      />
+      <WelcomeFlow authed={!!session?.user} />
     </>
   );
 }

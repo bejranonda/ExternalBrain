@@ -177,9 +177,10 @@ trade-offs: [docs/SECURITY.md](./docs/SECURITY.md#agentic-onboarding--the-vouche
 
 ### Connect your AI tool (browser route)
 
-After signing in, the **`/welcome`** flow walks you through it: pick your tool,
-copy a one-line installer, run any task. Every supported client gets a
-command — pass `--client` to pick one (it defaults to `claude-code`):
+After signing in, **[`docs/tutorials/00-quick-start.md`](./docs/tutorials/00-quick-start.md)**
+(also served in-app at `/docs/tutorials/00-quick-start`) walks you through it:
+mint a token, copy a one-line installer, run any task. Every supported client
+gets a command — pass `--client` to pick one (it defaults to `claude-code`):
 
 ```bash
 curl -fsSL https://<your-host>/api/onboard.sh | bash -s 'bp_<your-token>'
@@ -202,6 +203,10 @@ tool call through your network and auth path — and seeds your first session, s
 "installed" means "this token can call a tool", not "a file was written".
 Manual wiring and the per-client config shapes:
 [docs/CLIENTS.md](./docs/CLIENTS.md).
+
+Not sure it actually worked? `/welcome` is a live status page, not a setup
+flow — it polls for your first session and tells you honestly if nothing's
+arrived after 90 seconds, with the most likely causes.
 
 Once connected, the dashboard's **"Talk to your Brain"** card and the in-app
 **[Using Brain from your agent](./docs/USING_BRAIN.md)** page give you the literal
