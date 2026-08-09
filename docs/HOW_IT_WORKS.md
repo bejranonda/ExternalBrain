@@ -123,6 +123,29 @@ Bob is signed in (NextAuth JWT cookie via `CredentialsProvider.authorize()` in `
 
 ## Step 3 — Bob wires Claude Code to the Brain
 
+Steps 3–6 in one picture, before the blow-by-blow below:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Browser as Bob · Browser
+    participant Brain as Brain webapp + DB
+    participant CLI as Bob · Terminal
+    participant Tool as Claude Code
+    Browser->>Brain: Sign in → Settings → Create token
+    Brain-->>Browser: bp_… raw token (shown ONCE)
+    Browser->>CLI: copy install command
+    CLI->>CLI: claude mcp add brain → ~/.claude.json
+    CLI->>Brain: Download SKILL.md
+    Tool->>Brain: brain_start_session (over MCP)
+    Brain-->>Tool: sessionId
+    Tool->>Brain: brain_log_event ×N (file edits, corrections)
+    Tool->>Brain: brain_report_session_outcome
+    Brain->>Brain: KEA extract → new Knowledge rows
+    Browser->>Brain: visit /dashboard
+    Brain-->>Browser: session listed + Knowledge growing
+```
+
 ### Creating a token
 
 Bob navigates to `/settings/tokens` → enters a name "laptop · claude-code" → optionally picks a project scope from the dropdown (or leaves "Any project") → clicks **Create**.
