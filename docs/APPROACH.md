@@ -82,6 +82,13 @@ The rule: **when a comment claims a capability, either a caller exercises it or 
 
 Related to but distinct from §2.6: that is one fact spread across N surfaces; this is one fact that was never true anywhere, restated confidently enough that everyone assumed it had been checked.
 
+### 2.6d A design system already answers most of the question you're about to invent an answer to
+`/` and `/start` shipped dense, monotone, with no header hierarchy — and the operator caught it by looking, not by reading the diff. The proximate fix was CSS. The actual cause was that `globals.css` already had a five-step type scale (`--text-xs/sm/base/lg/xl`, 12/14/16/20/24), a real accent color (`--accent`, used in `.btn-primary` and as a "this matters" tick on active nav items), and an established heading treatment on `/docs`'s own concept pages — and none of it got looked up. Instead: a one-off scale invented on the spot (11.5–16px), the same 13px `--ink-4` label applied to every heading regardless of importance, and zero color anywhere on the page.
+
+One of the two resulting bugs was worse than a taste problem: `var(--bg-2)` was typed into two style objects on `/start` and is not a real token anywhere in the stylesheet. It didn't error — `var()` with an undefined custom property and no fallback just resolves to nothing, so the voucher input and the agent-prompt box rendered with **no background at all**, silently, for the life of the feature. Nothing catches this class of mistake: it type-checks (it's a string), it doesn't throw, and a screenshot only reveals it if someone is actually looking for a fill that isn't there.
+
+The rule this generalizes to, stated the same way §2.3 states it for backend architecture: **when working inside an existing design system, look up the token before typing a value.** A hex code, a pixel size, or a `var(--name)` written from memory is a guess, and a guess that happens to compile is indistinguishable from a correct answer until someone looks at the rendered page. `grep -n "^\s*--" globals.css` before styling anything costs seconds; reconstructing why four public pages disagree costs a PR cycle each.
+
 ### 2.7 Depend on vendors' contracts, not on their internals
 Roughly a third of the surface here is other people's config formats, and they move. Two failures inside one week: we invented a `transport: {type, url}` shape no client documents (`§0u`), and Google's Gemini CLI → Antigravity merge moved a config path we had hardcoded and pinned with a passing assertion (`§0z`).
 
