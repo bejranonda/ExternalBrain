@@ -8,7 +8,7 @@ Three steps. Mint a token, run one command, then talk to it normally.
 
 ---
 
-## Shortcut — have a voucher code? Skip to `/start`
+## Shortcut — have a voucher code? Skip to [`/start`](/start)
 
 Open `https://<your-brain>/start`, paste your code, and copy the prompt it
 gives you into Claude Code, Cursor, or any AI tool that can fetch a URL. Your
@@ -24,7 +24,7 @@ No voucher, or `agentic_onboarding_disabled`? Continue with Step 1 below.
 
 ## Step 1 — Mint a token
 
-1. Sign in → **Settings → Tokens** (`/settings/tokens`).
+1. Sign in → **Settings → Tokens** ([`/settings/tokens`](/settings/tokens)).
 2. **Create token** → name it after the *machine* (`laptop`, `ci-runner`).
 3. Copy the `bp_…` value — shown once, and the next screen has your install command ready. Details (rotation, scope, revocation): [Tutorial 04](./04-managing-tokens.md).
 

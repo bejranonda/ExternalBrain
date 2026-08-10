@@ -136,7 +136,7 @@ floor, or fork-and-soft-delete the offending Knowledge row in the
 Brain.
 
 If you see contradictory rules ("always use formik" + "never use
-formik"), KEA hasn't fully consolidated yet — visit `/#skills`,
+formik"), KEA hasn't fully consolidated yet — visit [`/#skills`](/#skills),
 review the contradicting rows, and resolve via fork or delete.
 
 ## Importing rules into the Brain

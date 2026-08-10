@@ -7,6 +7,7 @@ import { SectionHeading } from "@/components/brain/section-heading";
 import { getDocsChrome } from "@/lib/brain/docs-content";
 import { useLang } from "@/lib/brain/i18n";
 import type { TutorialMeta } from "@/lib/brain/tutorial-meta";
+import { resolveDocLink } from "@/lib/brain/resolve-doc-link";
 import { MermaidDiagram } from "./mermaid-diagram";
 
 interface Props {
@@ -162,16 +163,19 @@ const MD_COMPONENTS: Components = {
   ),
   li: ({ children }) => <li style={{ marginBottom: 6 }}>{children}</li>,
   strong: ({ children }) => <strong style={{ color: "var(--ink)", fontWeight: 600 }}>{children}</strong>,
-  a: ({ href, children }) => (
-    <a
-      href={href ?? "#"}
-      target={href?.startsWith("http") ? "_blank" : undefined}
-      rel="noreferrer"
-      style={{ color: "var(--accent-text)" }}
-    >
-      {children}
-    </a>
-  ),
+  a: ({ href, children }) => {
+    const resolved = resolveDocLink(href ?? "#");
+    return (
+      <a
+        href={resolved.href}
+        target={resolved.external ? "_blank" : undefined}
+        rel="noreferrer"
+        style={{ color: "var(--accent-text)" }}
+      >
+        {children}
+      </a>
+    );
+  },
   blockquote: ({ children }) => (
     <blockquote
       style={{

@@ -2610,3 +2610,35 @@ page underneath it changes shape, and nothing announces when that happens.
 
 Full instance: `KNOWLEDGE.md §12.34`. Mechanical rule from it:
 `GUIDELINES.md`, "removing or narrowing a page's job."
+
+## 5bq. A green build proves the file exists, not that clicking it works (2026-08-10)
+
+Every relative link in `docs/tutorials/*.md` — every "Where next" table,
+every "See Tutorial N" cross-reference, in every language — had 404'd in
+the deployed app since tutorial rendering shipped. `pnpm turbo run build`
+passed the whole time; so did the `doc refs (no phantom PRs)` CI check,
+which greps prose for phantom PR numbers, not whether a relative link
+resolves to a real route. The defect was found by clicking through the
+live site, tutorial by tutorial, in response to a one-line user report
+("link shortcuts should be clickable") — not by any automated gate, and
+not by re-reading the diff of the PR that introduced tutorial rendering,
+which had already merged clean weeks earlier.
+
+**The generalisable gap:** a build/typecheck/test pass proves the code is
+internally consistent — the markdown parses, the component renders, the
+route responds 200. None of those checks simulate a reader actually
+following a link, which is the one thing a documentation page exists to
+survive. The same session's design-consistency fix (`KNOWLEDGE.md §12.35`'s
+sibling, tutorial/concept pages not matching the redesigned landing shell)
+has the identical shape: nothing in the type system or test suite encodes
+"this page should look like the rest of the product," so a page can be
+100% green and still be wrong in the one dimension nothing was checking.
+
+**What actually caught both:** the same discipline as `§5t`/`§5af`'s
+newcomer-eye sweeps, applied here as "click every link this page renders"
+and "screenshot this page next to the one it's supposed to match" — manual,
+slow, and the only method that exercises the property that was actually
+broken. Where the fix generalizes (a source format serving two renderers,
+a heading component two pages should share) it was extracted into typed,
+tested code (`resolve-doc-link.ts`, `SectionHeading`) so the next instance
+of the same class doesn't require another manual click-through to find.
