@@ -1,8 +1,8 @@
 # Tutorial 06 — Troubleshooting
 
 End-user-facing issues only. If you're an operator chasing a server
-problem, read [`../RUNBOOK.md`](../RUNBOOK.md) instead — that's the
-production playbook.
+problem, read [`../DEPLOY_CHECKLIST.md`](../DEPLOY_CHECKLIST.md) instead —
+that's the production playbook.
 
 Each section: **symptom** → **most likely cause** → **fix**. If the
 first cause doesn't match, read the next.
@@ -207,8 +207,9 @@ behind real-time. Symptoms of KEA being broken:
 
 **End-user fix:** ask the operator to check the worker container.
 If everything looks healthy on their side and KEA still doesn't run,
-they can manually re-trigger via the worker's `kea.extract` job —
-documented in `../RUNBOOK.md`.
+they can manually re-trigger it via the worker's `kea.extract` pg-boss
+job (`apps/worker`) — an operator-side task, not something the end
+user can do themselves.
 
 In the meantime: explicit teach (Tutorial 03) is a workaround.
 
