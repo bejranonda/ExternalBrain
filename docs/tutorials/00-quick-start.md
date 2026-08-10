@@ -10,7 +10,7 @@ Three steps. Mint a token, run one command, then talk to it normally.
 
 ## Shortcut — have a voucher code? Skip to [`/start`](/start)
 
-Open `https://<your-brain>/start`, paste your code, and copy the prompt it
+Open [`https://<your-brain>/start`](https://<your-brain>/start), paste your code, and copy the prompt it
 gives you into Claude Code, Cursor, or any AI tool that can fetch a URL. Your
 agent creates the account, mints a token, and runs the install command —
 **then restart your AI tool**, since MCP config is only read at startup.

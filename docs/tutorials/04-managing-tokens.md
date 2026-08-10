@@ -13,7 +13,7 @@ multi-machine + team-shared deployments.
 A bearer token (`bp_…`) that authenticates one MCP client (one tool on
 one machine) to your Brain. Tokens:
 
-- **Are issued by you**, from `/settings/tokens` in the webapp.
+- **Are issued by you**, from [`/settings/tokens`](/settings/tokens) in the webapp.
 - **Live only in `~/.claude.json`** (or the equivalent for Cursor /
   Windsurf) on the machine that uses them — never on the Brain server
   except as a SHA-256 hash.
@@ -59,7 +59,7 @@ When the Brain receives a request, it enforces the scope:
 
 ## Creating a scoped token
 
-1. `/settings/tokens` → **Create new token**.
+1. [`/settings/tokens`](/settings/tokens) → **Create new token**.
 2. **Name** the token (e.g. `laptop · client-acme`).
 3. **Organization scope** — picker shown if you're in 2+ orgs:
    - "Any (your personal org)" — token belongs to your personal org.
@@ -149,7 +149,7 @@ If the card shows your token grey ("never used" or "3d ago") even
 though you just ran a session, the call never reached the Brain.
 Jump to the next section.
 
-### `/settings/tokens` → Verify button
+### [`/settings/tokens`](/settings/tokens) → Verify button
 
 Every active token has a **Verify** button that hits the server with
 its row id. It returns one of:
@@ -216,8 +216,8 @@ If a contractor joins for one project:
 
 ## Inspecting + auditing
 
-`/settings/tokens` shows every active + revoked token: name, scope
-chips, created date, last-used date. The admin (`/admin/audit`) can
+[`/settings/tokens`](/settings/tokens) shows every active + revoked token: name, scope
+chips, created date, last-used date. The admin ([`/admin/audit`](/admin/audit)) can
 see every `token.create`, `token.revoke`, `token.change`, and
 `token.scope_change` event with the actor, timestamp, IP, and
 user-agent.

@@ -30,7 +30,7 @@ The Brain has four sign-in modes; only one is active at a time:
 **Fix:**
 - Ask the admin which mode is configured.
 - If voucher mode and you don't have a code, ask the admin to issue
-  one from `/admin/vouchers`.
+  one from [`/admin/vouchers`](/admin/vouchers).
 - If GitHub OAuth and your account isn't in the allow-list, ask the
   admin to add your GitHub login to `ADMIN_EMAILS` (env var) or to
   set `REGISTRATION_REQUIRES_VOUCHER=false` (only for genuinely
@@ -222,7 +222,7 @@ remember revoking it.
 
 **Possible causes:**
 
-1. **An admin revoked it.** Check `/admin/audit` (if you're an admin)
+1. **An admin revoked it.** Check [`/admin/audit`](/admin/audit) (if you're an admin)
    or ask a current admin. Tokens can be revoked by anyone with admin
    role on the Brain — this is intentional for incident response.
 2. **Org / project scope collapse.** The token was scoped to a project
@@ -267,7 +267,7 @@ chip at the top).
 
 1. Hard-refresh (Cmd-Shift-R / Ctrl-Shift-R).
 2. If the seed chip is visible, the API is unreachable — check
-   `/api/healthz` directly. If that returns ok, scope cookie or auth
+   [`/api/healthz`](/api/healthz) directly. If that returns ok, scope cookie or auth
    cookie expired; sign out + sign in.
 
 ---
