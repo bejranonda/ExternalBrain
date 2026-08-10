@@ -28,7 +28,7 @@ Open the Brain URL in a browser. You'll see one of three things:
 - **Voucher code prompt.** Paste the invite code your teammate sent
   before signing in via GitHub.
 
-After sign-in you'll land on `/dashboard`. It will probably be empty
+After sign-in you'll land on [`/#dashboard`](/#dashboard). It will probably be empty
 the first time — that's expected. The dashboard fills in once your AI
 tool starts logging sessions.
 

@@ -66,7 +66,7 @@ each tool's conventions.
 
 ### From the webapp
 
-`/skills` → top-right toolbar → **Export rules**. Pick:
+[`/#skills`](/#skills) → top-right toolbar → **Export rules**. Pick:
 
 1. **Format** (AGENTS.md / claude / cursor).
 2. **Scope** (user only, project only, both).
