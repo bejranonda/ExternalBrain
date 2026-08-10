@@ -1,8 +1,8 @@
 # Tutorial 06 — Troubleshooting
 
 End-user-facing issues only. If you're an operator chasing a server
-problem, read [`../RUNBOOK.md`](../RUNBOOK.md) instead — that's the
-production playbook.
+problem, read [`../DEPLOY_CHECKLIST.md`](../DEPLOY_CHECKLIST.md) instead —
+that's the production playbook.
 
 Each section: **symptom** → **most likely cause** → **fix**. If the
 first cause doesn't match, read the next.
@@ -205,10 +205,11 @@ behind real-time. Symptoms of KEA being broken:
 - pg-boss schema is out of date (operator runs
   `scripts/pgboss-version-check.sh`).
 
-**End-user fix:** ask the operator to check the worker container.
-If everything looks healthy on their side and KEA still doesn't run,
-they can manually re-trigger via the worker's `kea.extract` job —
-documented in `../RUNBOOK.md`.
+**End-user fix:** ask the operator to check the worker container. There is
+no manual re-trigger for a stuck extraction — if the worker looks healthy
+and sessions still aren't producing Knowledge, that's a bug to report
+([file an issue](https://github.com/bejranonda/ExternalBrain/issues/new)),
+not an operator lever to pull.
 
 In the meantime: explicit teach (Tutorial 03) is a workaround.
 
