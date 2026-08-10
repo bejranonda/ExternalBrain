@@ -24,5 +24,10 @@ export function resolveDocLink(href: string): { href: string; external: boolean 
   const parentDoc = href.match(/^\.\.\/([\w-]+)\.md(#.*)?$/);
   if (parentDoc) return { href: repoDocUrl(`docs/${parentDoc[1]}.md`) + (parentDoc[2] ?? ""), external: true };
 
-  return { href, external: href.startsWith("http") };
+  // `startsWith("http")` would both false-positive on "http-not-a-url" and
+  // false-negative on "HTTPS://…" / protocol-relative "//example.com" —
+  // the latter would silently open in the current tab instead of a new one
+  // (CodeRabbit, PR #236). Matches an optional case-insensitive http(s):
+  // scheme followed by "//", or a bare "//".
+  return { href, external: /^(https?:)?\/\//i.test(href) };
 }

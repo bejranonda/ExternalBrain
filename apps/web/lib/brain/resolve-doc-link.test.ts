@@ -48,6 +48,27 @@ describe("resolveDocLink", () => {
     });
   });
 
+  it("treats an uppercase scheme as external", () => {
+    expect(resolveDocLink("HTTPS://example.com/x")).toEqual({
+      href: "HTTPS://example.com/x",
+      external: true,
+    });
+  });
+
+  it("treats a protocol-relative URL as external", () => {
+    expect(resolveDocLink("//example.com/x")).toEqual({
+      href: "//example.com/x",
+      external: true,
+    });
+  });
+
+  it("does not treat a merely http-prefixed word as external", () => {
+    expect(resolveDocLink("http-not-a-url")).toEqual({
+      href: "http-not-a-url",
+      external: false,
+    });
+  });
+
   it("passes an in-app absolute path through unchanged, not external", () => {
     expect(resolveDocLink("/settings/tokens")).toEqual({
       href: "/settings/tokens",
