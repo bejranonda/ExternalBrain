@@ -62,7 +62,7 @@ grep brain ~/.claude.json
 # look at the Authorization header — that's the bp_… token
 ```
 
-Visit `/settings/tokens` and check whether that token is in the list
+Visit [`/settings/tokens`](/settings/tokens) and check whether that token is in the list
 and not greyed out (revoked). If it's marked expired, create a new
 one and re-run the install command.
 
@@ -217,7 +217,7 @@ In the meantime: explicit teach (Tutorial 03) is a workaround.
 ## Token revoked unexpectedly
 
 **Symptom:** a token that was working yesterday now returns 401. The
-token row in `/settings/tokens` shows it as revoked, but you don't
+token row in [`/settings/tokens`](/settings/tokens) shows it as revoked, but you don't
 remember revoking it.
 
 **Possible causes:**
@@ -237,7 +237,7 @@ remember revoking it.
 
 ## Skills surface shows no rules even though I taught some
 
-**Symptom:** you taught 3 rules. The Skills surface (`/#skills`)
+**Symptom:** you taught 3 rules. The Skills surface ([`/#skills`](/#skills))
 shows none.
 
 **Most likely cause:** scope filter.
@@ -247,7 +247,7 @@ The Skills surface respects the active project scope by default
 taught a rule with `scope: project` while a different project was
 active, that rule is invisible from the current project.
 
-**Fix:** use the project picker (top-right of `/#skills`) to switch
+**Fix:** use the project picker (top-right of [`/#skills`](/#skills)) to switch
 to the project the rules are tagged against, or click the scope
 pill and switch to "all" temporarily.
 

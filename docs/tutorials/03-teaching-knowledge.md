@@ -66,7 +66,7 @@ absolutely; a `heuristic` is hedged with conditions).
 
 ### Option A: webapp (recommended for first time)
 
-Visit `/#skills` and click **+ Teach**. Fill in:
+Visit [`/#skills`](/#skills) and click **+ Teach**. Fill in:
 
 1. **Type** (dropdown — the five above).
 2. **Trigger** (one-line description of when this rule applies). Make
@@ -107,7 +107,7 @@ want to capture something without context-switching to a browser.
 
 The model is usually accurate at picking the type (`reflex` vs
 `heuristic` vs `principle`). If you notice it picked the wrong type,
-you can edit the row from `/#skills` afterwards.
+you can edit the row from [`/#skills`](/#skills) afterwards.
 
 ## When NOT to teach
 
@@ -130,7 +130,7 @@ Knowledge rows are semantically immutable (KNOWLEDGE.md §5.1 — once
 created, the trigger / rule / rationale don't change). To revise a
 rule:
 
-- **Fork it** — `/#skills` → click the row → **Fork**. Creates a child
+- **Fork it** — [`/#skills`](/#skills) → click the row → **Fork**. Creates a child
   Knowledge row with the new text and a `parentKnowledgeId` link back
   to the original. The original gets marked as superseded.
 - The Oracle prefers the fork over the parent on retrieval (newer,

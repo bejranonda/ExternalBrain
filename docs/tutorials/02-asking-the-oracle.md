@@ -55,7 +55,7 @@ citations, same query patterns below — just without leaving your editor.
 
 ## The Oracle UI (the web page)
 
-Prefer a browser, or want the Inspector panel? Visit `/#oracle`. You'll see:
+Prefer a browser, or want the Inspector panel? Visit [`/#oracle`](/#oracle). You'll see:
 
 - **Question input** at the bottom. Press Enter to submit.
 - **Answer area** above. Streams back as the LLM generates.

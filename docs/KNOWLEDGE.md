@@ -1014,6 +1014,42 @@ of a bug pattern.
 
 ---
 
+### 12.35 Markdown written for two renderers needs a translation layer, not a shared syntax (2026-08-10)
+
+`docs/tutorials/*.md` is read by two things: GitHub's file viewer, where a
+relative link like `./01-getting-started.md` is correct, and the in-app
+renderer (`tutorial-view.tsx`), which serves the same file at
+`/docs/tutorials/01-getting-started` — no `.md`, no per-language route.
+There is no single link syntax that is correct in both places at once. Every
+"Where next" / "See Tutorial N" link in every tutorial, in every language,
+had silently 404'd in the app since the tutorial-rendering feature shipped —
+confirmed live: `…/01-getting-started.md` → 404, the no-suffix route → 200.
+CI never caught it (`doc refs (no phantom PRs)` checks for phantom PR
+numbers in prose, not whether a relative link resolves to a real route),
+and `pnpm turbo run build` only proves the markdown parses, not that a link
+in it goes anywhere.
+
+**The fix is a render-time translation layer, not a source-format change.**
+`resolve-doc-link.ts` rewrites `./NN-slug.md` (any language suffix) to the
+in-app route, and `../OTHER.md` (a doc with no in-app route at all —
+`USING_BRAIN.md`, `HOW_IT_WORKS.md`, …) to its GitHub source instead of a
+page that doesn't exist. The source markdown is untouched, so GitHub's own
+viewer keeps resolving the original links correctly — the two audiences
+diverge at render time, not at write time. Same shape as `withResolvedHost()`
+(`tutorial-content.ts`) substituting `<your-brain>` at request time rather
+than baking a hostname into content built once at image-build time: when a
+single source has to serve two contexts that need different concrete
+values, resolve the difference in the renderer, not in the source.
+
+Generalises past this one bug: any markdown intended for both GitHub and an
+in-app renderer needs its link/path resolution logic treated as product
+code — typed, unit-tested (`resolve-doc-link.test.ts`), and reused via
+import — not left to whatever the author happened to type in each `.md`
+file, which is exactly how the divergence went unnoticed for as long as it
+did.
+
+---
+
 ### 12.24 Oracle thumbs feedback loop (MVP complete, 2026-04-29)
 
 Oracle thumbs up/down on an answer bumps `successCount` (up) or `failureCount` (down) on each cited Knowledge row owned by the user, in real time.

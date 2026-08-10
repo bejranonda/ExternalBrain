@@ -1092,6 +1092,55 @@ click updates it without reload.
 
 ---
 
+## 0ag. Tutorial cross-links 404'd in the app; docs subpages didn't match the redesigned landing/`/docs` shell (2026-08-09 → 2026-08-10)
+
+Two related defects surfaced during a docs UX pass, both invisible to
+`pnpm turbo run build` because the build only proves the markdown parses,
+not that a link resolves or that a heading renders with the right component.
+
+**1. Every "Where next" / "See Tutorial N" link 404'd in the app.**
+`docs/tutorials/*.md` is written for two audiences — GitHub's file viewer
+(where `./01-getting-started.md` is correct) and the in-app renderer, which
+serves each tutorial at `/docs/tutorials/01-getting-started` with no `.md`
+suffix and no per-language route. Confirmed live before fixing:
+`/docs/tutorials/01-getting-started.md` → 404, the no-suffix route → 200.
+Every cross-tutorial link in every language variant was silently broken —
+clickable-looking text that went nowhere.
+
+**2. The tutorial and concept subpages didn't match `/docs`'s own design.**
+The 2026-08-09 landing-page pass gave `/` and the `/docs` index panel cards
+and accent-tick section headings (`SectionHeading`, the same idiom
+`.rail-item.active::before` uses for "you are here"). The subpages that
+carry the actual tutorial/concept content — where most reading time is
+spent — never got it: plain unstyled `h2`s, bare hairline-bordered
+`<table>`s. Clicking from a designed `/docs` card into a tutorial dropped
+into what read as raw GitHub markdown.
+
+| Issue | Where | Status |
+|---|---|---|
+| ~~**Relative `.md` links 404'd in-app.**~~ **Fixed.** `resolveDocLink()` rewrites `./NN-slug.md` (any language suffix) to the in-app route at render time, and `../OTHER.md` (docs with no in-app route — `USING_BRAIN.md`, `CLIENTS.md`, `HOW_IT_WORKS.md`, …) to its GitHub source instead of a page that doesn't exist. Source markdown is untouched, so GitHub's own viewer still resolves the original relative links correctly. | `apps/web/lib/brain/resolve-doc-link.ts`, used by `app/docs/tutorials/[slug]/tutorial-view.tsx`'s `a` renderer | done |
+| ~~**Bare in-app paths mentioned in prose (`` `/start` ``, `` `/settings/tokens` ``, `` `/#oracle` ``, `` `/#skills` ``) were inline code, not links.**~~ **Fixed** where they act as the primary pointer to a surface, across `00-quick-start` (EN/TH/DE), `01-getting-started`, `02-asking-the-oracle`, `03-teaching-knowledge`, `05-exporting-rules`, `06-troubleshooting`. | `docs/tutorials/*.md` | done |
+| ~~**Tutorial/concept `h2`s and tables didn't match the landing/`/docs` design.**~~ **Fixed.** `SectionHeading` extracted out of `landing.tsx` into a shared component; wired into `tutorial-view.tsx`'s markdown `h2` and `concept-view.tsx`'s section headings. Tables wrapped in `.panel` — the same card class `/docs`'s own cards already use. | `apps/web/components/brain/section-heading.tsx`, `tutorial-view.tsx`, `concept-view.tsx` | done |
+
+**The shape.** Both defects are the same class as §0v (subpage navigation
+consistency) and the `/welcome` half of §0af: a redesign or restructure
+landed on the pages someone actually reviews (`/`, `/docs`), and the pages
+one click deeper — reached only by *using* the product, not by looking at
+it — kept the old shape. A build succeeding and a page returning 200 both
+say "the page exists," neither says "the link on it goes anywhere" or "it
+looks like the rest of the product." Caught here by clicking through the
+live site link-by-link and comparing screenshots side by side, not by any
+automated check — `doc refs (no phantom PRs)` CI checks markdown for
+phantom PR numbers, not for whether relative links resolve to a real route.
+
+Verified non-vacuous: `apps/web/lib/brain/resolve-doc-link.test.ts` asserts
+the exact rewrite for same-folder, language-suffixed, parent-folder, and
+passthrough cases — reverting the rewrite fails on the first case; the
+visual fix has no unit test (styling isn't a unit-testable property) and
+was verified by live screenshot instead.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:

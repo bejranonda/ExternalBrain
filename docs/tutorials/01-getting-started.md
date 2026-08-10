@@ -153,7 +153,7 @@ unclosed session teaches the Brain nothing.
 ## Step 6 — Ask the Oracle a question
 
 Visit the Brain's **Oracle** surface (rail item, or hash route
-`/#oracle`). The Oracle is the conversational interface to your Brain
+[`/#oracle`](/#oracle)). The Oracle is the conversational interface to your Brain
 — ask anything in natural language, get a cited answer drawn from your
 session history and the rules you've taught.
 

@@ -8,7 +8,7 @@ Drei Schritte. Token erstellen, einen Befehl ausführen, dann normal mit ihm spr
 
 ---
 
-## Abkürzung — Gutscheincode? Direkt zu `/start`
+## Abkürzung — Gutscheincode? Direkt zu [`/start`](/start)
 
 Öffne `https://<your-brain>/start`, füge deinen Code ein und kopiere den Prompt,
 den du bekommst, in Claude Code, Cursor oder ein beliebiges KI-Werkzeug, das
@@ -26,7 +26,7 @@ Kein Gutscheincode, oder `agentic_onboarding_disabled`? Weiter mit Schritt 1.
 
 ## Schritt 1 — Token erstellen
 
-1. Anmelden → **Settings → Tokens** (`/settings/tokens`).
+1. Anmelden → **Settings → Tokens** ([`/settings/tokens`](/settings/tokens)).
 2. **Create token** → benenne ihn nach dem *Rechner* (`laptop`, `ci-runner`).
 3. Kopiere den `bp_…`-Wert — nur einmal angezeigt, und der nächste Bildschirm hat deinen Installationsbefehl schon fertig. Details (Rotation, Geltungsbereich, Widerruf): [Tutorial 04](./04-managing-tokens.md).
 
