@@ -205,11 +205,11 @@ behind real-time. Symptoms of KEA being broken:
 - pg-boss schema is out of date (operator runs
   `scripts/pgboss-version-check.sh`).
 
-**End-user fix:** ask the operator to check the worker container.
-If everything looks healthy on their side and KEA still doesn't run,
-they can manually re-trigger it via the worker's `kea.extract` pg-boss
-job (`apps/worker`) — an operator-side task, not something the end
-user can do themselves.
+**End-user fix:** ask the operator to check the worker container. There is
+no manual re-trigger for a stuck extraction — if the worker looks healthy
+and sessions still aren't producing Knowledge, that's a bug to report
+([file an issue](https://github.com/bejranonda/ExternalBrain/issues/new)),
+not an operator lever to pull.
 
 In the meantime: explicit teach (Tutorial 03) is a workaround.
 
