@@ -192,7 +192,10 @@ iwr https://<your-host>/api/onboard.ps1 -UseBasicParsing | iex
 Install-Brain -Token 'bp_<your-token>' -Client windsurf
 ```
 
+> **Crucial:** Always restart your AI tool (Claude Code, Cursor, Windsurf, etc.) after running the onboarding script so it loads the new MCP server configuration at startup.
+
 Clients: `claude-code`, `claude-desktop`, `cursor`, `windsurf`, `antigravity`,
+
 `vscode`, `copilot-cli`, `codex`, `gemini-cli`, `generic`. Where the vendor
 ships its own `mcp add` verb (Claude Code, Copilot CLI, Codex) the installer
 calls it; otherwise it merges into the client's config file — backing it up

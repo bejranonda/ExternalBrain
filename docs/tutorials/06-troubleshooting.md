@@ -40,11 +40,16 @@ The Brain has four sign-in modes; only one is active at a time:
 
 ## MCP connect failed
 
-**Symptom:** `claude mcp list` shows `brain · ✗ Failed to connect`.
+**Symptom:** `claude mcp list` shows `brain · ✗ Failed to connect` or your AI tool does not recognize the Brain.
 
 **Most likely causes (in order):**
 
-### 1. Network can't reach the Brain MCP host
+### 1. You did not restart your AI tool after running the onboarding command
+**Primary Cause (~90% of cases):** AI tools (Claude Code, Cursor, Windsurf) read their MCP client configuration files ONLY at startup. If you ran the onboarding script in a terminal while your editor/CLI was already open, it cannot see the Brain until restarted.
+
+**Fix:** Fully exit your AI CLI or restart your editor, then re-open it.
+
+### 2. Network can't reach the Brain MCP host
 
 ```bash
 curl -I https://mcp.brain.your-team.com/health

@@ -16,7 +16,7 @@ first — they cover the server side.
 | **Get running right now — token → install → first conversation** | **[00 — Quick start](./00-quick-start.md)** | **5 min** |
 | อ่านคู่มือเริ่มต้นเป็นภาษาไทย | [00 — คู่มือเริ่มต้น](./00-quick-start.th.md) | 5 นาที |
 | Den Schnellstart auf Deutsch lesen | [00 — Schnellstart](./00-quick-start.de.md) | 5 Min. |
-| Wire your AI tool (Claude Code / Cursor / Windsurf) to your Brain, with the reasoning spelled out | [01 — Getting started](./01-getting-started.md) | 10 min |
+| Wire your AI tool to your Brain — installer mechanics, security audit & manual setup | [01 — Deep-dive setup](./01-getting-started.md) | 10 min |
 | Ask your Brain questions about your own coding history | [02 — Asking the Oracle](./02-asking-the-oracle.md) | 10 min |
 | Teach the Brain a new pattern, rule, or preference | [03 — Teaching the Brain](./03-teaching-knowledge.md) | 10 min |
 | Issue a token scoped to a specific organization or project | [04 — Token scope + management](./04-managing-tokens.md) | 10 min |

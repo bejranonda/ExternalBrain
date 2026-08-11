@@ -34,33 +34,32 @@ flowchart TD
     Sure -- yes --> Active{Have I used it<br/>in a Brain session<br/>at least 2x?}
     Active -- yes --> Wait2[KEA likely already<br/>extracted it.<br/>Check #skills first.]
     Active -- no --> Type{Which type<br/>fits best?}
-    Type --> Reflex[reflex<br/>'always X, never Y']
-    Type --> Recipe[recipe<br/>'multi-step pattern']
-    Type --> Heuristic[heuristic<br/>'soft rule with conditions']
-    Type --> Principle[principle<br/>'high-level value']
-    Type --> Anti[anti_principle<br/>'avoid X, do Y instead']
+    Type --> Reflex[Reflex<br/>'always X, never Y']
+    Type --> Recipe[Recipe<br/>'multi-step pattern']
+    Type --> RuleOfThumb[Rule of thumb<br/>'soft rule with conditions']
+    Type --> Principle[Principle<br/>'high-level value']
+    Type --> AntiPattern[Anti-pattern<br/>'avoid X, do Y instead']
     Reflex --> Teach[Teach via #skills<br/>or 'remember that...' in chat]
     Recipe --> Teach
-    Heuristic --> Teach
+    RuleOfThumb --> Teach
     Principle --> Teach
-    Anti --> Teach
+    AntiPattern --> Teach
 ```
 
-## The five Knowledge types
+## The skill types (UI labels & DB enums)
 
-Every rule is one of:
+Every rule is categorized into one of five skill types:
 
-| Type | What it is | Example |
-|---|---|---|
-| **reflex** | Always-do / never-do at the lexical level | "always use `useId()` for React form ids, never `Math.random()`" |
-| **recipe** | Multi-step pattern for a recurring task | "Stripe webhook handler: verify signature, lookup by id, idempotency-key dedup, return 200" |
-| **heuristic** | Soft rule that depends on context | "for forms with <5 fields, plain controlled state; otherwise react-hook-form" |
-| **principle** | High-level value / approach | "prefer composition over inheritance" |
-| **anti_principle** | Pattern to avoid + what to do instead | "don't generate ids client-side at render time; use `useId()` (SSR-safe + a11y)" |
+| UI Label | DB Enum | What it is | Example |
+|---|---|---|---|
+| **Reflex** | `reflex` | Unconditional rule for a specific situation | "Always use `useId()` for React form IDs, never `Math.random()`" |
+| **Recipe** | `recipe` | Multi-step procedure for a recurring task | "Stripe webhook handler: verify signature, lookup ID, dedup key, return 200" |
+| **Rule of thumb** | `heuristic` | Soft default rule that depends on context | "For forms with <5 fields, plain state; otherwise use `react-hook-form`" |
+| **Principle** | `principle` | Value-driven approach shaping many choices | "Prefer composition over inheritance in component design" |
+| **Anti-pattern** | `anti_principle` | Known bad pattern + what to do instead | "Don't generate IDs client-side at render time; use `useId()` (SSR-safe)" |
 
-Picking the right type matters because retrieval scoring weights by
-type, and the Oracle uses type to decide tone (a `reflex` is stated
-absolutely; a `heuristic` is hedged with conditions).
+*(Note: Settled team choices are saved as **Decisions** — shared across your team and exempt from fading).*
+
 
 ## Two ways to teach: webapp vs MCP
 

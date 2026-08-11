@@ -1,129 +1,116 @@
-# Schnellstart — von null zu einem Brain, das lernt
+# Schnellstart — Verbinde dein AI-Tool in 3 Minuten mit dem External Brain
 
-**Dauer:** ca. 5 Minuten. **Du brauchst:** eine Brain-URL (z. B. `https://brain.autobahn.bot`) und entweder ein Konto oder einen Gutscheincode.
+**Dauer:** ~3 Minuten. **Voraussetzung:** Deine Brain-URL (z. B. `https://brain.autobahn.bot`) und ein Benutzerkonto oder Voucher-Code.
 
-Zwei Wege — wähle einen: lass deine KI es mit einem Gutscheincode einrichten,
-oder mach es selbst in drei Schritten: anmelden, Token erstellen, einen
-Befehl ausführen.
+Wähle deinen Einrichtungspfad:
+- **Pfad A: Automatische Einrichtung mit AI (1 Min.)** — Ideal, wenn du einen Voucher-Code hast.
+- **Pfad B: Standard-Einrichtung (2 Min.)** — Ideal, wenn du bereits ein Brain-Konto hast.
 
-> Diese Übersetzung wurde KI-generiert und wartet noch auf eine muttersprachliche Durchsicht. Maßgeblich ist die englische Fassung: [00-quick-start.md](./00-quick-start.md)
-
----
-
-## Gutscheincode vorhanden? Lass deine KI es einrichten
-
-Öffne [`https://<your-brain>/start`](https://<your-brain>/start), füge deinen Code ein und kopiere den Prompt,
-den du bekommst, in Claude Code, Cursor oder ein beliebiges KI-Werkzeug, das
-eine URL abrufen kann. Deine KI legt das Konto an, erzeugt das Token und führt
-den Installationsbefehl aus — **dann starte dein KI-Werkzeug neu**, denn die
-MCP-Konfiguration wird nur beim Start gelesen.
-
-Das Token ist eingeschränkt (14 Tage, kein Oracle), weil der Code durch ein
-Chatfenster gereist ist — Details in [Tutorial 04](./04-managing-tokens.md).
-Ein vollwertiges Token gibt es später unter **Settings → Tokens**.
-
-Schon ein Konto, oder `agentic_onboarding_disabled`? Weiter mit Schritt 1.
-Weder Gutscheincode noch Konto? Frag den Betreiber dieses Brains nach einem
-Gutscheincode — siehe [`/start`](/start).
+> Diese Übersetzung wurde per KI erstellt und wartet auf eine Prüfung durch Muttersprachler. Englische Originalfassung: [00-quick-start.md](./00-quick-start.md)
 
 ---
 
-## Schritt 1 — Token erstellen
+## Pfad A — Automatische Einrichtung mit einem Voucher-Code
 
-1. Anmelden → **Settings → Tokens** ([`/settings/tokens`](/settings/tokens)).
-2. **Create token** → benenne ihn nach dem *Rechner* (`laptop`, `ci-runner`).
-3. Kopiere den `bp_…`-Wert — nur einmal angezeigt, und der nächste Bildschirm hat deinen Installationsbefehl schon fertig. Details (Rotation, Geltungsbereich, Widerruf): [Tutorial 04](./04-managing-tokens.md).
+Wenn dir ein Teammitglied einen Voucher-Code gegeben hat:
+
+1. Öffne [`https://<dein-brain>/start`](https://<dein-brain>/start) im Browser und gib deinen Voucher-Code ein.
+2. Kopiere den angezeigten Prompt und füge ihn in Claude Code, Cursor oder Windsurf ein. Dein AI-Tool erstellt dein Konto und richtet die Brain-Verbindung automatisch ein.
+3. **Starte dein AI-Tool neu**, damit die neue MCP-Konfiguration geladen wird.
+
+> **Hinweis zum Token-Umfang:** Über den AI-Chat erstellte Voucher-Token sind 14 Tage gültig und aus Sicherheitsgründen auf einfache Abfragen beschränkt. Ein dauerhaftes Token kannst du jederzeit unter **Settings → Tokens** ([`/settings/tokens`](/settings/tokens)) erstellen. Details in [Tutorial 04](./04-managing-tokens.md).
 
 ---
 
-## Schritt 2 — Verbinde dein KI-Tool
+## Pfad B — Standard-Einrichtung in 3 Schritten
 
-Die Token-Seite hat diesen Befehl schon mit deinem Token und Tool fertig
-gebaut — kopiere ihn von dort. Tippst du ihn stattdessen von Hand:
-`--client` ist standardmäßig `claude-code`, ersetze es durch dein Tool
-(vollständige Liste: [CLIENTS.md](../CLIENTS.md#supported---client-values)).
+### Schritt 1 — Token erstellen & Befehl kopieren
+
+1. Melde dich in der Brain-Webapp an → Gehe zu **Settings → Tokens** ([`/settings/tokens`](/settings/tokens)).
+2. Klicke auf **Create token** → Vergib einen Namen für dein Gerät (`laptop`, `workstation`, `ci-runner`).
+3. Klicke auf der Bestätigungsseite auf **Copy Command**. *(Der Befehl enthält deinen geheimen Token und den Client bereits vorausgefüllt!)*
+
+---
+
+### Schritt 2 — Installer ausführen & AI-Tool neustarten
+
+1. Füge den kopierten Befehl im Terminal ein und führe ihn aus:
+
+   ```bash
+   # macOS / Linux / WSL / Git Bash
+   curl -fsSL https://<dein-brain>/api/onboard.sh | bash -s 'bp_…dein_token…' --client claude-code
+   ```
+
+   ```powershell
+   # Windows PowerShell 5.1+
+   iwr https://<dein-brain>/api/onboard.ps1 -UseBasicParsing | iex
+   Install-Brain -Token 'bp_…dein_token…' -Client claude-code
+   ```
+
+2. **STARTE DEIN AI-TOOL NEU.** *(Erforderlich: AI-Tools lesen MCP-Serverkonfigurationen nur beim Start).*
+
+> Möchtest du das Skript vor der Ausführung prüfen? Siehe [Tutorial 01 — Vertiefende Einrichtung](./01-getting-started.md).
+
+---
+
+### Schritt 3 — Erstes Gespräch führen
+
+Sprich ganz normal in Claude Code, Cursor oder Windsurf — keine spezielle Syntax erforderlich:
+
+#### Verbindung testen
+| Sag… | Was passiert | Warum es wichtig ist |
+|---|---|---|
+| *"ask the brain what it knows about this project"* | Bestätigt die Verbindung und listet Projektregeln auf | Beweist, dass dein AI-Agent mit dem Brain sprechen kann |
+
+#### Regel beibringen
+| Sag… | Was passiert | Warum es wichtig ist |
+|---|---|---|
+| *"remember this: we use pgvector, not Pinecone"* | Speichert eine dauerhafte Regel unter **Skills** | Verhindert, dass dein AI-Tool denselben Fehler erneut macht |
+| *"no — we moved that check to the route handler last month"* | Korrektur während der Session | Lehrt das Brain, veraltete Ratschläge zu verlernen |
+| *"we decided to use Redis for sessions, not Postgres"* | Als Projekt-**Decision** gespeichert | Geteiltes Teamwissen; verblasst nicht mit der Zeit |
+
+#### Oracle befragen
+| Sag… | Was passiert | Warum es wichtig meint |
+|---|---|---|
+| *"ask the oracle: how did we solve the migration ordering?"* | Synthetisiert Antwort mit Quellennachweisen `[^K1]`, `[^S2]` | Beantwortet Fragen anhand deiner eigenen Projekthistorie |
+
+#### Session schließen (Wichtigste Gewohnheit!)
+| Sag… | Was passiert | Warum es wichtig ist |
+|---|---|---|
+| *"that worked"* / *"we're done"* / *"ship it"* | **Schließt die Session & extrahiert neue Skills** | Ungeschlossene Sessions lehren nichts! Das Schließen lässt das Brain lernen. |
+
+---
+
+## Verbindung prüfen
 
 ```bash
-# macOS / Linux / WSL / Git Bash
-curl -fsSL https://<your-brain>/api/onboard.sh | bash -s 'bp_…' --client claude-code
-```
-
-```powershell
-# Windows PowerShell 5.1+
-iwr https://<your-brain>/api/onboard.ps1 -UseBasicParsing | iex
-Install-Brain -Token 'bp_…' -Client claude-code
-```
-
-**Starte danach dein KI-Tool neu.** Alle lesen die MCP-Konfiguration ausschließlich beim Start — das ist mit Abstand die häufigste Ursache für „installiert, aber nichts passiert“.
-
-Willst du genau wissen, was das Skript macht, oder es erst lesen, bevor du es in eine Shell pipest? [Tutorial 01](./01-getting-started.md) geht es Schritt für Schritt durch.
-
----
-
-## Schritt 3 — Sprich mit ihm
-
-Keine Toolnamen zu merken. Du sprichst einfach normal — in Claude Code, Cursor, Windsurf oder jedem anderen MCP-Client — und der Skill wählt den richtigen `brain_*`-Aufruf.
-
-**Verbindung beweisen**
-| Du sagst… | Was passiert |
-|---|---|
-| „frag das Brain, was es über dieses Projekt weiß“ | Kostenlos, sofort — beweist, dass die Verbindung steht |
-
-**Ihm etwas beibringen**
-| Du sagst… | Was passiert |
-|---|---|
-| „merk dir: wir nutzen pgvector, nicht Pinecone“ | Wird als Regel gespeichert; erscheint unter **Skills** |
-| „nein — das haben wir letzten Monat in den Route-Handler verschoben“ | Korrektur mitten in der Sitzung; bringt ihm bei, veraltete Ratschläge zu verlernen |
-| „wir haben uns für Redis statt Postgres für Sessions entschieden“ | Als Projektentscheidung gespeichert (geteilt, verfällt nicht) |
-
-**Abrufen — sofort, kostenlos, kein Modellaufruf**
-| Du sagst… | Was passiert |
-|---|---|
-| „finde die Regel zu Prisma-Migrationen“ | Inhaltlich nächste Treffer |
-| „was habe ich letzte Woche an Billing gemacht?“ | Frühere Sitzungen zu diesen Wörtern |
-
-**Das Oracle fragen — langsamer, kostenpflichtig, begründete Antwort mit Belegen**
-| Du sagst… | Was passiert |
-|---|---|
-| „frag das Oracle: wie haben wir die Migrationsreihenfolge gelöst?“ | Zusammengefasste Antwort, belegt mit den Ursprungs-Sitzungen |
-| ✗ „frag das Oracle: wie funktioniert flexbox?“ | Falsche Nutzung — es ist das Gedächtnis deines Projekts, nicht das Internet |
-
-**Den Kreis schließen — die eine Gewohnheit, auf die es ankommt**
-| Du sagst… | Was passiert |
-|---|---|
-| „hat funktioniert“ / „wir sind fertig“ / „ab damit“ | **Schließt die Sitzung — dadurch lernt es.** Eine nicht geschlossene Sitzung bringt dem Brain nichts bei; das ist der häufigste Grund, warum ein Brain nach einer Woche echter Nutzung noch leer ist |
-
-Weitere Kategorien und ein vollständiges Beispiel: [Tutorial 01](./01-getting-started.md), [Tutorial 02 — Das Oracle fragen](./02-asking-the-oracle.md), [Tutorial 03 — Wissen beibringen](./03-teaching-knowledge.md)
-
----
-
-## Prüfen, ob es läuft
-
-```bash
+# Überprüfen, ob Claude Code den Brain-Server sieht
 claude mcp list | grep brain
 ```
 
-Frag es dann in deinem Tool: *„frag das Brain, was es über dieses Projekt weiß“*. Wenn überhaupt eine Antwort kommt, läuft der Kreislauf.
+In deinem AI-Tool: *"ask the brain what it knows about this project"*. Wenn es mit Projektregeln antwortet, ist dein Brain aktiv!
 
-| Symptom | Ursache |
-|---|---|
-| Dein Tool sieht das Brain nicht | Nach der Installation nicht neu gestartet |
-| 401 bei jedem Aufruf | Token widerrufen, abgelaufen oder von einem anderen Brain |
-| Nur Codex bekommt 401 | `BRAIN_TOKEN` fehlt im Shell-Profil |
-| Verbunden, aber Skills bleibt leer | Sitzungen werden nie geschlossen — sag „wir sind fertig“ |
-| `~/.claude/mcp.json` bearbeitet, nichts ändert sich | Falsche Datei. Claude Code liest `~/.claude.json` |
+### Schnelle Fehlerbehebung
 
-Mehr dazu: [Fehlersuche](./06-troubleshooting.md)
+| Symptom | Ursache | Lösung |
+|---|---|---|
+| Tool sieht das Brain nicht | Nach Schritt 2 nicht neugestartet | Terminal/Editor schließen und neu öffnen |
+| `401 Unauthorized` | Token abgelaufen oder widerrufen | Neues Token unter `/settings/tokens` erstellen |
+| Verbunden, aber Skills bleibt leer | Sessions wurden nie geschlossen | Sag *"we're done"*, wenn die Aufgabe erledigt ist |
+| `~/.claude/mcp.json` manuell editiert | Falsche Datei | Claude Code liest `~/.claude.json` |
+
+Tiefergehende Hilfe: [Tutorial 06 — Fehlerbehebung](./06-troubleshooting.md).
 
 ---
 
-## Weiterlesen
+## Nächste Schritte
 
-| | |
+| Anleitung | Beschreibung |
 |---|---|
-| [01 — Erste Schritte](./01-getting-started.md) | Dasselbe, langsamer, mit ausführlicher Begründung |
-| [02 — Das Oracle fragen](./02-asking-the-oracle.md) | Frageformen, die funktionieren |
-| [03 — Wissen beibringen](./03-teaching-knowledge.md) | Regeln schreiben, die bestehen |
-| [04 — Tokens verwalten](./04-managing-tokens.md) | Geltungsbereich, Rotation, Widerruf |
-| [USING_BRAIN](../USING_BRAIN.md) | Die vollständige Alltagsreferenz |
-| [CLIENTS](../CLIENTS.md) | Konfigurationsformen und Fallstricke je Client |
+| [01 — Vertiefende Einrichtung](./01-getting-started.md) | Mechanismus, Installer-Details & Sicherheits-Audit |
+| [02 — Oracle befragen](./02-asking-the-oracle.md) | Fragemuster, die funktionieren |
+| [03 — Brain Wissen beibringen](./03-teaching-knowledge.md) | Regeln schreiben, die dauerhaft bleiben |
+| [04 — Token verwalten](./04-managing-tokens.md) | Scope, Rotation und Widerruf von Token |
+| [07 — Skill-Typen erklärt](./07-skill-types-explained.md) | Rezepte, Faustregeln, Anti-Pattern und Entscheidungen einfach erklärt |
+| [USING_BRAIN](../USING_BRAIN.md) | Vollständige Referenz für den Alltag |
+| [CLIENTS](../CLIENTS.md) | Client-spezifische Konfigurationen & Stolperfallen |

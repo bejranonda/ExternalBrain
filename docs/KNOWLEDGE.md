@@ -40,7 +40,7 @@ Every `Knowledge` row is exactly one of:
 | `recipe` | template for a specific task type | "For React forms, use react-hook-form + zod" |
 | `heuristic` | context-sensitive guidance (UI: "Rule of thumb") | "When debugging Next.js build errors, clear `.next` first" |
 | `principle` | abstract value | "Prefer composition over inheritance" |
-| `anti_principle` | something to avoid | "Don't inline styles (user corrected 3×) — use Tailwind instead" |
+| `anti_principle` | something to avoid (UI: "Anti-pattern") | "Don't inline styles (user corrected 3×) — use Tailwind instead" |
 
 **Plus one non-rule type (V2.0, 2026-07-07):** `action_item` — a meeting
 to-do or open question. It is a **task, not a rule**, and sits outside the

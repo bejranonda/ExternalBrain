@@ -1,21 +1,15 @@
-# Tutorial 01 — Getting started
+# Tutorial 01 — Deep-Dive & Manual Setup
 
-**You'll have:** an MCP-capable AI tool wired to your Brain, a smoke-test
-showing the connection works, and the Brain's `SKILL.md` installed so
-your tool knows when to call it.
+> Looking for the fast 3-minute setup? See [Tutorial 00 — Quick Start](./00-quick-start.md). This guide covers under-the-hood installer mechanics, security auditing, and step-by-step configuration for custom deployments.
+
+**You'll have:** an MCP-capable AI tool wired to your Brain, an audit of the installer mechanics, a smoke-test showing the connection works, and the Brain's `SKILL.md` installed so your tool knows when to call it.
 
 **Time:** ~10 minutes.
 
-**Prerequisites:** a Brain URL (e.g. `https://brain.your-team.com`) and
-either an admin account at that URL or an invite link a teammate sent
-you.
-
-Six steps: sign in, mint a token, install, smoke-test, run a real task,
-ask the Oracle. After that, every session feeds the Brain automatically.
-(Want the sequence-diagram + under-the-hood version first? See
-[HOW_IT_WORKS.md, Step 3](../HOW_IT_WORKS.md#step-3--bob-wires-claude-code-to-the-brain).)
+**Prerequisites:** A Brain URL (e.g. `https://brain.your-team.com`) and either an admin account or an invite link.
 
 ---
+
 
 ## Step 1 — Sign in
 

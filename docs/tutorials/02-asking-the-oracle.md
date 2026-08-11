@@ -19,21 +19,19 @@ What it's not: a general-purpose assistant. Off-topic questions
 ("what's the weather?") get redirected. The Oracle is bounded to your
 own coding history — by design.
 
-## How the retrieval pipeline runs
+## How the Oracle answers
 
 ```mermaid
 flowchart LR
-    Q[Your question] --> E[Embed via Gemini]
-    E --> P[(pgvector<br/>Knowledge + Sessions)]
-    P --> S[Score: 0.40·sim + 0.20·success<br/>+ 0.15·recency + 0.15·ctx + 0.10·conf]
-    S --> T[Top 12 Knowledge<br/>+ Top 10 Sessions]
-    T --> L{Any matches<br/>above threshold?}
-    L -- yes --> Prompt[Build prompt<br/>with citations]
-    L -- no --> Honest[System prompt:<br/>'no Brain context']
-    Prompt --> LLM[LLM<br/>Claude Sonnet]
+    Q[Your Question] --> R[Semantic Retrieval<br/>Knowledge + Past Sessions]
+    R --> S{Relevant rules<br/>found?}
+    S -- Yes --> Prompt[Inject Citations<br/>^K1, ^S2]
+    S -- No --> Honest[Explicit 'No Context'<br/>Disclaimer]
+    Prompt --> LLM[LLM Synthesis]
     Honest --> LLM
-    LLM --> A[Streamed answer<br/>with [^N] markers]
+    LLM --> A[Grounded Answer<br/>with Source Links]
 ```
+
 
 The dotted line — *"no Brain context"* — is the path you'll see when
 your Brain doesn't have anything relevant. The Oracle says so
