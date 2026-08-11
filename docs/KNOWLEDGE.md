@@ -1048,6 +1048,14 @@ import — not left to whatever the author happened to type in each `.md`
 file, which is exactly how the divergence went unnoticed for as long as it
 did.
 
+**Sibling gap found the next day:** this fix rewrites path-style links
+(`./NN-slug.md`); it does nothing for `#anchor` links, which break by a
+different mechanism — a heading's rename changes its GitHub-derived slug,
+silently orphaning any `#fragment` that pointed at the old text. Same
+"content and its references can drift apart with nothing to catch it"
+shape, different link syntax. Full narrative: `APPROACH.md §5br`,
+`KNOWN_ISSUES.md §0ah`.
+
 ---
 
 ### 12.24 Oracle thumbs feedback loop (MVP complete, 2026-04-29)

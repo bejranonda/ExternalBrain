@@ -1141,6 +1141,51 @@ was verified by live screenshot instead.
 
 ---
 
+## 0ah. §0ag's fix had gaps of its own — three more rounds before the tutorials were actually link-clean (2026-08-10 → 2026-08-11)
+
+§0ag's `resolveDocLink()` only rewrites an `href` that already exists. A user
+report — "this link doesn't work," quoting `00-quick-start`'s
+`` `https://<your-brain>/start` `` — turned out to be plain inline code,
+never a markdown link at all, so the fix had nothing to rewrite. Auditing
+for the same shape (an in-app path mentioned as backticked text instead of
+a link) found it repeated across every tutorial. Linking them surfaced a
+second bug: two of the newly-clickable paths, `/skills` and `/dashboard`,
+are not real routes — this SPA hash-routes its authenticated shell
+(`GUIDELINES.md §10`), so the correct targets are `/#skills` /
+`/#dashboard`. Confirmed live before fixing: `/dashboard` → 404. A full
+crawl of all 25 public/doc pages (62 unique links) then found one link
+that was broken before any of this — `06-troubleshooting.md` cited
+`../RUNBOOK.md`, a file that was never created — and CodeRabbit caught
+that the first attempt to fix *that* named a manual re-trigger mechanism
+(`kea.extract`'s pg-boss job) with no actual operator-facing way to invoke
+it, i.e. a new phantom pointer replacing the old one. Removed the claim
+instead of inventing a command.
+
+**The shape.** Each round's fix was correct and narrow; each round's audit
+found the next thing the previous fix's scope didn't cover. "All tutorial
+links now resolve" turned out to require: (1) rewriting hrefs that exist,
+(2) finding mentions that were never hrefs, (3) verifying every newly-added
+href against the actual route table rather than assuming the source
+markdown had the right path, and (4) a full crawl rather than trusting the
+class of bug was exhausted after fixing the instances that prompted the
+investigation. None of the later rounds were reachable by generalizing from
+the first fix's diff — each required looking at the actual rendered output
+again with a wider net.
+
+A **renamed heading breaks its own anchor silently**, one layer under all
+of the above: `00-quick-start.md`'s Shortcut section was reworded
+(`docs/tutorials/quick-start-shortcut-fork-framing`), and
+`docs/tutorials/README.md` still linked to the old heading's GitHub-slug
+anchor (`#shortcut--let-your-ai-do-all-three-steps`). No tool checks that
+a `#fragment` link still matches a heading that exists — `doc refs (no
+phantom PRs)` checks PR numbers, `resolve-doc-link.test.ts` checks route
+rewriting, neither checks anchor-heading correspondence. Caught only by
+grepping every `quick-start.md#` reference after the rename, the same
+"grep before you close" discipline as `KNOWLEDGE.md §12.34`, applied to
+anchors instead of routes.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:
