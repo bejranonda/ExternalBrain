@@ -1,24 +1,28 @@
 # Quick start — from zero to a Brain that learns
 
-**Time:** ~5 minutes. **You need:** a Brain URL (e.g. `https://brain.autobahn.bot`) and an account or invite.
+**Time:** ~5 minutes. **You need:** a Brain URL (e.g. `https://brain.autobahn.bot`) and either an account or a voucher code.
 
-Three steps. Mint a token, run one command, then talk to it normally.
+Two ways in — pick one: let your AI do it with a voucher code, or do it
+yourself in three steps: sign in, mint a token, run one command.
 
 > Also available in [ไทย](./00-quick-start.th.md) and [Deutsch](./00-quick-start.de.md) — both AI-translated and awaiting a native review.
 
 ---
 
-## Shortcut — have a voucher code? Skip to [`/start`](/start)
+## Have a voucher code? Let your AI do it
 
 Open [`https://<your-brain>/start`](https://<your-brain>/start), paste your code, and copy the prompt it
 gives you into Claude Code, Cursor, or any AI tool that can fetch a URL. Your
 agent creates the account, mints a token, and runs the install command —
 **then restart your AI tool**, since MCP config is only read at startup.
 
-That token is scoped down (14 days, no Oracle) because it travelled through a
-chat window. Mint a full one later at **Settings → Tokens**.
+That token is scoped down (14 days, no Oracle) because it travelled through
+a chat window — details in [Tutorial 04](./04-managing-tokens.md). Mint a
+full one later at **Settings → Tokens**.
 
-No voucher, or `agentic_onboarding_disabled`? Continue with Step 1 below.
+Already have an account, or `agentic_onboarding_disabled`? Continue with
+Step 1 below. Neither voucher nor account? Ask whoever runs this Brain for
+a voucher — see [`/start`](/start).
 
 ---
 
