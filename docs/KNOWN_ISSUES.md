@@ -1194,6 +1194,52 @@ anchors instead of routes.
 
 ---
 
+## 0ai. The agentic-onboarding completion message told users to restart before telling them what they'd lose (2026-08-11)
+
+Reported live by a pilot user's actual install: they set up External Brain
+via the voucher prompt inside Antigravity, and the agent's closing message
+said `claude mcp list` — a Claude Code CLI command that does not exist for
+Antigravity. `BRAIN_BOOTSTRAP_TEMPLATE` (`skill-template.ts`) already asks
+the agent to declare its client (`claude-code` / `cursor` / `windsurf` /
+`antigravity` / …) in the voucher-exchange call two steps earlier — the
+verification instruction just didn't use that information, and hardcoded
+the one client's command for every client.
+
+**A second, sharper bug in the same template, caught by the same user
+before the first fix even shipped:** the three closing instructions were
+ordered *"restart now" → verify → set a password*. Restarting the AI tool
+ends the conversation the agent is delivering these instructions in — so a
+user who follows step 1 literally never sees steps 2 and 3, including the
+one-time `setPasswordUrl` link, which is the **only** way to ever reach the
+dashboard. The bug wasn't the content of steps 2–3; it was that step 1
+being first made them unreachable.
+
+| Issue | Fix |
+|---|---|
+| ~~Verification hardcoded to `claude mcp list`.~~ | Replaced with the client-agnostic check the quick-start tutorial already uses — *"ask the brain what it knows about this project"* — which works for any client because it doesn't depend on a CLI existing. `claude mcp list` kept as an aside for Claude Code specifically. |
+| ~~Restart instruction ordered first, orphaning the rest of the message.~~ | Reordered: password link → verification method → restart, last, with an explicit note in the prompt telling the agent *why* ("restarting ends this conversation, say this last"). |
+
+**The shape.** Both bugs are instances of the same category — instructions
+written for an agent to relay, not tested by actually being an agent
+following them literally. The client-hardcoding bug required imagining "a
+user in a client that isn't the one I usually test with." The ordering bug
+required imagining "what happens if the reader does exactly what step 1
+says, right now, mid-sentence" — a question that's easy to skip when
+writing the steps in the natural order you'd explain them out loud, which
+is not the same as the order in which their side effects are irreversible.
+Any instruction sequence ending in an action that destroys the channel it's
+delivered through (closing a connection, restarting a process, navigating
+away) needs that action last, with everything the reader needs *after* it
+already said.
+
+Found and fixed within one round because a real pilot user hit it on a real
+install in a client this repo doesn't run its own e2e suite against
+(`anon onboarding e2e` covers the shell-installer path, not the
+agent-conversation bootstrap path) — the gap a synthetic test suite has no
+way to close on its own.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:
