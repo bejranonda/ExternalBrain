@@ -1,14 +1,16 @@
 # Schnellstart — von null zu einem Brain, das lernt
 
-**Dauer:** ca. 5 Minuten. **Du brauchst:** eine Brain-URL (z. B. `https://brain.autobahn.bot`) und ein Konto oder eine Einladung.
+**Dauer:** ca. 5 Minuten. **Du brauchst:** eine Brain-URL (z. B. `https://brain.autobahn.bot`) und entweder ein Konto oder einen Gutscheincode.
 
-Drei Schritte. Token erstellen, einen Befehl ausführen, dann normal mit ihm sprechen.
+Zwei Wege — wähle einen: lass deine KI es mit einem Gutscheincode einrichten,
+oder mach es selbst in drei Schritten: anmelden, Token erstellen, einen
+Befehl ausführen.
 
 > Diese Übersetzung wurde KI-generiert und wartet noch auf eine muttersprachliche Durchsicht. Maßgeblich ist die englische Fassung: [00-quick-start.md](./00-quick-start.md)
 
 ---
 
-## Abkürzung — Gutscheincode? Direkt zu [`/start`](/start)
+## Gutscheincode vorhanden? Lass deine KI es einrichten
 
 Öffne [`https://<your-brain>/start`](https://<your-brain>/start), füge deinen Code ein und kopiere den Prompt,
 den du bekommst, in Claude Code, Cursor oder ein beliebiges KI-Werkzeug, das
@@ -17,10 +19,12 @@ den Installationsbefehl aus — **dann starte dein KI-Werkzeug neu**, denn die
 MCP-Konfiguration wird nur beim Start gelesen.
 
 Das Token ist eingeschränkt (14 Tage, kein Oracle), weil der Code durch ein
-Chatfenster gereist ist. Ein vollwertiges Token gibt es später unter
-**Settings → Tokens**.
+Chatfenster gereist ist — Details in [Tutorial 04](./04-managing-tokens.md).
+Ein vollwertiges Token gibt es später unter **Settings → Tokens**.
 
-Kein Gutscheincode, oder `agentic_onboarding_disabled`? Weiter mit Schritt 1.
+Schon ein Konto, oder `agentic_onboarding_disabled`? Weiter mit Schritt 1.
+Weder Gutscheincode noch Konto? Frag den Betreiber dieses Brains nach einem
+Gutscheincode — siehe [`/start`](/start).
 
 ---
 
