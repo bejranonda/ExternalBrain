@@ -2642,3 +2642,42 @@ broken. Where the fix generalizes (a source format serving two renderers,
 a heading component two pages should share) it was extracted into typed,
 tested code (`resolve-doc-link.ts`, `SectionHeading`) so the next instance
 of the same class doesn't require another manual click-through to find.
+
+## 5br. "All links now work" took four rounds, and each fix's own audit found the next gap (2026-08-10 → 2026-08-11)
+
+§5bq's `resolveDocLink()` fix was correct and shipped clean. It was also
+not the end of the bug: a user reporting one specific link ("this doesn't
+work," quoting `https://<your-brain>/start`) revealed the mention was
+plain inline code, never a link — outside the fix's scope by construction,
+since there was no `href` to rewrite. Auditing for that exact shape across
+every tutorial found it repeated, and linking those newly-found mentions
+surfaced a second bug hiding inside the first: two of them (`/skills`,
+`/dashboard`) pointed at routes that don't exist in this hash-routed SPA —
+invisible as long as they were inert text, real the moment they became
+clickable. A full 25-page, 62-link crawl (run because "I fixed the ones I
+found" is not the same claim as "I fixed all of them") then found one link
+broken independently of any of this (`docs/RUNBOOK.md`, never created).
+Fixing *that* produced a CodeRabbit finding: the replacement text named an
+operator mechanism that doesn't actually exist either.
+
+**The generalizable shape:** a fix scoped to "the bug in the report" will
+be correct and still leave the class of bug alive, because the report
+names an instance, not the boundary of the class. Each round here was
+narrow and right; each round's own audit — not a plan made in advance —
+found the next thing outside the previous fix's scope. The operational
+takeaway isn't "audit more" in the abstract, it's specific: after fixing a
+reported instance of a link/reference bug, (1) grep for the same *shape*
+elsewhere before calling the class fixed, (2) verify every newly-touched
+target against the actual source of truth (a route table, a file listing)
+rather than trusting the existing text was right, and (3) do one broad
+sweep at the end (a full crawl, not spot checks) precisely because steps 1
+and 2 are themselves scoped to what you already suspected to look for.
+
+A **renamed heading breaks its own anchor, silently, one layer under all
+of this.** Reworking `00-quick-start.md`'s Shortcut heading left
+`docs/tutorials/README.md` pointing at the old heading's now-nonexistent
+GitHub-slug anchor. Nothing in the toolchain checks that a `#fragment`
+still matches a real heading — caught only by grepping every reference to
+the file after the rename, the same discipline as `§5q` and
+`KNOWLEDGE.md §12.34`'s href-grep, aimed at anchors this time. Full
+instance: `KNOWLEDGE.md §12.35`, `KNOWN_ISSUES.md §0ah`.
