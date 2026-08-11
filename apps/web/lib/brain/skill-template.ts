@@ -195,12 +195,20 @@ change when the installer wrote the config file. If you try a \`brain_*\` tool
 now it will either fail or — worse, and this has really happened — silently
 write to a different Brain while reporting success.
 
-Tell the user exactly this, then end the task:
+Tell the user exactly this, in this order, before you tell them to
+restart — restarting ends this conversation, so anything said after "restart
+now" is something they will never read:
 
-1. **Restart your AI tool now.** Setup is not finished until you do.
-2. Verify it connected: \`claude mcp list\` (or \`/mcp\` inside the client).
-3. Set a password at the \`setPasswordUrl\` from step 2, so you can reach the
-   dashboard at {{WEB_URL}}.
+1. Set a password now, before restarting: the \`setPasswordUrl\` from step 2.
+   This is the only way they will ever reach the dashboard at {{WEB_URL}} —
+   it does not depend on the MCP connection, so it works even before restart.
+2. After restarting, verify it connected: ask *"ask the brain what it knows
+   about this project"* — any answer at all (including "no matches") means
+   the connection is live. This works regardless of which client you're in,
+   unlike a CLI command that only exists for some of them. If you're
+   specifically in Claude Code, \`claude mcp list\` also works.
+3. **Restart your AI tool now.** Setup is not finished until you do. Say
+   this last, after they have the link and the verification step in hand.
 
 ## Notes worth passing on
 

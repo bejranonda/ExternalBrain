@@ -2681,3 +2681,47 @@ still matches a real heading — caught only by grepping every reference to
 the file after the rename, the same discipline as `§5q` and
 `KNOWLEDGE.md §12.34`'s href-grep, aimed at anchors this time. Full
 instance: `KNOWLEDGE.md §12.35`, `KNOWN_ISSUES.md §0ah`.
+
+## 5bs. Instructions written to be relayed need to be tested by literally following them (2026-08-11)
+
+A pilot user installing via the voucher prompt inside Antigravity hit two
+bugs in `BRAIN_BOOTSTRAP_TEMPLATE`, the instructions an AI agent reads and
+relays to the user at the end of onboarding. Neither was caught by any test
+in the repo, because no test *is* the agent relaying the instructions to a
+human who then acts on them in order — `anon onboarding e2e` exercises the
+shell-installer path, not the chat-conversation bootstrap path this
+template drives.
+
+**Bug one** was a missing connection: the template already has the client
+name (`claude-code` / `cursor` / `antigravity` / …) two steps earlier, in
+the voucher-exchange call — the verification instruction just didn't read
+it back, and hardcoded `claude mcp list` for every client regardless.
+Straightforward once seen; the harder question is why it wasn't seen
+sooner, and the answer is that whoever wrote and reviewed the template was
+almost certainly testing it in Claude Code, where the hardcoded command
+happens to be correct. The bug is invisible from inside the client it was
+written for.
+
+**Bug two is the sharper one, because it required a different kind of
+reading.** The three closing instructions were ordered *restart → verify →
+set password*. Restarting the AI tool ends the conversation delivering
+those instructions — so a reader following step 1 literally, in the
+moment, never reaches steps 2–3, including the one-time password-setup
+link. Nothing about step 1, 2, or 3 individually was wrong; the ordering
+was. This class of bug is not caught by reading the instructions as *a
+reviewer checking each step is correct* — it's caught only by reading them
+as *the reader, doing exactly what step 1 says, right now* — a much less
+natural reading, because the natural order to explain three things out
+loud ("you'll restart, then verify, then set a password") is not the same
+as the order in which their side effects are irreversible.
+
+**The generalizable check, for any instruction sequence relayed by an
+agent or written for a human to act on immediately:** does any step destroy
+the channel the remaining steps are delivered through — closing a
+connection, restarting a process, navigating away, ending a session? If
+so, that step goes last, and everything the reader needs has to already be
+said before it, not after. This is a different failure mode than "the
+content of step N is wrong" and needs a different check to catch: reorder
+by consequence-irreversibility, not by narrative convenience.
+
+Full instance: `KNOWN_ISSUES.md §0ai`.

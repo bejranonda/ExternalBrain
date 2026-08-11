@@ -953,6 +953,43 @@ Both are silent-failure traps — wrong key, zero error, no connection. See
 
 ---
 
+## 12c. Agent-facing instruction templates (`skill-template.ts`, `agent.md`)
+
+`BRAIN_SKILL_TEMPLATE` and `BRAIN_BOOTSTRAP_TEMPLATE` in
+`apps/web/lib/brain/skill-template.ts` aren't documentation — they're
+instructions an AI agent reads and then relays to a human, or acts on
+directly. A bug in them doesn't surface as a broken page; it surfaces as a
+correct-looking agent doing the wrong thing, or telling the user the wrong
+thing, which is far quieter than a 404 and has no CI coverage
+(`anon onboarding e2e` exercises the shell-installer path, not the
+agent-conversation bootstrap path these templates drive — see
+`KNOWN_ISSUES.md §0ai`).
+
+- **Don't hardcode a value the template already has as a parameter one step
+  earlier.** `BRAIN_BOOTSTRAP_TEMPLATE` asks the agent to declare its client
+  (`claude-code` / `cursor` / `windsurf` / `antigravity` / …) in step 2, then
+  hardcoded a Claude-Code-only verification command in step 4 — invisible if
+  you only test the template from inside Claude Code, wrong for every other
+  client. When a template branches on a value it already collected, use it;
+  don't re-derive or assume it.
+- **Order instructions by which side effects are irreversible, not by
+  narrative convenience.** An instruction sequence that ends by telling the
+  agent to relay "restart now" / "close this" / "end the session" must put
+  that step *last* — anything told to the user after it is something they
+  will never read, because the channel delivering it is gone. Write the
+  steps in the order you'd explain them out loud, then re-check: does an
+  earlier step destroy the channel the later steps depend on? If yes,
+  reorder before shipping, not after a user reports losing the password-
+  reset link because they restarted their editor on step 1 of 3.
+- **Test these by literally being the agent.** Read the template's own
+  instructions and follow them exactly, in order, as if you were the one
+  restarting your tool the moment you're told to — not as a reviewer
+  checking each step's content is individually correct. The two checks
+  above catch different things; neither is visible from the other's
+  vantage point.
+
+---
+
 ## 13. References
 
 - `docs/BLUEPRINT.md` — the product.
