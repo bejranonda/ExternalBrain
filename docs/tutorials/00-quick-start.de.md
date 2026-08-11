@@ -38,7 +38,10 @@ Gutscheincode — siehe [`/start`](/start).
 
 ## Schritt 2 — Verbinde dein KI-Tool
 
-Ein Befehl, unabhängig vom Tool. `--client` ist standardmäßig `claude-code`.
+Die Token-Seite hat diesen Befehl schon mit deinem Token und Tool fertig
+gebaut — kopiere ihn von dort. Tippst du ihn stattdessen von Hand:
+`--client` ist standardmäßig `claude-code`, ersetze es durch dein Tool
+(vollständige Liste: [CLIENTS.md](../CLIENTS.md#supported---client-values)).
 
 ```bash
 # macOS / Linux / WSL / Git Bash
@@ -50,22 +53,6 @@ curl -fsSL https://<your-brain>/api/onboard.sh | bash -s 'bp_…' --client claud
 iwr https://<your-brain>/api/onboard.ps1 -UseBasicParsing | iex
 Install-Brain -Token 'bp_…' -Client claude-code
 ```
-
-### Wähle deinen `--client`
-
-| Dein Tool | `--client` | Wissenswert |
-|---|---|---|
-| Claude Code | `claude-code` | Installiert zusätzlich den Brain-Skill |
-| Claude Desktop | `claude-desktop` | Benötigt Node; danach die App **vollständig beenden** — das Fenster zu schließen genügt nicht |
-| Cursor | `cursor` | |
-| Windsurf | `windsurf` | |
-| Google Antigravity | `antigravity` | Eine Konfiguration bedient IDE und CLI gemeinsam |
-| VS Code + Copilot | `vscode` | Im Projektstammverzeichnis ausführen — schreibt `./.vscode/mcp.json` |
-| GitHub Copilot CLI | `copilot-cli` | |
-| OpenAI Codex | `codex` | Gibt zusätzlich eine `export BRAIN_TOKEN=…`-Zeile aus — **ohne sie im Shell-Profil bekommt Codex einen 401** |
-| Alles andere | `generic` | Mit `--config-path <Datei>` wird diese Datei für dich geschrieben |
-
-JetBrains / Visual Studio / Eclipse / Xcode haben keinen festen Konfigurationspfad — füge dort stattdessen das JSON aus der Token-Seite ein.
 
 **Starte danach dein KI-Tool neu.** Alle lesen die MCP-Konfiguration ausschließlich beim Start — das ist mit Abstand die häufigste Ursache für „installiert, aber nichts passiert“.
 
