@@ -36,7 +36,10 @@ a voucher — see [`/start`](/start).
 
 ## Step 2 — Connect your AI tool
 
-One command, whichever tool you use. `--client` defaults to `claude-code`.
+The mint screen already built this command with your token and tool
+pre-filled — copy it from there. Typing it by hand instead? `--client`
+defaults to `claude-code`; swap it for your tool (full list, every
+client: [CLIENTS.md](../CLIENTS.md#supported---client-values)).
 
 ```bash
 # macOS / Linux / WSL / Git Bash
@@ -48,22 +51,6 @@ curl -fsSL https://<your-brain>/api/onboard.sh | bash -s 'bp_…' --client claud
 iwr https://<your-brain>/api/onboard.ps1 -UseBasicParsing | iex
 Install-Brain -Token 'bp_…' -Client claude-code
 ```
-
-### Pick your `--client`
-
-| Your tool | `--client` | Notes |
-|---|---|---|
-| Claude Code | `claude-code` | Also installs the Brain skill |
-| Claude Desktop | `claude-desktop` | Needs Node; **fully quit** the app afterwards, not just close the window |
-| Cursor | `cursor` | |
-| Windsurf | `windsurf` | |
-| Google Antigravity | `antigravity` | One config serves both the IDE and the CLI |
-| VS Code + Copilot | `vscode` | Run it **from your repo root** — writes `./.vscode/mcp.json` |
-| GitHub Copilot CLI | `copilot-cli` | |
-| OpenAI Codex | `codex` | Also prints an `export BRAIN_TOKEN=…` line — **add it to your shell profile or Codex gets a 401** |
-| Anything else | `generic` | Add `--config-path <file>` to write it for you |
-
-JetBrains / Visual Studio / Eclipse / Xcode have no stable config path, so paste the JSON from the mint screen instead.
 
 **Then restart your AI tool.** Every one of them reads MCP config only at startup — this is the single most common "it didn't work" cause.
 

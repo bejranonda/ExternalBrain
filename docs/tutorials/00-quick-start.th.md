@@ -35,7 +35,9 @@ Claude Code, Cursor หรือเครื่องมือ AI ใดก็�
 
 ## ขั้นตอนที่ 2 — เชื่อมเครื่องมือ AI ของคุณ
 
-คำสั่งเดียว ใช้ได้กับทุกเครื่องมือ ค่าเริ่มต้นของ `--client` คือ `claude-code`
+หน้าสร้างโทเคนสร้างคำสั่งนี้ให้แล้ว พร้อมโทเคนและเครื่องมือของคุณ — คัดลอกจากตรงนั้นได้เลย
+ถ้าจะพิมพ์เอง ค่าเริ่มต้นของ `--client` คือ `claude-code` เปลี่ยนเป็นเครื่องมือของคุณได้
+(รายการเต็มทุกเครื่องมือ: [CLIENTS.md](../CLIENTS.md#supported---client-values))
 
 ```bash
 # macOS / Linux / WSL / Git Bash
@@ -47,22 +49,6 @@ curl -fsSL https://<your-brain>/api/onboard.sh | bash -s 'bp_…' --client claud
 iwr https://<your-brain>/api/onboard.ps1 -UseBasicParsing | iex
 Install-Brain -Token 'bp_…' -Client claude-code
 ```
-
-### เลือกค่า `--client` ของคุณ
-
-| เครื่องมือ | `--client` | ข้อควรรู้ |
-|---|---|---|
-| Claude Code | `claude-code` | ติดตั้งสกิลของ Brain ให้ด้วย |
-| Claude Desktop | `claude-desktop` | ต้องมี Node และต้อง**ปิดแอปทั้งหมด**หลังติดตั้ง แค่ปิดหน้าต่างไม่พอ |
-| Cursor | `cursor` | |
-| Windsurf | `windsurf` | |
-| Google Antigravity | `antigravity` | ไฟล์ตั้งค่าเดียวใช้ได้ทั้ง IDE และ CLI |
-| VS Code + Copilot | `vscode` | ต้องรันจากโฟลเดอร์รากของโปรเจกต์ เพราะเขียนไฟล์ `./.vscode/mcp.json` |
-| GitHub Copilot CLI | `copilot-cli` | |
-| OpenAI Codex | `codex` | จะแสดงบรรทัด `export BRAIN_TOKEN=…` ด้วย **ต้องใส่ในโปรไฟล์เชลล์ ไม่อย่างนั้น Codex จะได้ 401** |
-| เครื่องมืออื่น ๆ | `generic` | เพิ่ม `--config-path <ไฟล์>` แล้วระบบจะเขียนไฟล์นั้นให้ |
-
-JetBrains / Visual Studio / Eclipse / Xcode ไม่มีตำแหน่งไฟล์ตั้งค่าที่แน่นอน จึงต้องคัดลอก JSON จากหน้าสร้างโทเคนไปวางเอง
 
 **จากนั้นให้รีสตาร์ตเครื่องมือ AI ของคุณ** ทุกเครื่องมืออ่านไฟล์ตั้งค่า MCP ตอนเริ่มโปรแกรมเท่านั้น — นี่คือสาเหตุอันดับหนึ่งของอาการ "ติดตั้งแล้วแต่ไม่มีอะไรเกิดขึ้น"
 
