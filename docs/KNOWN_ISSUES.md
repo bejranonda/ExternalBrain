@@ -982,14 +982,22 @@ operator's real account: it had been writing as `admin@brain-platform.local`,
 so the operator signing in saw an empty Brain while their agent's learnings
 accumulated under a fixture identity.
 
-**Left open — `Project.organizationId` does not cascade.** Deleting an
-`Organization` that still has projects fails with
-`Project_organizationId_fkey`, where every FK referencing `User` is `CASCADE`.
-Found by hitting it during cleanup; the transaction rolled back with no damage,
-which is the correct failure but not a usable one. The admin UI exposes org
-deletion, so this is reachable by a user and surfaces as a 500. One more
-instance of the §0u/§0v shape — a rule (cascade owned rows) applied to the
-`User` graph and not the `Organization` graph.
+**Resolved (2026-08-11, issue #218).** `Project.organizationId` is now
+`onDelete: Restrict`, explicit and commented in `schema.prisma` — deleting
+an org with projects still fails, but on purpose: the operator-side
+erase/GDPR flow is the one sanctioned path that purges projects, not a
+one-click org delete that would silently destroy a team's shared
+Knowledge. No org-delete route exists in the app yet (the admin UI does
+not currently expose one, despite this entry's original claim), so there
+was nothing to wire a handled 409 into — the actionable half of #218 was
+deciding the semantics before that route gets built, which is now done and
+schema-documented. The durable fix per #218's own suggestion:
+`packages/core/src/__tests__/owner-delete-semantics.test.ts` ranges over
+every relation to `User`/`Organization`/`Team` and fails if one has no
+explicit `onDelete` — the next owner-ish model added has to declare a
+choice instead of inheriting Prisma's implicit default silently. One more
+instance of the §0u/§0v shape — a rule (decide + document delete
+semantics) now applied to all three owner graphs, not just `User`.
 
 ---
 
