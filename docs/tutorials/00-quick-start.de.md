@@ -2,17 +2,20 @@
 
 **Dauer:** ~3 Minuten. **Voraussetzung:** Deine Brain-URL (z. B. `https://brain.autobahn.bot`) und ein Benutzerkonto oder Voucher-Code.
 
-Wähle deinen Einrichtungspfad:
-- **Pfad A: Automatische Einrichtung mit AI (1 Min.)** — Ideal, wenn du einen Voucher-Code hast.
-- **Pfad B: Standard-Einrichtung (2 Min.)** — Ideal, wenn du bereits ein Brain-Konto hast.
-
 > Diese Übersetzung wurde per KI erstellt und wartet auf eine Prüfung durch Muttersprachler. Englische Originalfassung: [00-quick-start.md](./00-quick-start.md)
 
 ---
 
-## Pfad A — Automatische Einrichtung mit einem Voucher-Code
+> [!IMPORTANT]
+> **WÄHLE EINE DER BEIDEN EINRICHTUNGS-OPTIONEN (Nicht beide ausführen!):**
+> - **OPTION 1 (Empfohlen, wenn du einen Voucher-Code hast)** — Automatische Einrichtung per AI-Chat in 1 Min.
+> - **OPTION 2 (Standard-Weg mit Brain-Konto)** — Einrichtung über die Web-UI in 2 Min.
 
-Wenn dir ein Teammitglied einen Voucher-Code gegeben hat:
+---
+
+## OPTION 1 — Automatische Einrichtung mit Voucher-Code (1 Minute)
+
+Nutze diesen Weg, wenn dir ein Teammitglied einen Voucher-Code oder Einladungslink gegeben hat:
 
 1. Öffne [`https://<dein-brain>/start`](https://<dein-brain>/start) im Browser und gib deinen Voucher-Code ein.
 2. Kopiere den angezeigten Prompt und füge ihn in Claude Code, Cursor oder Windsurf ein. Dein AI-Tool erstellt dein Konto und richtet die Brain-Verbindung automatisch ein.
@@ -22,62 +25,71 @@ Wenn dir ein Teammitglied einen Voucher-Code gegeben hat:
 
 ---
 
-## Pfad B — Standard-Einrichtung in 3 Schritten
+## OPTION 2 — Standard-Einrichtung mit Benutzerkonto (3 Schritte)
 
 ### Schritt 1 — Token erstellen & Befehl kopieren
 
 1. Melde dich in der Brain-Webapp an → Gehe zu **Settings → Tokens** ([`/settings/tokens`](/settings/tokens)).
 2. Klicke auf **Create token** → Vergib einen Namen für dein Gerät (`laptop`, `workstation`, `ci-runner`).
-3. Klicke auf der Bestätigungsseite auf **Copy Command**. *(Der Befehl enthält deinen geheimen Token und den Client bereits vorausgefüllt!)*
+3. Klicke auf der Bestätigungsseite auf **Copy Command**. *(Dies kopiert den exakten, ausführbaren Befehl mit deinem echten Token und deiner Host-URL in deine Zwischenablage!).*
 
 ---
 
 ### Schritt 2 — Installer ausführen & AI-Tool neustarten
 
-1. Füge den kopierten Befehl im Terminal ein und führe ihn aus:
+1. Öffne ein Terminal auf deinem Gerät.
+2. **Füge den ECHTEN Befehl ein, den du in Schritt 1 aus der Webapp kopiert hast, und führe ihn aus.**
 
-   ```bash
-   # macOS / Linux / WSL / Git Bash
-   curl -fsSL https://<dein-brain>/api/onboard.sh | bash -s 'bp_…dein_token…' --client claude-code
-   ```
+> [!WARNING]
+> **Kopiere NICHT den Beispielbefehl unten in dein Terminal.** Der Beispielbefehl unten enthält nur Platzhalter (`https://<dein-brain>` und `bp_...`). Füge immer den echten Befehl aus Schritt 1 deiner Webapp-Anzeige ein!
 
-   ```powershell
-   # Windows PowerShell 5.1+
-   iwr https://<dein-brain>/api/onboard.ps1 -UseBasicParsing | iex
-   Install-Brain -Token 'bp_…dein_token…' -Client claude-code
-   ```
+```bash
+# NUR BEISPIEL — Diesen Block NICHT kopieren! Füge deinen kopierten Befehl aus Schritt 1 ein.
+curl -fsSL https://<dein-brain>/api/onboard.sh | bash -s 'bp_…dein_token…' --client claude-code
+```
 
-2. **STARTE DEIN AI-TOOL NEU.** *(Erforderlich: AI-Tools lesen MCP-Serverkonfigurationen nur beim Start).*
+```powershell
+# NUR BEISPIEL (Windows PowerShell) — Füge deinen kopierten Befehl aus Schritt 1 ein!
+iwr https://<dein-brain>/api/onboard.ps1 -UseBasicParsing | iex
+Install-Brain -Token 'bp_…dein_token…' -Client claude-code
+```
+
+3. **STARTE DEIN AI-TOOL NEU.** *(Erforderlich: AI-Tools wie Claude Code, Cursor und Windsurf lesen MCP-Serverkonfigurationen nur beim Start).*
 
 > Möchtest du das Skript vor der Ausführung prüfen? Siehe [Tutorial 01 — Vertiefende Einrichtung](./01-getting-started.md).
 
 ---
 
-### Schritt 3 — Erstes Gespräch führen
+### Schritt 3 — Erstes Gespräch führen (Echte Praxisbeispiele)
 
-Sprich ganz normal in Claude Code, Cursor oder Windsurf — keine spezielle Syntax erforderlich:
+Du sprichst mit deinem AI-Tool in ganz normaler Sprache — keine speziellen Befehle erforderlich.
 
-#### Verbindung testen
-| Sag… | Was passiert | Warum es wichtig ist |
+#### Echte Session-Mitschrift (So sieht es in der Praxis aus)
+
+```text
+You:     I need to refactor the auth middleware to use the credentials adapter.
+Claude:  [opens session, retrieves matching rules]
+         Two of your rules apply here: session tokens bind at start, and
+         credential checks belong at the route handler.
+
+You:     no — we moved credential checks to the repository layer last month.
+Claude:  Noted, updating code to use the repository layer.
+
+You:     that worked, we're done.
+Claude:  [closes session & extracts new rules]
+         Saved rule: "Credential checks live at the repository layer, not the route handler."
+```
+
+#### Schnellreferenz
+
+| Sag… | Was in der Praxis passiert | Warum es wichtig ist |
 |---|---|---|
 | *"ask the brain what it knows about this project"* | Bestätigt die Verbindung und listet Projektregeln auf | Beweist, dass dein AI-Agent mit dem Brain sprechen kann |
-
-#### Regel beibringen
-| Sag… | Was passiert | Warum es wichtig ist |
-|---|---|---|
 | *"remember this: we use pgvector, not Pinecone"* | Speichert eine dauerhafte Regel unter **Skills** | Verhindert, dass dein AI-Tool denselben Fehler erneut macht |
 | *"no — we moved that check to the route handler last month"* | Korrektur während der Session | Lehrt das Brain, veraltete Ratschläge zu verlernen |
 | *"we decided to use Redis for sessions, not Postgres"* | Als Projekt-**Decision** gespeichert | Geteiltes Teamwissen; verblasst nicht mit der Zeit |
-
-#### Oracle befragen
-| Sag… | Was passiert | Warum es wichtig meint |
-|---|---|---|
 | *"ask the oracle: how did we solve the migration ordering?"* | Synthetisiert Antwort mit Quellennachweisen `[^K1]`, `[^S2]` | Beantwortet Fragen anhand deiner eigenen Projekthistorie |
-
-#### Session schließen (Wichtigste Gewohnheit!)
-| Sag… | Was passiert | Warum es wichtig ist |
-|---|---|---|
-| *"that worked"* / *"we're done"* / *"ship it"* | **Schließt die Session & extrahiert neue Skills** | Ungeschlossene Sessions lehren nichts! Das Schließen lässt das Brain lernen. |
+| *"that worked"* / *"we're done"* / *"ship it"* | **Schließt die Session & extrahiert neue Skills** | **Wichtige Gewohnheit:** Ungeschlossene Sessions lehren nichts! Das Schließen lässt das Brain lernen. |
 
 ---
 
@@ -95,7 +107,7 @@ In deinem AI-Tool: *"ask the brain what it knows about this project"*. Wenn es m
 | Symptom | Ursache | Lösung |
 |---|---|---|
 | Tool sieht das Brain nicht | Nach Schritt 2 nicht neugestartet | Terminal/Editor schließen und neu öffnen |
-| `401 Unauthorized` | Token abgelaufen oder widerrufen | Neues Token unter `/settings/tokens` erstellen |
+| `401 Unauthorized` | Token abgelaufen, widerrufen oder Beispielbefehl kopiert | Neues Token unter `/settings/tokens` erstellen & aus Webapp einfügen |
 | Verbunden, aber Skills bleibt leer | Sessions wurden nie geschlossen | Sag *"we're done"*, wenn die Aufgabe erledigt ist |
 | `~/.claude/mcp.json` manuell editiert | Falsche Datei | Claude Code liest `~/.claude.json` |
 
@@ -112,5 +124,5 @@ Tiefergehende Hilfe: [Tutorial 06 — Fehlerbehebung](./06-troubleshooting.md).
 | [03 — Brain Wissen beibringen](./03-teaching-knowledge.md) | Regeln schreiben, die dauerhaft bleiben |
 | [04 — Token verwalten](./04-managing-tokens.md) | Scope, Rotation und Widerruf von Token |
 | [07 — Skill-Typen erklärt](./07-skill-types-explained.md) | Rezepte, Faustregeln, Anti-Pattern und Entscheidungen einfach erklärt |
-| [USING_BRAIN](../USING_BRAIN.md) | Vollständige Referenz für den Alltag |
+| [USING_BRAIN](../USING_BRAIN.md) | Vollständige Referenz mit echten Mitschriften |
 | [CLIENTS](../CLIENTS.md) | Client-spezifische Konfigurationen & Stolperfallen |
