@@ -7,7 +7,8 @@ it, run your own instance, and send improvements back.
 
 1. Fork the repo and branch from `main`: `feature/<slug>`, `bugfix/<slug>`, or
    `docs/<slug>`.
-2. Make one logical change. Run the gates locally: `pnpm turbo run typecheck test build`.
+2. Make your change(s) — one logical change per commit, batched into a single
+   PR. Run the gates locally: `pnpm turbo run typecheck test build`.
 3. Open a PR. CI re-runs the gates (typecheck · test · build · fresh-DB
    migration) on every PR.
 
@@ -18,7 +19,9 @@ instance" below).
 ## Commit & PR conventions
 
 - Conventional Commits: `feat(scope): …`, `fix(scope): …`, `docs: …`, `chore: …`.
-- One logical change per PR; split refactors out of feature PRs.
+- One logical change per **commit**; batch related commits into one **PR**
+  (`AGENTS.md` → *One PR, many commits*). Split refactors out of feature PRs.
+  Review feedback on an open PR is another commit on that PR, not a new PR.
 - The PR description should state: what changed and why; how it was tested
   (commands, screenshots, or `curl` output); and any new env var (add it to
   `.env.example` in the same PR).

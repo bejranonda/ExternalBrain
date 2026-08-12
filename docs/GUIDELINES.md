@@ -536,6 +536,15 @@ a protected branch. Deploy a single Docker Compose stack: `./scripts/dev-up.sh` 
 
 ## 6. Pull requests
 
+**Batch related work into one PR.** Commits stay small and single-purpose;
+the PR is the review unit and should carry a coherent batch of them. Each PR
+costs a full CI cycle (~3 min typecheck·test·build, ~4 min authed e2e, plus
+CodeRabbit), and the gates run per *push*, not per *commit* — so a PR-per-fix
+habit buys no extra safety and serializes an hour of waiting into a long
+session. Feedback on an open PR is another commit on that PR. Split only for
+something that must ship alone (a security patch) or that you want revertable
+on its own. Full rationale: `AGENTS.md` → *One PR, many commits*.
+
 Every PR must:
 
 1. Link to the relevant doc section or research file.

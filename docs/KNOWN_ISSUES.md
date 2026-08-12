@@ -1327,6 +1327,17 @@ in `tutorials/README.md`) and `tutorial-meta.ts`'s `minutes` field, all
 left behind when the tutorial retitled itself to "3 minutes" — the in-app
 `/docs` card had been advertising a duration the page itself contradicted.
 
+**Process defect found by the operator in the same session, worth recording
+next to the technical ones:** closing this family of bugs took *fifteen*
+PRs (#233–#247), nearly all touching the same handful of tutorial files,
+each paying a full CI cycle (~5 min of gates) to re-prove overlapping green.
+The operator's correction — batch related commits into one PR — is now the
+documented rule (`AGENTS.md` → *One PR, many commits*, `GUIDELINES §6`,
+`CONTRIBUTING`). The generalisable trap is in `APPROACH.md §5bu`: an agent
+opens a PR when a fix *feels complete*, and completeness fires many times
+an hour, so the natural rhythm produces a PR per increment. The correct
+trigger is coherence of the batch, not completeness of the increment.
+
 **Also caught in the same pass:** `apps/mcp-server`'s `tools-catalog.test.ts`
 flaked twice under `turbo run --force`, failing the whole gate both times
 while passing standalone in 2s. Not a product bug — the test does
