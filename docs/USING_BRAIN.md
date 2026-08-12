@@ -37,7 +37,11 @@ Three things make the loop work:
 
 ### One-line install (POSIX)
 
+> [!WARNING]
+> **Do NOT copy the example commands below into your terminal.** They contain dummy placeholders (`https://<brain-host>` and `bp_<your-token>`). Always paste the real command you copied from your webapp screen!
+
 ```bash
+# EXAMPLE ONLY — Do NOT copy this block. Paste your copied command from the webapp!
 curl -fsSL https://<brain-host>/api/onboard.sh | bash -s 'bp_<your-token>'
 ```
 
@@ -49,6 +53,7 @@ The installer:
 ### One-line install (Windows PowerShell)
 
 ```powershell
+# EXAMPLE ONLY (Windows PowerShell) — Paste your copied command from the webapp!
 iwr https://<brain-host>/api/onboard.ps1 -UseBasicParsing | iex
 Install-Brain -Token 'bp_<your-token>'
 ```

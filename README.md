@@ -182,12 +182,17 @@ After signing in, **[`docs/tutorials/00-quick-start.md`](./docs/tutorials/00-qui
 mint a token, copy a one-line installer, run any task. Every supported client
 gets a command — pass `--client` to pick one (it defaults to `claude-code`):
 
+> [!WARNING]
+> **Do NOT copy the example commands below into your terminal.** They contain dummy placeholders (`https://<your-host>` and `bp_<your-token>`). Always paste the real command you copied from your webapp screen!
+
 ```bash
+# EXAMPLE ONLY — Do NOT copy this block. Paste your copied command from the webapp!
 curl -fsSL https://<your-host>/api/onboard.sh | bash -s 'bp_<your-token>'
 curl -fsSL https://<your-host>/api/onboard.sh | bash -s 'bp_<your-token>' --client cursor
 ```
 
 ```powershell
+# EXAMPLE ONLY (Windows PowerShell) — Paste your copied command from the webapp!
 iwr https://<your-host>/api/onboard.ps1 -UseBasicParsing | iex
 Install-Brain -Token 'bp_<your-token>' -Client windsurf
 ```

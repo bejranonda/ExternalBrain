@@ -89,6 +89,9 @@ One of the two resulting bugs was worse than a taste problem: `var(--bg-2)` was 
 
 The rule this generalizes to, stated the same way §2.3 states it for backend architecture: **when working inside an existing design system, look up the token before typing a value.** A hex code, a pixel size, or a `var(--name)` written from memory is a guess, and a guess that happens to compile is indistinguishable from a correct answer until someone looks at the rendered page. `grep -n "^\s*--" globals.css` before styling anything costs seconds; reconstructing why four public pages disagree costs a PR cycle each.
 
+### 2.6e Real transcripts over abstract examples
+When explaining how an AI agent interacts with the Brain, do not use abstract claims ("you can teach it rules"). Show a real, literal transcript of an actual session where that happened. The transcript proves the capability exists and teaches the interaction naturally by example. A document full of real transcripts is a manual; a document full of abstract claims is a marketing page.
+
 ### 2.7 Depend on vendors' contracts, not on their internals
 Roughly a third of the surface here is other people's config formats, and they move. Two failures inside one week: we invented a `transport: {type, url}` shape no client documents (`§0u`), and Google's Gemini CLI → Antigravity merge moved a config path we had hardcoded and pinned with a passing assertion (`§0z`).
 
