@@ -1279,6 +1279,68 @@ the next one.
 
 ---
 
+## 0ak. A tutorial rewrite reintroduced three defect classes the previous ten PRs had just closed (2026-08-12, v2.15.0)
+
+Three commits overhauled `00-quick-start` (EN/TH/DE) into an explicit
+two-option structure with a real session transcript. Good rewrite; it also
+silently reverted three fixes shipped days earlier, because a full-section
+rewrite replaces the *text* that carried those fixes without any signal
+that the text was load-bearing.
+
+| Reintroduced | Originally fixed in | Why it came back |
+|---|---|---|
+| **`<dein-brain>` in the DE file** (4 occurrences). `withResolvedHost()` matches the literal string `<your-brain>` — a localized placeholder is never substituted, so German readers see the raw placeholder where the real host should be. | PR #233 | The rewrite localized the placeholder along with the prose. It reads as a translation improvement; it is a functional break, and only in the language nobody on the team reads first. |
+| **Bare `` `/settings/tokens` ``** in the troubleshooting table (all 3 languages), plus `` `/start` `` in `04-managing-tokens`. Inline code where a link belongs — the exact "looks clickable, isn't" complaint that drove PRs #236/#237. | PRs #236, #237 | New table rows were authored fresh; the linkify pass had covered the *old* rows. |
+| **A self-contradicting session transcript.** The rewrite flipped the worked example's direction (rules say route handler → correction moves to repository layer) but left quick-start's own reference table *and* `01-getting-started`'s transcript on the original direction. Same page, opposite conclusions. | n/a — new | A transcript is prose to a reviewer, but it is a *worked example* whose parts must agree with each other and with every other copy of it. |
+
+**The shape.** Every one of these is invisible to CI: `pnpm turbo run
+build` proves markdown parses, `resolve-doc-link.test.ts` proves route
+rewriting, `tutorial-content.test.ts` proves content exists and is
+non-trivially long. None of them assert *"the placeholder in this file is
+the one `withResolvedHost` will substitute"*, *"an in-app path mentioned in
+prose is a link"*, or *"the two copies of the worked example agree."* The
+fixes lived only as text, so rewriting the text reverted them.
+
+**What would actually prevent the next one.** Not "review harder" — the
+reviewable unit is a 150-line diff in a language the reviewer may not read.
+The durable form is a test per class, and two of the three are cheap:
+a placeholder assertion (every tutorial's placeholder is exactly
+`<your-brain>`) and the existing bare-path grep promoted from a
+one-off command into a unit test. The transcript-consistency one is harder
+and probably not worth automating; it is the case for keeping *one* copy of
+a worked example and cross-linking it, rather than duplicating it into
+every language and every adjacent tutorial. Filed as follow-up rather than
+built here, because this session's job was to validate the rewrite, and
+adding three tests to a docs-fix commit is the scope creep
+`GUIDELINES §12c` warns about.
+
+**§0ah's anchor bug recurred in the same rewrite, which is the cleanest
+possible evidence for the rule above.** The rewrite renamed
+`## Have a voucher code? Let your AI do it` to
+`## OPTION 1 — Auto-setup with a voucher code (1 minute)`, orphaning
+`docs/tutorials/README.md`'s `#have-a-voucher-code-let-your-ai-do-it`
+link — the *same* file, the *same* link, broken the *same* way as two days
+earlier, because §0ah's fix was a corrected anchor string and nothing more.
+A stale-anchor check is the third cheap test this class wants. Fixed again,
+along with three stale "5 min" duration claims (README, both localized rows
+in `tutorials/README.md`) and `tutorial-meta.ts`'s `minutes` field, all
+left behind when the tutorial retitled itself to "3 minutes" — the in-app
+`/docs` card had been advertising a duration the page itself contradicted.
+
+**Also caught in the same pass:** `apps/mcp-server`'s `tools-catalog.test.ts`
+flaked twice under `turbo run --force`, failing the whole gate both times
+while passing standalone in 2s. Not a product bug — the test does
+`await import("../tools/index.js")` inside the test body, pulling
+`@brain/core` + the generated Prisma client, and that import cost lands
+against vitest's 5s *test* timeout. Under 15 parallel turbo tasks it
+exceeds it. Raised to 30s with the reasoning in
+`apps/mcp-server/vitest.config.ts`: still far below anything that hides a
+genuine hang, high enough that CPU contention alone cannot turn a green
+suite red. A gate that fails randomly trains people to re-run instead of
+read, which is how a real failure gets waved through.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:

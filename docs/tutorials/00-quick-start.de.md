@@ -17,7 +17,7 @@
 
 Nutze diesen Weg, wenn dir ein Teammitglied einen Voucher-Code oder Einladungslink gegeben hat:
 
-1. Öffne [`https://<dein-brain>/start`](https://<dein-brain>/start) im Browser und gib deinen Voucher-Code ein.
+1. Öffne [`https://<your-brain>/start`](https://<your-brain>/start) im Browser und gib deinen Voucher-Code ein.
 2. Kopiere den angezeigten Prompt und füge ihn in Claude Code, Cursor oder Windsurf ein. Dein AI-Tool erstellt dein Konto und richtet die Brain-Verbindung automatisch ein.
 3. **Starte dein AI-Tool neu**, damit die neue MCP-Konfiguration geladen wird.
 
@@ -41,16 +41,16 @@ Nutze diesen Weg, wenn dir ein Teammitglied einen Voucher-Code oder Einladungsli
 2. **Füge den ECHTEN Befehl ein, den du in Schritt 1 aus der Webapp kopiert hast, und führe ihn aus.**
 
 > [!WARNING]
-> **Kopiere NICHT den Beispielbefehl unten in dein Terminal.** Der Beispielbefehl unten enthält nur Platzhalter (`https://<dein-brain>` und `bp_...`). Füge immer den echten Befehl aus Schritt 1 deiner Webapp-Anzeige ein!
+> **Kopiere NICHT den Beispielbefehl unten in dein Terminal.** Der Beispielbefehl unten enthält nur Platzhalter (`https://<your-brain>` und `bp_...`). Füge immer den echten Befehl aus Schritt 1 deiner Webapp-Anzeige ein!
 
 ```bash
 # NUR BEISPIEL — Diesen Block NICHT kopieren! Füge deinen kopierten Befehl aus Schritt 1 ein.
-curl -fsSL https://<dein-brain>/api/onboard.sh | bash -s 'bp_…dein_token…' --client claude-code
+curl -fsSL https://<your-brain>/api/onboard.sh | bash -s 'bp_…dein_token…' --client claude-code
 ```
 
 ```powershell
 # NUR BEISPIEL (Windows PowerShell) — Füge deinen kopierten Befehl aus Schritt 1 ein!
-iwr https://<dein-brain>/api/onboard.ps1 -UseBasicParsing | iex
+iwr https://<your-brain>/api/onboard.ps1 -UseBasicParsing | iex
 Install-Brain -Token 'bp_…dein_token…' -Client claude-code
 ```
 
@@ -70,14 +70,14 @@ Du sprichst mit deinem AI-Tool in ganz normaler Sprache — keine speziellen Bef
 You:     I need to refactor the auth middleware to use the credentials adapter.
 Claude:  [opens session, retrieves matching rules]
          Two of your rules apply here: session tokens bind at start, and
-         credential checks belong at the route handler.
+         credential checks belong at the repository layer.
 
-You:     no — we moved credential checks to the repository layer last month.
-Claude:  Noted, updating code to use the repository layer.
+You:     no — we moved that check to the route handler last month.
+Claude:  Noted, updating code to use the route handler.
 
 You:     that worked, we're done.
 Claude:  [closes session & extracts new rules]
-         Saved rule: "Credential checks live at the repository layer, not the route handler."
+         Saved rule: "Credential checks live at the route handler, not the repository layer."
 ```
 
 #### Schnellreferenz
@@ -107,7 +107,7 @@ In deinem AI-Tool: *"ask the brain what it knows about this project"*. Wenn es m
 | Symptom | Ursache | Lösung |
 |---|---|---|
 | Tool sieht das Brain nicht | Nach Schritt 2 nicht neugestartet | Terminal/Editor schließen und neu öffnen |
-| `401 Unauthorized` | Token abgelaufen, widerrufen oder Beispielbefehl kopiert | Neues Token unter `/settings/tokens` erstellen & aus Webapp einfügen |
+| `401 Unauthorized` | Token abgelaufen, widerrufen oder Beispielbefehl kopiert | Neues Token unter [`/settings/tokens`](/settings/tokens) erstellen & aus Webapp einfügen |
 | Verbunden, aber Skills bleibt leer | Sessions wurden nie geschlossen | Sag *"we're done"*, wenn die Aufgabe erledigt ist |
 | `~/.claude/mcp.json` manuell editiert | Falsche Datei | Claude Code liest `~/.claude.json` |
 

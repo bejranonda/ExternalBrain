@@ -12,10 +12,10 @@ first — they cover the server side.
 
 | You want to… | Tutorial | Time |
 |---|---|---|
-| **I have a voucher code and want my AI to set everything up** | **`https://<your-brain>/start`** — or the [same section in Quick start](./00-quick-start.md#have-a-voucher-code-let-your-ai-do-it) | **1 min** |
-| **Get running right now — token → install → first conversation** | **[00 — Quick start](./00-quick-start.md)** | **5 min** |
-| อ่านคู่มือเริ่มต้นเป็นภาษาไทย | [00 — คู่มือเริ่มต้น](./00-quick-start.th.md) | 5 นาที |
-| Den Schnellstart auf Deutsch lesen | [00 — Schnellstart](./00-quick-start.de.md) | 5 Min. |
+| **I have a voucher code and want my AI to set everything up** | **`https://<your-brain>/start`** — or the [same section in Quick start](./00-quick-start.md#option-1--auto-setup-with-a-voucher-code-1-minute) | **1 min** |
+| **Get running right now — token → install → first conversation** | **[00 — Quick start](./00-quick-start.md)** | **3 min** |
+| อ่านคู่มือเริ่มต้นเป็นภาษาไทย | [00 — คู่มือเริ่มต้น](./00-quick-start.th.md) | 3 นาที |
+| Den Schnellstart auf Deutsch lesen | [00 — Schnellstart](./00-quick-start.de.md) | 3 Min. |
 | Wire your AI tool to your Brain — installer mechanics, security audit & manual setup | [01 — Deep-dive setup](./01-getting-started.md) | 10 min |
 | Ask your Brain questions about your own coding history | [02 — Asking the Oracle](./02-asking-the-oracle.md) | 10 min |
 | Teach the Brain a new pattern, rule, or preference | [03 — Teaching the Brain](./03-teaching-knowledge.md) | 10 min |

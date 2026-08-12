@@ -25,10 +25,10 @@ one machine) to your Brain. Tokens:
 
 | Token Type | Created Via | TTL / Expiry | Capabilities | Best For |
 |---|---|---|---|---|
-| **Voucher Token** | AI Chat Onboarding (`/start`) | 14 days | Basic retrieval & session logging (no Oracle synthesis) | Quick trial & automated onboarding via chat |
+| **Voucher Token** | AI Chat Onboarding ([`/start`](/start)) | 14 days | Basic retrieval & session logging (no Oracle synthesis) | Quick trial & automated onboarding via chat |
 | **Personal Token** | Web UI ([`/settings/tokens`](/settings/tokens)) | 90 days (configurable) | Full access (retrieval, session logging, Oracle synthesis, teaching) | Permanent daily coding across your machines |
 
-If you started via a voucher code at `/start`, your token is a **Voucher Token**. When you're ready for full permanent access, sign in to the Web UI and mint a **Personal Token**.
+If you started via a voucher code at [`/start`](/start), your token is a **Voucher Token**. When you're ready for full permanent access, sign in to the Web UI and mint a **Personal Token**.
 
 ---
 
