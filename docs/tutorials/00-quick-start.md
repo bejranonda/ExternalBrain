@@ -70,14 +70,14 @@ You talk to your AI tool in plain, natural language — no special commands requ
 You:     I need to refactor the auth middleware to use the credentials adapter.
 Claude:  [opens session, retrieves matching rules]
          Two of your rules apply here: session tokens bind at start, and
-         credential checks belong at the route handler.
+         credential checks belong at the repository layer.
 
-You:     no — we moved credential checks to the repository layer last month.
-Claude:  Noted, updating code to use the repository layer.
+You:     no — we moved that check to the route handler last month.
+Claude:  Noted, updating code to use the route handler.
 
 You:     that worked, we're done.
 Claude:  [closes session & extracts new rules]
-         Saved rule: "Credential checks live at the repository layer, not the route handler."
+         Saved rule: "Credential checks live at the route handler, not the repository layer."
 ```
 
 #### Quick reference phrases
@@ -107,7 +107,7 @@ In your tool: *"ask the brain what it knows about this project"*. If it answers 
 | Symptom | Cause | Solution |
 |---|---|---|
 | Tool doesn't see the Brain | Didn't restart after step 2 | Close and reopen terminal/editor |
-| `401 Unauthorized` | Token revoked, expired, or pasted dummy command from tutorial | Mint a new token at `/settings/tokens` & paste from webapp |
+| `401 Unauthorized` | Token revoked, expired, or pasted dummy command from tutorial | Mint a new token at [`/settings/tokens`](/settings/tokens) & paste from webapp |
 | Connected, but Skills stays empty | Sessions never closed | Say *"we're done"* when your task finishes |
 | Edited `~/.claude/mcp.json` by hand | Wrong file | Claude Code reads `~/.claude.json` |
 

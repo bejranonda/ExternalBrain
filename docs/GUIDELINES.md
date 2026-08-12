@@ -536,6 +536,15 @@ a protected branch. Deploy a single Docker Compose stack: `./scripts/dev-up.sh` 
 
 ## 6. Pull requests
 
+**Batch related work into one PR.** Commits stay small and single-purpose;
+the PR is the review unit and should carry a coherent batch of them. Each PR
+costs a full CI cycle (~3 min typecheck·test·build, ~4 min authed e2e, plus
+CodeRabbit), and the gates run per *push*, not per *commit* — so a PR-per-fix
+habit buys no extra safety and serializes an hour of waiting into a long
+session. Feedback on an open PR is another commit on that PR. Split only for
+something that must ship alone (a security patch) or that you want revertable
+on its own. Full rationale: `AGENTS.md` → *One PR, many commits*.
+
 Every PR must:
 
 1. Link to the relevant doc section or research file.
@@ -671,6 +680,21 @@ Rules when touching frontend:
 - **`grep` the token before you type it.** `var(--bg-2)` shipped on `/start` (v2.15.0) — not a real property anywhere in `globals.css`. It didn't error: an undefined custom property with no fallback resolves to nothing, so the two elements using it silently rendered with no background fill at all. This bug class is invisible to typecheck, to a `git diff`, and to anyone who doesn't happen to be looking for a missing fill on that specific element. Before writing `var(--name)`, `grep -n "^\s*--name:" apps/web/app/globals.css` and confirm it exists — a color/size value typed from memory is a guess wearing the syntax of a fact. See `APPROACH.md §2.6d`.
 - **The `--ink-4` small-caps label is a caption, not a heading.** It's correct for a genuine kicker-over-a-headline (the "EXTERNAL BRAIN" line above `/`'s H1) or a data caption in a dense panel — wrong as the *only* heading style on a persuasion page. `/` and `/start` originally gave every section the identical 13px `--ink-4` treatment regardless of whether it was the cornerstone content or a footnote, which reads as "nothing here is more important than anything else" — the opposite of what a landing page needs. Real section headings on those two pages now use 20px/600/full-contrast `--ink` (matching `/docs`'s own concept-page headings) with a small `--accent` tick, borrowed from the "this matters" idiom `.rail-item.active::before` already uses elsewhere in the shell.
 - **A heading/card/table treatment introduced on one page belongs in a shared component, not copy-pasted inline styles.** `SectionHeading` (the accent-tick `h2`) shipped inline inside `landing.tsx` first, then had to be re-derived by eye for `/docs`'s tutorial and concept pages before it was extracted to `components/brain/section-heading.tsx` and imported by all three. A visual idiom that exists in exactly one file's inline `style={}` is invisible to every other page that should reuse it — extract to a shared component in the same PR that introduces the idiom, not after a second page is caught not matching it (`KNOWLEDGE.md §12.35`).
+- **Rewriting a tutorial section re-opens every docs defect whose fix lived in that section's wording — run the three greps before you commit.** A rewrite replaces text without any signal that the text was load-bearing on code behaviour, so a v2.15.0 rewrite of `00-quick-start` silently reverted three fixes from the previous week (`KNOWN_ISSUES.md §0ak`). After editing any `docs/tutorials/*.md`, run these **scoped to `docs/tutorials/`** — pointing them at all of `docs/` produces permanent false positives, because `KNOWN_ISSUES.md` and `APPROACH.md` quote the bad patterns while documenting them:
+
+  ```bash
+  # 1. Host placeholder must be the literal `<your-brain>` in EVERY language —
+  #    withResolvedHost() string-matches it, so a localized variant (<dein-brain>,
+  #    <brain-ของคุณ>) is never substituted and ships raw to the reader.
+  grep -rn 'dein-brain\|brain-ของคุณ\|ihr-brain' docs/tutorials/
+
+  # 2. An in-app destination mentioned in prose should be a link, not inline code.
+  #    Covers hash routes (/#oracle, /#skills) and placeholder-host URLs
+  #    (`https://<your-brain>/start`), both of which a naive `/[a-z]` regex misses.
+  grep -Pn '(?<!\]\()(?<!\[)`(https://<your-brain>)?/[a-zA-Z#][^`]*`' docs/tutorials/
+  ```
+
+  Then (3): if you changed a worked example / session transcript, grep its distinctive phrase repo-wide — copies exist in sibling tutorials *and* in the same file's own reference tables, so editing one produces a silent contradiction rather than a merge conflict.
 - **Renaming or rewording a markdown heading breaks every `#anchor` link that points at it, and nothing checks this.** GitHub (and most renderers) derive a heading's anchor slug from its exact text — reword `## Shortcut — have a voucher code?` to `## Have a voucher code? Let your AI do it` and `#shortcut--have-a-voucher-code` silently stops resolving. `resolve-doc-link.test.ts` verifies route rewriting, `doc refs (no phantom PRs)` CI checks PR numbers in prose — neither checks that a `#fragment` still matches a real heading. After renaming a heading, `grep -rn "filename.md#"` across `docs/` and fix every hit (`KNOWN_ISSUES.md §0ah`).
 - **A relative markdown link only works for one of its two readers unless the renderer translates it.** `docs/tutorials/*.md` is read by GitHub's file viewer (where `./01-getting-started.md` is correct) and by the in-app renderer, which serves the same tutorial with no `.md` suffix and no per-language route — every cross-tutorial link 404'd in the app until `resolve-doc-link.ts` added a render-time rewrite. Do not "fix" this by changing the link syntax in the `.md` source; that breaks GitHub instead. If you add a new doc surface that reuses existing markdown, route its links through (or extend) `resolve-doc-link.ts` rather than hand-writing a third link convention (`KNOWLEDGE.md §12.35`).
 - **State-based navigation, not route-based.** See `APPROACH.md §4.6` and `docs/NAVIGATION.md`. A new surface edits `routes.ts` + i18n + `components/brain/app.tsx` — never a sibling folder under `app/`.

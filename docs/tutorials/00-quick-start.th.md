@@ -70,14 +70,14 @@ Install-Brain -Token 'bp_…your_token…' -Client claude-code
 You:     I need to refactor the auth middleware to use the credentials adapter.
 Claude:  [opens session, retrieves matching rules]
          Two of your rules apply here: session tokens bind at start, and
-         credential checks belong at the route handler.
+         credential checks belong at the repository layer.
 
-You:     no — we moved credential checks to the repository layer last month.
-Claude:  Noted, updating code to use the repository layer.
+You:     no — we moved that check to the route handler last month.
+Claude:  Noted, updating code to use the route handler.
 
 You:     that worked, we're done.
 Claude:  [closes session & extracts new rules]
-         Saved rule: "Credential checks live at the repository layer, not the route handler."
+         Saved rule: "Credential checks live at the route handler, not the repository layer."
 ```
 
 #### ตารางสรุปประโยคที่ใช้บ่อย
@@ -107,7 +107,7 @@ claude mcp list | grep brain
 | อาการ | สาเหตุ | วิธีแก้ไข |
 |---|---|---|
 | เครื่องมือ AI มองไม่เห็น Brain | ไม่ได้รีสตาร์ทหลังขั้นตอนที่ 2 | ปิดและเปิดเทอร์มินัล/โปรแกรมใหม่ |
-| `401 Unauthorized` | โทเคนหมดอายุ ยกเลิก หรือไปคัดลอกคำสั่งตัวอย่างจากคู่มือ | สร้างโทเคนใหม่ที่ `/settings/tokens` และวางคำสั่งจริงจากเว็บแอป |
+| `401 Unauthorized` | โทเคนหมดอายุ ยกเลิก หรือไปคัดลอกคำสั่งตัวอย่างจากคู่มือ | สร้างโทเคนใหม่ที่ [`/settings/tokens`](/settings/tokens) และวางคำสั่งจริงจากเว็บแอป |
 | เชื่อมต่อแล้ว แต่ Skills ยังว่างเปล่า | ไม่เคยปิดเซสชัน | พูดว่า *"we're done"* เมื่อทำงานเสร็จ |
 | แก้ไข `~/.claude/mcp.json` เองแล้วไม่เกิดอะไรขึ้น | แก้ผิดไฟล์ | Claude Code อ่านจาก `~/.claude.json` |
 

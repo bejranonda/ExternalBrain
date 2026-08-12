@@ -57,12 +57,32 @@ This is a standard GitHub flow — fork it and build your own, or contribute bac
 
 1. Fork the repo and branch from `main`: `feature/<slug>`, `bugfix/<slug>`,
    or `docs/<slug>`.
-2. Make the change. Keep one logical change per PR.
+2. Make the change. Keep each **commit** one logical change — but **batch
+   related commits into a single PR**. See below.
 3. Run the gates locally (below) and open a PR. CI re-runs them as the hard gate.
 4. Write an honest test plan (see below).
 
 Branch → PR → review is the whole flow. How you deploy your own fork is up to
 you (single Docker Compose stack; see `docs/QUICKSTART.md`).
+
+### One PR, many commits — not a PR per fix
+
+**The unit of review is the PR; the unit of history is the commit.** Keep
+commits small and single-purpose, then ship a coherent batch of them as one
+PR. A PR-per-fix habit is expensive here and buys nothing: every PR blocks on
+a full CI cycle (typecheck·test·build ~3 min, authed e2e ~4 min, plus
+CodeRabbit), the gates run per *push* rather than per *commit*, and a
+fifteen-PR session is roughly an hour of sequential waiting for work that
+would have passed CI once.
+
+- **Review feedback on an open PR is another commit on that PR** — never a
+  follow-up PR.
+- **Split only for a real reason:** something that must ship now on its own
+  (a security patch), or something risky enough that you want it revertable
+  independently of the rest.
+- This is the rule an agent working a long session most often gets wrong,
+  because each fix *feels* complete when it lands. Completeness of a fix is
+  not the trigger for opening a PR; coherence of the batch is.
 
 ---
 

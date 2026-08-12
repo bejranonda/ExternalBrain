@@ -2728,3 +2728,80 @@ content of step N is wrong" and needs a different check to catch: reorder
 by consequence-irreversibility, not by narrative convenience.
 
 Full instance: `KNOWN_ISSUES.md §0ai`.
+
+## 5bt. A fix that lives only as text gets reverted by the next rewrite of that text (2026-08-12)
+
+Ten PRs over three days closed a family of docs defects: a localized
+placeholder that the substitution function could never match, in-app paths
+written as inline code instead of links, cross-tutorial links that 404'd.
+Each fix was correct, tested where testable, documented. Then a well-
+intentioned rewrite of `00-quick-start` reintroduced three of them in one
+pass — not by disagreeing with any of them, but by replacing the
+paragraphs they lived in.
+
+**The distinction that matters:** a fix encoded in a *test* survives a
+rewrite (the test fails). A fix encoded in *code* survives a rewrite (the
+type breaks, the import fails). A fix encoded only in *the wording of a
+sentence* survives exactly until someone rewrites that sentence — and
+nothing signals to that person that the sentence was load-bearing. The
+placeholder case is the sharpest: `<your-brain>` vs `<dein-brain>` reads
+as an obvious translation improvement and is a functional break, detectable
+only by knowing that `withResolvedHost()` does a literal match.
+
+**So the rule is not "review docs more carefully."** The reviewable unit is
+a 150-line diff, often in a language the reviewer does not read, where the
+defect looks like an improvement. The rule is: **when a docs fix turns out
+to be load-bearing on code behaviour, encode it as a test in the same PR,
+or accept that it will come back.** Two of this session's three were cheap
+to encode that way (assert every tutorial's placeholder is exactly
+`<your-brain>`; promote the bare-in-app-path grep from a shell one-liner
+into a unit test) and had simply never been written, because at the time
+each felt like a one-off cleanup rather than a class.
+
+The third — a worked example whose two copies contradicted each other after
+one was edited — argues for a different fix entirely: don't duplicate a
+worked example across languages and adjacent tutorials. Keep one and
+cross-link it. Duplication is what made a partial edit produce a
+contradiction rather than a conflict.
+
+Full instance: `KNOWN_ISSUES.md §0ak`.
+
+## 5bu. Fifteen PRs in one session — "each fix is done" is the wrong trigger for opening a PR (2026-08-12)
+
+Over one working session I opened PRs #233 through #247: fifteen, nearly all
+docs fixes in the same handful of files, each one branch → push → wait for
+CI → merge → deploy. The operator's correction was blunt and correct: *don't
+make PRs so often, it takes a long time every time.*
+
+**The arithmetic nobody was doing.** Each PR blocks on typecheck·test·build
+(~3 min), authed e2e (~4 min), and CodeRabbit. Call it five minutes of real
+waiting per PR, times fifteen, and most of a session was spent watching
+gates re-prove the same green on overlapping changes. The gates run per
+*push*, not per *commit*, so batching those fifteen into three or four PRs
+would have cost exactly the same in safety and saved most of the waiting.
+
+**Why the habit forms, and why it feels right at the time.** Each fix
+genuinely *was* complete when it landed — placeholder fixed, link fixed,
+anchor fixed. Completeness is a satisfying signal and it fires at exactly
+the wrong moment: it says "this change is finished," which is a fact about
+the diff, not about whether now is the right time to pay for a CI cycle.
+The trigger for opening a PR should be **coherence of the batch** (is there
+a reviewable story here?) not **completeness of the increment**. An agent is
+unusually prone to this because it produces finished increments quickly and
+continuously, so the "done!" signal fires many times per hour, where a human
+contributor might hit it twice a week.
+
+**The rule as written into `AGENTS.md`:** the commit is the unit of history,
+the PR is the unit of review. Keep committing in small logical units, push
+them to one branch, and open the PR when the batch tells a story. Review
+feedback on an open PR is another commit on that PR — never a follow-up PR,
+which is how #247 nearly became #248 before this correction landed. Split
+only for a genuine reason: something that must ship on its own (a security
+patch), or something risky enough to want revertable independently.
+
+**A caveat worth stating, since batching has a real cost too:** a
+fifteen-file PR mixing a schema change, a security patch, and a docs sweep
+is harder to review honestly and worse to revert. The failure this entry
+corrects is fifteen PRs of *near-identical, interdependent* docs fixes —
+not batching as an unconditional good. When in doubt, ask whether a reviewer
+would want to accept or reject the pieces independently; if yes, split.

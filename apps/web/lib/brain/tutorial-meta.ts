@@ -56,7 +56,7 @@ export const TUTORIALS: TutorialMeta[] = [
     file: "00-quick-start",
     title: "Quick start",
     summary: "Get running right now — token → install → first conversation.",
-    minutes: "5 min",
+    minutes: "3 min",
     category: "get-started",
   },
   {
