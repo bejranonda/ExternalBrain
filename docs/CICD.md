@@ -12,6 +12,7 @@ infrastructure.
                      ├─ typecheck · test · build   ├─ ./scripts/dev-up.sh   (local, no TLS)
                      │  (incl. fresh-DB migrate)    └─ ./scripts/deploy.sh   (public VM, TLS)
                      ├─ doc refs (no phantom PRs)
+                     ├─ dependency audit (critical, prod)
                      ├─ anon onboarding e2e*
                      └─ authed surfaces e2e*
                               │
@@ -35,6 +36,7 @@ A fork inherits them; they run on **your** GitHub Actions minutes.
 |---|---|---|
 | **typecheck · test · build** | The monorepo type-checks, all unit/integration tests pass (against a real pgvector service), and all six packages build. The migrate step doubles as the **fresh-DB gate**: the service DB starts empty every run, so the full migration history applies front-to-back exactly like a day-zero deploy (then the FTS index DDL) — catches migration-ordering bugs unit tests can't. | ~2–3 min |
 | **doc refs (no phantom PRs)** | Runs `scripts/check-doc-refs.sh`: fails if any public doc cites a `PR #NNN` / `(#NNN)` above the repo's current PR ceiling — an unresolvable reference from the pre-open-source history. Allow-lists CSS hex, external `…cli #NNN`, and `docs/internal/**`. Standalone (no pnpm/DB). | ~5 s |
+| **dependency audit (critical, prod only)** | Runs `pnpm audit --prod --audit-level critical` against the frozen lockfile. Deliberately narrow so a red run always means *act now*: `--prod` skips devDependencies (the ~70 moderate/high findings here are `@prisma/dev`'s tree, which never reaches the deployed image), and `critical` is the only tier currently clean — `high` exits 1 on pre-existing transitive findings with no fix available. Added after a critical `next-auth`/`@auth/core` CVE sat unnoticed in the deployed auth path because nothing ever ran an audit (`KNOWN_ISSUES §0aj`). Raise the bar to `high` once that tier is genuinely clean. | ~30 s |
 | **anon onboarding e2e** | Builds + boots the app and runs the anonymous-surface Playwright specs (`/welcome`, install-snippet URLs, health). **Only does real work when the PR touches an onboarding/unauth surface** (`apps/web/app/{welcome,signin,forgot-password,…}`, `layout.tsx`, the locale/install code); on every other PR it skips to a green no-op in seconds. | ~2–3 min (or seconds when skipped) |
 | **authed surfaces e2e** | Boots the app in credentials mode with the seeded fixture (the env-admin maps onto seeded Alex), signs in once, and runs the signed-in suite (dashboard, sessions, skills, nav, plus a 375px
 mobile-overflow regression net). Path-gated on `apps/web/**` + `packages/{core,db}/**`. The CI app env raises `RATE_LIMIT_MCP_PER_MINUTE` — the whole suite hits `/api/*` from one IP, and the production default (200/min) trips under the burst. | ~4–5 min (or seconds when skipped) |
