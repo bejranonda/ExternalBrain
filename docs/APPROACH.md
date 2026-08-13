@@ -2805,3 +2805,42 @@ is harder to review honestly and worse to revert. The failure this entry
 corrects is fifteen PRs of *near-identical, interdependent* docs fixes —
 not batching as an unconditional good. When in doubt, ask whether a reviewer
 would want to accept or reject the pieces independently; if yes, split.
+
+## 5bv. A gate is only worth adding at a threshold that is currently clean (2026-08-13)
+
+Wiring `pnpm audit` into CI (after §0aj — a critical `next-auth` CVE sat
+unnoticed in the deployed auth path because nothing ever ran one) forced a
+choice that generalises to every new gate: **what threshold?**
+
+The tempting answer is the strictest one — audit everything, fail on `high`.
+Running it showed why that is wrong here: `--audit-level high` exits 1 today
+on ~70 pre-existing transitive findings, almost all inside `@prisma/dev`'s
+tree, which is local Prisma Studio tooling that never reaches the deployed
+image, and most of which have no fix available to take. A gate wired that
+way is red on its first run and red on every run after, and a gate that is
+always red is not a gate — it is a line of output people learn to scroll
+past. The next genuinely-critical advisory would land in a job everyone had
+already stopped reading, which leaves the repo *worse* than having no audit
+at all, because now there is a check that appears to cover this.
+
+So: `--prod --audit-level critical`. Currently exits 0, which means any
+future red run is a real signal that demands action now.
+
+**The generalisable rule: pick the strictest threshold that is clean *today*,
+and write down the condition for tightening it.** A gate's value is entirely
+in the meaning of its red state. Adding one at a threshold you cannot
+currently satisfy converts every future true positive into noise — the same
+mechanism by which a flaky test (`§0ak`) trains people to re-run instead of
+read, applied to security findings instead of timeouts. The comment in
+`ci.yml` names the tightening condition explicitly ("raise the bar to `high`
+once that tier is genuinely clean") so the temporary scope does not silently
+become permanent.
+
+**Corollary, and the step most often skipped:** prove the new gate can fail
+before merging it. This one was checked out against the pre-patch lockfile —
+exit 1, three critical findings — and against the current tree — exit 0. A
+gate never observed failing is indistinguishable from a gate that cannot
+fail, which is exactly how two "MCP transport" security tests stayed green
+for their whole existence while never contacting the MCP server (`§0q`).
+
+Full instance: `KNOWN_ISSUES.md §0aj`.

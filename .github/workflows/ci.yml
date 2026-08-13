@@ -36,6 +36,54 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: bash scripts/check-doc-refs.sh
 
+  dep-audit:
+    name: dependency audit (critical, prod only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Added 2026-08-12 after a *critical* next-auth/@auth/core CVE
+    # (GHSA-7rqj-j65f-68wh — homoglyph email-normalisation bypass) sat
+    # unnoticed in the deployed auth path. The patched versions had been on
+    # npm the whole time and the existing semver range already permitted
+    # them; nothing re-resolved because nothing ran an audit. Caught by a
+    # manual pass, not a gate — see KNOWN_ISSUES §0aj.
+    #
+    # Deliberately narrow, so that a red run always means "act now":
+    #   --prod          skips devDependencies. The ~70 moderate/high findings
+    #                   in this repo are @prisma/dev's tree (local Prisma
+    #                   Studio tooling), which never reaches the deployed
+    #                   image. Auditing them would make this job permanently
+    #                   red, and a permanently-red gate trains people to
+    #                   ignore it — the failure mode KNOWN_ISSUES §0ak calls
+    #                   out for flaky tests, applied to security noise.
+    #   --audit-level critical
+    #                   `high` currently exits 1 on pre-existing transitive
+    #                   findings with no available fix. Gating on critical
+    #                   keeps the signal actionable; raise the bar once the
+    #                   high tier is genuinely clean.
+    #
+    # Verified non-vacuous before merge: this command exits 1 against the
+    # pre-patch lockfile and 0 against the current one.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      # `--frozen-lockfile` matters here: the audit must describe the tree the
+      # repo actually ships, not whatever a fresh resolution would pick today.
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Audit production dependencies for critical advisories
+        run: pnpm audit --prod --audit-level critical
+
   benchmark-coherence:
     name: benchmark ↔ docs coherence
     runs-on: ubuntu-latest
