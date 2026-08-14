@@ -423,11 +423,12 @@ Contributions and forks are welcome. Fork the repo, branch from `main`
 (the guide for AI assistants working in this repo). Be kind — we follow a
 [Code of Conduct](./CODE_OF_CONDUCT.md).
 
-Every PR runs three required checks — **typecheck · test · build** (which
-includes the fresh-DB migration gate, the day-zero deploy path), an
-**anonymous e2e** gate, and a **signed-in e2e** gate (both path-scoped: they
-no-op green when a PR doesn't touch their surfaces). A daily **prod-drift
-watchdog** flags when `main` is ahead of the deployment. How CI and the two
+Every PR runs **typecheck · test · build** (which includes the fresh-DB
+migration gate, the day-zero deploy path), an **anonymous e2e** gate, a
+**signed-in e2e** gate (both path-scoped: they no-op green when a PR doesn't
+touch their surfaces), and a **dependency audit** that fails on any *critical*
+advisory in production dependencies. A daily **prod-drift watchdog** flags when
+`main` is ahead of the deployment. How CI and the two
 deploy scripts fit together is one short page:
 **[docs/CICD.md](./docs/CICD.md)**.
 

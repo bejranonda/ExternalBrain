@@ -2844,3 +2844,48 @@ fail, which is exactly how two "MCP transport" security tests stayed green
 for their whole existence while never contacting the MCP server (`§0q`).
 
 Full instance: `KNOWN_ISSUES.md §0aj`.
+
+## 5bw. A monitor firing correctly proves its plumbing, not its input (2026-08-14)
+
+`§4`'s watchdog rule said: *validate a watchdog by firing it.* The prod-drift
+workflow passed that test — merged, dispatched, detected drift, opened its
+issue, closed it after redeploy, full lifecycle exercised and recorded. It
+was also, the entire time, polling the **dev** host. The alarm named
+"production is behind main" had never read production (`KNOWN_ISSUES §0al`).
+
+**Firing correctly is a claim about the plumbing.** It proves the schedule
+registered, the HTTP call works, the comparison runs, the issue opens and
+closes. Every one of those can be true while the thing being measured is the
+wrong thing. The two questions are independent, and only the first one has an
+obvious test, which is why the second gets skipped.
+
+**What made it survive scrutiny for months is the most transferable part.**
+The dev host runs `develop` and is rarely redeployed, so it sits permanently
+behind `main` — meaning the watchdog emitted a *plausible* alarm nearly every
+day. A monitor that is silent when it should speak gets noticed eventually;
+a monitor that speaks plausibly about the wrong subject is nearly invisible,
+because each individual alarm survives the check you actually perform ("is
+there drift? yes, there is"). I personally closed four of these issues with
+"production matches main" — a true statement that did not answer the question
+the issue was asking — because the alarm agreed with a fact I already knew.
+**Agreement with something you already believe is the weakest possible
+evidence that a monitor is correctly wired**, and it is exactly the
+circumstance in which nobody looks further.
+
+**The check that would have caught it, on day one, in one line:** read the
+value the monitor reports, then independently query the system you believe it
+watches, and compare. Here: `curl $PROD/api/healthz` against the version
+string in the issue body. Ten seconds. Never done, for months, across dozens
+of alarms.
+
+**Design corollary — make the target visible in the alarm.** The polled host
+lives in a secret (deliberately: workflow logs are public). That is sound for
+the hostname, but it made the alarm unfalsifiable without repo-admin access:
+nothing in the issue body says *which* deployment it measured. An alarm
+should carry enough provenance to be checked by whoever reads it. Emitting a
+non-secret discriminator — the environment label, or the fact that the
+reported version was found at the URL the workflow was configured with — costs
+nothing and turns "is this watching the right thing?" from an investigation
+into a glance.
+
+Full instance: `KNOWN_ISSUES.md §0al`.
