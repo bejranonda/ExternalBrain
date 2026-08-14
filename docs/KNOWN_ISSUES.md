@@ -1363,6 +1363,68 @@ read, which is how a real failure gets waved through.
 
 ---
 
+## 0al. The prod-drift watchdog has been watching the **dev** host since it was wired up (2026-08-14)
+
+`BRAIN_DEPLOY_URL` — the secret the `prod-drift` workflow polls — points at
+`brain-dev.autobahn.bot`, not `brain.autobahn.bot`. The watchdog named
+`prod-drift`, whose issues say *"Production is running X but main is at Y"*,
+has never once measured production.
+
+**How it surfaced.** Not from a failure — from noticing the *shape* of the
+noise. Four consecutive issues (#227, #242, #246, #248) were closed with
+"prod matches main", and three of them reported the deployed version as the
+identical string `v2.14.2-7-g945d9ee` across three days during which
+production was redeployed repeatedly. A number that does not move while the
+thing it describes does is not a stale reading; it is a reading of something
+else. Confirmed directly:
+
+```
+brain-dev.autobahn.bot/api/healthz  → v2.14.2-7-g945d9ee   ← what the watchdog reports
+brain.autobahn.bot/api/healthz      → v2.15.0-1-gf7b09e5   ← actual production
+```
+
+**Why it went unnoticed for months.** Every ingredient looked healthy. The
+workflow ran daily, opened issues, closed them on redeploy, and
+`APPROACH.md §"watchdogs must be validated by firing them"` recorded the full
+lifecycle as exercised — because it *was* exercised. Firing correctly proves
+the plumbing works; it says nothing about whether the input is the right
+input. The dev host runs `develop` and is rarely redeployed, so it sits
+permanently behind `main` — which means the watchdog produced a *plausible*
+alarm on most days, and a plausible alarm is far harder to spot than a
+silent one. I closed four of these myself without checking what
+`BRAIN_DEPLOY_URL` actually resolved to, because the alarm agreed with a
+drift I already knew was real for prod.
+
+**Consequences.**
+- The failure this watchdog exists to prevent — the v1.2.x incident where a
+  fix sat merged on `main` for two days while production served an older
+  build — is **still unguarded**, and has been the whole time.
+- Worse than unguarded: it looked guarded. This is the same shape as
+  `GUIDELINES §4`'s rule about gate thresholds, arrived at from the opposite
+  direction — there a gate could never go red, here a gate goes red about the
+  wrong subject. Both leave a repo that *appears* covered.
+- The four closure comments I wrote ("production matches main") were true
+  statements that did not answer the question the issue was actually asking.
+
+**Fix:** repoint `BRAIN_DEPLOY_URL` at the production origin, then
+`workflow_dispatch` it once and confirm the reported version matches
+production's `/api/healthz` — the registration check `§0-`era lessons already
+require after touching this workflow. Deliberately **not** applied
+unilaterally: the secret is repo configuration whose current value is
+unreadable by design, and the operator may have set it at a time when only
+the dev host existed (secret created 2026-06-09). Raised for confirmation
+rather than changed silently.
+
+**The generalisable check:** a monitor's *output* being live is not evidence
+its *input* is correct. When a watchdog reports a value, at least once verify
+that value independently against the system you believe it is watching — the
+one-line `curl` here would have caught this on day one. Prefer wiring the
+target so it is visible in the alarm itself (the issue body naming the host
+it polled) over a secret that makes the question unanswerable without repo
+admin.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:

@@ -56,6 +56,14 @@ matches `docs/`, `REBUILD/`, or a root `*.md`, the state counts as in-sync —
 GitHub serves those from the repo, so nothing merged is missing from
 production, and a watchdog that cries over documentation trains you to
 ignore it. Forks without a `BRAIN_DEPLOY_URL` secret skip it green.
+>
+> ⚠️ **Known misconfiguration (2026-08-14):** on this repo `BRAIN_DEPLOY_URL`
+> resolves to the **dev** host, so the watchdog has been reporting dev's
+> version under a "production is behind main" title — see
+> [`KNOWN_ISSUES §0al`](./KNOWN_ISSUES.md). The stale-deploy gap it exists to
+> close is therefore still open. Repoint the secret at the production origin,
+> then `workflow_dispatch` once and confirm the reported version matches
+> production's `/api/healthz` before trusting it again.
 
 > **Why the e2e gate is path-scoped:** three user-visible bugs once shipped past
 > CI because the suite only covered signed-in behaviour. The gate closes that
