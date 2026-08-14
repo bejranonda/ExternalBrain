@@ -108,6 +108,15 @@ services:
       # deploy so the generated `claude mcp add` URL is the public HTTPS one.
       BRAIN_PUBLIC_HOSTNAME: ${BRAIN_PUBLIC_HOSTNAME:-}
       BRAIN_MCP_PUBLIC_HOSTNAME: ${BRAIN_MCP_PUBLIC_HOSTNAME:-}
+      # Which tier this deployment declares itself to be. Surfaced by
+      # /api/healthz so the prod-drift watchdog can assert it is measuring
+      # the box it thinks it is — it spent months reporting the dev host's
+      # version under a "Production is running X" title (KNOWN_ISSUES §0al).
+      # Intentionally NOT ${ENVIRONMENT}: the live prod .env carries
+      # ENVIRONMENT=dev as a stale label, so reusing it would reproduce the
+      # very bug this guards against. Unset => healthz reports null =>
+      # the watchdog reports "cannot verify" instead of a false all-clear.
+      BRAIN_DEPLOY_ENV: ${BRAIN_DEPLOY_ENV:-}
       # robots.txt posture. "true" (default) serves Disallow: / — correct for
       # an invite-only instance. Set false once you want the landing page
       # indexed. Affects crawling only, never access control.

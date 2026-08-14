@@ -1415,6 +1415,32 @@ unreadable by design, and the operator may have set it at a time when only
 the dev host existed (secret created 2026-06-09). Raised for confirmation
 rather than changed silently.
 
+**Prevention shipped with the fix (2026-08-14), because a repointed secret
+would have drifted again the next time anyone touched it.** Three changes
+turn this from "documented" into "cannot recur silently":
+
+1. **The deployment declares its own tier.** `/api/healthz` now returns
+   `environment`, sourced from a new `BRAIN_DEPLOY_ENV`. Deliberately a
+   *new* variable: the live prod host's `.env` carries `ENVIRONMENT=dev` as
+   a stale label, so reusing it would have made the guard certify production
+   as dev — reproducing this exact bug one layer deeper.
+2. **The watchdog asserts its target.** It compares that field against
+   `vars.BRAIN_EXPECT_DEPLOY_ENV` (default `production`) and **exits 1 with
+   an explicit error** on mismatch. Pointing it at dev is now a red run, not
+   a plausible alarm. A missing field maps to `unknown` — it refuses to
+   report drift rather than restore the false all-clear.
+3. **The issue names what it measured.** Title and body now read
+   *"the `production` deployment is behind main"* with a line stating which
+   `environment` the reading came from. The old body gave a reader no way to
+   tell dev from prod, which is why four of these were closed by hand
+   without anyone noticing. This is the "make the target visible in the
+   alarm" corollary, implemented rather than merely recommended.
+
+Guarded by `apps/web/app/api/healthz/route.test.ts` — the `environment`
+field is a contract read by something *outside* this repo, so dropping or
+renaming it would otherwise degrade the watchdog to "cannot verify" with
+nobody noticing.
+
 **The generalisable check:** a monitor's *output* being live is not evidence
 its *input* is correct. When a watchdog reports a value, at least once verify
 that value independently against the system you believe it is watching — the

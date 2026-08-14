@@ -30,6 +30,11 @@ jobs:
     timeout-minutes: 5
     env:
       DEPLOY_URL: ${{ secrets.BRAIN_DEPLOY_URL }}
+      # The tier this watchdog is meant to watch. A repo VARIABLE, not a
+      # secret: it is the check's intent, discloses nothing, and being
+      # readable is the point — the previous failure was precisely that
+      # nobody could see what was being measured without repo-admin access.
+      EXPECT_ENV: ${{ vars.BRAIN_EXPECT_DEPLOY_ENV || 'production' }}
     steps:
       - name: Checkout (full history for git describe)
         uses: actions/checkout@v4
@@ -44,7 +49,30 @@ jobs:
             echo "state=skip" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          DEPLOYED=$(curl -fsS --max-time 10 "$DEPLOY_URL/api/healthz" | jq -r '.version // empty')
+          HEALTHZ=$(curl -fsS --max-time 10 "$DEPLOY_URL/api/healthz")
+          DEPLOYED=$(printf '%s' "$HEALTHZ" | jq -r '.version // empty')
+          # Which tier the deployment says it is. Guards the failure this
+          # workflow could not previously detect: BRAIN_DEPLOY_URL pointed at
+          # the DEV host for months, so every issue reported dev's version
+          # under a "Production is running X" title, and the stale-deploy gap
+          # this exists to close stayed open while looking covered
+          # (KNOWN_ISSUES §0al). A version number cannot answer "did I measure
+          # the right box?"; this field can.
+          DEPLOY_ENV=$(printf '%s' "$HEALTHZ" | jq -r '.environment // empty' | tr -d '\n\r' | head -c 32)
+          if [ -z "$DEPLOY_ENV" ]; then
+            # Pre-guard build, or BRAIN_DEPLOY_ENV unset on the target. Refuse
+            # to report drift rather than repeat the old false confidence: an
+            # unverifiable target is exactly the state that hid the bug.
+            echo "::warning::healthz did not report an environment — cannot verify BRAIN_DEPLOY_URL points at $EXPECT_ENV. Set BRAIN_DEPLOY_ENV on the deployment (see .env.example). Not reporting drift."
+            echo "state=unknown" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$DEPLOY_ENV" != "$EXPECT_ENV" ]; then
+            echo "::error::BRAIN_DEPLOY_URL points at a '$DEPLOY_ENV' deployment, but this watchdog watches '$EXPECT_ENV'. Repoint the secret (or fix BRAIN_DEPLOY_ENV on that host). Refusing to report drift for the wrong environment — see KNOWN_ISSUES §0al."
+            exit 1
+          fi
+          echo "environment=$DEPLOY_ENV" >> "$GITHUB_OUTPUT"
+          echo "Verified target: environment=$DEPLOY_ENV (expected $EXPECT_ENV)"
           # #62 hardening: the value is build-time baked (git describe) and so
           # trusted in practice, but it crosses a network boundary — strip
           # newlines and cap length so a hostile response can't forge step
@@ -105,6 +133,7 @@ jobs:
           STATE: ${{ steps.drift.outputs.state }}
           DEPLOYED: ${{ steps.drift.outputs.deployed }}
           MAIN: ${{ steps.drift.outputs.main }}
+          DEPLOY_ENV: ${{ steps.drift.outputs.environment }}
         run: |
           EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --label prod-drift --state open --json number --jq '.[0].number // empty')
           if [ "$STATE" = "drift" ]; then
@@ -113,7 +142,9 @@ jobs:
             # continuation lines terminates the block and invalidates the
             # whole workflow file (#54: GitHub then registers it trigger-less).
             BODY=$(printf '%s\n' \
-              "Production is running \`$DEPLOYED\` but \`main\` is at \`$MAIN\`." \
+              "The \`$DEPLOY_ENV\` deployment is running \`$DEPLOYED\` but \`main\` is at \`$MAIN\`." \
+              "" \
+              "_Measured against the deployment that self-reports \`environment: $DEPLOY_ENV\` on \`/api/healthz\`. Naming it here is deliberate: this watchdog silently reported the **dev** host under a \"Production is running X\" title for months, and the issue body gave a reader no way to tell (KNOWN_ISSUES §0al)._" \
               "" \
               "Merged work is not live. Deploy when convenient:" \
               "" \
@@ -123,10 +154,10 @@ jobs:
               "" \
               "_This issue is managed by the \`prod-drift\` workflow — it updates daily while drift persists and closes itself once production matches \`main\`._")
             if [ -n "$EXISTING" ]; then
-              gh issue comment "$EXISTING" --repo "$GITHUB_REPOSITORY" --body "Still drifting: deployed \`$DEPLOYED\`, main \`$MAIN\`."
+              gh issue comment "$EXISTING" --repo "$GITHUB_REPOSITORY" --body "Still drifting on \`$DEPLOY_ENV\`: deployed \`$DEPLOYED\`, main \`$MAIN\`."
             else
               gh issue create --repo "$GITHUB_REPOSITORY" \
-                --title "prod-drift: production is behind main" \
+                --title "prod-drift: the $DEPLOY_ENV deployment is behind main" \
                 --label prod-drift \
                 --body "$BODY"
             fi
