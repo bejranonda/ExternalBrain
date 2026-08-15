@@ -69,5 +69,74 @@ test.describe("welcome public URLs (#293, #294)", () => {
   //     surface, which is why it exists after the defect shipped three times).
   //   - e2e/tokens.spec.ts — the authed token wizard, which is now the only
   //     UI that renders a token-bearing install command with a resolved host.
-  // See docs/KNOWN_ISSUES.md for the tracked gap.
+  //   - the replacement below (2026-08-15), which closes the anon gap.
+
+  // CLOSES the gap the comment above tracked. /api/onboard/agent.md is the one
+  // remaining ANONYMOUS surface that resolves a real host from deploy env:
+  // public, unauthenticated, not flag-gated, and `force-dynamic` so it reads
+  // process.env per request rather than freezing Docker-build values.
+  //
+  // Asserting on a markdown endpoint rather than a page is the point. The
+  // #293 class is "a URL was built from the wrong source", which has nothing
+  // to do with rendering — scoping the old test to a *page* is exactly why it
+  // died when that page's content moved (see the note above, and
+  // GUIDELINES §4 "verify the property, not the nearest signal").
+  test("the anon agent-bootstrap doc resolves a reachable WEB URL from deploy env", async ({
+    request,
+  }) => {
+    const res = await request.get("/api/onboard/agent.md");
+    expect(res.status()).toBe(200);
+    const body = await res.text();
+
+    // Non-vacuous guard: if the doc ever stops embedding URLs, the assertions
+    // below would pass trivially against an empty string.
+    expect(body).toContain("/api/onboard/claim");
+
+    // WEB host only — this doc embeds webUrl-derived links (claim endpoint,
+    // /start, /signin, /settings/tokens), never {{MCP_URL}} (verified against
+    // BRAIN_BOOTSTRAP_TEMPLATE and a live deployment). The install command
+    // carrying the MCP URL comes back from /api/onboard/claim at runtime, not
+    // from this document — so this test does NOT close the anon MCP-URL gap.
+    // See the next test for that (CodeRabbit, PR #251: the first version of
+    // this file claimed MCP coverage here and was wrong).
+    const expectedWebHost = process.env.E2E_EXPECTED_WEB_HOST;
+    if (expectedWebHost) {
+      expect(body).toContain(expectedWebHost);
+    }
+
+    // A placeholder that escaped substitution is the other way this breaks —
+    // the German quick start shipped `<dein-brain>` for exactly this reason.
+    expect(body).not.toContain("<your-brain>");
+  });
+
+  // This is the test that actually closes the #293 anon-MCP-URL gap.
+  // /api/skills/brain is public, unauthenticated, not flag-gated,
+  // `force-dynamic`, and — unlike agent.md — its template (BRAIN_SKILL_TEMPLATE)
+  // genuinely embeds {{MCP_URL}}. Confirmed against a live deployment before
+  // writing this: `curl .../api/skills/brain | grep mcp.<host>` returns a hit.
+  test("the anon SKILL.md doc resolves a reachable MCP URL from deploy env", async ({
+    request,
+  }) => {
+    const res = await request.get("/api/skills/brain");
+    expect(res.status()).toBe(200);
+    const body = await res.text();
+
+    // Non-vacuous guard, same reasoning as above.
+    expect(body).toContain("mcp__brain__");
+
+    const expectedMcpHost = process.env.E2E_EXPECTED_MCP_HOST;
+    if (expectedMcpHost) {
+      expect(body).toContain(expectedMcpHost);
+    }
+
+    // The actual #293 regression: a hardcoded `:3100` reaches nothing on any
+    // deployment where MCP is its own subdomain. Skipped against localhost,
+    // where :3100 is genuinely the MCP port and would false-positive.
+    const base = process.env.E2E_BASE_URL ?? "http://localhost:3000";
+    if (!base.startsWith("http://localhost")) {
+      expect(body).not.toContain(":3100");
+    }
+
+    expect(body).not.toContain("<your-brain>");
+  });
 });

@@ -6,9 +6,13 @@
  * Body: { token: string; newPassword: string }
  *
  * Responses:
- *  200 { ok: true }                    — password updated
+ *  200 { ok: true }                    — password created/updated
  *  400 { error: "invalid_token" }      — token not found / expired / already used
  *  400 { error: "weak_password" }      — password fails policy
+ *
+ * Upserts UserCredential rather than requiring one to pre-exist, so this
+ * flow also bootstraps a first password for accounts created via agentic
+ * onboarding (User + API token, no credential). See forgot-password/route.ts.
  */
 import { db } from "@brain/db";
 import { z } from "zod";
@@ -64,23 +68,21 @@ export async function POST(req: Request): Promise<Response> {
     return Response.json({ error: "invalid_token" }, { status: 400 });
   }
 
-  // Verify the user still has a credential
-  const cred = await db.userCredential.findUnique({
-    where: { userId: resetToken.userId },
-    select: { id: true },
-  });
-  if (!cred) {
-    // Credential was deleted between token creation and use
-    return Response.json({ error: "invalid_token" }, { status: 400 });
-  }
-
-  // Hash the new password and update atomically
+  // Hash the new password and update atomically.
+  //
+  // Upsert, not update: an account created via agentic onboarding
+  // (/api/onboard/claim) has a User row and an API token but no
+  // UserCredential — this is its only path to a first web password, so a
+  // missing credential is created here rather than rejected. An account
+  // whose credential existed and was since deleted still lands here safely;
+  // the token is single-use and time-boxed either way.
   const newHash = await bcrypt.hash(newPassword, BCRYPT_COST);
 
   await db.$transaction([
-    db.userCredential.update({
+    db.userCredential.upsert({
       where: { userId: resetToken.userId },
-      data: { passwordHash: newHash },
+      update: { passwordHash: newHash },
+      create: { userId: resetToken.userId, passwordHash: newHash },
     }),
     db.passwordResetToken.update({
       where: { id: resetToken.id },

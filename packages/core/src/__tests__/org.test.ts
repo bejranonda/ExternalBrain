@@ -5,6 +5,7 @@
  * Prisma client — only the methods exercised by the helpers are implemented.
  * Anything not stubbed throws so a missing mock surface is caught immediately.
  */
+import type { Prisma } from "@brain/db";
 import { describe, expect, it } from "vitest";
 import {
   ensurePersonalOrg,
@@ -1066,5 +1067,40 @@ describe("findDuplicateProjectGroups", () => {
       { id: "p2", name: "!!!", organizationId: "org1" },
     ]);
     expect(groups).toHaveLength(0);
+  });
+});
+
+/**
+ * The module header of `org.ts` claims exactly two functions may be called
+ * with a `Prisma.TransactionClient`. That claim is prose, and prose is how
+ * this defect happened in the first place: the header once asserted the
+ * capability for *all* 19 functions, which had never type-checked and which
+ * no caller had ever attempted (`KNOWN_ISSUES` — "a module header can assert
+ * a capability the types never permitted, and nothing detects it").
+ *
+ * These are compile-time assertions, not runtime ones — nothing is called.
+ * Narrowing either signature back to `PrismaClient` makes the header a lie
+ * again, and now fails `pnpm turbo run typecheck` instead of waiting for the
+ * next caller who genuinely needs a transaction (which was `/api/onboard/claim`,
+ * whose voucher-burn and token-mint must commit atomically).
+ *
+ * This closes the *instance*. The general class — a capability claimed in a
+ * comment with no caller exercising it — has no mechanical check and stays
+ * open; grep confident header comments when you touch them.
+ */
+describe("org.ts transaction-client claim is type-enforced, not just documented", () => {
+  it("ensurePersonalOrg and ensureDefaultProject accept a TransactionClient", () => {
+    type TxClient = Prisma.TransactionClient;
+    // If either first parameter narrows to PrismaClient, these two lines stop
+    // compiling — which is the whole assertion.
+    type _PersonalOrgTakesTx = TxClient extends Parameters<typeof ensurePersonalOrg>[0]
+      ? true
+      : never;
+    type _DefaultProjectTakesTx = TxClient extends Parameters<typeof ensureDefaultProject>[0]
+      ? true
+      : never;
+    const personalOrgOk: _PersonalOrgTakesTx = true;
+    const defaultProjectOk: _DefaultProjectTakesTx = true;
+    expect(personalOrgOk && defaultProjectOk).toBe(true);
   });
 });

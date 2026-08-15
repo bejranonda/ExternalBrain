@@ -188,6 +188,18 @@ token. Every mitigation below follows from that one fact.
 | Existing email | `409`, hard stop | Minting for an existing user would make any voucher an account-takeover primitive |
 | Password | none created | An agent that invents one leaks it into the model transcript and the user never learns it |
 
+**No password ever means no password until self-service reset.** No
+`UserCredential` is created by this path (see table above), which used to
+mean *never* — `forgot-password` and `reset-password` both independently
+required a `UserCredential` to already exist, so an agentic-onboarding
+account had no route to a first web password at all: sign-in needs one,
+`/settings/tokens` needs a signed-in session, and forgot-password silently
+declined to help because it read "no credential" the same as "no such
+user." Fixed 2026-08-15 (`KNOWN_ISSUES.md §0an`): `reset-password` now
+upserts the credential instead of requiring it, so the existing self-
+service reset flow is also how an agentic-onboarding account bootstraps
+its first password.
+
 Order of operations matters and mirrors `/api/auth/register`: the voucher is
 validated **before** the email is looked up. Reversed, an anonymous caller
 could skip the voucher entirely and enumerate registered accounts through the
