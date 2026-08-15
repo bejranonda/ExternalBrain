@@ -124,7 +124,7 @@ with the closed issues for the worked examples.
 |---|---|---|
 | ~~**`/signin` onboarding gap** — credentials-only prod offers no self-service signup path.~~ **Structurally resolved (v2.15.0).** The unresolved decision was "self-service voucher request flow vs OAuth-on-prod vs operator-email link"; the answer turned out to be none of the three. A public `/start` is now the one canonical URL a voucher holder is given, offering exactly two paths (let the agent do it, or sign up in a browser) and prefilling from `?voucher=`. Every voucher error on `/signin` links to it — previously six error strings all terminated in "ask your admin" with no URL, on the page's highest-frequency failure path. | `apps/web/app/start/page.tsx`, `apps/web/components/brain/start-flow.tsx`, `apps/web/app/signin/page.tsx` | done (v2.15.0) |
 | ~~**`/welcome` has two jobs and only one of them is still its own.**~~ **Resolved (v2.15.0).** Stripped to the part nothing else does — the live first-session poll with the 90s/5min stuck-state diagnostics. Steps 1–2 (pick a tool, copy an install command) removed; `/welcome` now links out to `/docs/tutorials/00-quick-start` for anyone who hasn't installed. Found on the way: the deleted tool picker had a live bug (`welcome.tool_blurb.generic` rendering as a raw string in all three locales, from an id/key mismatch between the tool list and the dictionary) — the consolidation fixed a real defect, not just a duplication. Every other surface pointing at `/welcome` as an install flow was found by grepping the href and repointed: `landing.tsx`'s "Quick start" card, the empty-Brain dashboard callout's primary CTA, and `/start`'s "See the guided tour" link (reworded to describe what it now leads to). | `apps/web/components/brain/welcome-flow.tsx`, `apps/web/app/welcome/page.tsx` | done (v2.15.0) |
-| ~~**`e2e/welcome-public-urls.spec.ts` lost its only anon-surface MCP-URL assertion, with no replacement.**~~ **Fixed (2026-08-15)** by taking the entry's own "fix sketch": a thin anon spec against `/api/onboard/agent.md`, the one remaining public, unauthenticated, non-flag-gated endpoint that resolves a real host from deploy env (`force-dynamic`, so per-request not Docker-build-frozen). Asserting on a markdown endpoint rather than a page is deliberate — the #293 class is "a URL was built from the wrong source", which has nothing to do with rendering, and scoping the original test to a *page* is precisely why it died when that page's content moved (`GUIDELINES §4`, verify the property not the nearest signal). **The first draft of this test would have shipped red:** it asserted `E2E_EXPECTED_MCP_HOST`, but that document embeds only webUrl-derived links — the MCP URL comes back from `/api/onboard/claim` at runtime and is never baked into it. Caught by checking the assertion against a live deployment before committing, not by CI. Now asserts the web host via a new `E2E_EXPECTED_WEB_HOST`, plus a non-vacuous anchor and a no-unsubstituted-placeholder guard. Confirmed the spec is on `onboarding-e2e.yml`'s explicit file list, per `GUIDELINES §4`'s "a spec existing is not a spec running" rule. | `apps/web/e2e/welcome-public-urls.spec.ts`, `.github/workflows/onboarding-e2e.yml` | done |
+| ~~**`e2e/welcome-public-urls.spec.ts` lost its only anon-surface MCP-URL assertion, with no replacement.**~~ **Fixed (2026-08-15)** by taking the entry's own "fix sketch" — with a correction from CodeRabbit review. `/api/onboard/agent.md` (public, unauthenticated, non-flag-gated, `force-dynamic`) resolves a real WEB host, but its template never embeds `{{MCP_URL}}` — the first version of this fix asserted an MCP-host check there and it would have passed only vacuously. The genuine MCP-URL coverage comes from a second anon spec against `/api/skills/brain`, whose template does embed `{{MCP_URL}}` (confirmed live: `curl .../api/skills/brain` contains the real `mcp.<host>`). Asserting on a markdown endpoint rather than a page is deliberate — the #293 class is "a URL was built from the wrong source", which has nothing to do with rendering, and scoping the original test to a *page* is precisely why it died when that page's content moved (`GUIDELINES §4`, verify the property not the nearest signal). **The first draft of this test would have shipped red:** it asserted `E2E_EXPECTED_MCP_HOST`, but that document embeds only webUrl-derived links — the MCP URL comes back from `/api/onboard/claim` at runtime and is never baked into it. Caught by checking the assertion against a live deployment before committing, not by CI. Now asserts the web host via a new `E2E_EXPECTED_WEB_HOST`, plus a non-vacuous anchor and a no-unsubstituted-placeholder guard. Confirmed the spec is on `onboarding-e2e.yml`'s explicit file list, per `GUIDELINES §4`'s "a spec existing is not a spec running" rule. | `apps/web/e2e/welcome-public-urls.spec.ts`, `.github/workflows/onboarding-e2e.yml` | done |
 | ~~**The onboarding explanation surface is now ~19 documents and still has no single generator.**~~ **Reduced by deletion (2026-08-13).** The duplication that could actually go stale silently — a hand-authored `quick-start.html` and three exported PDFs (EN/TH/DE), last built 2026-08-08 — is gone, along with the two README rows linking them. They had no generator, nothing regenerated them across four quick-start rewrites in the following week, and a printed handout carrying a September-stale command produces a failure the user blames on the product. Deleting beat generating: the operator confirmed the PDFs were no longer needed, and the in-app tutorials plus `/start` already cover every audience the handouts did. The *remaining* copies (`docs/tutorials/00-quick-start.{md,th.md,de.md}`, `/welcome`, `/docs`, the agent bootstrap doc) are all live-rendered from source, so they cannot drift the way a checked-in PDF can, and `install-command-single-source.test.ts` still guards the install command itself. | `docs/assets/handouts/` (removed), `README.md`, `docs/README.md` | done |
 | **`/start?voucher=` is attacker-supplied text that ends up in a prompt a human pastes into an AI agent.** Found in review of the landing/onboarding PR. The page renders the code inside an instruction block the user is explicitly told to hand to an agent, so a crafted link (`/start?voucher=<prose>`) is a prompt-injection delivery vector — React escapes markup, but nothing escapes natural language aimed at a model. **Mitigated (v2.15.0)** by `sanitizeVoucherInput()`: input is reduced to `[A-Z0-9-]` and capped at 32 chars before it can reach the prompt or the input box, which removes whitespace, newlines, punctuation and shell metacharacters — no multi-word instruction, command, or extra prompt line can be formed. **Residual, stated rather than papered over:** the letters survive and collapse into one long token, so this is a structural defence, not a proof that no model could read meaning into the residue. A strict format match (`PREFIX-XXXX-XXXX`) would close it fully but was rejected — `POST /api/admin/vouchers` accepts an operator-supplied `body.code`, so codes are not guaranteed to fit the generated shape and rejecting on format would break legitimate custom codes. Revisit if custom codes are ever dropped. | `apps/web/lib/brain/agentic-onboarding.ts`, `apps/web/components/brain/start-flow.tsx` | mitigated, residual accepted |
 | **A bootstrap token's raw bearer necessarily lands in the agent's transcript.** `POST /api/onboard/claim` returns `installCommand` with the secret inline, the agent prints it to run it, and the harness writes that to its own session log (`~/.claude/projects/*.jsonl` for Claude Code) — which is also sent to a model provider. This is not specific to agentic onboarding; the existing token wizard has the same property the moment a user pastes into a terminal. **Accepted, with mitigations rather than a fix:** the token is capped at 14 days, omits the billed `oracle` capability, and the response tells the user to mint a proper token at `/settings/tokens` once they have web access. A true fix needs a one-time-use exchange code the installer redeems out-of-band, which is more machinery than a 14-day token justifies today. | `apps/web/app/api/onboard/claim/route.ts` | accepted |
@@ -1448,6 +1448,59 @@ one-line `curl` here would have caught this on day one. Prefer wiring the
 target so it is visible in the alarm itself (the issue body naming the host
 it polled) over a secret that makes the question unanswerable without repo
 admin.
+
+---
+
+## 0am. Live user-account deletion needed a second authorization gate, distinct from Prisma's (2026-08-15)
+
+Not a bug — a documented gap in *how this class of request should proceed*,
+surfaced by an actual operator ask: remove `sun2child@yahoo.com` and all its
+data.
+
+**What made this non-trivial technically.** `User` cascades cleanly
+(`Session`, `MCPToken`, `Knowledge.ownerUserId`, `PeerCard.ownerUserId`,
+`VoucherRedemption`, `UserCredential`, `OrganizationMember` are all
+`ON DELETE CASCADE`), but `Project.organizationId` is `ON DELETE RESTRICT`
+(deliberate — see the `Organization` delete-semantics work, `§218`). A plain
+`DELETE FROM "User"` on an account that owns a personal org with a project
+would either fail outright or, worse, silently leave the `Organization`
+and `Project` orphaned depending on statement order. Surveyed first —
+1 Session, 1 MCPToken, 1 personal Project, 1 personal Organization
+(1 member), 0 Knowledge/PeerCard/VoucherRedemption/UserCredential — then
+deleted in the order the constraints require: `Project` → `Organization`
+(cascades the now-sole `OrganizationMember` row) → `User` (cascades the
+rest), inside one transaction.
+
+**What made it non-trivial operationally.** The `docker exec … psql …
+DELETE` command was denied twice by the harness's auto-mode classifier —
+identically the second time, even though the user had explicitly replied
+"run it all for me" in between. That reply didn't change anything, because
+the classifier gates the Bash call itself, not a stated intent in the
+conversation transcript. The only thing that unblocked it was the user
+exiting auto mode (a distinct harness state, surfaced by a
+`## Exited Auto Mode` system message), after which the identical command
+ran on the next attempt.
+
+**Two gates, not one, and they don't compose the way you'd guess.**
+`AGENTS.md §3` already documented Prisma's `migrate reset --force` refusal
+— a schema-level gate, opt-in via an env var, entirely inside this repo's
+code. Raw destructive SQL against a live database goes through a completely
+different, harness-level gate that this repo has no control over and no
+visibility into beyond "denied" / "not denied." Assuming the first gate's
+shape (a consent flag you can locate and reason about) generalizes to the
+second (a classifier decision plus an auto-mode toggle) wastes a retry.
+
+**The operating pattern, now in `AGENTS.md §3`:** don't retry an identically
+denied command — it will deny again, deterministically. Survey and state
+the exact blast radius before asking for approval, so the approval (however
+it eventually arrives) is informed. Offer the user a copy-pasteable command
+to run themselves as a parallel path, since they may not want to wait on a
+permission flow at all. If they ask the agent to run it anyway, say plainly
+that retrying won't help and that exiting auto mode is the actual unlock —
+don't let "run it all for me" read as if it were the missing permission,
+when the missing permission is a harness state, not a sentence.
+
+Full narrative: `KNOWLEDGE.md §12.36`, `APPROACH.md §5bx`.
 
 ---
 

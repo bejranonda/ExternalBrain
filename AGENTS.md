@@ -129,7 +129,14 @@ changed the Prisma schema or seed.
    you pick an auth mode.
 3. **Destructive DB operations need explicit authorization.** Prisma refuses
    `migrate reset --force` from an AI without the consent env var — don't work
-   around it.
+   around it. A second, independent gate sits in front of raw destructive SQL
+   (e.g. `DELETE`/`UPDATE` against production via `psql`): the harness's
+   auto-mode classifier blocks it outright, and retrying the identical
+   command does not help — it is not a permission the agent holds to grant
+   itself. The only way through is the user exiting auto mode and explicitly
+   re-approving the specific command. Before that point: survey and show the
+   exact blast radius (which tables, how many rows, in what order given FK
+   `RESTRICT`/`CASCADE`) so the approval is informed, not a rubber stamp.
 4. **Never bypass pre-commit hooks** (`--no-verify`). Fix the underlying issue.
 
 ---
