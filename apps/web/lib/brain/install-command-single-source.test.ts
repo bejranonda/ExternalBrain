@@ -154,6 +154,47 @@ describe("the bootstrap document tells the agent to stop", () => {
   });
 });
 
+describe("every agent-facing rendered document, swept together", () => {
+  const urls = { mcpUrl: "https://mcp.example.com/mcp", webUrl: "https://brain.example.com" };
+  const DOCS = [
+    ["SKILL.md", renderBrainSkill(urls)],
+    ["bootstrap agent.md", renderBrainBootstrap(urls)],
+    ["bootstrap agent.md?mode=token", renderBrainBootstrapForToken(urls)],
+  ] as const;
+
+  it("sweeps every renderer (guard against a vacuous pass)", () => {
+    // Same corollary as the source sweep above: a doc list someone forgot to
+    // extend guards nothing while looking green.
+    expect(DOCS.length).toBe(3);
+    for (const [, body] of DOCS) expect(body.length).toBeGreaterThan(200);
+  });
+
+  for (const [name, body] of DOCS) {
+    it(`${name} embeds no real bearer token`, () => {
+      // These are public, unauthenticated documents. A real `bp_…` reaching
+      // one is a credential disclosure, not a formatting bug — and the token
+      // doc renders a *placeholder* through the same snippet functions that
+      // render real tokens elsewhere, so the two differ by one argument.
+      expect(body).not.toMatch(/bp_[A-Za-z0-9_-]{16,}/);
+    });
+  }
+
+  it("only the token-mode doc constructs an installer invocation", () => {
+    // The voucher doc must defer to the `installCommand` the claim response
+    // returns (it is generated per-client, per-OS server-side); building one
+    // inline would be a second source that drifts. The skill doc is a usage
+    // guide and should build nothing at all.
+    const [, skill] = DOCS[0];
+    const [, voucher] = DOCS[1];
+    const [, token] = DOCS[2];
+
+    expect(token).toContain("/api/onboard.sh");
+    expect(voucher).not.toContain("/api/onboard.sh");
+    expect(voucher).toContain("installCommand");
+    expect(skill).not.toContain("/api/onboard.sh");
+  });
+});
+
 describe("the token-mode bootstrap document derives its install command", () => {
   const doc = renderBrainBootstrapForToken({
     mcpUrl: "https://mcp.example.com/mcp",
