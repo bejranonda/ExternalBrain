@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { useT } from "@/lib/brain/i18n";
 import { sanitizeVoucherInput } from "@/lib/brain/agentic-onboarding";
+import { buildVoucherAgentPrompt } from "@/lib/brain/agent-prompt";
 
 /**
  * Typography note (2026-08-09): two fixes on top of the original build.
@@ -40,24 +41,6 @@ export interface StartFlowProps {
   initialVoucher?: string;
 }
 
-/**
- * The prompt the user pastes. Kept in one place because it is the *product*
- * of this page — every word is doing work:
- *  - names the voucher explicitly so the agent doesn't have to infer it
- *  - points at one URL and says "follow it", bounding what the agent may do
- *  - says "ask me for my email" so the agent doesn't invent one, which is the
- *    single most damaging thing it could improvise here
- *
- * `voucher` must already be through `sanitizeVoucherInput`.
- */
-function buildAgentPrompt(webUrl: string, voucher: string): string {
-  return [
-    `Set up External Brain on this machine. My voucher code is ${voucher}.`,
-    `Fetch ${webUrl.replace(/\/$/, "")}/api/onboard/agent.md and follow it exactly.`,
-    `Ask me for my email address first — don't guess it.`,
-  ].join("\n");
-}
-
 export function StartFlow({ webUrl, agenticEnabled, initialVoucher = "" }: StartFlowProps) {
   const tr = useT();
   // Sanitize the URL-supplied value on the way IN as well as on the way out —
@@ -68,7 +51,7 @@ export function StartFlow({ webUrl, agenticEnabled, initialVoucher = "" }: Start
 
   const code = sanitizeVoucherInput(voucher);
   const prompt = useMemo(
-    () => (code ? buildAgentPrompt(webUrl, code) : ""),
+    () => (code ? buildVoucherAgentPrompt(webUrl, code) : ""),
     [webUrl, code],
   );
 

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CLIENTS, clientById, needsOsChoice } from "@brain/core/install-snippets";
 import type { ClientId, TargetOS } from "@brain/core/install-snippets";
+import { buildTokenAgentPrompt } from "@/lib/brain/agent-prompt";
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -55,6 +56,8 @@ export function TokenInstallWizard({
   oldTokenScheduledRevokeAt,
   onClose,
 }: TokenInstallWizardProps) {
+  const [tab, setTab] = useState<"manual" | "prompt">("manual");
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
   const [selectedClient, setSelectedClient] = useState<ClientId>("claude-code");
   // detectOs() reads `navigator`, but the wizard only mounts client-side after
   // a mint (it's never in the SSR HTML), so there's no hydration to mismatch —
@@ -68,7 +71,7 @@ export function TokenInstallWizard({
   // without permission, etc.) we surface a manual-select hint instead of
   // silently doing nothing. Keyed by which field the user just tried.
   const [copyFailed, setCopyFailed] = useState<
-    null | "token" | "snippet" | "path" | "command"
+    null | "token" | "snippet" | "path" | "command" | "prompt"
   >(null);
   const [testStatus, setTestStatus] = useState<
     | null
@@ -97,7 +100,7 @@ export function TokenInstallWizard({
    */
   const tryCopy = async (
     text: string,
-    kind: "token" | "snippet" | "path" | "command",
+    kind: "token" | "snippet" | "path" | "command" | "prompt",
   ): Promise<boolean> => {
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
@@ -137,6 +140,14 @@ export function TokenInstallWizard({
     if (await tryCopy(path, "path")) {
       setCopiedPath(true);
       window.setTimeout(() => setCopiedPath(false), 1500);
+    }
+  };
+
+  const agentPrompt = buildTokenAgentPrompt(webUrl, rawToken);
+  const copyPrompt = async () => {
+    if (await tryCopy(agentPrompt, "prompt")) {
+      setCopiedPrompt(true);
+      window.setTimeout(() => setCopiedPrompt(false), 1500);
     }
   };
 
@@ -309,6 +320,89 @@ export function TokenInstallWizard({
         </div>
       )}
 
+      {/* ── Tab switcher: manual command vs. agent-run prompt ── */}
+      <div
+        role="tablist"
+        style={{ display: "flex", gap: 4, marginBottom: 14 }}
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "manual"}
+          className={tab === "manual" ? "btn btn-primary" : "btn btn-ghost"}
+          style={{ fontSize: 12, height: 26 }}
+          onClick={() => setTab("manual")}
+        >
+          Run it myself
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "prompt"}
+          className={tab === "prompt" ? "btn btn-primary" : "btn btn-ghost"}
+          style={{ fontSize: 12, height: 26 }}
+          onClick={() => setTab("prompt")}
+        >
+          Paste a prompt
+        </button>
+      </div>
+
+      {tab === "prompt" && (
+        <div>
+          <div
+            style={{
+              fontSize: 12,
+              color: "var(--ink-3)",
+              marginBottom: 8,
+              lineHeight: 1.5,
+            }}
+          >
+            Paste this into your AI agent — it fetches the setup doc and
+            connects itself. No client/OS picking needed.
+          </div>
+          <pre
+            className="mono"
+            style={{
+              fontSize: 12,
+              lineHeight: 1.6,
+              background: "var(--bg)",
+              border: "1px solid var(--line)",
+              borderRadius: 4,
+              padding: "10px 12px",
+              margin: "0 0 8px",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              userSelect: "all",
+            }}
+          >
+            {agentPrompt}
+          </pre>
+          {copyFailed === "prompt" && (
+            <div
+              style={{
+                marginBottom: 8,
+                fontSize: 12,
+                color: "var(--warn, #f5a623)",
+                lineHeight: 1.45,
+              }}
+            >
+              Clipboard unavailable — click anywhere in the prompt to select
+              all, then ⌘/Ctrl+C.
+            </div>
+          )}
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{ fontSize: 13 }}
+            onClick={() => void copyPrompt()}
+          >
+            {copiedPrompt ? "Copied" : "Copy prompt"}
+          </button>
+        </div>
+      )}
+
+      {tab === "manual" && (
+        <>
       {/* ── Step 1: client picker ── */}
       <div
         className="mono"
@@ -580,7 +674,13 @@ export function TokenInstallWizard({
         >
           {copiedSnippet ? "Copied" : "Copy"}
         </button>
+      </div>
+      </>
+      )}
 
+      {/* Test connection — common to both tabs: the agent-run prompt path
+          also ends in a live MCP connection, so the same check applies. */}
+      <div className="row" style={{ gap: 8, flexWrap: "wrap", marginTop: tab === "prompt" ? 14 : 10 }}>
         <button
           type="button"
           className="btn btn-ghost"
