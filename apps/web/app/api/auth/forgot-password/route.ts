@@ -10,8 +10,11 @@
  *
  * Flow:
  *  1. Rate-limit: 3 requests/hour per IP (uses existing rate-limit infrastructure).
- *  2. Look up User by email. If found AND has UserCredential, create a
- *     PasswordResetToken (1-hour expiry) and send a reset email.
+ *  2. Look up User by email. If found, create a PasswordResetToken (1-hour
+ *     expiry) and send a reset email — regardless of whether a
+ *     UserCredential already exists. reset-password creates the credential
+ *     on first use, so this is also how an agentic-onboarding-only account
+ *     (User + API token, no password) bootstraps its first password.
  *  3. Write audit row: user.password_reset_request (targetId = userId or null).
  *
  * If email-sending is disabled (EMAIL_PROVIDER != "resend") or delivery fails,
@@ -90,13 +93,19 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   // --- Look up user ---
+  // Deliberately NOT filtered to `credential !== null`: accounts created via
+  // agentic onboarding (/api/onboard/claim) get a User row and an API token
+  // but no UserCredential — they were previously permanently locked out of
+  // the web UI, since forgot-password was their only route to a first
+  // password and it silently no-op'd for them. reset-password now creates
+  // the credential rather than requiring one, so this flow doubles as
+  // "bootstrap my first password" for those accounts. See KNOWN_ISSUES.
   const user = await db.user.findUnique({
     where: { email },
     select: {
       id: true,
       name: true,
       email: true,
-      credential: { select: { id: true } },
     },
   });
 
@@ -110,8 +119,8 @@ export async function POST(req: Request): Promise<Response> {
     ip,
   });
 
-  if (!user || !user.credential) {
-    // No user or no credential — return generic 200 to prevent enumeration.
+  if (!user) {
+    // No such user — return generic 200 to prevent enumeration.
     return Response.json(GENERIC_OK);
   }
 
