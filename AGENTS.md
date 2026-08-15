@@ -175,7 +175,14 @@ across sessions (and it's the product's own dogfood):
 1. **Open**: `brain_start_session(prompt: …)` at the start of each task.
    Phrase the prompt as *technology + repo + task shape* ("debug intermittent
    Playwright e2e failure in CI for the External Brain webapp") — it doubles
-   as the retrieval query; "fix bug" retrieves nothing useful.
+   as the retrieval query; "fix bug" retrieves nothing useful. **Project
+   scoping is per-call, not persisted**: there is no "active project"
+   remembered between calls, so pass `projectId`/`projectName` on *every*
+   `brain_start_session` call for work that belongs outside the default
+   project — calling `brain_create_project` once does not change what later
+   calls resolve to. The response's `project.source` tells you whether this
+   call landed in a real project or fell back to "Default"; a `hint` field
+   appears when it fell back, steering you to fix it before continuing.
 2. **Apply**: the response carries `relevantKnowledge` — rules this Brain
    already learned that match the task. Read them before working; they are
    frequently the answer (the 429-rate-limit lesson arrived this way on its
