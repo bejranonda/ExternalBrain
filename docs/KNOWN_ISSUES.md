@@ -1504,6 +1504,50 @@ Full narrative: `KNOWLEDGE.md §12.36`, `APPROACH.md §5bx`.
 
 ---
 
+## 0an. Agentic-onboarding accounts had no way to ever get a web password (2026-08-15)
+
+Found live: an operator asked to reset the password for an account created
+weeks earlier through `/api/onboard/claim` (agentic onboarding — an AI
+agent redeems a voucher and gets a User row + API token, no browser
+involved). `POST /forgot-password` returned its normal generic 200, but no
+email ever arrived, no matter how many times it was retried.
+
+**Root cause.** `/api/onboard/claim` deliberately never creates a
+`UserCredential` — the whole point of that path is a passwordless,
+agent-only account. But `forgot-password` required `user.credential` to
+already exist before it would create a `PasswordResetToken` or send mail;
+lacking one, it hit the same generic "if an account exists…" branch used
+for *nonexistent* emails, with no log line either way — so from the
+outside, "no credential" and "no such user" were indistinguishable, and
+both looked like silence. `reset-password` had the same assumption
+independently: it re-checked `UserCredential` existed before honoring even
+a valid, unexpired token. The account was real, reachable via
+`/api/onboard/claim`'s own `email_taken` check (confirmed: `db.user.
+findUnique` found it) — it just had no path to ever acquire a password.
+`/settings/tokens`, the address the `email_taken` message points to,
+itself requires a signed-in session, which this account could never
+reach. A structural dead end, not a delivery bug.
+
+**Fix.** `forgot-password` (`apps/web/app/api/auth/forgot-password/
+route.ts`) now looks up the user without filtering on `credential`, and
+`reset-password` (`apps/web/app/api/auth/reset-password/route.ts`) upserts
+`UserCredential` instead of requiring one to pre-exist. The existing
+one-hour, single-use, hashed reset-token machinery is unchanged — this
+just widens who is allowed to land in it. Verified live against
+`brain.autobahn.bot`: before the fix, `POST /api/auth/forgot-password` for
+the affected address produced zero log lines (the credential-gated
+early-return); after redeploying the fix, the same request logged
+`"password reset email sent"` with a real Resend `messageId`.
+
+**Why this matters beyond the one account.** Any account minted purely via
+`/api/onboard/claim` — which is the entire point of agentic onboarding —
+was in the same trap. This wasn't a one-off; it was every credential-less
+account, permanently, until this fix.
+
+Full narrative: `KNOWLEDGE.md §12.37`, `APPROACH.md §5by`.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:

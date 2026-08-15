@@ -1094,6 +1094,46 @@ Full narrative and the exact SQL used: `KNOWN_ISSUES.md §0am`,
 
 ---
 
+### 12.37 Two independent code paths assumed "user exists" implies "user has a password" (2026-08-15)
+
+`forgot-password` and `reset-password` each separately gated on
+`UserCredential` existing — one required it before sending mail, the other
+required it before honoring a valid token. Neither check was wrong in
+isolation; both were reasonable defenses for the credentials-signup path
+they were written for. What broke was a *third* path neither route's
+author had in view: `/api/onboard/claim` creates a `User` with an API
+token and, on purpose, no `UserCredential` — that's what makes agentic
+onboarding passwordless. Two independently-reasonable guards, applied to a
+population that included accounts violating the assumption both guards
+shared, produced a account class with literally no route to a first
+password: `forgot-password` silently no-op'd (same generic response as a
+nonexistent email, no log line either way — indistinguishable from the
+outside), and `/settings/tokens` (which the system's own `email_taken`
+error message points to as the alternative) needs a signed-in session the
+account could never obtain.
+
+**The general shape:** when two routes each check the same invariant
+("this relation exists") independently rather than through one shared
+guard, a new code path that legitimately violates the invariant (agentic
+onboarding's passwordless-by-design account) breaks both silently, and the
+break is invisible until someone hits it end-to-end — unit tests for each
+route in isolation, mocking the credential as present, would not have
+caught this.
+
+**Fix:** `reset-password` now upserts `UserCredential` (create-if-missing)
+instead of requiring it, and `forgot-password` no longer filters the user
+lookup on `credential` existing — so the one-hour single-use reset-token
+flow now doubles as "bootstrap my first password" for any account that
+reaches it, regardless of how the account was created. Verified against
+the live account that surfaced this: pre-fix, `POST
+/api/auth/forgot-password` produced zero log lines; post-fix (redeployed
+via `reload.sh web`), the same request logged `"password reset email
+sent"` with a real Resend `messageId`.
+
+Full narrative: `KNOWN_ISSUES.md §0an`, `APPROACH.md §5by`.
+
+---
+
 ### 12.24 Oracle thumbs feedback loop (MVP complete, 2026-04-29)
 
 Oracle thumbs up/down on an answer bumps `successCount` (up) or `failureCount` (down) on each cited Knowledge row owned by the user, in real time.

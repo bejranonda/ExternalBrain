@@ -2926,3 +2926,45 @@ without a more insistent instruction attached, is indistinguishable from
 not having understood the denial at all.
 
 Full instance: `KNOWLEDGE.md §12.36`, `KNOWN_ISSUES.md §0am`.
+
+---
+
+## 5by. "The user exists" and "the user can get in" turned out to be different claims (2026-08-15)
+
+A password-reset request for a real, months-old account produced total
+silence — no email, no error, no log line. The investigation's first
+theory (the account had been deleted, per a memory of an operator-directed
+cleanup the day before) was wrong and would have sent the user down a
+re-registration path for no reason; the onboarding-claim endpoint's own
+`email_taken` check proved the account was still very much there. The
+actual fault was narrower and easy to miss precisely because the account
+*did* exist: `forgot-password` and `reset-password` each independently
+required a `UserCredential` to already exist, and an account created via
+agentic onboarding (`/api/onboard/claim`) has a `User` row and an API
+token but is deliberately never given one. "User exists" and "user has a
+password" had quietly become the same assumption in two places, and the
+account that broke it — passwordless by design, not by accident — had no
+route back to a first password at all.
+
+**What made the first theory attractive:** it matched a true, recent
+memory (an account *was* deleted in the prior session) and required no
+code reading to explain the symptom. It was wrong anyway, and the tell was
+available immediately — the onboarding endpoint's own existence check —
+before any further guessing. The general habit this argues for: when a
+plausible memory-backed explanation and a live code-path check disagree,
+trust the live check and revise the theory, don't patch the explanation to
+fit.
+
+**What made the real fault easy to miss:** both gating checks were locally
+reasonable — a credentials-signup account genuinely should have a
+credential by the time anyone resets its password — and neither route's
+tests exercised the third account shape (agentic-onboarding, credential-
+less) that the product had since grown. The fix widened both checks to
+treat "reached a valid reset token" as sufficient, and upserted rather
+than required the credential, so the reset flow now also serves as
+first-password bootstrap for any account, however it was created. Verified
+live, not just in unit tests: pre-fix the endpoint produced zero log
+lines for the affected address; post-fix, redeployed, the same request
+logged a real Resend delivery.
+
+Full instance: `KNOWLEDGE.md §12.37`, `KNOWN_ISSUES.md §0an`.
