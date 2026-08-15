@@ -69,5 +69,43 @@ test.describe("welcome public URLs (#293, #294)", () => {
   //     surface, which is why it exists after the defect shipped three times).
   //   - e2e/tokens.spec.ts — the authed token wizard, which is now the only
   //     UI that renders a token-bearing install command with a resolved host.
-  // See docs/KNOWN_ISSUES.md for the tracked gap.
+  //   - the replacement below (2026-08-15), which closes the anon gap.
+
+  // CLOSES the gap the comment above tracked. /api/onboard/agent.md is the one
+  // remaining ANONYMOUS surface that resolves a real host from deploy env:
+  // public, unauthenticated, not flag-gated, and `force-dynamic` so it reads
+  // process.env per request rather than freezing Docker-build values.
+  //
+  // Asserting on a markdown endpoint rather than a page is the point. The
+  // #293 class is "a URL was built from the wrong source", which has nothing
+  // to do with rendering — scoping the old test to a *page* is exactly why it
+  // died when that page's content moved (see the note above, and
+  // GUIDELINES §4 "verify the property, not the nearest signal").
+  test("the anon agent-bootstrap doc resolves a reachable MCP URL from deploy env", async ({
+    request,
+  }) => {
+    const res = await request.get("/api/onboard/agent.md");
+    expect(res.status()).toBe(200);
+    const body = await res.text();
+
+    // Non-vacuous guard: if the doc ever stops embedding URLs, the assertions
+    // below would pass trivially against an empty string.
+    expect(body).toContain("/api/onboard/claim");
+
+    // Assert the WEB host, not the MCP host. This doc embeds only
+    // webUrl-derived links (claim endpoint, /start, /signin, /settings/tokens)
+    // — the install command carrying the MCP URL comes back from
+    // /api/onboard/claim at runtime, not from this document. Verified against
+    // a live deployment before writing this: an `E2E_EXPECTED_MCP_HOST`
+    // assertion here passes only vacuously or fails outright, which is how a
+    // first draft of this test would have shipped red.
+    const expectedWebHost = process.env.E2E_EXPECTED_WEB_HOST;
+    if (expectedWebHost) {
+      expect(body).toContain(expectedWebHost);
+    }
+
+    // A placeholder that escaped substitution is the other way this breaks —
+    // the German quick start shipped `<dein-brain>` for exactly this reason.
+    expect(body).not.toContain("<your-brain>");
+  });
 });
