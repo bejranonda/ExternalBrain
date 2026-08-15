@@ -647,11 +647,20 @@ to run myself"*, from a screenshot of the live page.
 
 Two concrete rules:
 
-1. **Never style one option of a mutually exclusive choice as ghost.** Ghost is
-   for de-emphasised *secondary actions* (Dismiss, Copy), where the user
-   already knows the primary path. In a tablist/segmented control every option
-   must carry the same affordance weight — use the bordered `.btn` for
-   inactive and `.btn-primary` for active, and label the group.
+1. **Never style one option of a mutually exclusive choice as ghost — and
+   check the replacement's contrast, because the default `.btn` is not
+   enough.** Ghost is for de-emphasised *secondary actions* (Dismiss, Copy),
+   where the user already knows the primary path. In a tablist/segmented
+   control every option must carry the same affordance weight, and the
+   inactive one needs a boundary the user can see **without hovering**.
+   `.btn`'s own border is `--line`, which against a `--bg-elev-1` panel is
+   **1.30:1 in light and 1.23:1 in dark** — below WCAG 2.1 SC 1.4.11's 3:1
+   floor for UI component boundaries. `--line-strong` (1.57:1) also fails.
+   Use `--ink-4`: it is the lowest rung of the ink ramp that is AA-legible as
+   text, so it clears the boundary threshold on both themes (6.21:1 light,
+   5.73:1 dark). This took two attempts to get right — the first replacement
+   swapped an invisible control for a differently-invisible one, and only the
+   arithmetic settled it.
 2. **A green test suite cannot see this class of defect.** `aria-selected`,
    `role="tab"` and a passing click handler are all satisfied by an invisible
    control. Until there is a screenshot in the loop, "renders" and "is
