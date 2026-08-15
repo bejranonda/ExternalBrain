@@ -322,15 +322,26 @@ export function TokenInstallWizard({
 
       {/* ── Tab switcher: manual command vs. agent-run prompt ── */}
       <div
+        className="mono"
+        style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 8 }}
+      >
+        CHOOSE HOW TO INSTALL
+      </div>
+      {/* Both tabs carry a real border (plain `.btn`), not `.btn-ghost` — ghost
+          is `background: transparent; border-color: transparent`, which renders
+          the unselected tab as plain text sitting beside a button rather than
+          as something you can click. Reported from a screenshot of the live
+          page: "the Prompt tab is not easy to recognize". */}
+      <div
         role="tablist"
-        style={{ display: "flex", gap: 4, marginBottom: 14 }}
+        style={{ display: "flex", gap: 6, marginBottom: 14 }}
       >
         <button
           type="button"
           role="tab"
           aria-selected={tab === "manual"}
-          className={tab === "manual" ? "btn btn-primary" : "btn btn-ghost"}
-          style={{ fontSize: 12, height: 26 }}
+          className={tab === "manual" ? "btn btn-primary" : "btn"}
+          style={{ fontSize: 12.5, height: 28 }}
           onClick={() => setTab("manual")}
         >
           Run it myself
@@ -339,8 +350,8 @@ export function TokenInstallWizard({
           type="button"
           role="tab"
           aria-selected={tab === "prompt"}
-          className={tab === "prompt" ? "btn btn-primary" : "btn btn-ghost"}
-          style={{ fontSize: 12, height: 26 }}
+          className={tab === "prompt" ? "btn btn-primary" : "btn"}
+          style={{ fontSize: 12.5, height: 28 }}
           onClick={() => setTab("prompt")}
         >
           Paste a prompt
