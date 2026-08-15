@@ -321,6 +321,15 @@ Stop-conditions (see `KNOWN_ISSUES.md §3`):
 - KEA noise rate > 30 % on human spot-check → retune prompt/model.
 - Retrieval NDCG@5 < 0.4 → retrieval is broken; knowledge cannot reach the client.
 
+### Observed: the loop closing inside a single session (2026-08-15)
+
+The clearest evidence the flywheel works end to end, recorded because it is easy to argue about in the abstract and hard to argue with as a trace:
+
+1. **19:08** — a session shipping v2.16.0 closed via `brain_report_session_outcome` with three distilled learnings, one of them: *prefer asserting against the rendered artifact rather than the source literal, because a literal grep cannot tell a constructed command from a quoted one.* It came from a real defect found in that session (`KNOWN_ISSUES §0ao`). Close returned `sqs: 75`, queued `kea.extract` + `autoskill.run`.
+2. **19:13** — a *new* session opened five minutes later, on a different task, received that rule back in `relevantKnowledge.injection` under **Your Coding Principles**, reworded by KEA into a general principle rather than the incident that produced it.
+
+So the path `outcome → KEA extraction → embedding → retrieval → inject-at-open` completed against production in single-digit minutes, unprompted, and the generalisation survived the round trip. Two properties worth keeping: the rule arrived **abstracted** from its incident (a verbatim echo of the session summary would not have applied to the new task), and it arrived **without being asked for** — inject-at-open is what makes the flywheel automatic rather than a feature the agent must remember to invoke (§12.8, and the 0%-retrieval measurement that motivated it).
+
 ---
 
 ## 11. How the webapp presents this ontology
