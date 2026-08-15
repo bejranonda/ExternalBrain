@@ -1646,10 +1646,34 @@ of the one that mattered. An invisible control satisfies all of them; see
 `APPROACH.md §2.6f` on not letting "verified" span the gap between *renders*
 and *is discoverable*.
 
-**Fix.** Both tabs now use the design system's bordered `.btn` with
-`.btn-primary` marking the active one, under a `CHOOSE HOW TO INSTALL` caption
-matching the `STEP N —` mono labels below. No new CSS. Rule recorded in
-`GUIDELINES.md §7c`.
+**Fix — second attempt (v2.16.2).** The first fix (v2.16.1) swapped
+`.btn-ghost` for the design system's default `.btn` and added a
+`CHOOSE HOW TO INSTALL` caption. The operator reported the same defect again
+from a fresh screenshot: *"when no mouse hover the paste a prompt button, it
+does not show as a button."* Correct — and measurable. `.btn`'s border is
+`--line`, which against this panel's `--bg-elev-1` is **1.30:1** in light and
+**1.23:1** in dark, versus the **3:1** WCAG 2.1 SC 1.4.11 floor for UI
+component boundaries. The control was still invisible; it merely became
+visible *on hover*, when the fill changes. `--line-strong` would not have
+fixed it either (1.57:1). The inactive tab now uses `--ink-4` — the lowest
+rung of the ink ramp that is AA-legible as text — giving **6.21:1** light and
+**5.73:1** dark.
+
+**Lesson.** "Use the design system token" is necessary, not sufficient: a
+token can be in-system and still fail AA in the specific pairing you put it
+in. Contrast is a property of the *pair*, so it has to be computed against the
+actual surface the component sits on. Two rounds of screenshot feedback were
+spent discovering something ten lines of arithmetic answered.
+
+**OPEN — systemic.** `.btn`'s default border fails SC 1.4.11 against
+`--bg-elev-1` on **both** themes, so every plain `.btn` on an elevated panel
+has the same near-invisible boundary; only `.btn-primary` (accent fill) and
+text-bearing buttons are unaffected. `GUIDELINES.md §10` states WCAG 2.1 AA is
+the floor, so this is a standing violation of the repo's own bar. Fixing it
+means changing `--line` (or `.btn`'s border) app-wide — a blast radius across
+every surface, and not something to fold into a tab fix. Filed here so the
+next person to touch the palette sees the arithmetic rather than rediscovering
+it from a screenshot.
 
 **Also in v2.16.1:** the rendered-artifact assertions v2.16.0 added for the
 token bootstrap were extended to sweep all three agent-facing documents —

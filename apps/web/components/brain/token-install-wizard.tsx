@@ -327,35 +327,49 @@ export function TokenInstallWizard({
       >
         CHOOSE HOW TO INSTALL
       </div>
-      {/* Both tabs carry a real border (plain `.btn`), not `.btn-ghost` — ghost
-          is `background: transparent; border-color: transparent`, which renders
-          the unselected tab as plain text sitting beside a button rather than
-          as something you can click. Reported from a screenshot of the live
-          page: "the Prompt tab is not easy to recognize". */}
+      {/* The inactive tab needs a border the user can actually see WITHOUT
+          hovering. Two earlier attempts failed, both reported from screenshots
+          of the live page:
+            1. `.btn-ghost` — `background/border-color: transparent`. Renders as
+               plain text next to a button.
+            2. plain `.btn` — border is `--line` (#E2E2DC in light theme) on
+               this panel's `--bg-elev-1` (#FFFFFF): a 1.3:1 contrast ratio,
+               below WCAG 2.1 SC 1.4.11's 3:1 floor for UI component
+               boundaries. Visible only on hover, when the fill changes.
+          `--ink-4` (#60606B light / #8C8C9A dark) is the lowest token in the
+          ink ramp that is AA-legible as text, so it clears 1.4.11 comfortably
+          on both themes (~6.2:1 on white). Do not "simplify" this back to the
+          default `.btn` border. */}
       <div
         role="tablist"
+        aria-label="Install method"
         style={{ display: "flex", gap: 6, marginBottom: 14 }}
       >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "manual"}
-          className={tab === "manual" ? "btn btn-primary" : "btn"}
-          style={{ fontSize: 12.5, height: 28 }}
-          onClick={() => setTab("manual")}
-        >
-          Run it myself
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "prompt"}
-          className={tab === "prompt" ? "btn btn-primary" : "btn"}
-          style={{ fontSize: 12.5, height: 28 }}
-          onClick={() => setTab("prompt")}
-        >
-          Paste a prompt
-        </button>
+        {([
+          ["manual", "Run it myself"],
+          ["prompt", "Paste a prompt"],
+        ] as const).map(([id, label]) => {
+          const active = tab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              className={active ? "btn btn-primary" : "btn"}
+              style={{
+                fontSize: 12.5,
+                height: 28,
+                ...(active
+                  ? {}
+                  : { borderColor: "var(--ink-4)", color: "var(--ink)" }),
+              }}
+              onClick={() => setTab(id)}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {tab === "prompt" && (
