@@ -395,7 +395,7 @@ export const I18N = {
       signinLink: "Already have an account? Sign in",
     },
     landing: {
-      heroTitle: "Make your AI coding tools 10× smarter with self-improving team intelligence.",
+      heroTitle: "Double the power of your AI coding tools with self-improving team intelligence.",
       heroBody:
         "External Brain is a self-improving intelligence engine for your AI agents over MCP. It automatically extracts rules, decisions, and recipes from finished sessions — turning past fixes into instant, compounding knowledge across Claude Code, Cursor, and Windsurf.",
       ctaVoucher: "I have a voucher code",
@@ -827,7 +827,7 @@ export const I18N = {
       signinLink: "มีบัญชีผู้ใช้อยู่แล้ว? เข้าสู่ระบบ",
     },
     landing: {
-      heroTitle: "ยกระดับ AI เขียนโค้ดของคุณให้ฉลาดขึ้น 10 เท่า ด้วยระบบเรียนรู้และพัฒนาตัวเองอัตโนมัติ",
+      heroTitle: "เพิ่มพลัง AI เขียนโค้ดเป็น 2 เท่า ด้วยระบบความฉลาดระดับทีมที่พัฒนาตัวเองอัตโนมัติ",
       heroBody:
         "External Brain คือระบบประมวลผลความรู้อัจฉริยะสำหรับ AI Agents ผ่าน MCP ที่เรียนรู้และพัฒนาตัวเองอย่างต่อเนื่อง โดยสกัดกฎ ข้อสรุป และแนวทางแก้ไขจากเซสชันที่จบแล้ว แปลงเป็นความรู้ที่สั่งสมและฉลาดขึ้นทุกวันใน Claude Code, Cursor และ Windsurf",
       ctaVoucher: "ใช้รหัสวอเชอร์",
@@ -1263,7 +1263,7 @@ export const I18N = {
       signinLink: "Schon ein Konto? Anmelden",
     },
     landing: {
-      heroTitle: "Mache deine KI-Coding-Tools 10-mal intelligenter durch selbstverbessernde Team-Intelligenz.",
+      heroTitle: "Verdopple die Leistung deiner KI-Coding-Tools durch selbstverbessernde Team-Intelligenz.",
       heroBody:
         "External Brain ist eine selbstverbessernde Intelligenz-Engine für deine KI-Agents über MCP. Sie extrahiert automatisch Regeln, Entscheidungen und Rezepte aus vergangenen Sitzungen — und verwandelt alte Fixes in kumulatives Wissen für Claude Code, Cursor und Windsurf.",
       ctaVoucher: "Ich habe einen Gutscheincode",

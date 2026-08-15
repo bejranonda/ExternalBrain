@@ -13,20 +13,25 @@ This knowledge is **typed, inspectable, and user-editable** by design — the pr
 
 ---
 
-## 1. Definitions
+## 1. The DIKW-T Evolution Framework & Definitions
 
-| Term | Meaning |
-|---|---|
-| **Data** | raw events from a session: prompts, tool calls, diffs, build output |
-| **Information** | typed summaries of a session: outcome, files touched, metrics |
-| **Knowledge** | an atomic, actionable rule extracted from one or more sessions |
-| **Wisdom** | an internal skill that improves how the Brain itself extracts/retrieves |
-| **Skill** | a user-visible markdown document bundling multiple knowledge items |
-| **Transformation** | the act of applying knowledge to a new AI session |
-| **Retrieval** | the operation of finding the right knowledge for a task |
-| **Representation** | the form knowledge takes in storage (text, structured, embedding, graph, symbolic) |
+Knowledge in External Brain follows the **DIKW-T Framework** (*Data → Information → Knowledge → Wisdom + Time*). Traditional knowledge management treats information statically; adding the **time-series** element transforms static storage into a dynamic learning system that tracks how understanding evolves over time.
 
-We call the extended framework **DIKW-T-R-R**. See `BLUEPRINT.md §2.3`.
+![DIKW-T Model: Evolution Framework](./assets/illustrations/DIKW-T.jpg)
+
+### Framework Stages & System Mapping
+
+| Stage | Meaning & Definition | Where it lives & How it works |
+|---|---|---|
+| **1. Data (Raw Input)** | Raw, unstructured events from a session: prompts, tool calls, diffs, terminal outputs, quick notes, meeting transcripts. | `SessionEvent` table, object storage, raw ingestion queue |
+| **2. Information (Structured Context)** | Data categorized, tagged, and organized with YAML frontmatter, project folders, and bidirectional links (`[[ ]]`). | `Session.metadata`, typed session archives, scope & tag index |
+| **3. Knowledge (Synthesized Understanding)** | Atomic, actionable rules synthesized by autonomous agents (**KEA / Hermes**) answering *"How"*. | `Knowledge` table (reflexes, recipes, heuristics, principles, anti-principles) + embeddings |
+| **4. Wisdom + Time (Actionable Evolution)** | Understanding *"Why"* decisions changed across time-series, commit history, reinforcement of winning rules, and active decay. | `InternalSkill` + reflection workers + grounded Oracle answering questions with historical provenance |
+| **Transformation** | The act of applying knowledge to a new AI session | MCP `brain_retrieve_knowledge` responses |
+| **Retrieval** | Hybrid semantic + metadata + graph search | `kra.ts` + pgvector + tag index |
+| **Representation** | The form knowledge takes in storage | 5 representations: text markdown, structured JSON, embeddings, graph relations, and symbolic guards |
+
+We call the extended framework **DIKW-T-R-R** (DIKW + Time + Retrieval + Representation). See `BLUEPRINT.md §2.3`.
 
 ---
 

@@ -10,6 +10,17 @@ External Brain is a persistent knowledge layer that sits between AI coding tools
 
 **Why a separate layer, when AI tools already have memory?** Because that memory is trapped — **per tool, per project, and per person**. Claude Code's memory doesn't carry over to Cursor or Copilot, a lesson learned on one repo doesn't reach the next, and each teammate starts from zero. It's also a **black box** you can't inspect or correct, and **vendor-locked** in someone else's cloud. External Brain is one shared, inspectable, self-hosted knowledge layer that spans every MCP tool, project, and team — with user / project / team / org scopes it was built for **enterprise knowledge reuse**, so a skill learned once becomes the team's. Use it *alongside* a tool's built-in memory, not instead of it.
 
+### The underlying engine: The DIKW-T Evolution Framework
+
+The platform operationalizes the **DIKW-T Framework** (*Data → Information → Knowledge → Wisdom + Time*), adding a time-series dimension to turn static code events into evolving engineering intelligence:
+
+![DIKW-T Model: Evolution Framework](./assets/illustrations/DIKW-T.jpg)
+
+1. **[Data] Ingestion:** Raw session events, prompts, tool dispatches, and diffs arrive via MCP (`SessionEvent`).
+2. **[Information] Processing:** Events are structured with metadata, project scopes, tags, and graph connections (`Session.metadata`).
+3. **[Knowledge] Automation:** KEA/Hermes workers synthesize atomic rules (heuristics, recipes, anti-patterns) with semantic embeddings (`Knowledge` table).
+4. **[Wisdom] Versioning & Time-Series:** Proven patterns reinforce, obsolete guidance decays, and the Oracle explains architectural evolution over time (`InternalSkill`, confidence/decay, Oracle citations).
+
 ---
 
 ## Step 0 — Where the platform runs

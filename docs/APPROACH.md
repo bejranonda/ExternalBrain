@@ -25,6 +25,17 @@ Belief without measurement is vibes. SQS + knowledge health + NDCG@5 are shipped
 
 If we can't observe the flywheel, we can't tell when it stalls — and every research document warns that it *will* stall without explicit counter-engineering.
 
+### 1.4 Knowledge compounds along a time-series (The DIKW-T Engine)
+Static databases accumulate noise; dynamic learning systems track how knowledge evolves over time. By structuring the intelligence pipeline on the **DIKW-T Framework** (*Data → Information → Knowledge → Wisdom + Time*), we ensure raw session traces continuously upgrade into structured context, synthesized rules, and time-aware institutional wisdom.
+
+![DIKW-T Model: Evolution Framework](./assets/illustrations/DIKW-T.jpg)
+
+The four progression tiers:
+1. **Data:** Raw prompts, diffs, tool calls, and unstructured terminal output.
+2. **Information:** Categorized metadata, project boundaries, tags, and graph connections.
+3. **Knowledge:** Autonomous agent extraction (KEA / Hermes) producing actionable recipes, heuristics, and anti-patterns.
+4. **Wisdom + Time:** Versioned decision history, reinforcement of winning rules, active decay of stale rules, and grounded historical explanations via the Oracle.
+
 ---
 
 ## 2. Method

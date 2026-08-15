@@ -5,7 +5,7 @@
 > the next, and basic memory just accumulates raw chat history. External Brain is **a
 > self-improving, compounding intelligence engine across every MCP tool, project, and team**.
 > It extracts structured rules and recipes from finished sessions, reinforces what pays off,
-> decays obsolete guidance, and makes every AI tool 10× smarter from your team's real work.
+> decays obsolete guidance, and doubles the power of every AI tool from your team's real work.
 > Built for teams and enterprise, on your own infrastructure.
 
 <img width="1416" height="320" alt="image" src="https://github.com/user-attachments/assets/74d9c69c-145a-452d-aead-b00f8447025c" />
@@ -102,6 +102,32 @@ fade. Each project gets better day by day, on its own, through **self-improving 
 > **What it is *not*:** another AI coding tool. External Brain doesn't write
 > code — it's the memory substrate that makes whatever tool you already use
 > smarter over time.
+
+---
+
+## The Conceptual Foundation: The DIKW-T Framework
+
+Traditional Personal Knowledge Management (PKM) systems and AI memory tools are static: they accumulate data, but they lack the dynamic **time-series** dimension required to understand how engineering knowledge evolves. 
+
+External Brain grounds its architecture in the industry-standard **DIKW Pyramid (Data → Information → Knowledge → Wisdom)**, upgraded with an active **Time-Series (+ Time)** engine that turns static storage into an evolving, self-improving intelligence platform.
+
+![DIKW-T Model: Evolution Framework](./docs/assets/illustrations/DIKW-T.jpg)
+
+### The 4 Stages of Knowledge Evolution
+
+| Stage | Definition | In External Brain & Connected Workflows |
+| :--- | :--- | :--- |
+| **1. Data (Raw Input & Ingestion)** | Raw, unstructured, and unprocessed inputs — the scattered puzzle pieces. | Quick notes, terminal outputs, raw git diffs, session prompts, tool calls, and unprocessed meeting transcripts. |
+| **2. Information (Structured Context & Processing)** | Data that has been categorized, tagged, and organized to answer *"Who, What, Where, and When."* | Typed session summaries, files touched, bidirectional graph links (`[[ ]]`), project metadata, and YAML frontmatter (`status: active`, `tags: #auth`). |
+| **3. Knowledge (Synthesized Understanding & Automation)** | Synthesized understanding that answers *"How."* The puzzle pieces are assembled into actionable recipes. | Autonomous extraction agents (**KEA / Hermes**) synthesize scattered sessions into evergreen skill documents, typed rules, heuristics, and anti-patterns. |
+| **4. Wisdom + Time (Actionable Evolution & Versioning)** | Understanding *"Why"* things changed, evaluating past outcomes, and making future decisions based on historical context across time. | Time-series tracking, commit history, and continuous reinforcement/decay. The grounded **Oracle** explains not just *what* the rule is, but *how and why* the architecture evolved over months of coding sessions. |
+
+### How It Translates to the Cloud App Workflow
+
+1. **Ingestion (`[Data]`):** An engineer interacts with an AI agent or captures an idea on mobile/desktop → Synced as raw session data.
+2. **Processing (`[Information]`):** The system indexes metadata, links entities, and structures files by project and tag scopes.
+3. **Automation (`[Knowledge]`):** Background extraction agents read the connected graph and synthesize atomic, reusable rules and skills.
+4. **Versioning & Evolution (`[Wisdom]`):** As git commits and new sessions accrue over time, the system tracks the project's evolution, reinforces winning patterns, decays obsolete ones, and serves grounded answers through the Oracle.
 
 ---
 
