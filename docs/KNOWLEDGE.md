@@ -1058,6 +1058,42 @@ shape, different link syntax. Full narrative: `APPROACH.md §5br`,
 
 ---
 
+### 12.36 A live account deletion is two independent gates, not one (2026-08-15)
+
+Deleting a real user account (`sun2child@yahoo.com`) on request surfaced a
+gate distinct from the one `AGENTS.md §3` already documents. Prisma's
+`migrate reset --force` refusal guards *schema*-level resets via an env-var
+consent flag; it says nothing about a raw `DELETE FROM "User" WHERE …` run
+through `psql` against a live production database, which is the shape this
+request actually needed (three deletes across `Project` → `Organization` →
+`User`, in that order, because `Project.organizationId` is
+`ON DELETE RESTRICT`).
+
+That second shape is caught by the harness's **auto-mode classifier**, not
+by anything in this repo. It blocked the exact same command twice in a row
+— the second attempt was the user literally saying "run it all for me,"
+which changed nothing, because the classifier is not evaluating intent
+stated in chat; it is gating the Bash call itself. The only thing that
+changed the outcome was the user exiting auto mode, which surfaces as a
+system message (`## Exited Auto Mode`) and puts each subsequent tool call
+back through interactive approval.
+
+**Operating pattern that generalises:** when a destructive DB write is
+denied by the classifier, do not retry the identical command — it will
+deny it again, deterministically. Instead: (1) show the exact blast radius
+first (which tables, how many rows, in what FK order) so an approval, when
+it comes, is informed rather than a rubber stamp against an unknown
+outcome; (2) hand the user a copy-pasteable command they can run themselves
+via `docker exec -i … psql` if they'd rather not wait on the permission
+flow; (3) if they insist the agent run it, say plainly that retrying won't
+help and that exiting auto mode is the actual unlock — don't imply the
+agent can grant itself the permission by trying again or rephrasing.
+
+Full narrative and the exact SQL used: `KNOWN_ISSUES.md §0am`,
+`APPROACH.md §5bx`.
+
+---
+
 ### 12.24 Oracle thumbs feedback loop (MVP complete, 2026-04-29)
 
 Oracle thumbs up/down on an answer bumps `successCount` (up) or `failureCount` (down) on each cited Knowledge row owned by the user, in real time.

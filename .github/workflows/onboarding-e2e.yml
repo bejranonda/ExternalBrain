@@ -130,6 +130,10 @@ jobs:
           NODE_ENV: production
           E2E_BASE_URL: http://localhost:3000
           E2E_EXPECTED_MCP_HOST: mcp.brain.ci.test
+          # The agent-bootstrap assertion checks the WEB host: that doc embeds
+          # only webUrl-derived links (the MCP URL is returned by
+          # /api/onboard/claim at runtime, not baked into the document).
+          E2E_EXPECTED_WEB_HOST: brain.ci.test
         run: |
           pnpm --filter @brain/web start &
           APP_PID=$!

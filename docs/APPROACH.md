@@ -2889,3 +2889,40 @@ nothing and turns "is this watching the right thing?" from an investigation
 into a glance.
 
 Full instance: `KNOWN_ISSUES.md §0al`.
+
+## 5bx. A denied command is a fact about the gate, not a negotiating position (2026-08-15)
+
+A live account-deletion request (`sun2child@yahoo.com`, operator-confirmed,
+personal org + project) hit the harness's auto-mode classifier on the first
+`docker exec … psql … DELETE` attempt. The user replied "run it all for
+me." Ran the *identical* command. Denied again, identically.
+
+The instinct that reply invites is to treat it as new information — the
+user just said yes, surely that changes the evaluation. It doesn't, because
+the classifier isn't reading the conversation for consent; it's evaluating
+the Bash call itself, every time, the same way. A denial from a
+deterministic gate carries exactly one bit of information regardless of
+what surrounds it: *this exact call, in this exact mode, is blocked.*
+Repeating it — even with a more emphatic instruction attached — spends a
+turn to learn nothing.
+
+**What actually changed the outcome** was orthogonal to anything said: the
+user exited auto mode, a distinct harness state that surfaces as its own
+system message. The identical command, unmodified, then ran. The lesson
+isn't "try harder" or "phrase it more clearly" — it's "identify which
+layer the block is at before spending another attempt." A schema-level
+Prisma refusal (`AGENTS.md §3`'s original case) is unlocked by an env var
+inside the repo, reasoning about which is in scope. A harness-level
+classifier denial is unlocked by a harness state change that is *not* in
+scope — no amount of in-repo investigation finds it, and no chat-level
+confirmation substitutes for it.
+
+**The generalisable rule:** when a tool call is denied, the first question
+is not "how do I convince it" but "what kind of gate is this, and whose
+lever moves it." If the answer is "not mine" — stop, say so plainly, and
+either hand the user something they can run themselves or name the actual
+unlock (here: exiting auto mode). Retrying a deterministic denial, with or
+without a more insistent instruction attached, is indistinguishable from
+not having understood the denial at all.
+
+Full instance: `KNOWLEDGE.md §12.36`, `KNOWN_ISSUES.md §0am`.
