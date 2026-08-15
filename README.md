@@ -201,6 +201,26 @@ one can mint a token. The minted token is deliberately narrow (14 days, no
 Oracle access) so a leaked code can't run up LLM spend. Full posture and the
 trade-offs: [docs/SECURITY.md](./docs/SECURITY.md#agentic-onboarding--the-voucher-becomes-a-credential-v2150).
 
+### Already have an account? Let your AI install the token
+
+The same trick works after you've minted a token at `/settings/tokens` — the
+mint screen has a **"Paste a prompt"** tab next to the manual instructions:
+
+```text
+Connect this machine to External Brain. I already have an account and a token.
+Fetch https://<your-host>/api/onboard/agent.md?mode=token and follow it exactly.
+My token is: bp_<your-token>
+```
+
+`?mode=token` serves a shorter bootstrap document that skips the voucher
+exchange — the agent detects which client it's running in, runs the standard
+installer, and stops for a restart. It needs no `AGENTIC_ONBOARDING` opt-in,
+because you are already authenticated and no voucher is being spent.
+
+JetBrains IDEs and non-MCP tools have no one-line installer, so the document
+tells the agent to stop and send you to the manual tab instead of failing
+halfway through.
+
 ### Connect your AI tool (browser route)
 
 After signing in, **[`docs/tutorials/00-quick-start.md`](./docs/tutorials/00-quick-start.md)**

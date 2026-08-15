@@ -57,7 +57,7 @@ still be able to ask what it is.
 
 | # | Name | When to call | Returns |
 |---|---|---|---|
-| 1 | `brain_start_session` | ONCE at the start of a coding task. Accepts optional `projectName` to file the session under a project (creating it on demand). | `{ sessionId, startedAt, relevantKnowledge?, openActionItems? }` — save `sessionId`; apply `relevantKnowledge` (inject-at-open, see below); `openActionItems` = your meeting to-dos (V2.0, flag-gated) |
+| 1 | `brain_start_session` | ONCE at the start of a coding task. Accepts optional `projectName` to file the session under a project (creating it on demand). Project scoping is per-call, not persisted. | `{ sessionId, startedAt, project, hint?, relevantKnowledge?, openActionItems? }` — save `sessionId`; `project.source` says whether this landed in a real project or the "Default" fallback, with `hint` present on fallback; apply `relevantKnowledge` (inject-at-open, see below); `openActionItems` = your meeting to-dos (V2.0, flag-gated) |
 | 2 | `brain_create_project` | Before work on a new codebase / client, when you want an explicit, audit-friendly create | `{ projectId, slug, created }` |
 | 3 | `brain_list_projects` | Before `brain_create_project`, to avoid duplicates; or to surface a "switch project?" prompt | `{ projects: [...] }` |
 | 4 | `brain_get_active_project` | Before `brain_start_session`, to verify the default destination matches the user's intent | `{ project: {...} \| null }` |
@@ -189,6 +189,50 @@ When the user has no projects yet, the response is `{ "project": null }` — the
 5. **Lazy default** — `ensureDefaultProject` creates a "Default" project if the user has zero projects.
 
 For project-scoped tokens, `projectName` is silently ignored — the scope wins.
+
+### `brain_start_session` — `project` + `hint` response fields
+
+The response always carries a `project` object naming the resolved
+destination, and a `hint` string when that resolution was a silent fallback
+rather than a deliberate choice:
+
+```json
+{
+  "sessionId": "…",
+  "startedAt": "…",
+  "project": { "id": "…", "name": "Default", "source": "default_created" },
+  "hint": "This session is filed under the \"Default\" project because no projectId/projectName was given. …"
+}
+```
+
+`project.id` and `project.source` are always present. `project.name` is
+best-effort: the fallback paths already hold it, and the scoped/explicit
+paths look it up **fail-soft** after the session row is committed — a failed
+lookup omits `name` rather than failing the call, because throwing there
+would hand back no `sessionId` for a session that already exists and could
+therefore never be closed.
+
+`project.source` mirrors the same values `brain_get_active_project` reports:
+
+| `source` | Meaning |
+|---|---|
+| `token_scope` | Token is project-scoped; that project won. |
+| `explicit` | Caller passed `projectId`, or `projectName` resolved (created or matched) an existing project. |
+| `first_project_fallback` | No `projectId`/`projectName` given; an existing project was used — either the user's first project (unordered) or the personal org's oldest, since `ensureDefaultProject` returns an existing project when one is present. |
+| `default_created` | No `projectId`/`projectName` given, no project existed, so a "Default" project was created. Derived from `ensureDefaultProject`'s `created` flag rather than assumed. |
+
+`hint` is present only when the caller named no project **and** the fallback
+was actually worth flagging — i.e. the session landed on the catch-all
+"Default" project, or there was more than one project it could have picked.
+It steers the caller toward `brain_create_project` or passing `projectName`,
+and reminds them that project scoping is **per-call**: there is no persisted
+"active project", so the same `projectName`/`projectId` must be passed again
+on every subsequent `brain_start_session` call for that project's work.
+
+Deliberately **absent** for `token_scope`/`explicit` (the caller chose), and
+for a user whose single project is their own named one — omitting
+`projectName` there is not a mistake, and a hint on every session would
+train the agent to ignore the field.
 
 ### `brain_start_session` — `relevantKnowledge` response (inject-at-open, 2026-06-11)
 

@@ -1548,6 +1548,66 @@ Full narrative: `KNOWLEDGE.md §12.37`, `APPROACH.md §5by`.
 
 ---
 
+## 0ao. Prompt-based token install + the guard that couldn't see the defect (2026-08-15)
+
+Shipping the `/settings/tokens` "Paste a prompt" tab — the authenticated
+counterpart to `/start`'s voucher prompt — turned up three defects in the
+same change, two of them in code that had already passed typecheck, test
+and build. Recording them because two are recurring classes, and one is a
+still-open gap in a guard the repo relies on.
+
+**1. The new bootstrap document hand-wrote its install command.** It told
+the agent to run `claude mcp add --transport http brain <url> --header …`.
+The real command, from `packages/core/src/install-snippets.ts`, is the
+`onboard.sh` installer, which additionally installs the Brain skill and
+smoke-tests the round-trip, and passes `--scope user`. So the prompt path
+would have produced a *worse* install than the manual tab beside it — a
+connection with no skill and no verification. Fixed by deriving both the
+POSIX and PowerShell commands from `clientById("claude-code").snippet(…)`
+with `<TOKEN>` as the placeholder, so the document cannot drift from the
+installer. This is `APPROACH.md §2.6` again, in a new surface.
+
+**2. `install-command-single-source.test.ts` did not catch (1), and still
+can't in general — OPEN.** Its docstring claims it enforces "only one
+place is *able* to construct the command." It greps for two literals
+(`/api/onboard.sh | bash`, `/api/onboard.ps1 -UseBasicParsing | iex`), so
+a *different* command shape for the same job is invisible to it. Adding
+`mcp add` to the pattern list is not a fix: `skill-template.ts`
+legitimately quotes that command in prose, and a literal guard cannot
+distinguish constructing from mentioning. Mitigated for this document by
+asserting on the *rendered* output (`toContain("/api/onboard.sh")` +
+`not.toMatch(/claude mcp add/)`), where there is no prose ambiguity. The
+general gap stands: **any future surface that invents a third command
+shape passes this guard.** See `GUIDELINES.md` ("A guard that greps for
+literals…").
+
+**3. The document offered `--client` ids the installer rejects.** The list
+was built from all of `CLIENTS`, but `jetbrains` and `rest` have no
+one-line command (the claim route answers `installCommand: null` for
+them). An agent in a JetBrains IDE would have picked `jetbrains` off the
+list and hit `ERROR: no config template for client 'jetbrains'` mid-setup,
+with no recovery path. The list is now filtered by
+`snippet(…).command !== undefined` — the same predicate
+`installer-templates.ts` uses — and those users are routed to the manual
+wizard explicitly.
+
+**Also fixed in the same pass:** an unguarded `project.findUnique` added
+after `session.create()` in `brain_start_session`, which would have
+stranded a created session on any DB blip (`APPROACH.md §4.5`); and a
+`source: "default_created"` label that assumed `ensureDefaultProject`
+always creates, when it returns the personal org's oldest existing project
+when there is one.
+
+**Residual, not defects:** the new `brain_start_session` project/hint test
+cannot run on the prod host (no dev DB; it writes `User` rows) — it
+executes in CI's `verify` job, which provisions pgvector. The tokens-page
+tab was verified by typecheck/build and by reading the `authed-e2e`
+selectors, not by opening a browser.
+
+Full narrative: `KNOWLEDGE.md §12.8b`, `APPROACH.md §2.6`/`§4.5`.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:

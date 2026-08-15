@@ -369,6 +369,16 @@ Rules-shaped Knowledge is stored as global-scope rows tagged `rules-export` plus
 
 The 9th MCP tool, `brain_start_session`, is the only supported way to create a `Session` row from an external client. It returns `{ sessionId, startedAt }` and writes a synthetic `session_started` event so `SessionEvent` has something to anchor the FK chain. Earlier versions of the platform allowed clients to invent sessionIds and call `brain_log_event` directly — that path is removed: `brain_log_event` now requires a pre-existing Session row, or the FK rejects the write.
 
+### 12.8b Project scoping is per-call, and the response says so (2026-08-15)
+
+There is no persisted "active project" for an MCP caller. `brain_start_session` resolves a destination **per call**, in this order: the token's project when it is scoped, then an explicit `projectId`, then `projectName` (created on demand via `ensureNamedProject`), then the user's first project, then a lazily-created `"Default"`. Calling `brain_create_project` does not change what the *next* `brain_start_session` resolves to — only passing `projectId`/`projectName` again does.
+
+That is a knowledge-model concern, not just an API detail: the project is the scope every retrieval filter resolves through, so a session filed under `"Default"` puts its extracted rules where the agent's next real-project session won't inject them. Silently defaulting is how a user ends up with a Brain that has learned plenty and surfaces none of it.
+
+So the response carries the destination back. `project` is always present with `{ id, source }` and best-effort `name`; `source` is one of `token_scope`, `explicit`, `first_project_fallback`, `default_created`. When the caller chose nothing *and* the choice was worth flagging — the session landed on the catch-all `"Default"`, or there was more than one project it could have guessed between — the response also carries a `hint` string, the same convention `brain_report_session_outcome` uses for missing learnings.
+
+The hint deliberately does **not** fire for a user whose single project is their own named one. Omitting `projectName` there is not a mistake, and a nudge on every session is how you teach an agent to ignore the field. Full field reference: `docs/MCP_TOOLS.md`.
+
 ### 12.8a Agentic onboarding — a Brain that bootstraps itself (v2.15.0)
 
 `POST /api/onboard/claim` is the only anonymous endpoint that creates knowledge-bearing state. It exchanges a voucher code for a `User`, a personal org, a default project and an `MCPToken` in **one transaction**, so an AI agent can go from "user pasted a code" to "connected Brain" with no browser.

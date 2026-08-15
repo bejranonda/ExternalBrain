@@ -13,14 +13,28 @@
  * what it returns, then stop". See `renderBrainBootstrap` for why that
  * narrowness is a security property and not just brevity.
  */
-import { NextResponse } from "next/server";
-import { renderBrainBootstrap, publicUrlsFromEnv } from "@/lib/brain/skill-template";
+import { NextRequest, NextResponse } from "next/server";
+import {
+  renderBrainBootstrap,
+  renderBrainBootstrapForToken,
+  publicUrlsFromEnv,
+} from "@/lib/brain/skill-template";
 
 export const dynamic = "force-dynamic";
 
-export function GET(): Response {
+/**
+ * `?mode=token` serves the sibling doc for a user who already has an
+ * account and pasted a minted token into their agent prompt (see
+ * /settings/tokens' "Paste a prompt" tab) — skips the voucher-claim step
+ * entirely. Default (no param) stays the voucher flow, unchanged.
+ */
+export function GET(req: NextRequest): Response {
   const { mcpUrl, webUrl } = publicUrlsFromEnv();
-  const body = renderBrainBootstrap({ mcpUrl, webUrl });
+  const mode = req.nextUrl.searchParams.get("mode");
+  const body =
+    mode === "token"
+      ? renderBrainBootstrapForToken({ mcpUrl, webUrl })
+      : renderBrainBootstrap({ mcpUrl, webUrl });
   return new NextResponse(body, {
     status: 200,
     headers: {

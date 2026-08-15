@@ -384,17 +384,22 @@ export async function getUserProjects(
 export async function ensureDefaultProject(
   db: DbClient,
   userId: string,
-): Promise<{ projectId: string; slug: string; created: boolean }> {
+): Promise<{ projectId: string; slug: string; name: string; created: boolean }> {
   const { orgId } = await ensurePersonalOrg(db, userId);
 
   const existing = await db.project.findFirst({
     where: { organizationId: orgId },
     orderBy: { createdAt: "asc" },
-    select: { id: true, slug: true },
+    select: { id: true, slug: true, name: true },
   });
 
   if (existing) {
-    return { projectId: existing.id, slug: existing.slug, created: false };
+    return {
+      projectId: existing.id,
+      slug: existing.slug,
+      name: existing.name,
+      created: false,
+    };
   }
 
   const project = await db.project.create({
@@ -404,10 +409,15 @@ export async function ensureDefaultProject(
       name: "Default",
       slug: "default",
     },
-    select: { id: true, slug: true },
+    select: { id: true, slug: true, name: true },
   });
 
-  return { projectId: project.id, slug: project.slug, created: true };
+  return {
+    projectId: project.id,
+    slug: project.slug,
+    name: project.name,
+    created: true,
+  };
 }
 
 // ---------------------------------------------------------------------------

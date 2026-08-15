@@ -1,7 +1,11 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
-import { renderBrainBootstrap, renderBrainSkill } from "./skill-template";
+import {
+  renderBrainBootstrap,
+  renderBrainBootstrapForToken,
+  renderBrainSkill,
+} from "./skill-template";
 
 /**
  * One value, rendered by several surfaces, corrected in some of them.
@@ -110,6 +114,7 @@ describe("rendered agent-facing documents carry no unsubstituted placeholders", 
   for (const [name, render] of [
     ["SKILL.md", renderBrainSkill],
     ["bootstrap agent.md", renderBrainBootstrap],
+    ["bootstrap agent.md?mode=token", renderBrainBootstrapForToken],
   ] as const) {
     it(`${name} substitutes every {{PLACEHOLDER}}`, () => {
       const out = render(urls);
@@ -146,5 +151,44 @@ describe("the bootstrap document tells the agent to stop", () => {
 
   it("forbids retrying under a different email after email_taken", () => {
     expect(doc).toMatch(/Do NOT retry with a different email/i);
+  });
+});
+
+describe("the token-mode bootstrap document derives its install command", () => {
+  const doc = renderBrainBootstrapForToken({
+    mcpUrl: "https://mcp.example.com/mcp",
+    webUrl: "https://brain.example.com",
+  });
+
+  it("renders the real installer, not a hand-written mcp-add command", () => {
+    // The whole failure this file guards: a second surface inventing its own
+    // install command. A bare `claude mcp add` here would connect the client
+    // but skip the skill install and the smoke test the installer performs.
+    expect(doc).toContain("/api/onboard.sh");
+    expect(doc).not.toMatch(/claude mcp add/);
+  });
+
+  it("leaves the secret as a placeholder — this document is public", () => {
+    expect(doc).toContain("<TOKEN>");
+  });
+
+  it("forbids continuing in the same session", () => {
+    expect(doc).toMatch(/STOP/);
+    expect(doc.toLowerCase()).toContain("restart");
+  });
+
+  it("enumerates real client ids rather than inviting the agent to guess", () => {
+    expect(doc).toMatch(/- `claude-code`/);
+    expect(doc).toMatch(/- `cursor`/);
+  });
+
+  it("offers only ids the installer accepts — no jetbrains, no rest", () => {
+    // These two have no one-line install command (the claim route answers
+    // `installCommand: null` for them). Offering them as `--client` ids
+    // walks an agent into onboard.sh's "no config template" error with no
+    // recovery path — the doc must route those users to the manual wizard.
+    expect(doc).not.toMatch(/- `jetbrains`/);
+    expect(doc).not.toMatch(/- `rest`/);
+    expect(doc).toContain("/settings/tokens");
   });
 });

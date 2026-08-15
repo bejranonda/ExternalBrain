@@ -46,7 +46,7 @@ const inputShape = z.object({
 export const startSession: ToolDef = {
   name: "brain_start_session",
   description:
-    "Open a new coding session. Call once at the start of a coding task, save the returned `sessionId`, and pass it to every subsequent `brain_log_event` and `brain_report_session_outcome`. ALWAYS include `prompt` (the task description): the response then carries `relevantKnowledge` — rules this Brain already learned that apply to the task. APPLY them, and pass `relevantKnowledge.knowledgeIds` back as `knowledgeUsed` when you close, so the Brain learns which rules paid off. When meeting intelligence is enabled the response may also carry `openActionItems` — your open meeting to-dos; act on or resolve them via `resolvedActionItemIds` at close. Idempotent clients should issue a fresh session per user-visible task.",
+    "Open a new coding session. Call once at the start of a coding task, save the returned `sessionId`, and pass it to every subsequent `brain_log_event` and `brain_report_session_outcome`. ALWAYS include `prompt` (the task description): the response then carries `relevantKnowledge` — rules this Brain already learned that apply to the task. APPLY them, and pass `relevantKnowledge.knowledgeIds` back as `knowledgeUsed` when you close, so the Brain learns which rules paid off. When meeting intelligence is enabled the response may also carry `openActionItems` — your open meeting to-dos; act on or resolve them via `resolvedActionItemIds` at close. Idempotent clients should issue a fresh session per user-visible task. Project scoping is per-call, not persisted — there is no 'active project' remembered between calls, so pass `projectId`/`projectName` on EVERY call for work that belongs outside the default project; the response's `project.source` tells you whether this call landed in a real project or fell back to 'Default', and a `hint` appears when it did.",
   inputSchema: {
     type: "object",
     required: [],
@@ -118,6 +118,21 @@ export const startSession: ToolDef = {
     let resolvedProjectId: string | null =
       auth.projectId ?? input.projectId ?? null;
 
+    // Tracks *why* resolvedProjectId ended up what it did, mirroring the
+    // `source` values brain_get_active_project already reports — surfaced
+    // in the response below so callers can tell a deliberate choice from a
+    // silent fallback into "Default". When neither the token nor the caller
+    // named a project, resolvedProjectId is still null here and one of the
+    // two fallback branches below always reassigns this.
+    let projectSource: "token_scope" | "explicit" | "first_project_fallback" | "default_created" =
+      auth.projectId !== null ? "token_scope" : "explicit";
+
+    // The project's name for the response. The fallback branches below
+    // already hold it, so those paths cost no extra query; only the
+    // token-scoped / explicit-projectId paths need the lookup done after
+    // session create.
+    let projectName: string | undefined;
+
     // Bug-1: if the caller supplied a projectName AND no explicit projectId
     // already won the resolution, look up (or create) a project with that
     // name. Project-scoped tokens take precedence over projectName — the
@@ -137,16 +152,30 @@ export const startSession: ToolDef = {
         },
       );
       resolvedProjectId = projectId;
+      projectSource = "explicit";
     }
+
+    // True only when the caller named no project AND there was genuinely more
+    // than one to pick from — the case where the fallback silently guessed.
+    // A solo user with exactly one real project isn't ambiguous, and nagging
+    // them every session would train them to ignore the hint entirely.
+    let ambiguousChoice = false;
 
     if (!resolvedProjectId) {
       const projects = await getUserProjects(db, auth.userId);
       if (projects.length > 0) {
         resolvedProjectId = projects[0]!.id;
+        projectName = projects[0]!.name;
+        projectSource = "first_project_fallback";
+        ambiguousChoice = projects.length > 1;
       } else {
-        // Lazily create the default project if none exists yet.
-        const { projectId } = await ensureDefaultProject(db, auth.userId);
+        // Lazily create the default project if none exists yet. It returns
+        // the personal org's existing first project when there is one, so
+        // trust `created` rather than assuming this branch always creates.
+        const { projectId, name, created } = await ensureDefaultProject(db, auth.userId);
         resolvedProjectId = projectId;
+        projectName = name;
+        projectSource = created ? "default_created" : "first_project_fallback";
       }
     }
 
@@ -274,9 +303,67 @@ export const startSession: ToolDef = {
       }
     }
 
+    // Surface which project the session landed in, and — only when it's a
+    // silent fallback rather than a deliberate choice — nudge the caller
+    // toward brain_create_project / projectName instead of letting every
+    // untagged session quietly pile up in "Default". Mirrors the `hint`
+    // convention from brain_report_session_outcome (report.ts).
+    //
+    // FAIL-SOFT, like relevantKnowledge/openActionItems above: the session
+    // row already exists, so a throw here would deny the caller the
+    // sessionId for a session it can never close — the unclosed-session
+    // failure the whole loop is built to avoid. The name is only missing on
+    // the token-scoped / explicit-projectId paths, which emit no hint, so a
+    // failed lookup costs a display field and nothing else.
+    if (projectName === undefined) {
+      try {
+        const row = await db.project.findUnique({
+          where: { id: resolvedProjectId },
+          select: { name: true },
+        });
+        projectName = row?.name;
+      } catch (err) {
+        log.warn(
+          {
+            op: "start.project_name_failed",
+            sessionId: session.id,
+            err: err instanceof Error ? err.message : String(err),
+          },
+          "start.project_name_failed (session opens without project.name)",
+        );
+      }
+    }
+
+    const project = {
+      id: resolvedProjectId,
+      source: projectSource,
+      ...(projectName !== undefined ? { name: projectName } : {}),
+    };
+
+    // Nudge only when it carries information: the session landed on the
+    // catch-all "Default" project, or the fallback had to guess between
+    // several. A one-project user who never passes projectName is not
+    // making a mistake, and a hint on every session is just noise.
+    let hint: string | undefined;
+    const landedOnDefault =
+      projectSource === "default_created" || projectName === "Default";
+    if (
+      (projectSource === "first_project_fallback" ||
+        projectSource === "default_created") &&
+      (landedOnDefault || ambiguousChoice)
+    ) {
+      hint =
+        `This session is filed under the "${projectName ?? "Default"}" project because no ` +
+        "projectId/projectName was given. If this work belongs to a specific project, " +
+        "call brain_create_project or pass projectName on this call — project scoping is " +
+        "per-call, not persisted, so pass it again on future brain_start_session calls too.";
+    }
+
     return {
       sessionId: session.id,
       startedAt: session.startedAt.toISOString(),
+      project,
+      ...(hint ? { hint } : {}),
       ...(relevantKnowledge ? { relevantKnowledge } : {}),
       ...(openActionItems ? { openActionItems } : {}),
     };

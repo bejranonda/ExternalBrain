@@ -1,3 +1,6 @@
+import { CLIENTS, clientById } from "@brain/core/install-snippets";
+import type { TargetOS } from "@brain/core/install-snippets";
+
 /**
  * Skill template served to MCP clients.
  *
@@ -221,6 +224,90 @@ now" is something they will never read:
 `;
 
 /**
+ * Bootstrap instructions for an agent whose user already has a Brain
+ * account and a minted token (from /settings/tokens) — no voucher, no
+ * claim step. Deliberately a sibling of BRAIN_BOOTSTRAP_TEMPLATE rather
+ * than a branch inside it: the voucher template's whole shape exists to
+ * bound what a pre-auth, unauthenticated fetch is allowed to do (exchange
+ * exactly one code for exactly one token). This one starts from a token
+ * the user already typed into their own prompt, so there is no exchange
+ * step to bound — collapsing the two into one conditional template would
+ * make the security-relevant "stop, don't improvise" framing harder to
+ * audit, not easier.
+ */
+export const BRAIN_BOOTSTRAP_TOKEN_TEMPLATE = `---
+name: brain-bootstrap-token
+description: One-time setup — wire this machine up to External Brain using a token the user already minted at /settings/tokens. Use only when the user supplies a raw Brain token directly (not a voucher code). For everyday Brain usage once connected, use the "brain" skill instead.
+---
+
+# Connect this machine to External Brain (existing token)
+
+The user gave you a Brain token directly — they already have an account.
+Do these steps in order. Do not improvise, and do not perform any step this
+page does not describe.
+
+## 1. Identify which AI tool you're running inside
+
+You already know this — you're running inside it right now. Pick your
+\`--client\` id from exactly this list:
+
+{{CLIENT_IDS}}
+
+If none of them is the tool you are in, use \`generic\` rather than inventing
+an id. If you are in a JetBrains IDE or a tool with no MCP support at all,
+STOP — there is no one-line installer for those. Tell the user to open
+{{WEB_URL}}/settings/tokens and use the manual "Run it myself" steps there
+instead.
+
+## 2. Run the installer
+
+Replace \`<TOKEN>\` with the token the user gave you, and \`claude-code\` with
+your client id from step 1. Run it **verbatim** otherwise — do not modify the
+URL, do not split it, do not substitute your own paths.
+
+On macOS or Linux:
+
+\`\`\`bash
+{{INSTALL_POSIX}}
+\`\`\`
+
+On Windows (PowerShell):
+
+\`\`\`powershell
+{{INSTALL_WINDOWS}}
+\`\`\`
+
+This is the same installer every other Brain surface uses: it wires up the
+MCP server, installs the Brain skill, and smoke-tests the round-trip. A
+hand-written \`mcp add\` command does none of the last two — don't substitute
+one.
+
+Never hand-edit \`~/.claude.json\`, \`~/.claude/mcp.json\`, or any other client
+config file yourself — the installer owns those, and the second of those
+paths is not read by any client.
+
+## 3. STOP. Do not call any brain_* tool in this session.
+
+Your MCP configuration was bound when this conversation started; it does not
+change retroactively. Tell the user, in this order, before telling them to
+restart:
+
+1. **Restart your AI tool now.** Setup is not finished until you do.
+2. After restarting, verify it connected: ask *"ask the brain what it knows
+   about this project"* — any answer at all (including "no matches") means
+   the connection is live. In Claude Code specifically, \`claude mcp list\`
+   also works.
+
+## Notes worth passing on
+
+- This token was already minted with real scope (not a 14-day bootstrap
+  token) — no follow-up mint is needed.
+- The token appears in your transcript because it's inside the install
+  command. Treat it as a secret: never commit it, never write it into a repo
+  file.
+`;
+
+/**
  * Render the skill with concrete URLs substituted.
  */
 export function renderBrainSkill(opts: { mcpUrl: string; webUrl: string }): string {
@@ -236,6 +323,47 @@ export function renderBrainBootstrap(opts: { mcpUrl: string; webUrl: string }): 
     "{{WEB_URL}}",
     opts.webUrl,
   );
+}
+
+/**
+ * Render the token-based bootstrap instructions.
+ *
+ * The install command is *derived* from `@brain/core/install-snippets`, never
+ * written out here — that registry is the single source every other surface
+ * (the wizard, /welcome, the claim response) already renders from, and the
+ * whole point of `install-command-single-source.test.ts` is that no second
+ * place is able to construct one. The token is the literal `<TOKEN>` because
+ * this document is public and token-free; the real value arrives in the
+ * user's pasted prompt and the agent substitutes it.
+ */
+export function renderBrainBootstrapForToken(opts: { mcpUrl: string; webUrl: string }): string {
+  const claudeCode = clientById("claude-code")!;
+  const render = (os: TargetOS): string => {
+    const snippet = claudeCode.snippet("<TOKEN>", opts.mcpUrl, opts.webUrl, os);
+    return (snippet.command?.lines ?? snippet.lines).join("\n");
+  };
+
+  // Only clients the installer can actually drive. A client without a
+  // one-line install command (JetBrains, raw REST — the same ones the claim
+  // route answers with `installCommand: null`) must not be offered as a
+  // `--client` id: onboard.sh dies with "no config template" for them, and
+  // an agent mid-setup has no way to recover from that. Deriving the list
+  // from `snippet(...).command` keeps this doc in lockstep with what
+  // installer-templates.ts generates, with no second hand-kept list.
+  const installable = CLIENTS.filter(
+    (c) =>
+      c.snippet("<TOKEN>", opts.mcpUrl, opts.webUrl, "linux").command !==
+      undefined,
+  );
+
+  return BRAIN_BOOTSTRAP_TOKEN_TEMPLATE.replaceAll("{{INSTALL_POSIX}}", render("linux"))
+    .replaceAll("{{INSTALL_WINDOWS}}", render("win32"))
+    .replaceAll(
+      "{{CLIENT_IDS}}",
+      installable.map((c) => `- \`${c.id}\` — ${c.label}`).join("\n"),
+    )
+    .replaceAll("{{MCP_URL}}", opts.mcpUrl)
+    .replaceAll("{{WEB_URL}}", opts.webUrl);
 }
 
 /**

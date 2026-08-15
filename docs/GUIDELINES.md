@@ -432,6 +432,29 @@ Two habits, in order of usefulness:
    this same rule?"* costs one `grep` and is the only step that reliably
    catches this. A guideline nobody re-reads does not.
 
+### A guard that greps for literals guards those literals, nothing more
+
+`install-command-single-source.test.ts` says it enforces that "only one place
+is *able* to construct the install command." What it actually does is grep for
+two strings. In 2026-08 a new agent-facing bootstrap document hand-wrote
+`claude mcp add …` instead of deriving from `@brain/core/install-snippets`,
+and the guard stayed green — different command shape, same job, invisible to a
+literal match. The user-visible cost would have been an install missing the
+skill and the smoke test.
+
+Widening the pattern list is not the fix here: `skill-template.ts` legitimately
+*quotes* `claude mcp add` in prose, so a literal guard cannot tell constructing
+from mentioning. When you hit that wall:
+
+1. **Make the test name state what is actually checked** (`greps for the two
+   installer invocations`), so the next reader doesn't inherit false comfort.
+2. **Add the property check where it *can* be decided** — for that document,
+   asserting the rendered output contains `/api/onboard.sh` and does *not*
+   contain `claude mcp add` decides it exactly, because a rendered artifact has
+   no prose/code ambiguity.
+3. Note the residual gap in `KNOWN_ISSUES` (this one: `§0ao`) rather than
+   leaving the docstring over-promising.
+
 ### Writing a Docker healthcheck? It runs in the container, not in your shell
 
 Two rules, both learned by shipping the mistake (v2.8.0, `KNOWN_ISSUES §0q`):
@@ -674,6 +697,11 @@ KEA extraction runs in the worker with 3-second budget, enforced.
 4. Register in `apps/mcp-server/src/tools/index.ts`.
 5. Document in `docs/MCP_TOOLS.md`.
 6. Add a schema test that parses valid + invalid input.
+7. **Anything that runs after the tool's primary write must be fail-soft.** If
+   a handler creates a row the caller needs the id of, every subsequent
+   statement — enrichment lookups, injections, response decoration — is
+   wrapped and logged, never allowed to throw. Returning an error after the
+   write strands state the caller can't address. See `APPROACH.md §4.5`.
 
 **MCP surface-area principle — read + safe-write, not destructive (v0.14.0, an early PR).** The MCP tool surface is for operations a coding agent should be able to perform autonomously *during a session*: reading knowledge/skills/sessions, recording outcomes, creating projects, starting sessions, teaching new rules. Destructive operations — deleting a project, renaming an organisation, moving sessions between projects, inviting/removing teammates, rotating an admin password, revoking another user's token — stay in the webapp behind an explicit human click. The line is: **if undoing the operation requires looking at an audit log, it doesn't belong in MCP.** A new tool proposal that crosses this line needs an explicit decision in the PR description; the default answer is "build it in the webapp instead." This keeps the agent's blast radius bounded to operations whose mistakes are recoverable through ordinary use.
 
