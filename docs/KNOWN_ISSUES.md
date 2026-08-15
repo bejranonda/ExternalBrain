@@ -27,6 +27,19 @@ Traps seen bringing the stack up on a fresh VM, captured so you avoid them:
   the new A record propagates to Let's Encrypt's resolvers. If `caddy` logs
   show `no IP addresses found` for ~10 minutes after the DNS change, that's
   propagation, not a code bug. Wait, then `docker compose restart caddy`.
+- **A 8 GB host cannot run `pnpm turbo run build` while the stack is up
+  (2026-08-15).** On `autobahn-bot` (7.6 GiB, **no swap**) with all six
+  containers resident, ~1.8 GiB stays free and the Next.js production build is
+  SIGKILLed by the OOM killer — exit 137, confirmed in `dmesg`
+  (`Out of memory: Killed process … total-vm:38793780kB`). It is not a code
+  fault and prod is unaffected: `reload.sh` builds *before* recreating, so a
+  failed build aborts and the running container keeps serving. Docker builds
+  did succeed the same day at marginally lower pressure, which is the hazard —
+  the failure is load-dependent, so it looks intermittent. Mitigations, in
+  order: add 2–4 GiB of swap (removes the class), build on CI/another host and
+  pull the image, or accept CI as the authoritative build gate and skip the
+  local one. `docker builder prune -f` reclaims disk, not RAM — it freed
+  24.7 GB here and changed nothing about the OOM.
 - **Old backup snapshots are not portable across hosts.** Knowledge
   rows have embeddings tied to the host's pgvector index; restoring an old
   dump on the new host requires `REINDEX INDEX` on the pgvector indexes if
@@ -1605,6 +1618,45 @@ tab was verified by typecheck/build and by reading the `authed-e2e`
 selectors, not by opening a browser.
 
 Full narrative: `KNOWLEDGE.md §12.8b`, `APPROACH.md §2.6`/`§4.5`.
+
+---
+
+## 0ap. The new install tab shipped invisible (2026-08-15, v2.16.1)
+
+v2.16.0 added a second install route to `/settings/tokens` — paste a prompt,
+let your agent install itself. It worked. Nobody would have found it.
+
+**Symptom.** The operator sent a screenshot of the live page with the tab
+circled: *"the Prompt tab is not easy to recognize, because it is like a text
+next to run myself"*.
+
+**Root cause.** The unselected tab was `className="btn btn-ghost"`, and
+`globals.css` defines `.btn-ghost { background: transparent; border-color:
+transparent; }`. Ghost is the correct token for a de-emphasised secondary
+action (Dismiss, Copy) where the user already knows the primary path. Used for
+one half of a mutually exclusive choice, sitting beside a filled
+`.btn-primary`, it renders as a caption — the affordance disappears exactly
+where discovery has to happen.
+
+**Why every gate missed it.** `role="tab"` + `aria-selected` were correct, the
+click handler worked, typecheck/test/build were green, the e2e selectors
+resolved (they target the default tab, which was never the invisible one), and
+the live endpoint returned 200. Each check answered a question one step short
+of the one that mattered. An invisible control satisfies all of them; see
+`APPROACH.md §2.6f` on not letting "verified" span the gap between *renders*
+and *is discoverable*.
+
+**Fix.** Both tabs now use the design system's bordered `.btn` with
+`.btn-primary` marking the active one, under a `CHOOSE HOW TO INSTALL` caption
+matching the `STEP N —` mono labels below. No new CSS. Rule recorded in
+`GUIDELINES.md §7c`.
+
+**Also in v2.16.1:** the rendered-artifact assertions v2.16.0 added for the
+token bootstrap were extended to sweep all three agent-facing documents —
+no rendered doc may embed a real `bp_…` bearer (they are public and
+unauthenticated, and the token doc renders its placeholder through the same
+snippet functions that render real tokens elsewhere), and only the token-mode
+doc may construct an installer invocation.
 
 ---
 

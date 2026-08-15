@@ -203,8 +203,9 @@ trade-offs: [docs/SECURITY.md](./docs/SECURITY.md#agentic-onboarding--the-vouche
 
 ### Already have an account? Let your AI install the token
 
-The same trick works after you've minted a token at `/settings/tokens` — the
-mint screen has a **"Paste a prompt"** tab next to the manual instructions:
+The same trick works after you've minted a token at `/settings/tokens`. Under
+**CHOOSE HOW TO INSTALL** the mint screen offers two routes — *Run it myself*
+(pick your client and OS, copy the command) and **Paste a prompt**:
 
 ```text
 Connect this machine to External Brain. I already have an account and a token.

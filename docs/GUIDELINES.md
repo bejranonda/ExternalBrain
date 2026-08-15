@@ -634,6 +634,29 @@ The existing signals establish the standard:
 
 Every new Brain-improvement feature must answer: **"How does a user know this is working?"** If the answer is "they can check the benchmark results", the feature is incomplete. Add a widget, a badge, a header, or an indicator that makes the value observable during normal use — not just in CI.
 
+### The entry point counts as part of the feature (2026-08-15)
+
+The same rule applies one step earlier: a feature whose *control* is invisible
+is not shipped either. The `/settings/tokens` prompt-install tab passed
+typecheck, tests, an e2e selector audit and a live endpoint check, and was
+still effectively missing — the unselected tab used `.btn-ghost`, which
+`globals.css` defines as `background: transparent; border-color: transparent`.
+Beside a filled `.btn-primary`, it rendered as a caption. The operator's report
+was *"the Prompt tab is not easy to recognize, because it is like a text next
+to run myself"*, from a screenshot of the live page.
+
+Two concrete rules:
+
+1. **Never style one option of a mutually exclusive choice as ghost.** Ghost is
+   for de-emphasised *secondary actions* (Dismiss, Copy), where the user
+   already knows the primary path. In a tablist/segmented control every option
+   must carry the same affordance weight — use the bordered `.btn` for
+   inactive and `.btn-primary` for active, and label the group.
+2. **A green test suite cannot see this class of defect.** `aria-selected`,
+   `role="tab"` and a passing click handler are all satisfied by an invisible
+   control. Until there is a screenshot in the loop, "renders" and "is
+   discoverable" are different claims — say which one you verified.
+
 ---
 
 ## 7b. Logging & observability (AI-readable contract)
