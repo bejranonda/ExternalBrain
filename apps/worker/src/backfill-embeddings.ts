@@ -85,6 +85,15 @@ export async function backfillEmbeddings(opts: { limit?: number } = {}): Promise
  *
  * Surfaced so an operator mid-migration can see convergence rather than
  * guessing. Non-zero with a stable count means the backfill is failing.
+ *
+ * ⚠️ Counts `Knowledge` only. `Skill.embeddingModel` exists for symmetry, but
+ * as of 2026-08-18 **nothing writes `Skill.embedding`** — there is no skill
+ * embedding path to keep converged, so including skills here would report
+ * permanent staleness for rows that are never meant to have vectors. If skill
+ * embedding is ever implemented, this function and `backfillEmbeddings` must
+ * both be widened in the same change: otherwise `remaining: 0` will claim a
+ * convergence it never checked, which is exactly the false-confidence failure
+ * this counter exists to prevent.
  */
 export async function staleEmbeddingCount(): Promise<number> {
   const model = activeEmbeddingModel();
