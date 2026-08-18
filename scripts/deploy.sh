@@ -16,6 +16,16 @@
 # For local development you don't need this script — just:
 #   docker compose -f deploy/docker-compose.yml --env-file .env up -d --build
 # (the `edge` services stay off, so no TLS/redis/backup locally).
+#
+# EXTERNAL REVERSE PROXY? Set DEPLOY_EDGE=false. The `edge` profile starts a
+# Caddy sidecar that binds :80/:443; on a host already running nginx/Traefik
+# there, `up -d` fails and the script dies waiting for a certificate Caddy
+# could never fetch. That made this script unusable on such hosts — every
+# migration had to be hand-assembled from compose invocations instead
+# (KNOWN_ISSUES: tech-debt #164). With DEPLOY_EDGE=false the script does
+# everything except TLS: build, migrate, FTS, backfill, start the app
+# services, lockdown audit, smoke — and probes the public URL your existing
+# proxy already serves.
 
 set -euo pipefail
 [ "${DEPLOY_DEBUG:-false}" = "true" ] && set -x
@@ -27,6 +37,17 @@ COMPOSE="docker compose -f deploy/docker-compose.yml --env-file .env"
 log()  { printf '\033[36m[deploy]\033[0m %s\n' "$*"; }
 warn() { printf '\033[33m[deploy]\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[31m[deploy]\033[0m %s\n' "$*" >&2; exit 1; }
+
+# Whether to run the `edge` profile (Caddy TLS + redis + backup sidecars).
+# false => this host already has a reverse proxy terminating TLS on :443.
+DEPLOY_EDGE="${DEPLOY_EDGE:-true}"
+case "$DEPLOY_EDGE" in
+  true|false) ;;
+  *) printf 'DEPLOY_EDGE must be "true" or "false" (got: %s)\n' "$DEPLOY_EDGE" >&2; exit 1 ;;
+esac
+# Applied to every compose invocation that would otherwise hardcode the
+# profile, so the two call sites can never drift apart.
+if [ "$DEPLOY_EDGE" = "true" ]; then EDGE_PROFILE=(--profile edge); else EDGE_PROFILE=(); fi
 
 # -------- 1. Preflight --------
 [ -f deploy/docker-compose.yml ] || die "deploy/docker-compose.yml missing — wrong cwd, or repo is corrupt."
@@ -131,8 +152,12 @@ log "Build version: $APP_VERSION"
 # containers. No-op on a fresh deploy (no running containers).
 "$REPO_ROOT/scripts/save-deploy-logs.sh" || warn "log snapshot failed; continuing"
 
-log "Building images (web · mcp-server · worker · caddy)..."
-$COMPOSE --profile edge build
+if [ "$DEPLOY_EDGE" = "true" ]; then
+  log "Building images (web · mcp-server · worker · caddy)..."
+else
+  log "Building images (web · mcp-server · worker)..."
+fi
+$COMPOSE ${EDGE_PROFILE[@]+"${EDGE_PROFILE[@]}"} build
 
 # #212 — bootstrap image cache silently skips new migrations: web/mcp/worker
 # get the new migration dir, but bootstrap's layer cache hits on `COPY
@@ -184,20 +209,38 @@ else
 fi
 
 # -------- 4. Long-running services + edge (Caddy/Redis/backup) --------
-log "Starting web · mcp-server · worker · caddy · redis · backup..."
-$COMPOSE --profile edge up -d
+if [ "$DEPLOY_EDGE" = "true" ]; then
+  log "Starting web · mcp-server · worker · caddy · redis · backup..."
+else
+  log "Starting web · mcp-server · worker (edge profile off — external proxy fronts TLS)..."
+fi
+$COMPOSE ${EDGE_PROFILE[@]+"${EDGE_PROFILE[@]}"} up -d
 
 # -------- 5. Wait for TLS --------
-log "Waiting for Caddy to pull certificates (first boot can take ~60s)..."
+# The wait itself is identical either way — what differs is who owns the
+# failure. With the edge profile we can read Caddy's logs and blame ACME;
+# with an external proxy the certificate is not ours, so the same timeout
+# means "your proxy isn't routing to this stack" and pointing at caddy logs
+# would send the operator to a container that isn't running.
+if [ "$DEPLOY_EDGE" = "true" ]; then
+  log "Waiting for Caddy to pull certificates (first boot can take ~60s)..."
+else
+  log "Waiting for the external proxy to serve https://${BRAIN_PUBLIC_HOSTNAME}/ ..."
+fi
 for _ in $(seq 1 60); do
   if curl -sSf --max-time 3 "https://${BRAIN_PUBLIC_HOSTNAME}/api/healthz" >/dev/null 2>&1; then break; fi
   sleep 2
 done
 
 if ! curl -sSf --max-time 3 "https://${BRAIN_PUBLIC_HOSTNAME}/api/healthz" >/dev/null 2>&1; then
-  warn "HTTPS on https://${BRAIN_PUBLIC_HOSTNAME}/ not reachable after 120s. Recent caddy logs:"
-  $COMPOSE logs caddy --tail=50 >&2 || true
-  die "Caddy did not obtain a certificate in time. Check DNS (must point to this host), 80/443 firewall rules, and CADDY_EMAIL validity. Re-run once fixed."
+  if [ "$DEPLOY_EDGE" = "true" ]; then
+    warn "HTTPS on https://${BRAIN_PUBLIC_HOSTNAME}/ not reachable after 120s. Recent caddy logs:"
+    $COMPOSE logs caddy --tail=50 >&2 || true
+    die "Caddy did not obtain a certificate in time. Check DNS (must point to this host), 80/443 firewall rules, and CADDY_EMAIL validity. Re-run once fixed."
+  fi
+  warn "HTTPS on https://${BRAIN_PUBLIC_HOSTNAME}/ not reachable after 120s."
+  warn "Edge profile is off, so TLS is your reverse proxy's job — Caddy is not running and has no logs to show."
+  die "External proxy did not serve the stack in time. Check that it proxies ${BRAIN_PUBLIC_HOSTNAME} to the loopback port in WEB_HOST_PORT, that it is running, and that its certificate is valid. Re-run once fixed."
 fi
 
 log "Running lockdown audit against the public endpoints..."
@@ -223,7 +266,11 @@ External Brain is up.
   MCP health     https://${BRAIN_MCP_PUBLIC_HOSTNAME}/health
 
 Tail logs:
-  $COMPOSE logs -f web mcp-server worker caddy
+  if [ "$DEPLOY_EDGE" = "true" ]; then
+    $COMPOSE logs -f web mcp-server worker caddy
+  else
+    $COMPOSE logs -f web mcp-server worker
+  fi
 
 Tear down (keeps DB + Caddy cert cache):
   $COMPOSE down
