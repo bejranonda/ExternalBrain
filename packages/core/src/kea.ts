@@ -16,7 +16,7 @@ import type {
   SessionMetrics,
 } from "@brain/types";
 import { db, toVector } from "@brain/db";
-import { embed, activeEmbeddingModel } from "./embedding.js";
+import { embed, embedWithProvenance } from "./embedding.js";
 import { callLLMText } from "./llm.js";
 import { getLogger } from "./logger.js";
 import { writeAudit } from "./audit.js";
@@ -622,7 +622,9 @@ async function persistCrossSession(
   const out: Knowledge[] = [];
   for (const f of findings) {
     const text = `${f.trigger}\n${f.rule}`;
-    const vec = await embed(text);
+    // Provenance must name the provider that actually served this call, not
+    // the configured primary — the chain falls back on transient errors.
+    const { vector: vec, model: embModel } = await embedWithProvenance(text);
     const row = await db.$transaction(async (tx) => {
       const created = await tx.knowledge.create({
         data: {
@@ -645,7 +647,7 @@ async function persistCrossSession(
         `UPDATE "Knowledge" SET embedding = $1::vector, "embeddingModel" = $3 WHERE id = $2`,
         toVector(vec),
         created.id,
-        activeEmbeddingModel(),
+        embModel,
       );
       // Wire the application row for the FIRST contributing session
       // (Prisma doesn't allow multi-row anchor; SessionKnowledgeApplication
@@ -885,7 +887,9 @@ async function persist(
   const out: Knowledge[] = [];
   for (const f of findings) {
     const text = `${f.trigger}\n${f.rule}`;
-    const vec = await embed(text);
+    // Provenance must name the provider that actually served this call, not
+    // the configured primary — the chain falls back on transient errors.
+    const { vector: vec, model: embModel } = await embedWithProvenance(text);
 
     const row = await db.$transaction(async (tx) => {
       const created = await tx.knowledge.create({
@@ -911,7 +915,7 @@ async function persist(
         `UPDATE "Knowledge" SET embedding = $1::vector, "embeddingModel" = $3 WHERE id = $2`,
         toVector(vec),
         created.id,
-        activeEmbeddingModel(),
+        embModel,
       );
 
       await tx.sessionKnowledgeApplication.create({

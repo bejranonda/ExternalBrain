@@ -67,9 +67,21 @@ interface Score {
   runs: number;
   empty: number;
   schemaBad: number;
+  /** Response arrived but was not parseable JSON. */
   parseFail: number;
+  /** The API call itself threw — no response at all. Disqualifying. */
+  callFail: number;
   findings: number;
   latencies: number[];
+}
+
+/** The five types the KEA prompt actually specifies. */
+const KEA_TYPES = new Set([
+  "reflex", "recipe", "heuristic", "principle", "anti_principle",
+]);
+
+function isKnownType(f: unknown): boolean {
+  return KEA_TYPES.has((f as { type?: string } | null)?.type ?? "");
 }
 
 function p95(xs: number[]): number {
@@ -79,7 +91,9 @@ function p95(xs: number[]): number {
 }
 
 async function scoreModel(model: string, sessions: Replayable[]): Promise<Score> {
-  const sc: Score = { runs: 0, empty: 0, schemaBad: 0, parseFail: 0, findings: 0, latencies: [] };
+  const sc: Score = {
+    runs: 0, empty: 0, schemaBad: 0, parseFail: 0, callFail: 0, findings: 0, latencies: [],
+  };
 
   for (const s of sessions) {
     const userPrompt =
@@ -93,8 +107,12 @@ async function scoreModel(model: string, sessions: Replayable[]): Promise<Score>
         maxTokens: 1024,
       });
     } catch (err) {
+      // Counted separately from parseFail: a call that never returned records
+      // no latency, so lumping it in would leave a model that fails EVERY
+      // request scoring empty=0 / schemaBad=0 / p95=0 — ranking FIRST under
+      // this file's own guidance. Any callFail disqualifies outright.
       sc.runs += 1;
-      sc.parseFail += 1;
+      sc.callFail += 1;
       log.warn({ model, sessionId: s.sessionId, err }, "eval-kea: call failed");
       continue;
     }
@@ -111,9 +129,14 @@ async function scoreModel(model: string, sessions: Replayable[]): Promise<Score>
     }
     const list = Array.isArray(parsed.findings) ? parsed.findings : [];
     if (list.length === 0) sc.empty += 1;
-    // Same predicate production uses, so "schemaBad" counts findings that
-    // would be silently dropped before ever reaching the Knowledge table.
-    sc.schemaBad += list.filter((f) => !isValidFinding(f as KEAFinding)).length;
+    // Production's isValidFinding only checks `typeof type === "string"`, and
+    // Knowledge.type is a free String column — so an out-of-enum type like
+    // "project" is persisted verbatim rather than dropped. That is precisely
+    // the defect this harness was built to catch (glm-5.3 emitted one), so
+    // check the enum explicitly here instead of inheriting the laxer rule.
+    sc.schemaBad += list.filter(
+      (f) => !isValidFinding(f as KEAFinding) || !isKnownType(f),
+    ).length;
     sc.findings += list.length;
   }
   return sc;
@@ -144,8 +167,11 @@ async function main(): Promise<void> {
         `empty=${sc.empty}`.padEnd(9),
         `schemaBad=${sc.schemaBad}`.padEnd(14),
         `parseFail=${sc.parseFail}`.padEnd(14),
+        `callFail=${sc.callFail}`.padEnd(13),
         `findings=${sc.findings}`.padEnd(14),
-        `p95=${p95(sc.latencies)}ms`,
+        sc.callFail > 0
+          ? "UNRANKABLE (calls failed — check the model name and provider routing)"
+          : `p95=${p95(sc.latencies)}ms`,
       ].join(" "),
     );
   }
@@ -156,7 +182,9 @@ async function main(): Promise<void> {
   console.log(rows.join("\n"));
   console.log(
     "\nPrefer: fewest `empty`, then schemaBad=0, then lowest p95. " +
-      "High `findings` alone means verbose, not better.\n",
+      "High `findings` alone means verbose, not better.\n" +
+      "Any model with callFail>0 is UNRANKABLE — it never answered, which is " +
+      "not the same as answering well.\n",
   );
 }
 

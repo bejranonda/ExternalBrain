@@ -423,11 +423,19 @@ Both endpoints speak their SDK's native wire format — no custom client code.
 **Embedding model changes are migrations.** Vectors from two different models
 are orthogonal (measured: **−0.024** cosine for the same sentence across
 `gemini-embedding-001` and `gemini-embedding-2-preview`), so a half-migrated
-index returns nothing relevant while raising no error. Each `Knowledge` /
-`Skill` row therefore records `embeddingModel`, and the 10-minute
-`embeddings.backfill` re-embeds any row whose value differs from
-`activeEmbeddingModel()`. Changing `EMBEDDING_MODEL` is safe *because of*
-that convergence — watch `remaining` in the job log until it reaches 0.
+index returns nothing relevant while raising no error. Each **`Knowledge`** row
+records `embeddingModel` — the model that *actually served* the call, which is
+not always the configured primary, because the provider chain falls back on
+transient errors — and the 10-minute `embeddings.backfill` re-embeds any row
+whose value differs from `activeEmbeddingModel()`. Changing `EMBEDDING_MODEL`
+is safe *because of* that convergence: watch `remaining` in the job log until
+it reaches 0.
+
+> `Skill.embeddingModel` exists for symmetry only. Nothing writes
+> `Skill.embedding` today, so there is no skill vector to keep converged and
+> the backfill does not query that table. If skill embedding is implemented,
+> `backfillEmbeddings` **and** `staleEmbeddingCount` must be widened together —
+> otherwise `remaining: 0` asserts a convergence it never checked.
 
 ### 12.10 Prisma client output path (pnpm-safe)
 

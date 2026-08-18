@@ -64,8 +64,22 @@ export const seenModelAliases = new Set<string>();
  * ran — and the cost ledger prices the wrong one. `res.model` is the only
  * ground truth, so surface the divergence instead of discarding it.
  */
+/**
+ * Does `served` merely name a dated snapshot of `requested`?
+ *
+ * Anthropic resolves undated aliases to a dated snapshot ID
+ * (`claude-x` -> `claude-x-20260101`). That is a version pin, not a gateway
+ * substituting a different model, so treating it as an alias would fire a
+ * warning and write an audit row on every plain Anthropic deployment claiming
+ * a model "did not run" when it did.
+ */
+function isDatedSnapshotOf(requested: string, served: string): boolean {
+  return served.startsWith(`${requested}-`) && /-\d{8}$/.test(served);
+}
+
 export function reportServedModel(requested: string, served?: string): void {
   if (!served || served === requested) return;
+  if (isDatedSnapshotOf(requested, served)) return;
   const pair = `${requested}->${served}`;
   if (seenModelAliases.has(pair)) return;
   seenModelAliases.add(pair);

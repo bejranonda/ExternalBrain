@@ -19,7 +19,7 @@
  * Also invoked by the worker on the `embeddings.backfill` schedule.
  */
 import { db, toVector } from "@brain/db";
-import { embedBatch, activeEmbeddingModel } from "@brain/core/embedding";
+import { embedBatchWithProvenance, activeEmbeddingModel } from "@brain/core/embedding";
 
 interface Row {
   id: string;
@@ -60,14 +60,17 @@ export async function backfillEmbeddings(opts: { limit?: number } = {}): Promise
     if (rows.length === 0) break;
 
     const texts = rows.map((r) => `${r.triggerText}\n${r.ruleText}`);
-    const vecs = await embedBatch(texts);
+    // Stamp the model that SERVED this batch, not the configured primary: the
+    // chain falls back on transient errors, and marking a fallback-produced
+    // vector with the primary's name would exempt it from re-embedding forever.
+    const { vectors: vecs, model: servedModel } = await embedBatchWithProvenance(texts);
 
     await db.$transaction(
       rows.map((r, i) =>
         db.$executeRawUnsafe(
           `UPDATE "Knowledge" SET embedding = $1::vector, "embeddingModel" = $2 WHERE id = $3`,
           toVector(vecs[i]!),
-          model,
+          servedModel,
           r.id,
         ),
       ),

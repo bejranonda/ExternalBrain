@@ -49,6 +49,18 @@ esac
 # profile, so the two call sites can never drift apart.
 if [ "$DEPLOY_EDGE" = "true" ]; then EDGE_PROFILE=(--profile edge); else EDGE_PROFILE=(); fi
 
+# The `edge` profile gates redis as well as caddy. Turning it off on a host
+# whose .env still points REDIS_URL at the in-compose service leaves rate-limit
+# state aimed at a container that was never started — which degrades silently,
+# per-request, with no preflight signal. Catch it here rather than in traffic.
+if [ "$DEPLOY_EDGE" = "false" ] && printf '%s' "${REDIS_URL:-}" | grep -q 'redis://redis'; then
+  printf '\033[31m[deploy]\033[0m %s\n' \
+    "REDIS_URL points at the in-compose 'redis' service, but DEPLOY_EDGE=false does not start it (redis lives in the edge profile)." >&2
+  printf '\033[31m[deploy]\033[0m %s\n' \
+    "Point REDIS_URL at a Redis you actually run, or unset it to use in-process rate-limit state (single-replica only)." >&2
+  exit 1
+fi
+
 # -------- 1. Preflight --------
 [ -f deploy/docker-compose.yml ] || die "deploy/docker-compose.yml missing — wrong cwd, or repo is corrupt."
 [ -f .env ] || die "Missing .env. See deploy/PRODUCTION.md §'Environment checklist'."
@@ -257,6 +269,16 @@ else
     || die "Smoke checks FAILED — services are up but not behaving correctly. See output above; rerun scripts/smoke.sh after fixing."
 fi
 
+# Resolve the service list BEFORE the heredoc. A shell conditional written
+# inside `cat <<EOF` is printed verbatim, not executed — the operator would be
+# handed a five-line pseudo-script instead of one copy-pasteable command, and
+# `bash -n` cannot catch it because heredoc bodies are just text.
+if [ "$DEPLOY_EDGE" = "true" ]; then
+  LOG_SERVICES="web mcp-server worker caddy"
+else
+  LOG_SERVICES="web mcp-server worker"
+fi
+
 cat <<EOF
 
 External Brain is up.
@@ -266,11 +288,7 @@ External Brain is up.
   MCP health     https://${BRAIN_MCP_PUBLIC_HOSTNAME}/health
 
 Tail logs:
-  if [ "$DEPLOY_EDGE" = "true" ]; then
-    $COMPOSE logs -f web mcp-server worker caddy
-  else
-    $COMPOSE logs -f web mcp-server worker
-  fi
+  $COMPOSE logs -f $LOG_SERVICES
 
 Tear down (keeps DB + Caddy cert cache):
   $COMPOSE down

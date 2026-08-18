@@ -54,6 +54,22 @@ describe("reportServedModel", () => {
     });
   });
 
+  it("does not warn when Anthropic resolves an alias to a dated snapshot", () => {
+    // `claude-x` -> `claude-x-20260101` is a version pin, not a gateway
+    // substituting a different model. Warning here would fire on every plain
+    // Anthropic deployment and write an audit row claiming a model "did not
+    // run" when it did.
+    reportServedModel("claude-opus-5", "claude-opus-5-20260101");
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("still warns when a different model shares the requested prefix", () => {
+    // Not a dated snapshot — no 8-digit suffix — so this is a real swap and
+    // the prefix check must not swallow it.
+    reportServedModel("glm-4", "glm-4-turbo");
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
   it("logs each requested->served pair once, not once per call", () => {
     reportServedModel("glm-5.1", "glm-5.3");
     reportServedModel("glm-5.1", "glm-5.3");
