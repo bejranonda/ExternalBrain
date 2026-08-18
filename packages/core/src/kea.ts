@@ -70,7 +70,9 @@ export interface KEAFinding {
 // Prompt (do not inline string-concat; keep as a template)
 // ============================================================
 
-const SYSTEM_PROMPT = `You are a knowledge extraction agent for a coding AI platform.
+/** Exported so the eval harness (apps/worker/src/eval-kea.ts) replays the
+ *  EXACT production prompt — a harness scoring a paraphrase measures nothing. */
+export const SYSTEM_PROMPT = `You are a knowledge extraction agent for a coding AI platform.
 
 Your job: given a summary of a completed coding session, extract 0-3 structured
 knowledge items that will help the AI perform better on similar tasks in the future.
@@ -776,7 +778,7 @@ function parseFindings(text: string): KEAFinding[] {
   }
 }
 
-function isValidFinding(f: unknown): f is KEAFinding {
+export function isValidFinding(f: unknown): f is KEAFinding {
   return (
     typeof f === "object" &&
     f !== null &&

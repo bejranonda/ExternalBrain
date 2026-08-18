@@ -9,6 +9,7 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "backfill:embeddings": "tsx src/backfill-embeddings.ts",
+    "eval:kea": "tsx src/eval-kea.ts",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .turbo"
   },
