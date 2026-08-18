@@ -23,7 +23,7 @@ import type {
   KnowledgeType,
 } from "@brain/types";
 import { db, Prisma, toVector } from "@brain/db";
-import { embed, cosineSimilarity } from "./embedding.js";
+import { embed, embedWithProvenance, cosineSimilarity } from "./embedding.js";
 import { getLogger } from "./logger.js";
 import {
   classifySignals,
@@ -762,11 +762,14 @@ async function applyKnowledgeCreate(
     },
   });
 
-  const vec = await embed(`${patch.trigger}\n${patch.rule}`);
+  const { vector: vec, model: embModel } = await embedWithProvenance(
+    `${patch.trigger}\n${patch.rule}`,
+  );
   await db.$executeRawUnsafe(
-    `UPDATE "Knowledge" SET embedding = $1::vector WHERE id = $2`,
+    `UPDATE "Knowledge" SET embedding = $1::vector, "embeddingModel" = $3 WHERE id = $2`,
     toVector(vec),
     row.id,
+    embModel,
   );
 
   await db.sessionKnowledgeApplication
@@ -805,11 +808,12 @@ async function applyRulesAppend(
     },
   });
 
-  const vec = await embed(patch.text);
+  const { vector: vec, model: embModel } = await embedWithProvenance(patch.text);
   await db.$executeRawUnsafe(
-    `UPDATE "Knowledge" SET embedding = $1::vector WHERE id = $2`,
+    `UPDATE "Knowledge" SET embedding = $1::vector, "embeddingModel" = $3 WHERE id = $2`,
     toVector(vec),
     row.id,
+    embModel,
   );
 }
 

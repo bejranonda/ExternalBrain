@@ -16,7 +16,7 @@ import type {
   SessionMetrics,
 } from "@brain/types";
 import { db, toVector } from "@brain/db";
-import { embed } from "./embedding.js";
+import { embed, embedWithProvenance } from "./embedding.js";
 import { callLLMText } from "./llm.js";
 import { getLogger } from "./logger.js";
 import { writeAudit } from "./audit.js";
@@ -70,7 +70,9 @@ export interface KEAFinding {
 // Prompt (do not inline string-concat; keep as a template)
 // ============================================================
 
-const SYSTEM_PROMPT = `You are a knowledge extraction agent for a coding AI platform.
+/** Exported so the eval harness (apps/worker/src/eval-kea.ts) replays the
+ *  EXACT production prompt — a harness scoring a paraphrase measures nothing. */
+export const SYSTEM_PROMPT = `You are a knowledge extraction agent for a coding AI platform.
 
 Your job: given a summary of a completed coding session, extract 0-3 structured
 knowledge items that will help the AI perform better on similar tasks in the future.
@@ -620,7 +622,9 @@ async function persistCrossSession(
   const out: Knowledge[] = [];
   for (const f of findings) {
     const text = `${f.trigger}\n${f.rule}`;
-    const vec = await embed(text);
+    // Provenance must name the provider that actually served this call, not
+    // the configured primary — the chain falls back on transient errors.
+    const { vector: vec, model: embModel } = await embedWithProvenance(text);
     const row = await db.$transaction(async (tx) => {
       const created = await tx.knowledge.create({
         data: {
@@ -640,9 +644,10 @@ async function persistCrossSession(
         },
       });
       await tx.$executeRawUnsafe(
-        `UPDATE "Knowledge" SET embedding = $1::vector WHERE id = $2`,
+        `UPDATE "Knowledge" SET embedding = $1::vector, "embeddingModel" = $3 WHERE id = $2`,
         toVector(vec),
         created.id,
+        embModel,
       );
       // Wire the application row for the FIRST contributing session
       // (Prisma doesn't allow multi-row anchor; SessionKnowledgeApplication
@@ -776,7 +781,7 @@ function parseFindings(text: string): KEAFinding[] {
   }
 }
 
-function isValidFinding(f: unknown): f is KEAFinding {
+export function isValidFinding(f: unknown): f is KEAFinding {
   return (
     typeof f === "object" &&
     f !== null &&
@@ -882,7 +887,9 @@ async function persist(
   const out: Knowledge[] = [];
   for (const f of findings) {
     const text = `${f.trigger}\n${f.rule}`;
-    const vec = await embed(text);
+    // Provenance must name the provider that actually served this call, not
+    // the configured primary — the chain falls back on transient errors.
+    const { vector: vec, model: embModel } = await embedWithProvenance(text);
 
     const row = await db.$transaction(async (tx) => {
       const created = await tx.knowledge.create({
@@ -905,9 +912,10 @@ async function persist(
       });
 
       await tx.$executeRawUnsafe(
-        `UPDATE "Knowledge" SET embedding = $1::vector WHERE id = $2`,
+        `UPDATE "Knowledge" SET embedding = $1::vector, "embeddingModel" = $3 WHERE id = $2`,
         toVector(vec),
         created.id,
+        embModel,
       );
 
       await tx.sessionKnowledgeApplication.create({

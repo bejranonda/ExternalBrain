@@ -118,7 +118,18 @@ the right choice on your laptop or any throwaway box. App on
 ```bash
 cp .env.example .env        # set DATABASE_URL, BRAIN_*_PUBLIC_HOSTNAME, an auth mode, CADDY_EMAIL
 ./scripts/deploy.sh         # build · migrate · start with Caddy auto-TLS + nightly backups
+
+# Host already terminating TLS (nginx / Traefik / a cloud LB)?
+DEPLOY_EDGE=false ./scripts/deploy.sh
 ```
+
+`DEPLOY_EDGE=false` skips the `edge` profile — no Caddy sidecar, so nothing
+competes for `:80`/`:443` — while still doing build, migrations, FTS,
+embedding backfill, service start, lockdown audit and smoke. Use it on any
+host with its own reverse proxy: with the sidecar running there, `up -d`
+fails on the port bind and the script then dies waiting for a certificate
+Caddy could never fetch, which is why such hosts previously had to
+hand-assemble every migration from raw `docker compose` invocations.
 
 Brings up the full edge profile (Caddy/Let's Encrypt, Redis) — backups come up
 with the core stack on every topology, not just this one — enforces

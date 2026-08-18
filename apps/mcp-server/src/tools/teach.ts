@@ -149,11 +149,19 @@ export const teachKnowledge: ToolDef = {
       },
     });
 
-    const vec = await embedding.embed(`${input.trigger}\n${input.rule}`);
+    // Stamp the model that actually served this call. Without it every taught
+    // rule lands with embeddingModel NULL, which the backfill treats as stale
+    // — so each one is embedded twice (a duplicate paid call, forever) and the
+    // `remaining` convergence counter never reaches 0 on a live instance,
+    // turning the operator's migration signal into a standing false alarm.
+    const { vector: vec, model: embModel } = await embedding.embedWithProvenance(
+      `${input.trigger}\n${input.rule}`,
+    );
     await db.$executeRawUnsafe(
-      `UPDATE "Knowledge" SET embedding = $1::vector WHERE id = $2`,
+      `UPDATE "Knowledge" SET embedding = $1::vector, "embeddingModel" = $3 WHERE id = $2`,
       toVector(vec),
       row.id,
+      embModel,
     );
 
     // A decision that reverses a prior one retires + links the predecessor so

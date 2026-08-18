@@ -313,8 +313,8 @@ Full walkthrough with examples: **[docs/HOW_IT_WORKS.md](./docs/HOW_IT_WORKS.md)
 | Runtime | Node 20 LTS · TypeScript (strict) |
 | Webapp | Next.js · React · Tailwind |
 | Database | Postgres + pgvector |
-| Embeddings | Provider-agnostic via `EMBEDDING_BASE_URL` (Gemini / OpenAI / Qwen3 — any OpenAI-compatible endpoint) |
-| LLM | Claude / GLM / OpenAI / Gemini (swap via env) |
+| Embeddings | Provider-agnostic via `EMBEDDING_BASE_URL` (Gemini / OpenAI / Qwen3 — any OpenAI-compatible endpoint). Each vector records the model that produced it, so switching models re-embeds the corpus instead of silently corrupting retrieval |
+| LLM | Claude / GLM / OpenAI / Gemini (swap via env). Model choices for the extraction agent are measured with `pnpm --filter @brain/worker eval:kea`, which replays real sessions — not argued from benchmarks |
 | Background jobs | pg-boss (no Redis required) |
 | Rate-limit state | In-process by default; Redis when `REDIS_URL` is set (needed for multi-replica, and it survives restarts) |
 | Protocol | Model Context Protocol (`@modelcontextprotocol/sdk`) |

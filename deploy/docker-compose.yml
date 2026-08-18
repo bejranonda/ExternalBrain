@@ -379,6 +379,26 @@ services:
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
       EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
       GOOGLE_GEMINI_API_KEY: ${GOOGLE_GEMINI_API_KEY:-}
+      # LLM passthrough — bootstrap runs one-off jobs that make model calls
+      # (`eval:kea`), not just migrations. Without these, ANTHROPIC_BASE_URL is
+      # unset INSIDE the container even though the host .env sets it, so
+      # `useAnthropicSdk()` returns false and every glm-*/qwen-* model is
+      # routed to DashScope and dies on "DASHSCOPE_API_KEY is unset" — a
+      # failure caused purely by the missing passthrough, not by the operator's
+      # config. Same class as the KEA_MODEL passthrough gap noted above.
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      # Bare passthroughs, deliberately WITHOUT compose-level defaults. A
+      # default here would re-create the trap this file documents above: on a
+      # gateway deployment `qwen3-coder` returns HTTP 400, so defaulting it
+      # would make `eval:kea` — the harness added to prevent bad model choices
+      # — fail with a 400 for an operator who simply hadn't set KEA_MODEL.
+      # Empty means the code default applies, which is the same behaviour the
+      # long-running services get.
+      KEA_MODEL: ${KEA_MODEL:-}
+      ORACLE_MODEL: ${ORACLE_MODEL:-}
     working_dir: /repo
     entrypoint: ["/bin/sh", "-c"]
     # The scripts/deploy.sh orchestrator invokes individual subcommands via
