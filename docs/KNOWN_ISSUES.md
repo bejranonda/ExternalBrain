@@ -1684,6 +1684,101 @@ doc may construct an installer invocation.
 
 ---
 
+## 0aq. A routine model bump found four things the stack was quietly lying about (2026-08-18, v2.17.0)
+
+The task was "can we step up the model versions?" Answering it honestly meant
+reading `res.model` off a live response instead of trusting config — and every
+subsequent finding came from that one habit.
+
+**1. The Oracle had already been upgraded, by the provider, without telling
+anyone.** `ORACLE_MODEL=glm-5.1` was served by **`glm-5.3`**. Probing each ID
+against the live gateway showed `glm-5.1`, `glm-5.2` and `glm-5` all answered
+as `glm-5.3`; `glm-4.5-air` answered as `glm-4.7`. Anthropic-compatible
+gateways **alias instead of 404ing**, so config, docs, and every cost row named
+a model that had not run for days. Fixed by `reportServedModel()` in
+`packages/core/src/llm.ts`, called at all three dispatch sites, which warns
+once per `requested→served` pair.
+
+**2. The documented `claude-haiku-4-5` fallback does not exist on this
+deployment.** `kea.ts` defaults its Anthropic wrapper to `claude-haiku-4-5`;
+with `ANTHROPIC_BASE_URL` set, `useAnthropicSdk()` sends it to Z.ai, which
+answers **as `glm-4.7` with a 200**. The ledger would have attributed GLM
+tokens to Anthropic prices. Not a crash — an accounting fiction.
+
+**3. `qwen3-coder`, the in-code default for `KEA_MODEL` and `AUTOSKILL_MODEL`,
+returns HTTP 400 here.** Prod is safe only because `.env` sets `KEA_MODEL`
+explicitly. Unset it and extraction stops. Same fresh-deploy fragility class as
+§0a; documented in `.env.example` rather than changed, because the default is
+correct for the DashScope forkers it was written for.
+
+**4. `cost.ts` cannot describe this deployment at all.**
+`https://api.z.ai/api/anthropic` is the **GLM Coding Plan** endpoint: a flat
+subscription with prompt quotas per 5-hour window, not per-token billing.
+`glm-5.3` had no row, so it fell through to the conservative Opus fallback of
+15/75 — a ~25× overstatement. Rows added for `glm-5.2`/`glm-5.3` with an
+explicit caveat that on a Coding Plan the ledger estimates list value, not
+money owed.
+
+**The embedding "upgrade" that would have silently destroyed retrieval.**
+`gemini-embedding-2-preview` is live and accepts 1536 dims, so it looked like a
+free step up. Three measurements said otherwise:
+
+| Check | Result |
+|---|---|
+| Separation (paraphrase vs unrelated) | `001` **+0.4065**, `2-preview` +0.3466 — the *older* model discriminates better on this corpus |
+| Cross-model similarity, same sentence | **−0.024** — the two vector spaces are orthogonal |
+| Rows the backfill would have re-embedded | **0** — it selected `embedding IS NULL` only |
+
+Worse, `EMBEDDING_MODEL` never controlled the primary provider: `embedding.ts`
+hardcoded `gemini-embedding-001` whenever a Gemini key was present, so the env
+var an operator would reach for was **inert**. Changing the model "properly"
+would have left every existing row on the old model forever — a mixed index
+where new query vectors score ~0 against all prior knowledge, returning
+nothing relevant and raising no error.
+
+**Fix (the actual deliverable).** Embedding provenance:
+`Knowledge.embeddingModel` + `Skill.embeddingModel`
+(`20260818180000_embedding_model_provenance`), the backfill widened to
+`embedding IS NULL OR "embeddingModel" IS DISTINCT FROM $active`, and
+`activeEmbeddingModel()` honouring `EMBEDDING_MODEL` when it names a Gemini
+model. Verified on prod: 79 rows re-embedded, `remaining: 0`, second run a
+no-op. The model choice is now reversible; §4.5's "how do we re-embed safely"
+question is answered for the first time.
+
+**The wrong recommendation, and what corrected it.** A synthetic benchmark
+ranked `glm-5.3` best for KEA. Replayed against five **real** sessions it came
+last — **3 of 5 runs returned zero findings**, including the richest session,
+plus one schema-invalid `type`. KEA's failure mode is a silent empty
+extraction: no error, no test failure, nothing in a health check. The harness
+is now committed as `pnpm --filter @brain/worker eval:kea` so the next model
+decision is measured, not argued. `glm-4.5` and `glm-4.7` scored equivalently
+(0 empty, 12 findings each); `glm-4.7` was chosen on ~45% fewer output tokens.
+
+**A false alarm worth recording.** The first post-bump extraction logged
+`items: 0`, which looks exactly like a model regression. The existing
+`kea.funnel` line disambiguated it in one read: `llmFindings:2,
+filterPassed:0` — the model was fine, semantic dedup was correctly rejecting
+near-duplicates of rows written the day before. A re-run on a novel topic gave
+`llmFindings:2 → filterPassed:2 → persisted:2`. **`items:0` alone cannot
+distinguish a broken model from healthy dedup; always read the funnel.**
+
+**Two process defects in the fix itself.** (a) The alias warning was first
+added only to `llm.ts` — but `oracle.ts` carries two Anthropic clients of its
+own, so it would never have fired for the Oracle, the one model actually being
+aliased. Sixth instance of the one-rule-two-implementations class (§0q).
+(b) The `bootstrap` service had no LLM env passthrough, so the new eval
+harness routed every GLM model to DashScope and died on `DASHSCOPE_API_KEY is
+unset` — the same passthrough trap as §0's `KEA_MODEL`, in a service nobody
+had needed to make model calls from before. Both fixed.
+
+**Open.** The Coding Plan is a per-developer interactive subscription being
+used as a server substrate: single-concurrency cap, quota windows, silent
+aliasing, no rate card for the model actually served. Fine at present volume,
+wrong for a product others fork. Moving prod to pay-as-you-go API keys is
+tracked as tech debt.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:
@@ -2064,7 +2159,7 @@ These were left intentionally open in the research. A decision is needed before 
 2. **How do we handle deletion in the face of downstream learning?** If user deletes knowledge X, do we roll back all the autoskill proposals that used X as evidence? Or leave them as historical?
 3. **Should team style profile be per-team or per-project-within-team?** Affects `PeerCard` cardinality.
 4. **Cross-tenant similarity search for community curation** — how do we find near-duplicate skills across all users without leaking identifying info? Needs a privacy-preserving clustering design.
-5. **Model portability** — if we switch embedding models, we invalidate the similarity space. How do we re-embed ~1M items safely without downtime?
+5. ~~**Model portability** — if we switch embedding models, we invalidate the similarity space. How do we re-embed ~1M items safely without downtime?~~ **Mechanism answered (2026-08-18, §0aq); scale still open.** Each row now records the model that produced its vector (`Knowledge.embeddingModel`), and the 10-minute backfill re-embeds anything whose model differs from the active one, converging the index without a maintenance window — verified on prod (79 rows, `remaining: 0`, idempotent on re-run). The measured hazard it closes: vectors from two Gemini models scored **−0.024** cosine on the same sentence, so a partial migration is not "slightly degraded", it is orthogonal. What remains open at ~1M items is throughput and cost, not correctness: convergence is bounded by the 256-row batch per 10-minute tick (≈36k rows/day), retrieval quality is mixed until it completes, and re-embedding the whole corpus is a real provider bill. A large migration needs a rate-limit-aware runner and a decision on whether to serve stale-model rows during convergence.
 6. **Symbolic representation** — `symbolicWhen` / `symbolicThen` fields exist but nothing consumes them yet. Is the rule engine a v2 target, or never-build?
 7. **Sync-bridge conflict UI** — when Obsidian and platform both edit the same skill, how do we show the conflict to the user? Three-way diff in the webapp? Obsidian-side banner?
 

@@ -2988,3 +2988,54 @@ lines for the affected address; post-fix, redeployed, the same request
 logged a real Resend delivery.
 
 Full instance: `KNOWLEDGE.md §12.37`, `KNOWN_ISSUES.md §0an`.
+
+## 5bz. The synthetic benchmark ranked it first; five real sessions ranked it last (2026-08-18)
+
+A model-version review had two candidates for the extraction agent. One
+synthetic session — hand-written to look like a realistic payload — put
+`glm-5.3` clearly ahead: it was the only model to catch a third lesson the
+others missed. That single data point was enough to make me revise a
+recommendation I had already given, in writing, in the opposite direction.
+
+Replaying the same production prompt over five **real** sessions inverted
+the result completely. `glm-5.3` returned **zero findings on three of the
+five**, including the richest session in the corpus, and emitted a
+schema-invalid `type` that the validator would have dropped silently. The
+model I had just talked myself out of scored 12 findings with no schema
+errors.
+
+**Why the synthetic case lied.** I wrote it, so it contained exactly the
+lessons I already believed were there, phrased the way I would phrase them.
+It rewarded a model that elaborates. Real sessions contain thin prompts,
+absent metadata, learnings already captured by the agent, and topics
+adjacent to knowledge the Brain already holds — conditions under which
+terseness turns into returning nothing at all. A benchmark authored by the
+same mind that evaluates it measures agreement, not capability.
+
+**Why nothing would have caught it in production.** KEA's failure mode is a
+silent empty extraction: `{"findings": []}` is a valid response, the job
+logs `outcome: ok`, no test fails, no probe goes unhealthy. The Brain would
+simply have stopped learning, and the first symptom would have been someone
+noticing months later that recent sessions taught it nothing. The
+generalisable point is that **for any component whose failure is "produced
+nothing", green pipelines carry no information** — the only real check is
+replaying real inputs and counting the empties.
+
+**The correction cost one command and the mistake cost a paragraph of
+confident prose.** The harness is now committed (`eval:kea`) precisely
+because the expensive part was not running it, it was believing an argument
+instead. Where a decision is cheap to measure and I have already reasoned
+my way to an answer, the reasoning is the thing to distrust.
+
+A second instance of the same shape appeared minutes later: the first
+post-deploy extraction logged `items: 0`, which reads unmistakably as "the
+new model is broken." The existing `kea.funnel` diagnostic showed
+`llmFindings: 2, filterPassed: 0` — the model had worked perfectly and
+semantic dedup had correctly rejected near-duplicates. Had that one log
+line not existed, the obvious response would have been to roll back a good
+model or loosen a correct filter. Instrumentation that separates *"produced
+nothing"* from *"produced, then discarded"* is worth more than either
+number alone.
+
+Full instance: `KNOWN_ISSUES.md §0aq`, `GUIDELINES.md §"Never change a KEA
+or Oracle model without running the eval harness"`.

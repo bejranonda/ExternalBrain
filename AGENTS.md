@@ -110,6 +110,12 @@ cp .env.example .env      # fill in DATABASE_URL + one LLM provider key
 
 # Auth-posture audit — run after any auth/MCP change
 ./scripts/verify-lockdown.sh
+
+# Model-choice evidence — run BEFORE changing KEA_MODEL / ORACLE_MODEL.
+# Replays the production extraction prompt over real sessions and reports
+# empty / schema-invalid / p95 per candidate. A synthetic payload once
+# ranked a model first that returned zero findings on 3 of 5 real sessions.
+pnpm --filter @brain/worker eval:kea -- --models glm-4.7,glm-5.3
 ```
 
 `reload.sh` is right for ~95% of dev iterations; use `dev-up.sh` when you've

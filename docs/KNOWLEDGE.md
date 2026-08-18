@@ -404,10 +404,30 @@ Two consequences for the knowledge model:
 
 Recommended layering for a GLM-first deploy:
 
-- **Oracle chat:** `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic` + `ORACLE_MODEL=glm-5.1`
-- **Embeddings:** `EMBEDDING_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1` + `EMBEDDING_MODEL=text-embedding-v4` + `EMBEDDING_DIMENSIONS=1536`
+- **Oracle chat:** `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic` + `ORACLE_MODEL=glm-5.2`
+- **KEA extraction:** `KEA_MODEL=glm-4.7` (chosen by `eval:kea` over real sessions, 2026-08-18)
+- **Embeddings:** `GOOGLE_GEMINI_API_KEY=…` + `EMBEDDING_MODEL=gemini-embedding-001` + `EMBEDDING_DIMENSIONS=1536`
 
 Both endpoints speak their SDK's native wire format — no custom client code.
+
+> ⚠️ **The model you configure is not necessarily the model that answers.**
+> Anthropic-compatible gateways alias silently: on the Z.ai Coding Plan
+> endpoint `glm-5.1`/`glm-5.2`/`glm-5` are all served by `glm-5.3`, and
+> `claude-haiku-4-5` by `glm-4.7` — each with a 200 and no warning. The
+> `llm` subsystem logs `requested`/`served` whenever they differ; trust that
+> line over this file. Note also that this endpoint is the **GLM Coding
+> Plan** (flat subscription, prompt quotas per 5-hour window, single
+> concurrent request on lower tiers), not per-token API billing — so
+> `cost.ts` figures are list-value estimates here, not money owed.
+
+**Embedding model changes are migrations.** Vectors from two different models
+are orthogonal (measured: **−0.024** cosine for the same sentence across
+`gemini-embedding-001` and `gemini-embedding-2-preview`), so a half-migrated
+index returns nothing relevant while raising no error. Each `Knowledge` /
+`Skill` row therefore records `embeddingModel`, and the 10-minute
+`embeddings.backfill` re-embeds any row whose value differs from
+`activeEmbeddingModel()`. Changing `EMBEDDING_MODEL` is safe *because of*
+that convergence — watch `remaining` in the job log until it reaches 0.
 
 ### 12.10 Prisma client output path (pnpm-safe)
 
