@@ -1771,11 +1771,30 @@ harness routed every GLM model to DashScope and died on `DASHSCOPE_API_KEY is
 unset` — the same passthrough trap as §0's `KEA_MODEL`, in a service nobody
 had needed to make model calls from before. Both fixed.
 
-**Open.** The Coding Plan is a per-developer interactive subscription being
-used as a server substrate: single-concurrency cap, quota windows, silent
-aliasing, no rate card for the model actually served. Fine at present volume,
-wrong for a product others fork. Moving prod to pay-as-you-go API keys is
-tracked as tech debt.
+**Follow-ups shipped in the same batch.** (a) The alias signal was only a
+`warn` line, and nobody reads container logs — the docker json-file driver
+rolls them at ~50MB, so a provider re-pointing an alias next month would
+scroll away unnoticed. It now also writes an `llm.model_alias` AuditLog row:
+`SELECT payload FROM "AuditLog" WHERE action = 'llm.model_alias';`. (b)
+`deploy.sh` gained `DEPLOY_EDGE=false`, closing tech-debt **#164** — the
+script unconditionally ran `--profile edge`, whose Caddy sidecar collides with
+the external nginx already bound to :443 on this host, so **the production
+deploy script could not be run against production** and every migration had to
+be hand-assembled. With the flag it does everything except TLS and probes the
+URL the existing proxy serves. (c) `GUIDELINES` now carries a one-canonical-
+home doc rule, because this very entry is the kind of thing that gets
+restated into five files and then drifts.
+
+**Open — needs an operator decision, not a code change.** The Coding Plan is a
+per-developer interactive subscription being used as a server substrate:
+single-concurrency cap (which the worker's pg-boss default of 1 currently
+matches *by accident* — adding `teamSize` would produce unexplained 429s),
+quota windows with a 3× peak multiplier, silent aliasing, and no rate card for
+the model actually served. Fine at present volume, wrong for a product others
+fork, and the root cause of every finding above. Moving prod to pay-as-you-go
+API keys requires new credentials and is therefore blocked on the operator;
+once done, `ORACLE_MODEL` should be pinned to a model with a published rate
+card (`glm-5.2`) rather than relying on an alias resolving upward.
 
 ---
 
