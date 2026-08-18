@@ -6,6 +6,7 @@
  */
 
 import { getLogger } from "./logger.js";
+import { writeAudit } from "./audit.js";
 
 export interface LLMCallOpts {
   model: string;
@@ -73,6 +74,19 @@ export function reportServedModel(requested: string, served?: string): void {
     "provider served a different model than requested (gateway alias) — " +
       "cost rows and config naming `requested` describe a model that did not run",
   );
+  // A warn line alone is not a monitor: nobody reads container logs, and the
+  // docker json-file driver rolls them off at ~50MB. If the provider re-points
+  // an alias next month the log line scrolls away unnoticed. The audit row is
+  // the durable, queryable surface (#229's rationale for kea.extract):
+  //   SELECT payload FROM "AuditLog" WHERE action = 'llm.model_alias';
+  // Best-effort by construction — writeAudit swallows its own errors, so an
+  // audit-path outage can never fail the inference call that triggered it.
+  void writeAudit({
+    action: "llm.model_alias",
+    targetType: "Model",
+    targetId: requested,
+    payload: { requested, served, baseUrl: process.env.ANTHROPIC_BASE_URL ?? null },
+  });
 }
 
 const realDeps: LLMDeps = {
