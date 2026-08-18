@@ -16,7 +16,7 @@ import type {
   SessionMetrics,
 } from "@brain/types";
 import { db, toVector } from "@brain/db";
-import { embed } from "./embedding.js";
+import { embed, activeEmbeddingModel } from "./embedding.js";
 import { callLLMText } from "./llm.js";
 import { getLogger } from "./logger.js";
 import { writeAudit } from "./audit.js";
@@ -642,9 +642,10 @@ async function persistCrossSession(
         },
       });
       await tx.$executeRawUnsafe(
-        `UPDATE "Knowledge" SET embedding = $1::vector WHERE id = $2`,
+        `UPDATE "Knowledge" SET embedding = $1::vector, "embeddingModel" = $3 WHERE id = $2`,
         toVector(vec),
         created.id,
+        activeEmbeddingModel(),
       );
       // Wire the application row for the FIRST contributing session
       // (Prisma doesn't allow multi-row anchor; SessionKnowledgeApplication
@@ -907,9 +908,10 @@ async function persist(
       });
 
       await tx.$executeRawUnsafe(
-        `UPDATE "Knowledge" SET embedding = $1::vector WHERE id = $2`,
+        `UPDATE "Knowledge" SET embedding = $1::vector, "embeddingModel" = $3 WHERE id = $2`,
         toVector(vec),
         created.id,
+        activeEmbeddingModel(),
       );
 
       await tx.sessionKnowledgeApplication.create({
