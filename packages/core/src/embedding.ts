@@ -39,13 +39,43 @@ function geminiKey(): string {
   return process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "";
 }
 
+/** Primary Gemini model when a Gemini key is present. */
+const DEFAULT_GEMINI_MODEL = "gemini-embedding-001";
+
+/**
+ * The Gemini model the primary chain entry will use.
+ *
+ * `EMBEDDING_MODEL` used to name ONLY the fallback entry, so an operator who
+ * set it to a Gemini model saw no effect whatsoever — the hardcoded default
+ * still won, and they believed they had upgraded. Honour the override when it
+ * names a Gemini model; anything else stays a fallback-only setting, because
+ * a non-Gemini name can't be served by the Gemini endpoint.
+ */
+function geminiModel(): string {
+  const override = process.env.EMBEDDING_MODEL;
+  return override?.startsWith("gemini-") ? override : DEFAULT_GEMINI_MODEL;
+}
+
+/**
+ * The model that will actually produce vectors right now.
+ *
+ * Persisted next to each embedding so a model change is detectable. Vectors
+ * from different models are NOT comparable — measured cosine similarity for
+ * the same sentence across gemini-embedding-001 and gemini-embedding-2-preview
+ * was -0.024, i.e. orthogonal. Without this, changing the model leaves a
+ * silently mixed index that returns garbage with no error.
+ */
+export function activeEmbeddingModel(): string {
+  return geminiKey() ? geminiModel() : FALLBACK_MODEL;
+}
+
 function buildProviderChain(): Provider[] {
   const chain: Provider[] = [];
   const gem = geminiKey();
   if (gem) {
     // Gemini exposes an OpenAI-compatible endpoint at this base.
     const baseURL = "https://generativelanguage.googleapis.com/v1beta/openai";
-    chain.push({ name: "gemini", model: "gemini-embedding-001", baseURL, apiKey: gem });
+    chain.push({ name: "gemini", model: geminiModel(), baseURL, apiKey: gem });
   }
   const otherKey =
     process.env.EMBEDDING_API_KEY ||

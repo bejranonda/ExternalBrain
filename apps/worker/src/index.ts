@@ -9,7 +9,7 @@ import { PgBoss } from "pg-boss";
 import { z } from "zod";
 import { kea, autoskill, evolution, envForWorker, getLogger, withRequest, shortId, captureError } from "@brain/core";
 import { db } from "@brain/db";
-import { backfillEmbeddings } from "./backfill-embeddings.js";
+import { backfillEmbeddings, staleEmbeddingCount } from "./backfill-embeddings.js";
 
 // Audit WK6 (#103): validate job payloads at the worker boundary. The
 // MCP tool that enqueues these (apps/mcp-server/src/tools/report.ts)
@@ -505,7 +505,17 @@ async function main(): Promise<void> {
     "embeddings.backfill",
     observed("embeddings.backfill", async () => {
       const res = await backfillEmbeddings({ limit: 256 });
-      return { rows: res.processed };
+      // `remaining` is the migration progress signal: after an embedding
+      // model change it counts down to 0 as the index converges. Stuck at a
+      // non-zero value across runs means re-embedding is failing, which
+      // retrieval cannot tell you — a half-migrated index returns poor
+      // results, not errors.
+      return {
+        rows: res.processed,
+        reembedded: res.reembedded,
+        model: res.model,
+        remaining: await staleEmbeddingCount(),
+      };
     }),
   );
 

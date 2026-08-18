@@ -214,6 +214,10 @@ model Knowledge {
   instead           String?   // anti-principles
 
   embedding         Unsupported("vector(1536)")?
+  /// Model that produced `embedding`. Vectors from different models are not
+  /// comparable, so the backfill re-embeds any row whose value differs from
+  /// the active model. NULL = pre-dates this column; treated as stale.
+  embeddingModel    String?
   framework         String?
   language          String?
   tags              String[]
@@ -282,6 +286,8 @@ model Skill {
   dependencies String[] @default([]) // skill_id references
 
   embedding    Unsupported("vector(1536)")?
+  /// See Knowledge.embeddingModel — same staleness contract.
+  embeddingModel String?
   confidence   Float    @default(0.7)
   mastery      Int      @default(1)
   successCount Int      @default(0)
