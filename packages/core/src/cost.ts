@@ -33,6 +33,15 @@ const PRICES: Record<string, { input: number; output: number }> = {
   "gpt-4o": { input: 2.5, output: 10 },
   "gpt-4o-mini": { input: 0.15, output: 0.6 },
   // Z.ai GLM via Anthropic-compatible endpoint.
+  //
+  // Caveat for GLM Coding Plan deployments (ANTHROPIC_BASE_URL =
+  // https://api.z.ai/api/anthropic): that endpoint bills a flat subscription
+  // with prompt quotas per 5-hour window, NOT per token, and it aliases model
+  // names silently. Rows below are the pay-as-you-go API rate card, so on a
+  // Coding Plan they estimate list value rather than money actually owed.
+  // `reportServedModel` in llm.ts logs when the served model diverges.
+  "glm-5.3": { input: 1.4, output: 4.4 }, // no published rate card yet; mirrors 5.2
+  "glm-5.2": { input: 1.4, output: 4.4 },
   "glm-5.1": { input: 0.6, output: 2.2 },
   "glm-4.7": { input: 0.6, output: 2.2 },
   "glm-4.6": { input: 0.6, output: 2.2 },

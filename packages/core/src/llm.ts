@@ -5,6 +5,8 @@
  * unit-testable without API keys.
  */
 
+import { getLogger } from "./logger.js";
+
 export interface LLMCallOpts {
   model: string;
   systemPrompt?: string;
@@ -41,6 +43,38 @@ export interface LLMDeps {
 const DEFAULT_SYSTEM =
   "You are a helpful assistant. Respond only with the requested JSON.";
 
+const log = getLogger("core").child({ subsystem: "llm" });
+
+/**
+ * Requested→served pairs already logged, so a warning fires once per pair
+ * rather than once per call.
+ *
+ * Exported only so tests can reset it between cases.
+ */
+export const seenModelAliases = new Set<string>();
+
+/**
+ * Warn when the provider served a different model than we asked for.
+ *
+ * Anthropic-compatible gateways alias silently rather than 404: on the Z.ai
+ * Coding Plan endpoint `glm-5.1`, `glm-5.2` and `claude-haiku-4-5` are all
+ * answered by whatever model that plan currently maps them to. Nothing
+ * errors, so config, docs and `cost.ts` all keep naming a model that never
+ * ran — and the cost ledger prices the wrong one. `res.model` is the only
+ * ground truth, so surface the divergence instead of discarding it.
+ */
+export function reportServedModel(requested: string, served?: string): void {
+  if (!served || served === requested) return;
+  const pair = `${requested}->${served}`;
+  if (seenModelAliases.has(pair)) return;
+  seenModelAliases.add(pair);
+  log.warn(
+    { requested, served, baseUrl: process.env.ANTHROPIC_BASE_URL ?? null },
+    "provider served a different model than requested (gateway alias) — " +
+      "cost rows and config naming `requested` describe a model that did not run",
+  );
+}
+
 const realDeps: LLMDeps = {
   anthropic: async (prompt, opts) => {
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
@@ -59,6 +93,7 @@ const realDeps: LLMDeps = {
       system: opts.systemPrompt ?? DEFAULT_SYSTEM,
       messages: [{ role: "user", content: prompt }],
     });
+    reportServedModel(opts.model, res.model);
     return res.content
       .flatMap((c) => (c.type === "text" ? [c.text] : []))
       .join("");

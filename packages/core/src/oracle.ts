@@ -24,7 +24,7 @@ import { RULE_TYPES_PREDICATE } from "./kra.js";
 // Shared with callLLMText — one routing rule, two dispatchers. A divergence
 // here is what made kea.cross_extract fail for eight nights while the Oracle
 // worked on the identical model string.
-import { useAnthropicSdk } from "./llm.js";
+import { useAnthropicSdk, reportServedModel } from "./llm.js";
 import { listProjectActionItems, type ActionItemRow } from "./action-items.js";
 import type { DataScope, VisibilityScopeArgs } from "./scope-filter.js";
 
@@ -517,6 +517,7 @@ async function callOracle(
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
     });
+    reportServedModel(model, res.model);
     // Anthropic SDK 0.91+ widened `ContentBlock` to include thinking blocks
     // and tool-use blocks; flatMap with a discriminated check is the
     // type-safe extraction of text content.
@@ -588,6 +589,7 @@ async function* callOracleStream(
         }
       }
       const final = await stream.finalMessage();
+      reportServedModel(model, final.model);
       yield {
         kind: "done",
         tokensIn: final.usage.input_tokens,

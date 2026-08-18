@@ -21,6 +21,7 @@
     "./rate-limit": "./src/rate-limit.ts",
     "./env": "./src/env.ts",
     "./cost": "./src/cost.ts",
+    "./llm": "./src/llm.ts",
     "./logger": "./src/logger.ts",
     "./install-snippets": "./src/install-snippets.ts",
     "./capabilities": "./src/capabilities.ts",
