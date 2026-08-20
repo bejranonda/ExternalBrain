@@ -85,7 +85,9 @@ describe("resolveProjectForCall", () => {
       { allowCreate: true },
     );
     expect(r).toMatchObject({ projectId: "proj_named", source: "explicit_name" });
-    expect(d.ensureNamedProject).toHaveBeenCalledWith("u1", "Brand New");
+    // Third arg carries framework/language so a project created by name is
+    // typed the same as one created by brain_create_project.
+    expect(d.ensureNamedProject).toHaveBeenCalledWith("u1", "Brand New", {});
     expect(r.hint).toBeUndefined();
   });
 
@@ -164,5 +166,63 @@ describe("resolveProjectForCall", () => {
     );
     expect(r).toMatchObject({ projectId: "proj_default", source: "default_fallback" });
     expect(r.hint).toBe("fell back to Default");
+  });
+});
+
+describe("start_session reporting signals", () => {
+  it("reports `ambiguous` only when the fallback had a real choice to make", async () => {
+    // brain_start_session hints selectively on this: a solo user with one
+    // project is not making a mistake, and hinting every session trains them
+    // to ignore hints entirely.
+    const one = await resolveProjectForCall(unscoped, {}, deps(), hint);
+    expect(one.ambiguous).toBe(false);
+
+    const many = await resolveProjectForCall(
+      unscoped,
+      {},
+      deps({
+        getUserProjects: vi.fn(async () => [
+          { id: "a", name: "A" },
+          { id: "b", name: "B" },
+        ]),
+      }),
+      hint,
+    );
+    expect(many.ambiguous).toBe(true);
+  });
+
+  it("reports `created` so 'we made you a project' is distinguishable from 'we picked one'", async () => {
+    const picked = await resolveProjectForCall(unscoped, {}, deps(), hint);
+    expect(picked.created).toBe(false);
+
+    const made = await resolveProjectForCall(
+      unscoped,
+      {},
+      deps({
+        getUserProjects: vi.fn(async () => []),
+        ensureDefaultProject: vi.fn(async () => ({
+          projectId: "proj_default",
+          name: "Default",
+          created: true,
+        })),
+      }),
+      hint,
+    );
+    expect(made.created).toBe(true);
+  });
+
+  it("passes framework/language through when creating a project by name", async () => {
+    const d = deps();
+    await resolveProjectForCall(
+      unscoped,
+      { projectName: "Typed" },
+      d,
+      hint,
+      { allowCreate: true, framework: "nextjs", language: "typescript" },
+    );
+    expect(d.ensureNamedProject).toHaveBeenCalledWith("u1", "Typed", {
+      framework: "nextjs",
+      language: "typescript",
+    });
   });
 });
