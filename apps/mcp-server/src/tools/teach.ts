@@ -33,7 +33,7 @@ const inputShape = z.object({
   language: z.string().optional(),
   tags: z.array(z.string()).default([]),
   supersedesKnowledgeId: z.string().optional(),
-  projectName: z.string().min(1).max(120).optional(),
+  projectName: z.string().trim().min(1).max(120).optional(),
 });
 
 export const teachKnowledge: ToolDef = {
@@ -80,7 +80,7 @@ export const teachKnowledge: ToolDef = {
     // to be a bespoke copy that accepted only `projectId` and reported nothing,
     // which is why EVERY rule ever taught from the External Brain repo landed
     // in the default project without anyone noticing (KNOWN_ISSUES §0ar).
-    let resolved;
+    let resolved: Awaited<ReturnType<typeof resolveProjectForCall>>;
     try {
       resolved = await resolveProjectForCall(
         auth,
@@ -95,17 +95,25 @@ export const teachKnowledge: ToolDef = {
           `Filed under "${name}" because no projectId/projectName was given. ` +
           `Pass projectName on every teach call for work that belongs elsewhere — ` +
           `scoping is per-call and is NOT inherited from brain_start_session.`,
+        { allowCreate: true },
       );
     } catch (err) {
-      throw new BrainError({
-        message:
-          err instanceof Error && err.message.includes("FORBIDDEN_PROJECT")
-            ? "project not found, access denied, or token is scoped to a different project"
-            : String(err),
-        code: "FORBIDDEN_PROJECT",
-        category: "auth",
-        status: 403,
-      });
+      // ONLY scope failures are 403. Blanket-converting every error meant a
+      // Prisma connection drop inside the fallback lookup was reported to the
+      // agent as "access denied" — sending it to chase a permissions problem
+      // instead of retrying a transient infrastructure one.
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("FORBIDDEN_PROJECT") || msg.includes("PROJECT_NOT_FOUND")) {
+        throw new BrainError({
+          message: msg.includes("PROJECT_NOT_FOUND")
+            ? "no project with that name is accessible to this token"
+            : "project not found, access denied, or token is scoped to a different project",
+          code: "FORBIDDEN_PROJECT",
+          category: "auth",
+          status: 403,
+        });
+      }
+      throw err;
     }
     const resolvedProjectId: string = resolved.projectId;
 

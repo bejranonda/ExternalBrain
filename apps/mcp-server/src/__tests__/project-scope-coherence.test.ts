@@ -13,7 +13,7 @@
  * fact that a fallback is REPORTED rather than silent.
  */
 import { describe, it, expect, vi } from "vitest";
-import { resolveProjectForCall, FORBIDDEN_PROJECT } from "../scope.js";
+import { resolveProjectForCall, FORBIDDEN_PROJECT, PROJECT_NOT_FOUND } from "../scope.js";
 import type { AuthContext } from "../auth.js";
 
 const unscoped = { userId: "u1", projectId: null } as unknown as AuthContext;
@@ -75,17 +75,76 @@ describe("resolveProjectForCall", () => {
     ).rejects.toThrow(FORBIDDEN_PROJECT);
   });
 
-  it("resolves projectName, creating on demand — the parameter teach used to lack", async () => {
+  it("creates a named project on a WRITE when none exists", async () => {
     const d = deps();
-    const r = await resolveProjectForCall(unscoped, { projectName: "External Brain" }, d, hint);
-    expect(r).toMatchObject({
-      projectId: "proj_named",
-      projectName: "External Brain",
-      source: "explicit_name",
-    });
-    expect(d.ensureNamedProject).toHaveBeenCalledWith("u1", "External Brain");
-    // An explicitly named project is not a fallback, so no nag.
+    const r = await resolveProjectForCall(
+      unscoped,
+      { projectName: "Brand New" },
+      d,
+      hint,
+      { allowCreate: true },
+    );
+    expect(r).toMatchObject({ projectId: "proj_named", source: "explicit_name" });
+    expect(d.ensureNamedProject).toHaveBeenCalledWith("u1", "Brand New");
     expect(r.hint).toBeUndefined();
+  });
+
+  it("prefers an EXISTING accessible project over creating a personal-org duplicate", async () => {
+    // ensureNamedProject resolves/creates only inside the personal org, so a
+    // shared-org project reached by name used to be shadowed by a new empty
+    // duplicate — and a decision written there was invisible to teammates.
+    const d = deps({
+      getUserProjects: vi.fn(async () => [{ id: "proj_shared", name: "Acme API" }]),
+    });
+    const r = await resolveProjectForCall(
+      unscoped,
+      { projectName: "acme api" },
+      d,
+      hint,
+      { allowCreate: true },
+    );
+    expect(r).toMatchObject({ projectId: "proj_shared", source: "explicit_name" });
+    expect(d.ensureNamedProject).not.toHaveBeenCalled();
+  });
+
+  it("REFUSES to create on a READ — a typo must not conjure an empty project", async () => {
+    // brain_ask_oracle answering from a freshly-created empty project reads as
+    // "you have no knowledge about that", the most misleading possible reply.
+    const d = deps();
+    await expect(
+      resolveProjectForCall(unscoped, { projectName: "Typoed Nmae" }, d, hint),
+    ).rejects.toThrow(PROJECT_NOT_FOUND);
+    expect(d.ensureNamedProject).not.toHaveBeenCalled();
+  });
+
+  it("matches an existing project by name case-insensitively on a read", async () => {
+    const d = deps({
+      getUserProjects: vi.fn(async () => [{ id: "proj_eb", name: "External Brain" }]),
+    });
+    const r = await resolveProjectForCall(unscoped, { projectName: "  external brain " }, d, hint);
+    expect(r).toMatchObject({ projectId: "proj_eb", source: "explicit_name" });
+  });
+
+  it("rejects a scoped token given a projectName it is not bound to", async () => {
+    // The id path already threw; the name path used to narrow silently, so a
+    // contractor token scoped to A that named B was answered from A.
+    const d = deps({
+      getUserProjects: vi.fn(async () => [
+        { id: "proj_token", name: "Mine" },
+        { id: "proj_other", name: "Theirs" },
+      ]),
+    });
+    await expect(
+      resolveProjectForCall(scoped, { projectName: "Theirs" }, d, hint),
+    ).rejects.toThrow(FORBIDDEN_PROJECT);
+  });
+
+  it("accepts a scoped token given its own project by name", async () => {
+    const d = deps({
+      getUserProjects: vi.fn(async () => [{ id: "proj_token", name: "Mine" }]),
+    });
+    const r = await resolveProjectForCall(scoped, { projectName: "Mine" }, d, hint);
+    expect(r).toMatchObject({ projectId: "proj_token", source: "token_scope" });
   });
 
   it("REPORTS the fallback instead of falling back silently", async () => {

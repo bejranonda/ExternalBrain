@@ -10,6 +10,7 @@ import { db } from "@brain/db";
 import type { ToolDef } from "./index.js";
 import { resolveProjectForCall } from "../scope.js";
 import { requireCapability } from "../capability.js";
+import { resolveOrgScope } from "../org-scope.js";
 
 const inputShape = z.object({
   question: z.string().min(3),
@@ -17,7 +18,7 @@ const inputShape = z.object({
     .enum(["minimal", "low", "medium", "high", "max"])
     .default("medium"),
   projectId: z.string().optional(),
-  projectName: z.string().min(1).max(120).optional(),
+  projectName: z.string().trim().min(1).max(120).optional(),
 });
 
 export const askOracle: ToolDef = {
@@ -67,6 +68,13 @@ export const askOracle: ToolDef = {
         `pass projectName to ask that project instead.`,
     );
 
+    // Without visibilityArgs the owner gate collapses to `ownerUserId = $2`,
+    // so teammate-authored `visibility:"org"` rows stay invisible — including
+    // the project DECISIONS that brain_teach_knowledge deliberately writes as
+    // org-visible. brain_retrieve_knowledge and brain_start_session have always
+    // passed this; the Oracle never did, so "correctly filed knowledge is
+    // readable" was only half true even after the project fix.
+    const orgScope = await resolveOrgScope(auth.userId, resolved.projectId);
     const answer = await oracle.ask(
       auth.userId,
       {
@@ -74,6 +82,16 @@ export const askOracle: ToolDef = {
         reasoningLevel: input.reasoningLevel,
       },
       resolved.projectId,
+      "project",
+      {
+        // resolveOrgScope returns { orgId?, accessibleProjectIds? }; ask()
+        // wants the fuller VisibilityScopeArgs shape the webapp already
+        // builds. Map rather than spread so a future field added to one side
+        // fails the compile instead of silently defaulting to null.
+        activeProjectId: resolved.projectId,
+        activeOrgId: orgScope.orgId ?? null,
+        accessibleProjectIds: orgScope.accessibleProjectIds ?? [],
+      },
     );
 
     return {

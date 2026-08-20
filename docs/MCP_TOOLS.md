@@ -63,7 +63,7 @@ still be able to ask what it is.
 | 4 | `brain_get_active_project` | Before `brain_start_session`, to verify the default destination matches the user's intent | `{ project: {...} \| null }` |
 | 5 | `brain_retrieve_knowledge` | BEFORE generating code | `{ bundle, injection }` — typed items + pre-formatted injection string |
 | 6 | `brain_report_session_outcome` | AFTER user accepts/rejects | `{ sqs, queued, resolvedActionItems?, hint? }` — `hint` is the ask-back nudge on a learning-less close (see below); `resolvedActionItems` counts retired meeting to-dos (V2.0) |
-| 7 | `brain_teach_knowledge` | when user says "remember …" | `{ id, confidence: 1.0 }` |
+| 7 | `brain_teach_knowledge` | when user says "remember …" | `{ id, confidence: 1.0, project, hint?, superseded?, supersedeHint? }` |
 | 8 | `brain_get_user_style` | when scaffolding new files | `{ peerCard, reflexes }` |
 | 9 | `brain_ask_oracle` | "how did I solve X?" | `{ answer, citations, project, hint?, ... }` |
 | 10 | `brain_log_event` | during session (per event) | `{ id, accepted }` |
@@ -335,7 +335,7 @@ Three tool-surface additions carry the meeting-intelligence loop
 Every tool that takes a caller-supplied `sessionId`, `projectId`, or `knowledgeId` validates ownership before mutating:
 
 - **`brain_log_event`, `brain_report_session_outcome`** — look up the session by `(id, userId = auth.userId)` and return `NOT_FOUND` if the caller isn't the owner. `report`'s `knowledgeUsed` counter bumps are scoped to `ownerUserId: auth.userId` — foreign Knowledge IDs are silently skipped (matches the best-effort `bulkBumpKnowledgeOutcome` semantic).
-- **`brain_start_session`, `brain_teach_knowledge`** — when the token is unscoped (`auth.projectId === null`) and the caller supplies an explicit `projectId`, the server checks the user is a member of the org that owns it. Returns `FORBIDDEN_PROJECT` if not. When the token is project-scoped, any `projectId` mismatch already returns `FORBIDDEN_PROJECT` (Phase 3c behavior, unchanged).
+- **`brain_start_session`, `brain_teach_knowledge`, `brain_ask_oracle`** — when the token is unscoped (`auth.projectId === null`) and the caller supplies an explicit `projectId`, the server checks the user is a member of the org that owns it. Returns `FORBIDDEN_PROJECT` if not. When the token is project-scoped, a mismatched `projectId` **or `projectName`** returns `FORBIDDEN_PROJECT` — the name path used to be ignored silently, so a token scoped to A that named B was served A. A `projectName` naming no accessible project returns `PROJECT_NOT_FOUND` on reads: `brain_ask_oracle` never creates, because answering from a project a typo conjured reads as "you have no knowledge about that".
 - **`brain_teach_knowledge`'s `supersedesKnowledgeId`** — retiring a prior decision is ownership-checked, and (2026-07-14, meeting-transcript-upload plan) now also project-checked: the target row must be owned by the caller **and** in the same resolved project as the new row, not just owned by the caller. Without this a user with knowledge scattered across multiple projects could retire a decision that belongs to a different project than the one superseding it. A non-matching id is silently ignored — the new row is still created, just without a supersession link. See `supersedeKnowledge` (`packages/core/src/knowledge-stats.ts`).
 - **`brain_create_project`** — refused with `FORBIDDEN_PROJECT` (403) for project-scoped tokens. User-scoped tokens may create only inside the caller's personal org; the org is resolved server-side, never from caller input.
 - **`brain_list_projects`, `brain_get_active_project`** — project-scoped tokens see only their bound project. The same scoping rule that prevents writing across the boundary prevents reading across it.
@@ -457,8 +457,15 @@ The platform handles everything from there: KEA extracts new knowledge, autoskil
 ## Project scoping across tools (v2.18.0)
 
 Three tools take a project: `brain_start_session`, `brain_teach_knowledge` and
-`brain_ask_oracle`. They share one resolver
-(`apps/mcp-server/src/scope.ts::resolveProjectForCall`) with this precedence:
+`brain_ask_oracle`.
+
+`brain_teach_knowledge` and `brain_ask_oracle` share one resolver
+(`apps/mcp-server/src/scope.ts::resolveProjectForCall`).
+**`brain_start_session` still has its own copy** with equivalent precedence but
+a different vocabulary — it reports `explicit` | `first_project_fallback` |
+`default_created`, and hints only when the choice was ambiguous. Migrating it is
+tracked follow-up; until then, treat `source` as tool-specific and check for
+*both* spellings if you branch on it. Precedence, shared by all three:
 
 1. **Project-scoped token** — wins outright; a mismatched `projectId` is
    rejected with `FORBIDDEN_PROJECT` rather than silently narrowed.

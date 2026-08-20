@@ -30,6 +30,16 @@ export const FORBIDDEN_PROJECT =
   "FORBIDDEN_PROJECT: this token is scoped to a different project";
 
 /**
+ * Thrown when a READ names a project that does not exist.
+ *
+ * Reads must never create: a typo in `projectName` on `brain_ask_oracle`
+ * would otherwise conjure an empty project and answer from it, which reads as
+ * "you have no knowledge about that" — the most misleading possible reply.
+ */
+export const PROJECT_NOT_FOUND =
+  "PROJECT_NOT_FOUND: no project with that name; reads never create projects";
+
+/**
  * Resolve which project a read should run against.
  *
  * - Scoped token + no request      → the token's project.
@@ -122,12 +132,30 @@ export async function resolveProjectForCall(
     ensureDefaultProject: (userId: string) => Promise<{ projectId: string; name: string }>;
   },
   hintFor: (projectName: string) => string,
+  /**
+   * `allowCreate` distinguishes writes from reads. Only a write may bring a
+   * project into existence by naming it; a read that does so turns a typo into
+   * a plausible-looking empty answer.
+   */
+  opts: { allowCreate: boolean } = { allowCreate: false },
 ): Promise<ResolvedProject> {
   // A scoped token cannot be redirected. Reject a mismatch loudly rather than
   // narrowing silently — a caller that asked for B and got A has wrong data.
+  // This must cover `projectName` too: rejecting a mismatched id while
+  // ignoring a mismatched name would leave exactly the silent-wrong-project
+  // hole this whole change exists to close.
   if (auth.projectId !== null) {
     if (input.projectId && input.projectId !== auth.projectId) {
       throw new Error(FORBIDDEN_PROJECT);
+    }
+    if (input.projectName) {
+      const bound = await deps.getUserProjects(auth.userId);
+      const named = bound.find(
+        (p) => p.name.toLowerCase() === input.projectName!.trim().toLowerCase(),
+      );
+      if (!named || named.id !== auth.projectId) {
+        throw new Error(FORBIDDEN_PROJECT);
+      }
     }
     return { projectId: auth.projectId, source: "token_scope" };
   }
@@ -141,6 +169,28 @@ export async function resolveProjectForCall(
   }
 
   if (input.projectName) {
+    if (!opts.allowCreate) {
+      const readable = await deps.getUserProjects(auth.userId);
+      const match = readable.find(
+        (p) => p.name.toLowerCase() === input.projectName!.trim().toLowerCase(),
+      );
+      if (!match) throw new Error(PROJECT_NOT_FOUND);
+      return { projectId: match.id, projectName: match.name, source: "explicit_name" };
+    }
+    // Match an EXISTING accessible project first. ensureNamedProject resolves
+    // and creates only within the caller's personal org, whereas projectId and
+    // the fallback span every org they belong to — so naming a shared-org
+    // project went straight past it and forged an empty personal-org duplicate,
+    // reported as `explicit_name` with no hint. A decision teach then wrote
+    // visibility:"org" into the PERSONAL org, where no teammate could ever read
+    // it, and the Oracle answered from the empty duplicate.
+    const accessible = await deps.getUserProjects(auth.userId);
+    const existing = accessible.find(
+      (p) => p.name.toLowerCase() === input.projectName!.trim().toLowerCase(),
+    );
+    if (existing) {
+      return { projectId: existing.id, projectName: existing.name, source: "explicit_name" };
+    }
     const { projectId } = await deps.ensureNamedProject(auth.userId, input.projectName);
     return { projectId, projectName: input.projectName, source: "explicit_name" };
   }
