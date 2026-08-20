@@ -65,3 +65,96 @@ export function resolveReadProjectId(
 export function isProjectScoped(auth: AuthContext): boolean {
   return auth.projectId !== null;
 }
+
+/**
+ * One project-resolution rule for every tool that takes a project.
+ *
+ * Three tools disagreed about what "the project" means, and each disagreement
+ * was invisible because all three returned success (KNOWN_ISSUES §0ar):
+ *
+ *   - `brain_start_session` accepted `projectName` and reported
+ *     `project.source` + a `hint` when it fell back.
+ *   - `brain_teach_knowledge` accepted only `projectId`, reported nothing, and
+ *     silently filed every rule under the default project — which is where
+ *     *every* rule ever taught from the External Brain repo actually landed.
+ *   - `brain_ask_oracle` accepted neither and read the token's default project
+ *     only, so knowledge filed under a named project became invisible to it.
+ *
+ * The combination was pathological: following the documented "pass the project
+ * on every call" discipline moved knowledge somewhere the Oracle could not
+ * read. Giving the three one implementation is the fix; per GUIDELINES §4,
+ * a rule with siblings gets one implementation rather than three copies.
+ */
+export type ProjectSource =
+  | "token_scope"
+  | "explicit_id"
+  | "explicit_name"
+  | "default_fallback";
+
+export interface ResolvedProject {
+  projectId: string;
+  /** Present when resolution knew the name without an extra query. */
+  projectName?: string;
+  source: ProjectSource;
+  /** Set only when the call fell back — the caller named no project. */
+  hint?: string;
+}
+
+/**
+ * Resolve the project for a call that may name one by id or by name.
+ *
+ * Precedence mirrors `brain_start_session` exactly: a project-scoped token
+ * wins outright (the token IS the scope and a caller must not redirect it),
+ * then an explicit id, then a name (created on demand), then the fallback.
+ *
+ * `deps` is injected so this stays unit-testable without a database.
+ */
+export async function resolveProjectForCall(
+  auth: AuthContext,
+  input: { projectId?: string | undefined; projectName?: string | undefined },
+  deps: {
+    userCanAccessProject: (userId: string, projectId: string) => Promise<boolean>;
+    ensureNamedProject: (
+      userId: string,
+      name: string,
+    ) => Promise<{ projectId: string }>;
+    getUserProjects: (userId: string) => Promise<Array<{ id: string; name: string }>>;
+    ensureDefaultProject: (userId: string) => Promise<{ projectId: string; name: string }>;
+  },
+  hintFor: (projectName: string) => string,
+): Promise<ResolvedProject> {
+  // A scoped token cannot be redirected. Reject a mismatch loudly rather than
+  // narrowing silently — a caller that asked for B and got A has wrong data.
+  if (auth.projectId !== null) {
+    if (input.projectId && input.projectId !== auth.projectId) {
+      throw new Error(FORBIDDEN_PROJECT);
+    }
+    return { projectId: auth.projectId, source: "token_scope" };
+  }
+
+  if (input.projectId) {
+    // Without this an authenticated user could file against any project id
+    // they happened to know.
+    const ok = await deps.userCanAccessProject(auth.userId, input.projectId);
+    if (!ok) throw new Error(FORBIDDEN_PROJECT);
+    return { projectId: input.projectId, source: "explicit_id" };
+  }
+
+  if (input.projectName) {
+    const { projectId } = await deps.ensureNamedProject(auth.userId, input.projectName);
+    return { projectId, projectName: input.projectName, source: "explicit_name" };
+  }
+
+  const projects = await deps.getUserProjects(auth.userId);
+  if (projects.length > 0) {
+    const first = projects[0]!;
+    return {
+      projectId: first.id,
+      projectName: first.name,
+      source: "default_fallback",
+      hint: hintFor(first.name),
+    };
+  }
+  const { projectId, name } = await deps.ensureDefaultProject(auth.userId);
+  return { projectId, projectName: name, source: "default_fallback", hint: hintFor(name) };
+}
