@@ -263,7 +263,9 @@ export async function extractFromSession(
 // for durability/specificity and normalizes wording.
 // ============================================================
 
-const REFINE_SYSTEM_PROMPT = `You are KEA (Knowledge Extraction Agent) in REFINE mode.
+/** Exported so the eval harness can score the REFINE path — the one production
+ *  actually runs, since every session that submits learnings takes it. */
+export const REFINE_SYSTEM_PROMPT = `You are KEA (Knowledge Extraction Agent) in REFINE mode.
 
 The coding agent that just finished a session has SUBMITTED candidate learnings
 it distilled from its own context. Your job is to VALIDATE each candidate — not

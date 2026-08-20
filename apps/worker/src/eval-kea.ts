@@ -8,11 +8,19 @@
  * KEA's failure mode is a silent empty extraction that no unit test and no
  * amount of production monitoring will surface as an error.
  *
- * Read-only: replays the mining prompt, persists nothing, touches no queue.
+ * Two paths, because production uses them very differently. `mine` runs when a
+ * session submits NO learnings; `refine` runs when it does, and judges those
+ * candidates. Audited on prod 2026-08-20: since the glm-4.7 bump, 4 of 4
+ * extractions were `refine` and 0 were `mine` — so scoring only `mine` measured
+ * a path production barely takes while leaving the one it always takes
+ * unmeasured. Score both; default is both.
+ *
+ * Read-only: replays the prompts, persists nothing, touches no queue.
  *
  * Usage:
  *   pnpm --filter @brain/worker eval:kea
  *   pnpm --filter @brain/worker eval:kea -- --models glm-4.7,glm-5.3 --limit 8
+ *   pnpm --filter @brain/worker eval:kea -- --path refine
  *
  * Interpreting the output: prefer the model with the fewest `empty` runs and
  * zero `schemaBad`, then the lowest p95 latency. Total finding count is the
@@ -20,7 +28,12 @@
  */
 import { db } from "@brain/db";
 import { getLogger } from "@brain/core";
-import { SYSTEM_PROMPT as KEA_SYSTEM_PROMPT, isValidFinding, type KEAFinding } from "@brain/core/kea";
+import {
+  SYSTEM_PROMPT as KEA_SYSTEM_PROMPT,
+  REFINE_SYSTEM_PROMPT,
+  isValidFinding,
+  type KEAFinding,
+} from "@brain/core/kea";
 import { callLLMText } from "@brain/core/llm";
 
 const log = getLogger("worker");
@@ -90,20 +103,50 @@ function p95(xs: number[]): number {
   return s[Math.min(s.length - 1, Math.floor(s.length * 0.95))]!;
 }
 
-async function scoreModel(model: string, sessions: Replayable[]): Promise<Score> {
+type EvalPath = "mine" | "refine";
+
+/**
+ * Build the exact (system, user) pair production sends for this path.
+ * Mirrors runLLM / defaultRefineJudge in kea.ts — a harness scoring a
+ * paraphrase measures nothing.
+ */
+function promptsFor(path: EvalPath, s: Replayable): { system: string; user: string } {
+  if (path === "refine") {
+    return {
+      system: REFINE_SYSTEM_PROMPT,
+      user:
+        `SESSION CONTEXT (for judging durability):\n` +
+        JSON.stringify(
+          { prompt: s.prompt, framework: s.framework, language: s.language },
+          null,
+          2,
+        ) +
+        `\n\nSUBMITTED CANDIDATES:\n${JSON.stringify(s.submittedLearnings, null, 2)}\n\nValidate now.`,
+    };
+  }
+  return {
+    system: KEA_SYSTEM_PROMPT,
+    user: `SESSION SUMMARY:\n${JSON.stringify(s, null, 2)}\n\nExtract now.`,
+  };
+}
+
+async function scoreModel(
+  model: string,
+  sessions: Replayable[],
+  path: EvalPath,
+): Promise<Score> {
   const sc: Score = {
     runs: 0, empty: 0, schemaBad: 0, parseFail: 0, callFail: 0, findings: 0, latencies: [],
   };
 
   for (const s of sessions) {
-    const userPrompt =
-      `SESSION SUMMARY:\n${JSON.stringify(s, null, 2)}\n\nExtract now.`;
+    const { system, user: userPrompt } = promptsFor(path, s);
     const started = Date.now();
     let text: string;
     try {
       text = await callLLMText(userPrompt, {
         model,
-        systemPrompt: KEA_SYSTEM_PROMPT,
+        systemPrompt: system,
         maxTokens: 1024,
       });
     } catch (err) {
@@ -150,6 +193,13 @@ function parseFlag(name: string): string | undefined {
 async function main(): Promise<void> {
   const models = (parseFlag("models") ?? DEFAULT_MODELS.join(",")).split(",").map((m) => m.trim());
   const limit = Number(parseFlag("limit") ?? 10);
+  const pathArg = (parseFlag("path") ?? "both").toLowerCase();
+  if (!["mine", "refine", "both"].includes(pathArg)) {
+    log.fatal({ pathArg }, "eval-kea: --path must be mine | refine | both");
+    process.exitCode = 1;
+    return;
+  }
+  const paths: EvalPath[] = pathArg === "both" ? ["mine", "refine"] : [pathArg as EvalPath];
   const sessions = await loadSessions(Number.isFinite(limit) ? limit : 10);
 
   if (sessions.length === 0) {
@@ -158,22 +208,30 @@ async function main(): Promise<void> {
   }
 
   const rows: string[] = [];
-  for (const model of models) {
-    const sc = await scoreModel(model, sessions);
+  for (const path of paths) {
     rows.push(
-      [
-        model.padEnd(12),
-        `runs=${sc.runs}`.padEnd(9),
-        `empty=${sc.empty}`.padEnd(9),
-        `schemaBad=${sc.schemaBad}`.padEnd(14),
-        `parseFail=${sc.parseFail}`.padEnd(14),
-        `callFail=${sc.callFail}`.padEnd(13),
-        `findings=${sc.findings}`.padEnd(14),
-        sc.callFail > 0
-          ? "UNRANKABLE (calls failed — check the model name and provider routing)"
-          : `p95=${p95(sc.latencies)}ms`,
-      ].join(" "),
+      `\n[${path}]  ` +
+        (path === "refine"
+          ? "judges submitted learnings — production's usual path"
+          : "mines a session summary with no submitted learnings"),
     );
+    for (const model of models) {
+      const sc = await scoreModel(model, sessions, path);
+      rows.push(
+        [
+          model.padEnd(12),
+          `runs=${sc.runs}`.padEnd(9),
+          `empty=${sc.empty}`.padEnd(9),
+          `schemaBad=${sc.schemaBad}`.padEnd(14),
+          `parseFail=${sc.parseFail}`.padEnd(14),
+          `callFail=${sc.callFail}`.padEnd(13),
+          `findings=${sc.findings}`.padEnd(14),
+          sc.callFail > 0
+            ? "UNRANKABLE (calls failed — check the model name and provider routing)"
+            : `p95=${p95(sc.latencies)}ms`,
+        ].join(" "),
+      );
+    }
   }
 
   // Printed rather than logged: this is a human-read comparison table, and
