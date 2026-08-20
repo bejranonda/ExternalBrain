@@ -459,13 +459,20 @@ The platform handles everything from there: KEA extracts new knowledge, autoskil
 Three tools take a project: `brain_start_session`, `brain_teach_knowledge` and
 `brain_ask_oracle`.
 
-`brain_teach_knowledge` and `brain_ask_oracle` share one resolver
-(`apps/mcp-server/src/scope.ts::resolveProjectForCall`).
-**`brain_start_session` still has its own copy** with equivalent precedence but
-a different vocabulary — it reports `explicit` | `first_project_fallback` |
-`default_created`, and hints only when the choice was ambiguous. Migrating it is
-tracked follow-up; until then, treat `source` as tool-specific and check for
-*both* spellings if you branch on it. Precedence, shared by all three:
+All three share one resolver
+(`apps/mcp-server/src/scope.ts::resolveProjectForCall`) — precedence lives in
+exactly one place so the three cannot drift again.
+
+They still *report* differently, deliberately. `brain_teach_knowledge` and
+`brain_ask_oracle` return the canonical `token_scope` | `explicit_id` |
+`explicit_name` | `default_fallback` and hint on every fallback.
+`brain_start_session` translates those onto its longer-standing vocabulary —
+`explicit` | `first_project_fallback` | `default_created` — because it
+distinguishes "we created a project for you" from "we picked your existing one",
+and it hints *selectively* (only when the fallback landed on Default or had more
+than one project to choose between), since nagging every session trains callers
+to ignore hints. If you branch on `source`, handle both spellings. Precedence,
+identical across all three:
 
 1. **Project-scoped token** — wins outright; a mismatched `projectId` is
    rejected with `FORBIDDEN_PROJECT` rather than silently narrowed.

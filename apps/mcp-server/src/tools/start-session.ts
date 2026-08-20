@@ -14,6 +14,7 @@ import {
 } from "@brain/core";
 import type { ToolDef } from "./index.js";
 import { resolveOrgScope } from "../org-scope.js";
+import { resolveProjectForCall } from "../scope.js";
 
 const log = getLogger("start-session");
 
@@ -99,13 +100,33 @@ export const startSession: ToolDef = {
       }
     }
 
-    // When the token is unscoped AND the caller supplies an explicit
-    // projectId, verify the user has access to it — without this, any
-    // authenticated user could tag a session against any project ID they
-    // happen to know.
-    if (auth.projectId === null && input.projectId) {
-      const ok = await userCanAccessProject(db, auth.userId, input.projectId);
-      if (!ok) {
+    // Precedence comes from the SHARED resolver so this tool cannot drift from
+    // brain_teach_knowledge and brain_ask_oracle — the drift between three
+    // copies is what KNOWN_ISSUES §0ar cost. Only the *reporting* stays local:
+    // this tool distinguishes "we created a project for you" from "we picked
+    // your existing one", and hints selectively rather than on every fallback.
+    let resolved;
+    try {
+      resolved = await resolveProjectForCall(
+        auth,
+        { projectId: input.projectId, projectName: input.projectName },
+        {
+          userCanAccessProject: (u, pid) => userCanAccessProject(db, u, pid),
+          ensureNamedProject: (u, n, o) => ensureNamedProject(db, u, n, o),
+          getUserProjects: (u) => getUserProjects(db, u),
+          ensureDefaultProject: (u) => ensureDefaultProject(db, u),
+        },
+        // Unused: this tool builds its own selective hint below.
+        () => "",
+        {
+          allowCreate: true,
+          ...(input.framework ? { framework: input.framework } : {}),
+          ...(input.language ? { language: input.language } : {}),
+        },
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("FORBIDDEN_PROJECT") || msg.includes("PROJECT_NOT_FOUND")) {
         throw new BrainError({
           message: "project not found or access denied",
           code: "FORBIDDEN_PROJECT",
@@ -113,71 +134,23 @@ export const startSession: ToolDef = {
           status: 403,
         });
       }
+      throw err;
     }
 
-    let resolvedProjectId: string | null =
-      auth.projectId ?? input.projectId ?? null;
-
-    // Tracks *why* resolvedProjectId ended up what it did, mirroring the
-    // `source` values brain_get_active_project already reports — surfaced
-    // in the response below so callers can tell a deliberate choice from a
-    // silent fallback into "Default". When neither the token nor the caller
-    // named a project, resolvedProjectId is still null here and one of the
-    // two fallback branches below always reassigns this.
-    let projectSource: "token_scope" | "explicit" | "first_project_fallback" | "default_created" =
-      auth.projectId !== null ? "token_scope" : "explicit";
-
-    // The project's name for the response. The fallback branches below
-    // already hold it, so those paths cost no extra query; only the
-    // token-scoped / explicit-projectId paths need the lookup done after
-    // session create.
-    let projectName: string | undefined;
-
-    // Bug-1: if the caller supplied a projectName AND no explicit projectId
-    // already won the resolution, look up (or create) a project with that
-    // name. Project-scoped tokens take precedence over projectName — the
-    // token IS the scope and we don't let the caller redirect.
-    if (
-      !resolvedProjectId &&
-      input.projectName &&
-      auth.projectId === null
-    ) {
-      const { projectId } = await ensureNamedProject(
-        db,
-        auth.userId,
-        input.projectName,
-        {
-          ...(input.framework ? { framework: input.framework } : {}),
-          ...(input.language ? { language: input.language } : {}),
-        },
-      );
-      resolvedProjectId = projectId;
-      projectSource = "explicit";
-    }
-
-    // True only when the caller named no project AND there was genuinely more
-    // than one to pick from — the case where the fallback silently guessed.
-    // A solo user with exactly one real project isn't ambiguous, and nagging
-    // them every session would train them to ignore the hint entirely.
-    let ambiguousChoice = false;
-
-    if (!resolvedProjectId) {
-      const projects = await getUserProjects(db, auth.userId);
-      if (projects.length > 0) {
-        resolvedProjectId = projects[0]!.id;
-        projectName = projects[0]!.name;
-        projectSource = "first_project_fallback";
-        ambiguousChoice = projects.length > 1;
-      } else {
-        // Lazily create the default project if none exists yet. It returns
-        // the personal org's existing first project when there is one, so
-        // trust `created` rather than assuming this branch always creates.
-        const { projectId, name, created } = await ensureDefaultProject(db, auth.userId);
-        resolvedProjectId = projectId;
-        projectName = name;
-        projectSource = created ? "default_created" : "first_project_fallback";
-      }
-    }
+    const resolvedProjectId: string = resolved.projectId;
+    let projectName: string | undefined = resolved.projectName;
+    // Map the shared vocabulary onto this tool's existing, richer one. Its
+    // `source` values are a published contract (brain_get_active_project uses
+    // the same words), so translate rather than break callers.
+    const projectSource: "token_scope" | "explicit" | "first_project_fallback" | "default_created" =
+      resolved.source === "token_scope"
+        ? "token_scope"
+        : resolved.source === "default_fallback"
+          ? resolved.created
+            ? "default_created"
+            : "first_project_fallback"
+          : "explicit";
+    const ambiguousChoice = resolved.ambiguous ?? false;
 
     const session = await db.session.create({
       data: {

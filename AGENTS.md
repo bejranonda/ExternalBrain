@@ -188,11 +188,14 @@ across sessions (and it's the product's own dogfood):
    and `brain_ask_oracle`** — for work that belongs outside the default
    project. Calling `brain_create_project` once does not change what later
    calls resolve to, and neither does the project you opened the session
-   with. All three share one resolver (v2.18.0): the response's
-   `project.source` tells you whether the call landed where you asked
-   (`explicit_name` / `explicit_id`) or fell back (`default_fallback`), and
-   a `hint` appears when it fell back, steering you to fix it before
-   continuing. Until v2.18.0 `teach` had no `projectName` and the Oracle had
+   with. All three share one resolver: the response's `project.source` tells
+   you whether the call landed where you asked or fell back, and a `hint`
+   appears when it fell back. `brain_teach_knowledge` and `brain_ask_oracle`
+   say `explicit_name` / `explicit_id` / `default_fallback`;
+   `brain_start_session` keeps its older `explicit` /
+   `first_project_fallback` / `default_created` wording and hints only when
+   the fallback was genuinely ambiguous — so check both spellings if you
+   branch on it. Until v2.18.0 `teach` had no `projectName` and the Oracle had
    no project parameter at all, so *every* rule ever taught from this repo
    silently landed in "Default" and knowledge filed correctly was unreadable
    by the Oracle — see `KNOWN_ISSUES.md §0ar`.

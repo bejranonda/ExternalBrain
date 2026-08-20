@@ -108,6 +108,18 @@ export interface ResolvedProject {
   source: ProjectSource;
   /** Set only when the call fell back — the caller named no project. */
   hint?: string;
+  /**
+   * The fallback had to CREATE the default project (the user had none).
+   * `brain_start_session` reports this distinctly, because "we made you a
+   * project" and "we picked your existing one" warrant different advice.
+   */
+  created?: boolean;
+  /**
+   * The fallback chose between MORE THAN ONE existing project. A solo user
+   * with exactly one project isn't ambiguous, and hinting every session
+   * trains them to ignore hints — so callers use this to hint selectively.
+   */
+  ambiguous?: boolean;
 }
 
 /**
@@ -127,9 +139,12 @@ export async function resolveProjectForCall(
     ensureNamedProject: (
       userId: string,
       name: string,
+      opts?: { framework?: string; language?: string },
     ) => Promise<{ projectId: string }>;
     getUserProjects: (userId: string) => Promise<Array<{ id: string; name: string }>>;
-    ensureDefaultProject: (userId: string) => Promise<{ projectId: string; name: string }>;
+    ensureDefaultProject: (
+      userId: string,
+    ) => Promise<{ projectId: string; name: string; created?: boolean }>;
   },
   hintFor: (projectName: string) => string,
   /**
@@ -137,7 +152,12 @@ export async function resolveProjectForCall(
    * project into existence by naming it; a read that does so turns a typo into
    * a plausible-looking empty answer.
    */
-  opts: { allowCreate: boolean } = { allowCreate: false },
+  opts: {
+    allowCreate: boolean;
+    /** Passed through to project creation so a new project is typed correctly. */
+    framework?: string | undefined;
+    language?: string | undefined;
+  } = { allowCreate: false },
 ): Promise<ResolvedProject> {
   // A scoped token cannot be redirected. Reject a mismatch loudly rather than
   // narrowing silently — a caller that asked for B and got A has wrong data.
@@ -191,7 +211,10 @@ export async function resolveProjectForCall(
     if (existing) {
       return { projectId: existing.id, projectName: existing.name, source: "explicit_name" };
     }
-    const { projectId } = await deps.ensureNamedProject(auth.userId, input.projectName);
+    const { projectId } = await deps.ensureNamedProject(auth.userId, input.projectName, {
+      ...(opts.framework ? { framework: opts.framework } : {}),
+      ...(opts.language ? { language: opts.language } : {}),
+    });
     return { projectId, projectName: input.projectName, source: "explicit_name" };
   }
 
@@ -203,8 +226,17 @@ export async function resolveProjectForCall(
       projectName: first.name,
       source: "default_fallback",
       hint: hintFor(first.name),
+      created: false,
+      ambiguous: projects.length > 1,
     };
   }
-  const { projectId, name } = await deps.ensureDefaultProject(auth.userId);
-  return { projectId, projectName: name, source: "default_fallback", hint: hintFor(name) };
+  const { projectId, name, created } = await deps.ensureDefaultProject(auth.userId);
+  return {
+    projectId,
+    projectName: name,
+    source: "default_fallback",
+    hint: hintFor(name),
+    created: created ?? true,
+    ambiguous: false,
+  };
 }
