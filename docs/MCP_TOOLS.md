@@ -65,7 +65,7 @@ still be able to ask what it is.
 | 6 | `brain_report_session_outcome` | AFTER user accepts/rejects | `{ sqs, queued, resolvedActionItems?, hint? }` — `hint` is the ask-back nudge on a learning-less close (see below); `resolvedActionItems` counts retired meeting to-dos (V2.0) |
 | 7 | `brain_teach_knowledge` | when user says "remember …" | `{ id, confidence: 1.0 }` |
 | 8 | `brain_get_user_style` | when scaffolding new files | `{ peerCard, reflexes }` |
-| 9 | `brain_ask_oracle` | "how did I solve X?" | `{ answer, citations, ... }` |
+| 9 | `brain_ask_oracle` | "how did I solve X?" | `{ answer, citations, project, hint?, ... }` |
 | 10 | `brain_log_event` | during session (per event) | `{ id, accepted }` |
 | 11 | `brain_find_skill` | user asks for complete recipe | top-N skills |
 | 12 | `brain_session_search` | "what did I do last week?" | recent matching sessions (Postgres FTS) |
@@ -453,3 +453,30 @@ client.callTool('brain_report_session_outcome', {
 ```
 
 The platform handles everything from there: KEA extracts new knowledge, autoskill proposes skill edits, evolution runs nightly.
+
+## Project scoping across tools (v2.18.0)
+
+Three tools take a project: `brain_start_session`, `brain_teach_knowledge` and
+`brain_ask_oracle`. They share one resolver
+(`apps/mcp-server/src/scope.ts::resolveProjectForCall`) with this precedence:
+
+1. **Project-scoped token** — wins outright; a mismatched `projectId` is
+   rejected with `FORBIDDEN_PROJECT` rather than silently narrowed.
+2. **Explicit `projectId`** — verified against the caller's access first.
+3. **`projectName`** — resolved, created on demand.
+4. **Fallback** — the user's first project, *and the response says so*.
+
+Every response carries `project: { id, name?, source }` where `source` is
+`token_scope` | `explicit_id` | `explicit_name` | `default_fallback`, plus a
+`hint` string whenever it fell back. **Read `project.source`** — it is the only
+way to know the call landed where you meant.
+
+`brain_teach_knowledge` additionally returns `superseded: boolean` when you pass
+`supersedesKnowledgeId`, with a `supersedeHint` when it did **not** apply.
+Supersession matches the target within the same user *and project*, so a
+predecessor living in another project is not retired; before v2.18.0 that
+returned success while the stale rule stayed active.
+
+Scoping is **per call**. Opening a session with a project does not scope later
+teach or Oracle calls — pass the project again. See `KNOWN_ISSUES.md §0ar` for
+what the pre-v2.18.0 disagreement between these three cost.

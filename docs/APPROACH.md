@@ -3039,3 +3039,44 @@ number alone.
 
 Full instance: `KNOWN_ISSUES.md §0aq`, `GUIDELINES.md §"Never change a KEA
 or Oracle model without running the eval harness"`.
+
+## 5ca. Using the product found the bug that reading the code did not (2026-08-20)
+
+The v2.17.0 work ended with a request to move its lessons into the Brain
+itself — the product's own job. Doing that, rather than writing them into
+markdown, surfaced three defects in the tool surface within minutes, none of
+which any test, audit or code read had found in months of use.
+
+The sequence is the point. Filing knowledge under its correct project made
+the Oracle stop finding it. That looked like my mistake, and the first
+instinct was to undo it. Checking instead of assuming showed the opposite:
+`brain_teach_knowledge` had no `projectName` parameter at all, so **every rule
+ever taught from this repo had been landing in the default project** — and
+`brain_ask_oracle` read only that project, so the misfiling was the sole
+reason any of it had ever been retrievable. Two bugs had been silently
+cancelling each other out, and correcting one exposed the other.
+
+**Why it was invisible.** Each tool did exactly what its own code said. The
+data was never corrupted. All three returned 200 with a plausible payload —
+`{id, confidence: 1}` is indistinguishable from `{id, confidence: 1}` whether
+the rule landed in the right project or not. The defect existed only in the
+*disagreement between three correct-looking implementations*, which is
+precisely the shape no unit test covers: each has a passing test of its own.
+
+**The generalisable rule.** For a feature whose whole value is that several
+surfaces agree — a scope, an identifier, a status — the test that finds the
+bug is using them together, in the order a real user would, and checking the
+result rather than the return code. I had asked the Oracle a question, read
+the answer, and noticed it was wrong. No amount of reading `teach.ts` would
+have shown it, because `teach.ts` was fine.
+
+**A second-order effect worth recording.** Fixing the Oracle's project
+resolution moved session retrieval from 0 to 7 on the same question. Sessions
+had *never* been retrieved for any Oracle question, by anyone, because the
+Oracle had always been reading the wrong project — a permanent, total loss of
+one whole retrieval channel, hidden behind answers that looked reasonable
+because the knowledge channel still worked. Degradation that leaves a
+plausible result is the hardest kind to notice, and the only defence is
+checking the number you expect against the number you got.
+
+Full instance: `KNOWN_ISSUES.md §0ar`.
