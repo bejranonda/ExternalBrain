@@ -1798,6 +1798,68 @@ card (`glm-5.2`) rather than relying on an alias resolving upward.
 
 ---
 
+## 0ar. Three tools disagreed about what "the project" means, and all three returned success (2026-08-20, v2.18.0)
+
+Found while transferring the v2.17.0 lessons into the Brain — i.e. by dogfooding
+the product, not by reading the code.
+
+**The disagreement.** Three project-aware MCP tools each resolved "the project"
+differently, and each had its own copy of the logic:
+
+| Tool | `projectId` | `projectName` | Reports where it landed |
+|---|---|---|---|
+| `brain_start_session` | ✅ | ✅ | ✅ `project.source` + `hint` |
+| `brain_teach_knowledge` | ✅ | ❌ | ❌ nothing |
+| `brain_ask_oracle` | ❌ | ❌ | ❌ nothing |
+
+**What that produced.** `brain_teach_knowledge` had no way to name a project, so
+it fell back to the default one and said nothing about it — and an audit showed
+that **every rule ever taught from this repo had landed in "Default"**, mixed in
+with unrelated projects' content, while KEA-*extracted* knowledge filed
+correctly because the session carried the project. The agent following
+`AGENTS.md`'s "pass the project on EVERY call" discipline could not comply: the
+parameter did not exist.
+
+**The part that made it pathological.** `brain_ask_oracle` took no project at
+all and resolved via `resolveReadProjectId(auth)`, which on a non-project-scoped
+token means the default project only. So *correcting* the filing made knowledge
+**invisible to the Oracle**: six decisions moved into their proper project and
+the Oracle immediately began answering *"I don't have specific knowledge about
+your embedding model setup"* while those exact rows sat in the database. The
+accidental misfiling had been the only reason years of taught knowledge was
+retrievable at all. The tool's own source carried the admission — *"`ask()` has
+always accepted a projectId; this tool simply never passed"*.
+
+**Third defect, stacked on top.** `supersedeKnowledge` matches its target on
+`ownerProjectId`, returns `false` on a miss, and `teach.ts` **discarded that
+boolean**. So passing `supersedesKnowledgeId` across projects reported success
+while the superseded rule stayed `ACTIVE` and kept being retrieved — the worst
+outcome for a supersession, since the caller believes the old advice is retired.
+Verified both directions: cross-project did nothing; same-project retired the
+predecessor and set `parentKnowledgeId`.
+
+**Fix.** One `resolveProjectForCall()` in `apps/mcp-server/src/scope.ts`, used by
+all three tools, with the precedence `brain_start_session` already had: scoped
+token wins outright → explicit id → name (created on demand) → reported
+fallback. `projectName` added to teach and to the Oracle; every response now
+carries `project.source` and a `hint` when it fell back; the supersede boolean
+is surfaced as `superseded` plus a `supersedeHint` naming the likely cause.
+
+**Measured after deploy.** The same Oracle question that had returned nothing
+useful now answers from the named project — and **session retrieval went from 0
+to 7**, because the Oracle had been reading the wrong project for every question
+ever asked, not just the ones about recently-filed knowledge. That second effect
+was invisible for as long as the first one was.
+
+**Why every gate missed it.** Typecheck, 1500+ tests, lockdown and both e2e
+suites were green throughout: each tool did exactly what its own code said, the
+data was never corrupted, and all three returned HTTP 200 with a plausible
+payload. The defect lived in the *disagreement* between three correct-looking
+implementations — the same one-rule-N-copies class as §0q (provider routing) and
+the v2.17.0 embedding writers, now the seventh instance in this arc.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:

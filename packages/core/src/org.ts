@@ -326,8 +326,15 @@ export async function getUserProjects(
   db: PrismaClient,
   userId: string,
 ): Promise<UserProject[]> {
+  // Deterministic order at BOTH levels. Without it Postgres row order is
+  // unspecified and can shift after any update, so the `[0]` "first project"
+  // fallback used by brain_teach_knowledge and brain_ask_oracle could resolve
+  // to different projects on two consecutive calls — a teach filing into A and
+  // an Oracle read answering from B, each reporting a plausible fallback. This
+  // also matches ensureDefaultProject, which already orders by createdAt asc.
   const memberships = await db.organizationMember.findMany({
     where: { userId },
+    orderBy: { joinedAt: "asc" },
     select: {
       role: true,
       organization: {
@@ -336,6 +343,7 @@ export async function getUserProjects(
           slug: true,
           name: true,
           projects: {
+            orderBy: { createdAt: "asc" },
             select: {
               id: true,
               slug: true,

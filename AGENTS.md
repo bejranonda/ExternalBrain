@@ -184,11 +184,18 @@ across sessions (and it's the product's own dogfood):
    as the retrieval query; "fix bug" retrieves nothing useful. **Project
    scoping is per-call, not persisted**: there is no "active project"
    remembered between calls, so pass `projectId`/`projectName` on *every*
-   `brain_start_session` call for work that belongs outside the default
-   project — calling `brain_create_project` once does not change what later
-   calls resolve to. The response's `project.source` tells you whether this
-   call landed in a real project or fell back to "Default"; a `hint` field
-   appears when it fell back, steering you to fix it before continuing.
+   call that takes one — `brain_start_session`, **`brain_teach_knowledge`
+   and `brain_ask_oracle`** — for work that belongs outside the default
+   project. Calling `brain_create_project` once does not change what later
+   calls resolve to, and neither does the project you opened the session
+   with. All three share one resolver (v2.18.0): the response's
+   `project.source` tells you whether the call landed where you asked
+   (`explicit_name` / `explicit_id`) or fell back (`default_fallback`), and
+   a `hint` appears when it fell back, steering you to fix it before
+   continuing. Until v2.18.0 `teach` had no `projectName` and the Oracle had
+   no project parameter at all, so *every* rule ever taught from this repo
+   silently landed in "Default" and knowledge filed correctly was unreadable
+   by the Oracle — see `KNOWN_ISSUES.md §0ar`.
 2. **Apply**: the response carries `relevantKnowledge` — rules this Brain
    already learned that match the task. Read them before working; they are
    frequently the answer (the 429-rate-limit lesson arrived this way on its
