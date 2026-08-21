@@ -97,6 +97,24 @@ export async function searchKnowledgeByEmbedding(
   const limit = opts.limit ?? 20;
   const vec = toVector(embedding);
 
+  // Build placeholders and params TOGETHER so they cannot diverge. Emitting
+  // `$2`/`$3` only when the option is set while passing all three args
+  // unconditionally left this working in exactly one of its four option
+  // combinations: with neither option it bound 3 args to 1 placeholder, and
+  // with only `framework` it emitted `$3` with no `$2` — a numbering gap
+  // Postgres rejects outright. It has no callers, so nothing surfaced it,
+  // yet the docstring above tells people to prefer it over raw SQL.
+  const params: unknown[] = [vec];
+  const conds: string[] = [];
+  if (opts.ownerUserId) {
+    params.push(opts.ownerUserId);
+    conds.push(`AND "ownerUserId" = $${params.length}`);
+  }
+  if (opts.framework) {
+    params.push(opts.framework);
+    conds.push(`AND framework = $${params.length}`);
+  }
+
   // pgvector distance `<=>` is cosine distance; similarity = 1 - distance
   const rows = await db.$queryRawUnsafe<
     Array<Record<string, unknown> & { _similarity: number }>
@@ -109,15 +127,12 @@ export async function searchKnowledgeByEmbedding(
     FROM "Knowledge"
     WHERE embedding IS NOT NULL
       AND "deletedAt" IS NULL
-      ${opts.ownerUserId ? `AND "ownerUserId" = $2` : ""}
-      ${opts.framework ? `AND framework = $3` : ""}
+      ${conds.join("\n      ")}
       AND "decayScore" > 0.3
     ORDER BY embedding <=> $1::vector ASC
     LIMIT ${limit}
     `,
-    vec,
-    opts.ownerUserId,
-    opts.framework,
+    ...params,
   );
 
   const minSim = opts.minSimilarity ?? 0.0;
