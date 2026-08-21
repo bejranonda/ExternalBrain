@@ -45,6 +45,14 @@ export const findSkill: ToolDef = {
     const input = inputShape.parse(raw);
     const vec = await embedding.embed(input.query);
 
+    // Placeholders and params are built together — see packages/db/src/index.ts
+    // for the same shape. Keeping them in one place is what stops the count
+    // from drifting the way it did here.
+    const params: unknown[] = [toVector(vec), auth.userId];
+    const stageCond = input.stage
+      ? (params.push(input.stage), `AND stage = $${params.length}`)
+      : "";
+
     const rows = await db.$queryRawUnsafe<
       Array<{ id: string; skillId: string; title: string; similarity: number }>
     >(
@@ -54,13 +62,16 @@ export const findSkill: ToolDef = {
       FROM "Skill"
       WHERE embedding IS NOT NULL
         AND "ownerUserId" = $2
-        ${input.stage ? `AND stage = $3` : ""}
+        ${stageCond}
       ORDER BY embedding <=> $1::vector ASC
       LIMIT ${input.limit}
       `,
-      toVector(vec),
-      auth.userId,
-      input.stage,
+      // `input.stage` used to be passed unconditionally while `$3` appeared
+      // only when a stage was supplied, so every call WITHOUT `stage` — the
+      // default — died at bind time with Postgres 08P01 before any row was
+      // read. The empty Skill table hid it: the failure looked like a
+      // database problem rather than a query-construction one.
+      ...params,
     );
 
     const skills = await db.skill.findMany({
