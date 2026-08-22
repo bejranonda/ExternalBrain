@@ -61,8 +61,12 @@ describe("parseFlag semantics", () => {
  *  - SKIP_E2E / MEETING_UPLOAD_ENABLED in e2e specs: Playwright config, not
  *    runtime behaviour.
  *  - EMAIL_PROVIDER: not a boolean; `isEmailConfigured()` already owns it.
+ *  - BILLING_MODE: not a boolean either — an enum ("per_token" | "subscription")
+ *    with exactly one parser, `billingMode()` in cost.ts, which every surface
+ *    calls. Same shape as EMAIL_PROVIDER: the thing this guard exists to stop
+ *    is N hand-rolled parses of one var, and there is one.
  */
-const RAW_COMPARISON_ALLOWED = /\b(NODE_ENV|SKIP_DB_INIT|SKIP_E2E|EMAIL_PROVIDER)\b/;
+const RAW_COMPARISON_ALLOWED = /\b(NODE_ENV|SKIP_DB_INIT|SKIP_E2E|EMAIL_PROVIDER|BILLING_MODE)\b/;
 
 const REPO = join(__dirname, "..", "..", "..", "..");
 /**

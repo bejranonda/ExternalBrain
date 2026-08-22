@@ -274,6 +274,18 @@ async function main(): Promise<void> {
   // `Job` to `JobWithMetadata` — `retryCount` lives only on the latter, and
   // without this the read below is a type error rather than a silent
   // undefined. (Checked against pg-boss@12's own index.d.ts overloads.)
+  // CONCURRENCY IS DELIBERATELY 1 — do not add `teamSize` to any boss.work()
+  // call below without re-reading this.
+  //
+  // pg-boss defaults to one job at a time, and prod's GLM Coding Plan caps
+  // concurrent requests at one on lower tiers. Those two facts match BY
+  // ACCIDENT, not by design (KNOWN_ISSUES §0aq; staying on the plan is a
+  // settled operator decision as of 2026-08-22). Raising teamSize to "speed
+  // up extraction" therefore buys queued 429s rather than throughput, and the
+  // symptom — jobs retrying, the Brain learning slowly — points nowhere near
+  // the subscription tier. If throughput ever genuinely needs to rise, the
+  // plan has to change first. Pinned by worker-concurrency.test.ts.
+
   await boss.work<{ sessionId: string; userId: string }>(
     "kea.extract",
     { includeMetadata: true },

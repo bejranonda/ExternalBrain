@@ -9,6 +9,7 @@ import { db } from "@brain/db";
 import { authErrorResponse } from "@/lib/brain/auth";
 import { requireAdmin } from "@/lib/brain/admin-auth";
 import { writeAudit } from "@brain/core";
+import { costDisclaimer } from "@brain/core/cost";
 
 export async function GET(req: Request): Promise<Response> {
   try {
@@ -47,7 +48,11 @@ export async function GET(req: Request): Promise<Response> {
       userAgent: req.headers.get("user-agent") ?? null,
     });
 
-    return Response.json({ entries: mapped });
+    // Ship the disclaimer WITH the data rather than letting each surface
+    // decide how to caption it — the API and the dashboard describing the
+    // same number differently is how an operator ends up trusting the wrong
+    // one. Null on a per-token deployment, where the figures are literal.
+    return Response.json({ entries: mapped, disclaimer: costDisclaimer() });
   } catch (err) {
     return authErrorResponse(err);
   }

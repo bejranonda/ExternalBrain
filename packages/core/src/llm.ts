@@ -212,6 +212,60 @@ export function isTransientLLMError(err: unknown): boolean {
 }
 
 /**
+ * Is this specifically a rate-limit / quota refusal, as opposed to a timeout
+ * or a 5xx?
+ *
+ * Narrower than {@link isTransientLLMError} on purpose. Both get retried, but
+ * only this one means "you have run out of allowance", which on a
+ * subscription plan is the failure mode that actually bites: the GLM Coding
+ * Plan meters prompts per 5-hour window with a 3x multiplier at peak, so an
+ * afternoon burst exhausts the window and extraction simply stops. Nothing
+ * distinguished that from a network blip, so "the Brain stopped learning"
+ * had no cause attached to it.
+ */
+export function isQuotaError(err: unknown): boolean {
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  return /rate.?limit|quota|\b429\b|too many requests/.test(msg);
+}
+
+/** Requested models already reported this process — one audit row per model. */
+const quotaReported = new Set<string>();
+
+/**
+ * Record a quota refusal durably.
+ *
+ * A retry that succeeds hides the event entirely, and a retry that fails
+ * surfaces as a generic job error — so without this the operator's only
+ * symptom is silence. One row per model per process keeps a sustained
+ * throttle from flooding the table while still marking that it happened:
+ *   SELECT payload FROM "AuditLog" WHERE action = 'llm.rate_limited';
+ */
+export function reportQuotaError(model: string, err: unknown): void {
+  if (quotaReported.has(model)) return;
+  quotaReported.add(model);
+  const message = err instanceof Error ? err.message : String(err);
+  log.warn(
+    { model, err: message, baseUrl: process.env.ANTHROPIC_BASE_URL ?? null },
+    "provider refused the call for rate-limit/quota reasons — on a subscription " +
+      "plan this means the usage window is exhausted, not that the service is down",
+  );
+  void writeAudit({
+    action: "llm.rate_limited",
+    targetType: "Model",
+    targetId: model,
+    payload: {
+      model,
+      message: message.slice(0, 500),
+      baseUrl: process.env.ANTHROPIC_BASE_URL ?? null,
+      billingMode: process.env.BILLING_MODE ?? "per_token",
+    },
+  });
+}
+
+/** Exported for tests — resets the once-per-process dedup. */
+export const seenQuotaModels = quotaReported;
+
+/**
  * Dispatch a single text completion by model family:
  *   claude*       → Anthropic SDK (system param)
  *   qwen* / glm*  → DashScope (OpenAI-compatible)
@@ -268,6 +322,7 @@ export async function callLLMText(
   try {
     return await withDeadline();
   } catch (err) {
+    if (isQuotaError(err)) reportQuotaError(model, err);
     if (!isTransientLLMError(err)) throw err;
     await new Promise((r) => {
       const t = setTimeout(r, 1000 + Math.random() * 2000);

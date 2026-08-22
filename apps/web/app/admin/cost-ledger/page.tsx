@@ -21,13 +21,15 @@ interface LedgerRow {
 export default function CostLedgerPage() {
   const [rows, setRows] = useState<LedgerRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [disclaimer, setDisclaimer] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/cost-ledger", { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { entries: LedgerRow[] };
+      const data = (await res.json()) as { entries: LedgerRow[]; disclaimer?: string | null };
       setRows(data.entries);
+      setDisclaimer(data.disclaimer ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "load failed");
     }
@@ -50,6 +52,23 @@ export default function CostLedgerPage() {
           <> Total: <strong>${total.toFixed(4)}</strong></>
         )}
       </p>
+      {disclaimer && (
+        <p
+          role="note"
+          style={{
+            color: "var(--ink-2)",
+            fontSize: 12,
+            lineHeight: 1.5,
+            margin: "0 0 18px",
+            padding: "10px 12px",
+            border: "1px solid var(--line)",
+            borderRadius: 6,
+            background: "var(--bg-elev-1)",
+          }}
+        >
+          {disclaimer}
+        </p>
+      )}
 
       {error && (
         <div role="alert" style={{ color: "var(--warn)", fontSize: 13, marginBottom: 12 }}>
