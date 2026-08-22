@@ -12,6 +12,26 @@ const inputShape = z.object({
 });
 
 /**
+ * TWO THINGS ARE CALLED "SKILLS" — this is the one users never see.
+ *
+ * The webapp's Skills tab renders **Knowledge** rows
+ * (`components/brain/skills.tsx` -> `useKnowledge`): the reflexes, recipes and
+ * heuristics the Brain learns. That is the product-facing meaning of the word,
+ * it has the data, and it is what a user means by "my skills".
+ *
+ * This tool reads the **`Skill` table**: whole markdown bundles, written only
+ * by autoskill's `internal_skill` route with `kind: "internal"` (KEA prompt
+ * addenda and similar platform self-improvement). Nothing user-authored lands
+ * here today.
+ *
+ * Keeping both names was the deliberate call (2026-08-22): "Skills" is
+ * established product language across the UI and docs, and renaming the tab
+ * would churn a surface users already understand for internal tidiness they
+ * do not care about. The cost of the collision was never the tab — it was that
+ * the brain SKILL.md routes agents here for "a complete recipe / how-to",
+ * sending them to an empty table instead of the Knowledge that answers the
+ * question. That routing and this description are the parts that got fixed.
+ *
  * NOTE ON TOKEN SCOPE: this tool is deliberately NOT project-scoped, and that
  * is a schema fact rather than an omission — the `Skill` model has no
  * `ownerProjectId` column (see packages/db/prisma/schema.prisma). Skills are a
@@ -26,7 +46,7 @@ const inputShape = z.object({
 export const findSkill: ToolDef = {
   name: "brain_find_skill",
   description:
-    "Find a skill (full markdown bundle) by semantic match. Use when the user asks for a complete recipe rather than atomic rules.",
+    "Find a Skill BUNDLE (full markdown doc) by semantic match. NOTE: this is a different store from the webapp's \"Skills\" tab, which shows Knowledge rules — for those, and for almost every 'how do we do X here?' question, use brain_retrieve_knowledge or brain_ask_oracle instead. Skill bundles are written by autoskill and are usually kind=\"internal\" (platform self-improvement), so an empty result here is normal and does NOT mean the Brain has no knowledge on the topic.",
   inputSchema: {
     type: "object",
     required: ["query"],
@@ -54,10 +74,20 @@ export const findSkill: ToolDef = {
       : "";
 
     const rows = await db.$queryRawUnsafe<
-      Array<{ id: string; skillId: string; title: string; similarity: number }>
+      Array<{
+        id: string;
+        skillId: string;
+        title: string;
+        // Surfaced so a caller can tell a platform-internal bundle from a
+        // user-facing one without a second query. Everything written today is
+        // "internal"; a caller treating those as user recipes would be wrong.
+        kind: string;
+        stage: string;
+        similarity: number;
+      }>
     >(
       `
-      SELECT id, "skillId", title,
+      SELECT id, "skillId", title, kind, stage,
              1 - (embedding <=> $1::vector) AS similarity
       FROM "Skill"
       WHERE embedding IS NOT NULL
