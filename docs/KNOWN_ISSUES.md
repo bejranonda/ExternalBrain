@@ -1785,7 +1785,15 @@ URL the existing proxy serves. (c) `GUIDELINES` now carries a one-canonical-
 home doc rule, because this very entry is the kind of thing that gets
 restated into five files and then drifts.
 
-**Open — needs an operator decision, not a code change.** The Coding Plan is a
+**Resolved 2026-08-22 — operator decision: stay on the Coding Plan**, on budget
+grounds. Recorded as a project decision in the Brain, not tracked as debt. The
+constraints below are now design constraints rather than defects, and the
+tripwires built during this work (`reportServedModel` + the `llm.model_alias`
+audit row) exist precisely so the substrate's behaviour stays visible without
+changing it. Revisit only if usage grows or the Brain is handed to other
+people — the blind spots scale with traffic while the flat fee does not.
+
+The Coding Plan is a
 per-developer interactive subscription being used as a server substrate:
 single-concurrency cap (which the worker's pg-boss default of 1 currently
 matches *by accident* — adding `teamSize` would produce unexplained 429s),
@@ -1793,8 +1801,8 @@ quota windows with a 3× peak multiplier, silent aliasing, and no rate card for
 the model actually served. Fine at present volume, wrong for a product others
 fork, and the root cause of every finding above. Moving prod to pay-as-you-go
 API keys requires new credentials and is therefore blocked on the operator;
-once done, `ORACLE_MODEL` should be pinned to a model with a published rate
-card (`glm-5.2`) rather than relying on an alias resolving upward.
+`ORACLE_MODEL` is already pinned to `glm-5.2`, the newest ID with a published
+rate card, so the config stays valid if that decision is ever revisited.
 
 ---
 
