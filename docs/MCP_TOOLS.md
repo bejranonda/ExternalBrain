@@ -67,7 +67,7 @@ still be able to ask what it is.
 | 8 | `brain_get_user_style` | when scaffolding new files | `{ peerCard, reflexes }` |
 | 9 | `brain_ask_oracle` | "how did I solve X?" | `{ answer, citations, project, hint?, ... }` |
 | 10 | `brain_log_event` | during session (per event) | `{ id, accepted }` |
-| 11 | `brain_find_skill` | user asks for complete recipe | top-N skills |
+| 11 | `brain_find_skill` | rarely — see "Two things are called Skills" below | top-N skill *bundles* |
 | 12 | `brain_session_search` | "what did I do last week?" | recent matching sessions (Postgres FTS) |
 
 Full JSON schemas live in `apps/mcp-server/src/tools/*.ts` — each file exports a `ToolDef` with `inputSchema`. Order in this table matches `apps/mcp-server/src/tools/index.ts`.
@@ -494,3 +494,31 @@ returned success while the stale rule stayed active.
 Scoping is **per call**. Opening a session with a project does not scope later
 teach or Oracle calls — pass the project again. See `KNOWN_ISSUES.md §0ar` for
 what the pre-v2.18.0 disagreement between these three cost.
+
+
+## Two things are called "Skills" (read this before using `brain_find_skill`)
+
+The word is overloaded, deliberately, and the two meanings have different data:
+
+| | Webapp **Skills** tab | The **`Skill`** table |
+|---|---|---|
+| What it holds | `Knowledge` rows — reflexes, recipes, heuristics, principles | whole markdown bundles |
+| Written by | KEA extraction, `brain_teach_knowledge`, autoskill promotions | autoskill's `internal_skill` route only |
+| Typical `kind` | n/a | `internal` (platform self-improvement: KEA prompt addenda and similar) |
+| Read by | `brain_retrieve_knowledge`, `brain_ask_oracle`, the UI | `brain_find_skill` |
+| Populated? | yes | usually empty |
+
+**Practical consequence:** for "how do we do X here?" reach for
+`brain_retrieve_knowledge` or `brain_ask_oracle`. An empty result from
+`brain_find_skill` is normal and does **not** mean the Brain has no knowledge
+on the topic — it means the bundle store is empty, which it usually is.
+
+**Why both names were kept** (decision, 2026-08-22): "Skills" is established
+product language across the UI, the README and `AGENTS.md`, and the tab has
+the data users actually care about. Renaming it would churn a surface users
+already understand for internal tidiness they do not. Renaming the `Skill`
+table or the `brain_find_skill` tool would be a migration plus a breaking
+change to a published MCP surface. The collision never cost anything at the
+tab; it cost at the routing table in the Brain's own SKILL.md, which sent
+agents to the empty store for exactly the questions the Knowledge store
+answers. That routing, and this tool's description, are what got fixed.

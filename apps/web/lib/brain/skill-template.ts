@@ -36,7 +36,7 @@ External Brain is a memory layer that survives across Claude Code sessions, proj
 | User asks "how did I solve X?" / "what did we decide about Y?" | \`brain_ask_oracle\` (slow, billed; try \`session_search\` or \`retrieve_knowledge\` first) |
 | User asks "what did I do last week?" / "find that conversation" | \`brain_session_search\` |
 | Scaffolding new files, writing in user's voice | \`brain_get_user_style\` |
-| User asks for a complete recipe / how-to | \`brain_find_skill\` |
+| User asks for a complete recipe / how-to | \`brain_retrieve_knowledge\` first — the Brain's recipes live there. \`brain_find_skill\` reads a separate store of whole markdown bundles that is usually empty and mostly platform-internal, so an empty result from it does NOT mean the Brain knows nothing |
 | During a session, every user accept/reject/edit | \`brain_log_event\` (per event) |
 | User accepted/rejected the final output | \`brain_report_session_outcome\` (ONCE at end, with \`success\` flag) |
 
@@ -94,7 +94,7 @@ DO NOT manually edit any \`<home>/.claude/mcp.json\` file (POSIX) or \`%USERPROF
 | \`brain_get_user_style\` | Get peerCard + reflexes | free | <50 ms |
 | \`brain_log_event\` | Append a session event | free | <50 ms |
 | \`brain_session_search\` | Postgres FTS over session text | free | <200 ms |
-| \`brain_find_skill\` | Top-N matching skills | free | <200 ms |
+| \`brain_find_skill\` | Top-N Skill BUNDLES (a different store from the Skills tab; usually empty) | free | <200 ms |
 | \`brain_ask_oracle\` | Cross-session reasoning | $0.01-$0.10 | 5-30 s |
 | \`brain_report_session_outcome\` | Close session, trigger learning | free | <100 ms |
 
