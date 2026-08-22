@@ -15,6 +15,7 @@
     "./evolution": "./src/evolution.ts",
     "./evaluation": "./src/evaluation.ts",
     "./embedding": "./src/embedding.ts",
+    "./skill-text": "./src/skill-text.ts",
     "./exporter": "./src/exporter.ts",
     "./fuzzy": "./src/fuzzy.ts",
     "./sse": "./src/sse.ts",

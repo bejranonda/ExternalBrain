@@ -2248,6 +2248,18 @@ These were left intentionally open in the research. A decision is needed before 
 2. **How do we handle deletion in the face of downstream learning?** If user deletes knowledge X, do we roll back all the autoskill proposals that used X as evidence? Or leave them as historical?
 3. **Should team style profile be per-team or per-project-within-team?** Affects `PeerCard` cardinality.
 4. **Cross-tenant similarity search for community curation** — how do we find near-duplicate skills across all users without leaking identifying info? Needs a privacy-preserving clustering design.
+6. **Two different things are called "Skills"** (2026-08-22). The webapp's
+   Skills tab renders **Knowledge** rows (`components/brain/skills.tsx` →
+   `useKnowledge`), while the `Skill` table is a separate, headless store of
+   markdown bundles written only by autoskill's `internal_skill` route
+   (`kind: "internal"` — platform self-improvement) and read only through the
+   `brain_find_skill` MCP tool. Both are legitimate; the collision is the
+   problem. Building a user-facing page for the `Skill` table would put two
+   things named Skills in one product, so the open question is naming and
+   surface, not implementation. Until it is answered, `Skill` stays headless
+   and internal — and as of v2.19.1 its rows are at least embedded, so
+   `brain_find_skill` can return them.
+
 5. ~~**Model portability** — if we switch embedding models, we invalidate the similarity space. How do we re-embed ~1M items safely without downtime?~~ **Mechanism answered (2026-08-18, §0aq); scale still open.** Each row now records the model that produced its vector (`Knowledge.embeddingModel`), and the 10-minute backfill re-embeds anything whose model differs from the active one, converging the index without a maintenance window — verified on prod (79 rows, `remaining: 0`, idempotent on re-run). The measured hazard it closes: vectors from two Gemini models scored **−0.024** cosine on the same sentence, so a partial migration is not "slightly degraded", it is orthogonal. What remains open at ~1M items is throughput and cost, not correctness: convergence is bounded by the 256-row batch per 10-minute tick (≈36k rows/day), retrieval quality is mixed until it completes, and re-embedding the whole corpus is a real provider bill. A large migration needs a rate-limit-aware runner and a decision on whether to serve stale-model rows during convergence.
 6. **Symbolic representation** — `symbolicWhen` / `symbolicThen` fields exist but nothing consumes them yet. Is the rule engine a v2 target, or never-build?
 7. **Sync-bridge conflict UI** — when Obsidian and platform both edit the same skill, how do we show the conflict to the user? Three-way diff in the webapp? Obsidian-side banner?

@@ -24,6 +24,7 @@ import type {
 } from "@brain/types";
 import { db, Prisma, toVector } from "@brain/db";
 import { embed, embedWithProvenance, cosineSimilarity } from "./embedding.js";
+import { skillEmbeddingText } from "./skill-text.js";
 import { getLogger } from "./logger.js";
 import {
   classifySignals,
@@ -687,6 +688,7 @@ async function applySkillAppend(
       version: { increment: 1 },
     },
   });
+  await markSkillEmbeddingStale(skillId);
 }
 
 /** Append `text` under `## section` inside an autoskill-managed block.
@@ -838,6 +840,7 @@ async function applyInternalSkill(patch: InternalSkillPatch): Promise<void> {
       where: { id: existing.id },
       data: { content: newContent, version: { increment: 1 } },
     });
+    await markSkillEmbeddingStale(existing.id);
     return;
   }
 
@@ -854,7 +857,7 @@ ${AUTOSKILL_MARKER_BEGIN}
 ${AUTOSKILL_MARKER_END}
 `;
 
-  await db.skill.create({
+  const created = await db.skill.create({
     data: {
       skillId,
       title,
@@ -879,6 +882,39 @@ ${AUTOSKILL_MARKER_END}
       dependencies: [],
     },
   });
+
+  // Embed on create so the skill is findable immediately rather than at the
+  // next backfill tick. Until this existed, autoskill happily created skills
+  // that brain_find_skill could never return — it filters on
+  // `embedding IS NOT NULL`, and nothing ever wrote one. Best-effort: an
+  // embedding-provider outage must not fail the skill write, because the
+  // backfill will pick up a NULL embeddingModel within ten minutes anyway.
+  try {
+    const { vector, model } = await embedWithProvenance(skillEmbeddingText({ title, content }));
+    await db.$executeRawUnsafe(
+      `UPDATE "Skill" SET embedding = $1::vector, "embeddingModel" = $3 WHERE id = $2`,
+      toVector(vector),
+      created.id,
+      model,
+    );
+  } catch (err) {
+    getLogger("core").warn(
+      { op: "autoskill.embed_skill", skillId: created.id, err },
+      "skill created but not embedded — the backfill will retry it",
+    );
+  }
+}
+
+/**
+ * Mark a skill's vector stale after its CONTENT changed.
+ *
+ * Deliberately does not re-embed inline: these run inside autoskill's apply
+ * loop, and the backfill already owns convergence. Nulling `embeddingModel`
+ * (rather than `embedding`) keeps the row findable by its previous text until
+ * the new vector lands — degraded for a few minutes beats invisible.
+ */
+async function markSkillEmbeddingStale(id: string): Promise<void> {
+  await db.skill.update({ where: { id }, data: { embeddingModel: null } });
 }
 
 function slugify(s: string): string {

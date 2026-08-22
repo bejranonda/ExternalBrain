@@ -20,6 +20,7 @@
  */
 import { db, toVector } from "@brain/db";
 import { embedBatchWithProvenance, activeEmbeddingModel } from "@brain/core/embedding";
+import { skillEmbeddingText } from "@brain/core/skill-text";
 
 interface Row {
   id: string;
@@ -31,10 +32,69 @@ interface Row {
 
 const BATCH_SIZE = 32;
 
+interface SkillRow {
+  id: string;
+  title: string;
+  content: string;
+  hadVector: boolean;
+}
+
+/**
+ * Backfill Skill vectors.
+ *
+ * Skills went unembedded entirely until 2026-08-22: autoskill created them,
+ * `brain_find_skill` filtered on `embedding IS NOT NULL`, and nothing ever
+ * wrote one — so semantic skill search could not return a result no matter
+ * how many skills existed. Embedding text comes from the shared
+ * `skillEmbeddingText()` so this and the create path cannot compose it
+ * differently; if they did, every re-embed would silently move the row in
+ * vector space.
+ */
+async function backfillSkills(cap: number): Promise<{ processed: number; reembedded: number }> {
+  const model = activeEmbeddingModel();
+  let processed = 0;
+  let reembedded = 0;
+
+  while (processed < cap) {
+    const take = Math.min(BATCH_SIZE, cap - processed);
+    const rows = await db.$queryRawUnsafe<SkillRow[]>(
+      `
+      SELECT id, title, content, ("embedding" IS NOT NULL) AS "hadVector"
+      FROM "Skill"
+      WHERE embedding IS NULL OR "embeddingModel" IS DISTINCT FROM $1
+      ORDER BY (embedding IS NOT NULL), "createdAt" ASC
+      LIMIT ${take}
+      `,
+      model,
+    );
+    if (rows.length === 0) break;
+
+    const { vectors, model: servedModel } = await embedBatchWithProvenance(
+      rows.map((r) => skillEmbeddingText(r)),
+    );
+
+    await db.$transaction(
+      rows.map((r, i) =>
+        db.$executeRawUnsafe(
+          `UPDATE "Skill" SET embedding = $1::vector, "embeddingModel" = $2 WHERE id = $3`,
+          toVector(vectors[i]!),
+          servedModel,
+          r.id,
+        ),
+      ),
+    );
+
+    processed += rows.length;
+    reembedded += rows.filter((r) => r.hadVector).length;
+  }
+  return { processed, reembedded };
+}
+
 export async function backfillEmbeddings(opts: { limit?: number } = {}): Promise<{
   processed: number;
   model: string;
   reembedded: number;
+  skills: { processed: number; reembedded: number };
 }> {
   const cap = opts.limit ?? 10_000;
   const model = activeEmbeddingModel();
@@ -80,7 +140,11 @@ export async function backfillEmbeddings(opts: { limit?: number } = {}): Promise
     reembedded += rows.filter((r) => r.hadVector).length;
   }
 
-  return { processed, model, reembedded };
+  // Skills share the budget rather than getting an unbounded second pass, so
+  // one job cannot exceed the caller's limit by doubling it.
+  const skills = await backfillSkills(Math.max(0, cap - processed));
+
+  return { processed, model, reembedded, skills };
 }
 
 /**
@@ -89,22 +153,24 @@ export async function backfillEmbeddings(opts: { limit?: number } = {}): Promise
  * Surfaced so an operator mid-migration can see convergence rather than
  * guessing. Non-zero with a stable count means the backfill is failing.
  *
- * ⚠️ Counts `Knowledge` only. `Skill.embeddingModel` exists for symmetry, but
- * as of 2026-08-18 **nothing writes `Skill.embedding`** — there is no skill
- * embedding path to keep converged, so including skills here would report
- * permanent staleness for rows that are never meant to have vectors. If skill
- * embedding is ever implemented, this function and `backfillEmbeddings` must
- * both be widened in the same change: otherwise `remaining: 0` will claim a
- * convergence it never checked, which is exactly the false-confidence failure
- * this counter exists to prevent.
+ * Counts BOTH `Knowledge` and `Skill`. Skills were added to the embedding
+ * pipeline on 2026-08-22; this function was widened in the same change,
+ * because the alternative — backfilling skills while counting only knowledge —
+ * makes `remaining: 0` assert a convergence it never checked, which is exactly
+ * the false confidence this counter exists to prevent.
  */
 export async function staleEmbeddingCount(): Promise<number> {
   const model = activeEmbeddingModel();
   const rows = await db.$queryRawUnsafe<Array<{ n: bigint }>>(
     `
-    SELECT count(*) AS n FROM "Knowledge"
-    WHERE "deletedAt" IS NULL
-      AND (embedding IS NULL OR "embeddingModel" IS DISTINCT FROM $1)
+    SELECT
+      (SELECT count(*) FROM "Knowledge"
+        WHERE "deletedAt" IS NULL
+          AND (embedding IS NULL OR "embeddingModel" IS DISTINCT FROM $1))
+      +
+      (SELECT count(*) FROM "Skill"
+        WHERE embedding IS NULL OR "embeddingModel" IS DISTINCT FROM $1)
+      AS n
     `,
     model,
   );
@@ -126,9 +192,15 @@ if (invokedDirectly) {
   const { getLogger } = await import("@brain/core");
   const log = getLogger("worker");
   backfillEmbeddings(limit === undefined ? {} : { limit })
-    .then(async ({ processed, model, reembedded }) => {
+    .then(async ({ processed, model, reembedded, skills }) => {
       log.info(
-        { processed, reembedded, model, remaining: await staleEmbeddingCount() },
+        {
+          processed,
+          reembedded,
+          skills,
+          model,
+          remaining: await staleEmbeddingCount(),
+        },
         "backfill-embeddings: done",
       );
     })
