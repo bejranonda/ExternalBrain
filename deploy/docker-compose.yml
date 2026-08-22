@@ -145,6 +145,11 @@ services:
       # (#39). Remove this line once all operator .envs are migrated.
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # How this deployment is billed for LLM calls: "per_token" (default) or
+      # "subscription". On a flat plan the cost ledger's dollar figures are
+      # list-value estimates rather than money owed, and the admin surfaces
+      # label them so (KNOWN_ISSUES §0aq).
+      BILLING_MODE: ${BILLING_MODE:-per_token}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
       ORACLE_MODEL: ${ORACLE_MODEL:-claude-sonnet-4-6}
@@ -242,6 +247,11 @@ services:
       V2_ACTION_ITEMS: ${V2_ACTION_ITEMS:-false}
       V2_ORACLE_TASKS: ${V2_ORACLE_TASKS:-false}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # How this deployment is billed for LLM calls: "per_token" (default) or
+      # "subscription". On a flat plan the cost ledger's dollar figures are
+      # list-value estimates rather than money owed, and the admin surfaces
+      # label them so (KNOWN_ISSUES §0aq).
+      BILLING_MODE: ${BILLING_MODE:-per_token}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
       ORACLE_MODEL: ${ORACLE_MODEL:-claude-sonnet-4-6}
@@ -317,6 +327,11 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       NODE_ENV: ${NODE_ENV:-production}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # How this deployment is billed for LLM calls: "per_token" (default) or
+      # "subscription". On a flat plan the cost ledger's dollar figures are
+      # list-value estimates rather than money owed, and the admin surfaces
+      # label them so (KNOWN_ISSUES §0aq).
+      BILLING_MODE: ${BILLING_MODE:-per_token}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
       ORACLE_MODEL: ${ORACLE_MODEL:-claude-sonnet-4-6}
@@ -389,6 +404,11 @@ services:
       ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # How this deployment is billed for LLM calls: "per_token" (default) or
+      # "subscription". On a flat plan the cost ledger's dollar figures are
+      # list-value estimates rather than money owed, and the admin surfaces
+      # label them so (KNOWN_ISSUES §0aq).
+      BILLING_MODE: ${BILLING_MODE:-per_token}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
       # Bare passthroughs, deliberately WITHOUT compose-level defaults. A
       # default here would re-create the trap this file documents above: on a

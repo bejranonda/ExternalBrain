@@ -1,6 +1,7 @@
 import { db } from "@brain/db";
 import { BackupStatusCard } from "@/components/brain/backup-status-card";
 import { QueueHealthCard } from "@/components/brain/queue-health-card";
+import { billingMode } from "@brain/core/cost";
 
 export const dynamic = "force-dynamic";
 
@@ -42,9 +43,13 @@ export default async function AdminOverview() {
         <Stat label="Sessions" value={sessions} sub="total recorded" />
         <Stat label="Audit entries" value={audit} sub="append-only" />
         <Stat
-          label="Oracle spend"
+          label={billingMode() === "subscription" ? "Oracle spend (est.)" : "Oracle spend"}
           value={`$${Number(cost._sum.costUsd ?? 0).toFixed(2)}`}
-          sub={`${cost._sum.callCount ?? 0} calls all-time`}
+          sub={
+            billingMode() === "subscription"
+              ? `${cost._sum.callCount ?? 0} calls · list value, not billed`
+              : `${cost._sum.callCount ?? 0} calls all-time`
+          }
         />
         <BackupStatusCard />
         <QueueHealthCard />

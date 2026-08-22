@@ -24,7 +24,7 @@ import { RULE_TYPES_PREDICATE } from "./kra.js";
 // Shared with callLLMText — one routing rule, two dispatchers. A divergence
 // here is what made kea.cross_extract fail for eight nights while the Oracle
 // worked on the identical model string.
-import { useAnthropicSdk, reportServedModel } from "./llm.js";
+import { useAnthropicSdk, reportServedModel, isQuotaError, reportQuotaError } from "./llm.js";
 import { listProjectActionItems, type ActionItemRow } from "./action-items.js";
 import type { DataScope, VisibilityScopeArgs } from "./scope-filter.js";
 
@@ -511,12 +511,20 @@ async function callOracle(
         ? { baseURL: process.env.ANTHROPIC_BASE_URL }
         : {}),
     });
-    const res = await client.messages.create({
-      model,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-    });
+    // The Oracle owns its own dispatch, so the quota tripwire in llm.ts does
+    // not cover it — same all-N rule as reportServedModel above.
+    let res;
+    try {
+      res = await client.messages.create({
+        model,
+        max_tokens: maxTokens,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+      });
+    } catch (err) {
+      if (isQuotaError(err)) reportQuotaError(model, err);
+      throw err;
+    }
     reportServedModel(model, res.model);
     // Anthropic SDK 0.91+ widened `ContentBlock` to include thinking blocks
     // and tool-use blocks; flatMap with a discriminated check is the
@@ -597,6 +605,7 @@ async function* callOracleStream(
       };
     } catch (err) {
       if (isAbortError(err, signal)) return;
+      if (isQuotaError(err)) reportQuotaError(model, err);
       throw err;
     }
     return;

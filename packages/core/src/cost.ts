@@ -15,6 +15,40 @@ import { getLogger } from "./logger.js";
 
 const log = getLogger("core");
 
+/**
+ * How this deployment is actually billed for LLM calls.
+ *
+ * `subscription` means a flat plan with usage quotas rather than per-token
+ * charges — the GLM Coding Plan being the case this exists for. Prod runs on
+ * one by operator decision (2026-08-22, KNOWN_ISSUES §0aq), which makes every
+ * figure in this ledger a LIST-VALUE ESTIMATE: what the same traffic would
+ * have cost at published pay-as-you-go rates, not money owed. Surfacing those
+ * numbers as dollars without saying so is the ledger quietly lying to the
+ * operator who chose the plan.
+ *
+ * The cap still works and is still worth setting — it bounds *usage*, which
+ * is exactly what a quota-metered plan runs out of.
+ */
+export type BillingMode = "per_token" | "subscription";
+
+export function billingMode(): BillingMode {
+  return process.env.BILLING_MODE === "subscription" ? "subscription" : "per_token";
+}
+
+/**
+ * Label for any surface that renders a figure from this ledger.
+ *
+ * Exported rather than hardcoded in the UI so the API and the dashboard
+ * cannot drift into describing the same number two different ways.
+ */
+export function costDisclaimer(): string | null {
+  return billingMode() === "subscription"
+    ? "List-value estimate — this deployment is on a flat subscription with usage quotas, " +
+        "so these figures show what the traffic would have cost at published per-token " +
+        "rates, not an amount billed."
+    : null;
+}
+
 // In-process dedup sets — prevent log floods when a user keeps calling after
 // the cap fires. Keys are "${userId}:${day_iso}".
 const warnedAt80 = new Set<string>();
