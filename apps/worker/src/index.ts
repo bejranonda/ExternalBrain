@@ -525,6 +525,7 @@ async function main(): Promise<void> {
       return {
         rows: res.processed,
         reembedded: res.reembedded,
+        skills: res.skills,
         model: res.model,
         remaining: await staleEmbeddingCount(),
       };
