@@ -496,6 +496,22 @@ teach or Oracle calls — pass the project again. See `KNOWN_ISSUES.md §0ar` fo
 what the pre-v2.18.0 disagreement between these three cost.
 
 
+## Reading a `brain_teach_knowledge` response
+
+`{ id, confidence: 1.0 }` proves the row was **accepted**, not that it was
+understood. Three fields carry the rest:
+
+| Field | Check it because |
+|---|---|
+| `project.source` | `explicit_name` / `explicit_id` = landed where you asked; `default_fallback` = it did not, and `hint` says why |
+| `superseded` | present when you passed `supersedesKnowledgeId`; `false` + `supersedeHint` means the predecessor is in another project and is **still active** |
+| — | since v2.19.3 the tool **rejects** `rule`/`trigger`/`rationale`/`instead` containing leaked tool-call markup rather than storing them (`KNOWN_ISSUES §0as`) |
+
+That last one exists because a malformed call used to succeed: the tail of a
+field swallowed every parameter after it, including `tags` — and `decision` is
+the tag that makes a rule `visibility: "org"`. A decision recorded to be
+team-visible was silently filed private.
+
 ## Two things are called "Skills" (read this before using `brain_find_skill`)
 
 The word is overloaded, deliberately, and the two meanings have different data:

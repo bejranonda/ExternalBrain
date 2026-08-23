@@ -3080,3 +3080,40 @@ plausible result is the hardest kind to notice, and the only defence is
 checking the number you expect against the number you got.
 
 Full instance: `KNOWN_ISSUES.md §0ar`.
+
+## 5cb. One empty array, three different meanings (2026-08-23)
+
+A functional sweep of every `brain_*` tool produced `[]` from three tools in
+the same session. The instinct is to treat that as one signal. It was three:
+
+- `brain_session_search` was **working correctly** — it is a Postgres full-text
+  AND match, and the five-term phrase I passed genuinely appeared in no
+  session prompt. Two words from a prompt I knew existed returned results
+  immediately.
+- `brain_find_skill` was **working, reading an empty table** — the `Skill`
+  store is populated only by autoskill's internal route and is usually empty
+  by design.
+- The *same* `[]` from that same tool a week earlier would have been a **hard
+  `08P01` crash** on the no-stage path (§0ap-adjacent, fixed in v2.18.2).
+
+Three states — correct-and-empty, working-but-unpopulated, and outright broken
+— rendered identically. The only thing that separates them is probing with an
+input you already know should match. "An empty result is a signal, not a pass"
+was already a rule in this Brain; what this sweep added is that the signal is
+*ambiguous*, and resolving it costs one deliberate positive control.
+
+**The defect the sweep actually found was the opposite shape.** Two knowledge
+rows had been written with tool-call markup leaked into their `rationale` and
+their `tags` silently dropped — and both calls returned `{ id, confidence: 1 }`.
+Not an empty result that looked like failure, but a *successful-looking* result
+that was corrupt. One was a project decision whose dropped `decision` tag meant
+it never became org-visible, so the failure was functional and invisible at
+every layer: response, logs, health checks.
+
+**What generalises.** For any write API that returns a bare success token, the
+token is evidence that the call was accepted, not that it was understood. The
+cheap defence is to make obviously-malformed input *fail*, because a store that
+accepts nonsense serves it back later as fact. The expensive alternative is
+what happened here: discovering it by chance, in a dump, days later.
+
+Full instance: `KNOWN_ISSUES.md §0as`.

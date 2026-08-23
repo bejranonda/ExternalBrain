@@ -36,6 +36,43 @@ const inputShape = z.object({
   projectName: z.string().trim().min(1).max(120).optional(),
 });
 
+/**
+ * Reject text fields that contain leaked tool-call markup.
+ *
+ * An agent that writes a closing tag or a further parameter block *inside* a
+ * field's value gets the whole tail stored as text in that field, and every
+ * parameter after it silently dropped. The call still returns
+ * `{ id, confidence: 1 }` — indistinguishable from a clean write.
+ *
+ * Measured 2026-08-23: two rows landed this way. One was a project DECISION
+ * that lost its `decision` tag, which is what promotes a rule to
+ * `visibility: "org"` and makes it shared project memory — so it was silently
+ * filed as private. The corruption was invisible until a `retrieve_knowledge`
+ * dump happened to show the markup.
+ *
+ * Storing it is worse than refusing it: a corrupted rationale is served back
+ * to future agents as fact, and a dropped tag changes who can see the rule.
+ * Fail loudly instead, and say exactly what to do about it.
+ */
+const LEAKED_MARKUP =
+  /<\/(?:rationale|rule|trigger|instead|parameter)>|<parameter\s+name=/i;
+
+function assertNoLeakedMarkup(field: string, value: string | undefined): void {
+  if (!value || !LEAKED_MARKUP.test(value)) return;
+  throw new BrainError({
+    message:
+      `\`${field}\` contains tool-call markup (e.g. a closing tag or a ` +
+      `<parameter> block) rather than plain text. This happens when a later ` +
+      `parameter is typed inside this field's value: the tail is stored as ` +
+      `text here and every parameter after it is dropped — including \`tags\`, ` +
+      `which is what makes a decision org-visible. Re-send with each field as ` +
+      `its own tool parameter.`,
+    code: "INVALID_FIELD_CONTENT",
+    category: "validation",
+    status: 400,
+  });
+}
+
 export const teachKnowledge: ToolDef = {
   name: "brain_teach_knowledge",
   description:
@@ -75,6 +112,13 @@ export const teachKnowledge: ToolDef = {
   handler: async (raw, auth) => {
     requireCapability(auth, "knowledge");
     const input = inputShape.parse(raw);
+
+    // Before anything is written or resolved: a malformed call must not reach
+    // the database, because once stored it reads exactly like a real rule.
+    assertNoLeakedMarkup("rule", input.rule);
+    assertNoLeakedMarkup("trigger", input.trigger);
+    assertNoLeakedMarkup("rationale", input.rationale);
+    assertNoLeakedMarkup("instead", input.instead);
 
     // One shared rule with brain_start_session and brain_ask_oracle. This used
     // to be a bespoke copy that accepted only `projectId` and reported nothing,

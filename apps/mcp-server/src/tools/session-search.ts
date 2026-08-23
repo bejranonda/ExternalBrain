@@ -12,7 +12,7 @@ const inputShape = z.object({
 export const sessionSearch: ToolDef = {
   name: "brain_session_search",
   description:
-    "Search the user's past sessions by free text (Postgres full-text, Hermes-style). Use to recall 'how did I approach the deployment last month?'.",
+    "Search the user's past sessions by free text (Postgres full-text). Matches session PROMPTS, and every term must appear (AND semantics) — so pass one or two distinctive keywords ('embedding provenance'), not a natural-language sentence, which will usually match nothing. An empty result means no prompt contained all your terms; it does NOT mean the Brain has no relevant sessions. Widen by dropping terms, or use brain_ask_oracle for a question-shaped query.",
   inputSchema: {
     type: "object",
     required: ["query"],
