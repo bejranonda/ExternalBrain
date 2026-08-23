@@ -1868,6 +1868,60 @@ the v2.17.0 embedding writers, now the seventh instance in this arc.
 
 ---
 
+## 0as. A malformed tool call wrote corrupted knowledge and reported success (2026-08-23, v2.19.3)
+
+Found during a full functional sweep of every `brain_*` tool — by reading a
+`retrieve_knowledge` dump, not by anything failing.
+
+**Symptom.** Two `Knowledge` rows carried literal tool-call markup inside their
+`rationale` — `…for months.</rationale>\n<parameter name="tags">["brain-usage"]`
+— and had `tags: []`.
+
+**Cause.** The caller typed a later parameter *inside* a field's value. Everything
+from that point on is stored as text in that field, and every parameter after it
+is dropped. The call returned `{ id, confidence: 1 }`: byte-identical to a clean
+write.
+
+**Why it was worse than cosmetic.** One of the two was a project DECISION. The
+dropped parameter was `tags`, and `decision` is the tag that promotes a rule to
+`visibility: "org"` — the mechanism that makes decisions shared project memory
+(`AGENTS.md §5`). So a decision recorded specifically to be team-visible was
+silently filed private. Nothing in the response, the logs, or any health check
+distinguished it from success.
+
+**Fix.** `brain_teach_knowledge` now rejects `rule` / `trigger` / `rationale` /
+`instead` containing closing tags or `<parameter name=` before anything is
+written or resolved, with an error naming the likely cause and the consequence.
+Storing such input is strictly worse than refusing it: a corrupted rationale is
+served back to future agents as fact, and a dropped tag changes who can read the
+rule. The predicate is deliberately narrow — rules routinely discuss code, so
+`Array<string>`, `a < b`, `<Skills/>` and HTML comments must all still pass, and
+tests pin that.
+
+Verified live against prod with the exact payload that got through the day
+before: rejected with the actionable message, and `SELECT count(*)` for the probe
+row returned 0.
+
+**Detector for existing corpora:**
+
+```sql
+SELECT id FROM "Knowledge"
+WHERE "deletedAt" IS NULL
+  AND (rationale LIKE '%</rationale>%' OR rationale LIKE '%<parameter%');
+```
+
+Both affected rows were retired by supersession — which is the supported repair
+path and needs no gated SQL — and their replacements carry the correct tags. The
+Skills naming decision is now `visibility: org` as it always should have been.
+
+**Also from the same sweep.** `brain_session_search` is a Postgres full-text
+**AND** match over session prompts, which is not what its description implied. A
+five-term natural-language phrase returned `[]` while `"embedding provenance"`
+returned two sessions — the empty result was correct, and momentarily looked like
+a broken index. The description now says so.
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:

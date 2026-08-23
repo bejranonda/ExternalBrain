@@ -317,7 +317,7 @@ Full walkthrough with examples: **[docs/HOW_IT_WORKS.md](./docs/HOW_IT_WORKS.md)
 | LLM | Claude / GLM / OpenAI / Gemini (swap via env). Model choices for the extraction agent are measured with `pnpm --filter @brain/worker eval:kea`, which replays real sessions — not argued from benchmarks |
 | Background jobs | pg-boss (no Redis required) |
 | Rate-limit state | In-process by default; Redis when `REDIS_URL` is set (needed for multi-replica, and it survives restarts) |
-| Protocol | Model Context Protocol (`@modelcontextprotocol/sdk`) |
+| Protocol | Model Context Protocol (`@modelcontextprotocol/sdk`). Agent-supplied writes are validated at the boundary — malformed tool calls are rejected rather than stored, because a knowledge store that accepts nonsense serves it back later as fact |
 | Packaging | Turborepo + pnpm workspaces · Docker Compose |
 
 ---

@@ -420,6 +420,16 @@ Both endpoints speak their SDK's native wire format — no custom client code.
 > concurrent request on lower tiers), not per-token API billing — so
 > `cost.ts` figures are list-value estimates here, not money owed.
 
+**What a successful `brain_teach_knowledge` response does and does not prove.**
+`{ id, confidence: 1 }` means the row was accepted, not that it was understood.
+Check `project.source` (`explicit_name`/`explicit_id` vs `default_fallback`) to
+confirm it landed where you meant, and `superseded` when you passed
+`supersedesKnowledgeId` — a cross-project predecessor is not retired and the
+response says so via `supersedeHint`. Since v2.19.3 the tool also rejects text
+fields containing leaked tool-call markup rather than storing them, because a
+dropped `tags` parameter silently costs a decision its `visibility: "org"`
+(`KNOWN_ISSUES §0as`).
+
 **Embedding model changes are migrations.** Vectors from two different models
 are orthogonal (measured: **−0.024** cosine for the same sentence across
 `gemini-embedding-001` and `gemini-embedding-2-preview`), so a half-migrated
