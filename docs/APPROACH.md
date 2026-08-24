@@ -3117,3 +3117,11 @@ accepts nonsense serves it back later as fact. The expensive alternative is
 what happened here: discovering it by chance, in a dump, days later.
 
 Full instance: `KNOWN_ISSUES.md §0as`.
+
+**Postscript (2026-08-24).** The fix for the above guarded one of two doors.
+Agent text also becomes Knowledge via `report_session_outcome.learnings`, and
+that path would still have stored the identical corruption. Worth stating as a
+habit rather than an anecdote: after fixing an input-validation bug, the next
+question is not "is it fixed" but **"how many entrances does this data have?"**
+— `grep` for the other writers before closing it. Here there were two, and the
+second was found by asking rather than by another incident.

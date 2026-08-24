@@ -496,6 +496,23 @@ teach or Oracle calls — pass the project again. See `KNOWN_ISSUES.md §0ar` fo
 what the pre-v2.18.0 disagreement between these three cost.
 
 
+## Reading a `brain_report_session_outcome` response
+
+`learnings` are validated per item and **dropped**, never rejected — a
+malformed learning must not block the close, because an unclosed session
+teaches nothing. What was dropped is reported back:
+
+| Field | Meaning |
+|---|---|
+| `learningsDropped.invalid` | wrong shape (missing/short fields) |
+| `learningsDropped.overflow` | more than 5 submitted; the extras |
+| `learningsDropped.markup` | text carried leaked tool-call markup |
+| `learningsHint` | present when `markup > 0` — re-send those items with each field as its own parameter |
+
+Absent `learningsDropped` means every submitted learning was captured. Before
+v2.19.4 the drops appeared only in a worker log, so a submitting agent had no
+way to know.
+
 ## Reading a `brain_teach_knowledge` response
 
 `{ id, confidence: 1.0 }` proves the row was **accepted**, not that it was

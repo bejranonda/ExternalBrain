@@ -1914,6 +1914,28 @@ Both affected rows were retired by supersession — which is the supported repai
 path and needs no gated SQL — and their replacements carry the correct tags. The
 Skills naming decision is now `visibility: org` as it always should have been.
 
+**Follow-up (v2.19.4): the fix covered one of two doors.** Agent-authored text
+reaches `Knowledge` two ways — `brain_teach_knowledge` fields, and
+`brain_report_session_outcome.learnings`, which persist as `learning_captured`
+events and are promoted into `Knowledge` by KEA's refine mode. v2.19.3 guarded
+only the first, so the identical corruption arriving as a learning would still
+have been stored and served back as fact. Both doors now share one predicate in
+`packages/core/src/text-guards.ts` — the one-rule-N-doors shape from §0q, caught
+this time before it cost anything.
+
+Learnings are *dropped* rather than rejected, because `learnings.ts` owes the
+caller a contract that a malformed item never blocks the outcome report (an
+unclosed session teaches nothing at all). The drops were previously visible only
+in a worker log line, so the submitting agent believed everything was captured —
+a loss the submitter cannot see is the same silent shape as the bug above.
+`brain_report_session_outcome` now returns `learningsDropped`
+(`{invalid, overflow, markup}`) and, when markup was the cause, a
+`learningsHint` telling the caller to re-send.
+
+Verified live: a close carrying one clean and one corrupted learning kept the
+clean one, dropped the other, reported `markup: 1`, and KEA received
+`submitted: 1`.
+
 **Also from the same sweep.** `brain_session_search` is a Postgres full-text
 **AND** match over session prompts, which is not what its description implied. A
 five-term natural-language phrase returned `[]` while `"embedding provenance"`
