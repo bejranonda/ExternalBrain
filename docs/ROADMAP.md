@@ -141,7 +141,7 @@ These were scoped out of the Phase 0 wiring pass. Each needs a dedicated decisio
 | ~~NextAuth v5 — replace dev auth shim~~ | Landed 2026-04-21 in Phase T (dual-mode: GitHub OAuth + dev fallback) | done |
 | Tweaks server-side sync (`UserPreference` model) | Needs a new Prisma model + DB migration against the shared DB; requires explicit approval before running | Language/theme/accent/density persisted per user |
 | SSE / WebSocket for LiveExtraction | Current 15-second poll is adequate for Phase 0; real-time push adds infra complexity | Sub-second extraction status in Sessions surface |
-| ~~Embedding backfill job for Teach-modal Knowledge~~ | Landed 2026-04-21 — worker `embeddings.backfill` runs every 10 min and picks up any null-embedding row. | done |
+| ~~Embedding backfill job for Teach-modal Knowledge~~ | Landed 2026-04-21 — worker `embeddings.backfill` runs every 10 min and picks up any null-embedding row. Widened twice since: v2.17.0 added `embeddingModel` provenance so a *model change* also re-embeds (a null-only sweep left old vectors stranded, and vectors from two models are orthogonal — measured −0.024); v2.19.1 extended it to `Skill` rows, which had never been embedded at all, so `brain_find_skill` could not return a result regardless of content. | done |
 
 ## Red flags (stop and diagnose)
 

@@ -430,6 +430,15 @@ fields containing leaked tool-call markup rather than storing them, because a
 dropped `tags` parameter silently costs a decision its `visibility: "org"`
 (`KNOWN_ISSUES §0as`).
 
+**Learnings submitted at close are validated, not trusted.** Each item is
+shape-checked, capped at 5, and screened for leaked tool-call markup; failures
+are *dropped* rather than rejected, because a malformed learning must never
+block the outcome report — an unclosed session teaches nothing at all. What was
+dropped comes back on the response as `learningsDropped {invalid, overflow,
+markup}`, with a `learningsHint` when markup was the cause. Surviving items go
+through KEA's refine path, so they are still judged for durability before
+becoming `Knowledge`; submission is a nomination, not a write.
+
 **Embedding model changes are migrations.** Vectors from two different models
 are orthogonal (measured: **−0.024** cosine for the same sentence across
 `gemini-embedding-001` and `gemini-embedding-2-preview`), so a half-migrated

@@ -212,6 +212,13 @@ across sessions (and it's the product's own dogfood):
    applied). This feeds confidence scoring; without it the Brain can't tell
    which rules pay off. If the close response returns a `hint`, act on it
    (`brain_teach_knowledge` for a correction that would otherwise evaporate).
+   **Read `learningsDropped` (v2.19.4).** Learnings are validated per item and
+   *dropped*, never rejected — a malformed one must not block the close. The
+   response reports `{invalid, overflow, markup}`; a `markup` drop plus
+   `learningsHint` means a later parameter was typed inside an earlier field's
+   value and the item should be re-sent. Its absence means all were captured.
+   Before v2.19.4 drops were visible only in a worker log, so an agent had no
+   way to know a learning had evaporated.
 5. **Capture decisions**: when the user states a project decision or status
    change ("we'll use X", "deprecate Y", "Z owns auth"), record it immediately
    with `brain_teach_knowledge` as a decision — `scope: "project"`, the rejected
@@ -219,6 +226,13 @@ across sessions (and it's the product's own dogfood):
    decision) that decision's id in `supersedesKnowledgeId`. Decisions are shared
    project memory: a teammate's next `brain_start_session` surfaces them, and
    they are exempt from decay (a stated fact, retired only by supersession).
+   **A teach can now fail (v2.19.3).** `brain_teach_knowledge` refuses text
+   fields containing leaked tool-call markup — the shape produced when a later
+   parameter is typed inside an earlier field's value, which silently swallows
+   every parameter after it, `tags` included. Since `decision` is the tag that
+   makes a rule org-visible, that used to file a team decision as private while
+   returning success. Check `project.source` and, when superseding, `superseded`.
+
    **Mechanically (v2.10.0):** a `scope: "project"` teach tagged `decision` is
    written `visibility: "org"`, and MCP retrieval now carries org scope — so an
    org teammate's session-open injection really does include it. Both halves
