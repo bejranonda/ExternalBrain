@@ -12,6 +12,7 @@ import {
 } from "@brain/core";
 import type { ToolDef } from "./index.js";
 import { resolveProjectForCall } from "../scope.js";
+import { hasLeakedMarkup } from "@brain/core/text-guards";
 import { requireCapability } from "../capability.js";
 
 const inputShape = z.object({
@@ -54,11 +55,8 @@ const inputShape = z.object({
  * to future agents as fact, and a dropped tag changes who can see the rule.
  * Fail loudly instead, and say exactly what to do about it.
  */
-const LEAKED_MARKUP =
-  /<\/(?:rationale|rule|trigger|instead|parameter)>|<parameter\s+name=/i;
-
 function assertNoLeakedMarkup(field: string, value: string | undefined): void {
-  if (!value || !LEAKED_MARKUP.test(value)) return;
+  if (!hasLeakedMarkup(value)) return;
   throw new BrainError({
     message:
       `\`${field}\` contains tool-call markup (e.g. a closing tag or a ` +

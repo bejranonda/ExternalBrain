@@ -17,10 +17,9 @@
  * the rule.
  */
 import { describe, it, expect } from "vitest";
-
-/** Mirrors the predicate in teach.ts. */
-const LEAKED_MARKUP =
-  /<\/(?:rationale|rule|trigger|instead|parameter)>|<parameter\s+name=/i;
+// The REAL predicate, not a copy. A replica here would pass while the shipped
+// guard drifted — the vacuous-gate failure this repo keeps rediscovering.
+import { LEAKED_MARKUP } from "@brain/core/text-guards";
 
 describe("leaked tool-call markup detection", () => {
   it("catches the exact shape observed in production", () => {
