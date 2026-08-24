@@ -9,6 +9,7 @@
  * always closes.
  */
 import { z } from "zod";
+import { hasLeakedMarkup } from "./text-guards.js";
 
 export const LEARNING_EVENT_TYPE = "learning_captured";
 export const MAX_LEARNINGS_PER_SESSION = 5;
@@ -35,16 +36,38 @@ export interface ValidatedLearnings {
   valid: Learning[];
   droppedInvalid: number;
   droppedOverflow: number;
+  /**
+   * Items whose text carried leaked tool-call markup (KNOWN_ISSUES §0as).
+   * Counted separately from `droppedInvalid` because the remedies differ:
+   * an invalid item has the wrong shape, a markup item is a mis-typed tool
+   * call whose later parameters were probably swallowed — the agent should
+   * re-send it, not shrug.
+   */
+  droppedMarkup: number;
 }
 
 export function validateSubmittedLearnings(raw: unknown[]): ValidatedLearnings {
   const droppedOverflow = Math.max(0, raw.length - MAX_LEARNINGS_PER_SESSION);
   const valid: Learning[] = [];
   let droppedInvalid = 0;
+  let droppedMarkup = 0;
   for (const item of raw.slice(0, MAX_LEARNINGS_PER_SESSION)) {
     const parsed = LearningSchema.safeParse(item);
     if (!parsed.success) {
       droppedInvalid++;
+      continue;
+    }
+    // Same door-check as brain_teach_knowledge, same shared predicate. This
+    // path persists into Knowledge via KEA refine, so corrupted text here is
+    // served back to future agents as fact exactly as a corrupted teach was.
+    // Dropped rather than rejected because this module's contract is that a
+    // malformed learning must never block the outcome report.
+    if (
+      hasLeakedMarkup(parsed.data.trigger) ||
+      hasLeakedMarkup(parsed.data.rule) ||
+      hasLeakedMarkup(parsed.data.rationale)
+    ) {
+      droppedMarkup++;
       continue;
     }
     valid.push({
@@ -52,5 +75,5 @@ export function validateSubmittedLearnings(raw: unknown[]): ValidatedLearnings {
       confidence: Math.min(parsed.data.confidence ?? 0.7, MAX_SUBMITTED_CONFIDENCE),
     });
   }
-  return { valid, droppedInvalid, droppedOverflow };
+  return { valid, droppedInvalid, droppedOverflow, droppedMarkup };
 }

@@ -97,6 +97,9 @@ export const reportSessionOutcome: ToolDef = {
   },
   handler: async (raw, auth) => {
     const input = inputShape.parse(raw);
+    let learningsDropped:
+      | { invalid: number; overflow: number; markup: number }
+      | undefined;
 
     // Ownership scope: only the session's owner may report its outcome.
     // Without this, any authenticated user could close another user's
@@ -121,9 +124,16 @@ export const reportSessionOutcome: ToolDef = {
     // DB, so the events must exist when the job runs. Per-item validation:
     // a malformed learning must never block the outcome report.
     if (input.learnings && input.learnings.length > 0) {
-      const { valid, droppedInvalid, droppedOverflow } = validateSubmittedLearnings(
+      const { valid, droppedInvalid, droppedOverflow, droppedMarkup } = validateSubmittedLearnings(
         input.learnings,
       );
+      if (droppedInvalid > 0 || droppedOverflow > 0 || droppedMarkup > 0) {
+        learningsDropped = {
+          invalid: droppedInvalid,
+          overflow: droppedOverflow,
+          markup: droppedMarkup,
+        };
+      }
       if (valid.length > 0) {
         await db.sessionEvent.createMany({
           data: valid.map((l) => ({
@@ -141,6 +151,7 @@ export const reportSessionOutcome: ToolDef = {
           captured: valid.length,
           droppedInvalid,
           droppedOverflow,
+          droppedMarkup,
           cap: MAX_LEARNINGS_PER_SESSION,
         },
         "report.learnings_captured",
@@ -282,6 +293,24 @@ export const reportSessionOutcome: ToolDef = {
       sqs,
       queued,
       ...(input.resolvedActionItemIds.length > 0 ? { resolvedActionItems } : {}),
+      // Dropped learnings were previously visible only in a worker log line,
+      // so the agent that submitted them believed all were captured. A drop
+      // the submitter cannot see is the same silent-loss shape as §0as —
+      // markup drops especially, since those mean a mis-typed call whose
+      // remaining parameters were probably swallowed and should be re-sent.
+      ...(learningsDropped
+        ? {
+            learningsDropped,
+            ...(learningsDropped.markup > 0
+              ? {
+                  learningsHint:
+                    `${learningsDropped.markup} learning(s) were dropped because a text field ` +
+                    `contained tool-call markup — a later parameter was probably typed inside ` +
+                    `an earlier field's value. Re-send them with each field as its own parameter.`,
+                }
+              : {}),
+          }
+        : {}),
       ...(hint ? { hint } : {}),
     };
   },

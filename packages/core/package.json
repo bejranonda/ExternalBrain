@@ -16,6 +16,7 @@
     "./evaluation": "./src/evaluation.ts",
     "./embedding": "./src/embedding.ts",
     "./skill-text": "./src/skill-text.ts",
+    "./text-guards": "./src/text-guards.ts",
     "./exporter": "./src/exporter.ts",
     "./fuzzy": "./src/fuzzy.ts",
     "./sse": "./src/sse.ts",
