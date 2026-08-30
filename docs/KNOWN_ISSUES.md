@@ -2228,7 +2228,99 @@ an unrelated PR.
 | Issue | Where | Status |
 |---|---|---|
 | No MCP verb existed to remove a Knowledge row, only to add or (own-row) supersede | `apps/mcp-server/src/tools/retire.ts`, `packages/core/src/knowledge-retire.ts` | fixed (v2.20.0) |
-| `session-lifecycle.test.ts` silently targets whatever answers `localhost:3100`, which is production on this host | `apps/mcp-server/src/__tests__/session-lifecycle.test.ts` | open — needs a decision: pin to a container-internal hostname, require an explicit opt-in env var, or accept the collision and fix the stale assertions with a loud warning when the target isn't a recognized dev/test instance |
+| `session-lifecycle.test.ts` silently targets whatever answers `localhost:3100`, which is production on this host | `apps/mcp-server/src/__tests__/session-lifecycle.test.ts` | **fixed (v2.20.2)** — opt-in only (`BRAIN_MCP_E2E_URL`, no default), plus a hard refusal when `BRAIN_DEPLOY_ENV=production`. See below |
+
+---
+
+## 0aw. A test that defaulted to a live target, and the magic number that hid it (2026-08-30, v2.20.2)
+
+Resolution of `§0av`'s open item.
+
+`session-lifecycle.test.ts` resolved its target as
+`process.env.BRAIN_MCP_URL ?? "http://localhost:3100"` and ran against
+whatever answered. On a developer laptop that is a dev stack — the intended
+case. On the deployment host, port 3100 is the **live production
+mcp-server**, and this file does two things that must never touch production:
+it mints a real `MCPToken` row in whatever `DATABASE_URL` names, and it drives
+real HTTP against the resolved URL.
+
+**It was silent from 2026-06-02 to 2026-08-30 — and the thing that finally
+exposed it was an unrelated bug.** The suite also asserted
+`expect(names.length).toBe(9)`, a hardcoded count that went stale the moment
+the tool catalog grew past nine. By the time anyone looked it expected 9 and
+the catalog held 14, so the suite failed for a reason that had nothing to do
+with the hazard. Nobody investigates a test that has "always been red"; the
+stale magic number was, in effect, camouflage.
+
+> **A test that fails for a boring reason stops being read, and anything else
+> wrong with it goes with it.** The cost of a stale assertion is not one bad
+> test — it is the loss of every signal that test could have carried.
+
+**Fix — two guards, in order:**
+
+1. **Opt-in, with no default.** The target is now `BRAIN_MCP_E2E_URL`, and an
+   unset value skips the suite. "Runs against whatever is listening" was the
+   property that made this dangerous, so it is gone rather than narrowed. CI
+   behaviour is unchanged (CI has nothing on that port, so it already
+   skipped).
+2. **A loud refusal, not a silent skip, when the target is production.** Even
+   when opted in, the suite throws if `BRAIN_DEPLOY_ENV=production`. Skipping
+   would be wrong here: someone who set the variable intended to run
+   something and needs telling why it did not.
+
+The guard deliberately reads **`BRAIN_DEPLOY_ENV`, not `ENVIRONMENT`**. The
+production host carries `ENVIRONMENT=dev` as a leftover label — trusting it
+would make this guard confidently clear production, reproducing `§0al` one
+layer deeper. `apps/web/app/api/healthz/route.ts` carries the same warning for
+the same reason; this is the second place that trap has been sidestepped, and
+the reason both files say so explicitly.
+
+**The hardcoded count is gone too.** The assertion now derives the expected
+set from the catalog in this checkout (`import { tools }`), so it cannot go
+stale again. A mismatch now carries real information — *the server you are
+pointed at is a different build than this source tree* — which is exactly what
+you want a live-integration test to tell you.
+
+**Verified in all three states, because a suite that only ever skips is a
+vacuous gate (`§0r`) and "I made the failure stop" is not a fix:**
+
+| State | Expected | Result |
+|---|---|---|
+| No `BRAIN_MCP_E2E_URL` (the default everywhere) | skips | 7 skipped ✓ |
+| Opted in with `BRAIN_DEPLOY_ENV=production` | refuses loudly | throws with remediation text ✓ |
+| Opted in against a disposable stack | **runs and passes** | 7/7 passed ✓ |
+
+That third row is the one that matters. Proving it required standing up a
+throwaway `pgvector:pg16` on a scratch port, migrating it, seeding a `User`
+row, and running a second mcp-server on :13100 against it — because the
+alternative, running it against the only stack that was already up, is the
+exact hazard being fixed.
+
+**The sweep for other instances was run, and found one — graded differently on
+purpose.** `auth-gate.test.ts` has the identical
+`?? "http://localhost:3100"` shape, but imports no database, writes nothing,
+and sends only *unauthenticated* requests asserting they are refused — the
+same thing any internet scanner does to a public MCP endpoint hourly. Making
+it opt-in would have cost every developer automatic coverage of a security
+gate and bought no safety, so it keeps its default and gets only the
+production refusal. **Two files, one shape, two correct answers** — the fix
+belongs to the risk, not the pattern.
+
+**Honest limit of the second guard.** The `BRAIN_DEPLOY_ENV` refusal only
+fires if that variable is present in the *test process's* environment. Under
+compose it is; in a bare `pnpm test` shell on the host it is not, because
+nothing loads `.env` into vitest. That is why the dangerous suite's primary
+guard is the opt-in default-skip, which holds unconditionally — the
+environment check is a second layer, not the load-bearing one. Stating this
+rather than implying the guard is absolute: a control you believe is stronger
+than it is, is worse than one you have measured.
+
+| Issue | Where | Status |
+|---|---|---|
+| Test defaulted to a live URL and wrote to whatever DB was configured | `apps/mcp-server/src/__tests__/session-lifecycle.test.ts` | fixed (v2.20.2) |
+| Hardcoded tool count went stale and camouflaged the above for ~3 months | same | fixed (v2.20.2) — derived from the catalog |
+| Same shape, lower risk (read-only unauth probes) | `apps/mcp-server/src/__tests__/auth-gate.test.ts` | fixed (v2.20.2) — prod refusal only; default kept deliberately |
+| `BRAIN_DEPLOY_ENV` is not loaded into a bare `pnpm test` shell | — | open (low) — the opt-in guard covers the case that matters; a `dotenv` preload in the vitest config would close the rest |
 
 ---
 

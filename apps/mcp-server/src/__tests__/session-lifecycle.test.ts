@@ -3,23 +3,61 @@ import { createHash, randomBytes } from "node:crypto";
 import { db } from "@brain/db";
 
 /**
- * Deferred #42 tests — full Streamable-HTTP session lifecycle against the
- * live dev MCP server. Mints a temporary MCPToken row in the dev DB so the
- * tests exercise the actual auth path end-to-end (not a mock); cleans the
- * token up in afterAll, even if a test fails mid-suite.
- *
- * The whole suite skips cleanly when the MCP server isn't reachable or the
- * DB can't be opened, so vitest in CI without a stack still passes.
+ * Deferred #42 tests — full Streamable-HTTP session lifecycle against a live
+ * MCP server. Mints a temporary MCPToken row in whatever `DATABASE_URL`
+ * points at so the tests exercise the actual auth path end-to-end (not a
+ * mock); cleans the token up in afterAll, even if a test fails mid-suite.
  *
  * Why DB-roundtrip rather than mocked: PR #15 (per-request transport) and
  * #4 (unauth initialize leak) were both bugs in the wiring between the
  * HTTP handler, the SDK transport, and the DB-backed authenticate() —
  * mocked tests of any one piece would have missed them. Live integration
  * is the cheapest net for that class of regression.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * OPT-IN ONLY, and that is a safety property, not a convenience.
+ *
+ * This suite used to default to `http://localhost:3100` and run against
+ * anything that answered. On a developer laptop that is a dev stack. On the
+ * deployment host it is the **live production mcp-server**, and this file
+ * both writes to the database (minting a real `MCPToken`) and drives real
+ * HTTP against it. That collision was silent from 2026-06-02 until
+ * 2026-08-30, and was only noticed because the suite's *other* assertion had
+ * gone stale — it expected 9 tools while the catalog had moved to 14, so it
+ * failed for an unrelated reason and someone finally read it
+ * (`KNOWN_ISSUES §0av`).
+ *
+ * Two guards, in order:
+ *   1. `BRAIN_MCP_E2E_URL` must be set explicitly. There is NO default — an
+ *      unset variable skips the suite. "Runs against whatever is listening"
+ *      is the property that made this dangerous, so it is gone.
+ *   2. Even when opted in, the suite REFUSES (loudly, not silently) if
+ *      `BRAIN_DEPLOY_ENV` says production. A skip would be the wrong
+ *      response: someone who set the variable meant to run something, and
+ *      needs telling why it did not. Note this deliberately reads
+ *      `BRAIN_DEPLOY_ENV`, not `ENVIRONMENT` — the prod host carries
+ *      `ENVIRONMENT=dev` as a leftover label, and trusting it would make
+ *      this guard confidently clear production (see the same warning in
+ *      `apps/web/app/api/healthz/route.ts`).
+ *
+ * To run it: point both variables at a disposable stack, e.g.
+ *   BRAIN_MCP_E2E_URL=http://localhost:3100 \
+ *   DATABASE_URL=postgresql://brain:brain@localhost:15432/brain \
+ *   pnpm --filter @brain/mcp-server test
  */
-const MCP_URL = process.env.BRAIN_MCP_URL ?? "http://localhost:3100";
+const MCP_URL = process.env.BRAIN_MCP_E2E_URL?.trim();
+
+if (MCP_URL && process.env.BRAIN_DEPLOY_ENV?.trim() === "production") {
+  throw new Error(
+    "session-lifecycle.test.ts refuses to run against a production deployment: " +
+      "it mints a real MCPToken row and drives live HTTP. BRAIN_DEPLOY_ENV=production " +
+      "was found in this environment. Point DATABASE_URL and BRAIN_MCP_E2E_URL at a " +
+      "disposable stack, or unset BRAIN_MCP_E2E_URL to skip this suite.",
+  );
+}
 
 async function reachable(): Promise<boolean> {
+  if (!MCP_URL) return false;
   try {
     const r = await fetch(`${MCP_URL}/health`, {
       signal: AbortSignal.timeout(1500),
@@ -117,7 +155,7 @@ guard(`MCP session lifecycle (live dev server at ${MCP_URL})`, () => {
     expect(body.result?.serverInfo).toBeDefined();
   });
 
-  it("tools/list with a valid session id returns the 9 brain_* tools", async () => {
+  it("tools/list with a valid session id returns exactly this build's brain_* catalog", async () => {
     if (!fixture) return;
     // Open a fresh session for this test so the assertions are independent.
     const initRes = await fetch(`${MCP_URL}/mcp`, {
@@ -142,7 +180,18 @@ guard(`MCP session lifecycle (live dev server at ${MCP_URL})`, () => {
       result?: { tools?: Array<{ name: string }> };
     };
     const names = body.result?.tools?.map((t) => t.name) ?? [];
-    expect(names.length).toBe(9);
+    // Derived from the catalog in THIS checkout, never a hardcoded count.
+    // The literal `9` that used to sit here went stale the moment the catalog
+    // grew and stayed wrong for months, which is what a magic number in an
+    // assertion always eventually does. A mismatch here now means something
+    // real: the server you are pointed at is a different build than this
+    // source tree — reload it, or you are testing the wrong box.
+    const { tools } = await import("../tools/index.js");
+    const expected = tools.map((t) => t.name).sort();
+    expect(
+      names.slice().sort(),
+      "running server's tool catalog differs from this checkout — reload the target stack",
+    ).toEqual(expected);
     for (const n of names) expect(n).toMatch(/^brain_/);
   });
 

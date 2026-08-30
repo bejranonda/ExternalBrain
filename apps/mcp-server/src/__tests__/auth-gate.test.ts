@@ -12,8 +12,32 @@ import { describe, expect, it } from "vitest";
  * developer reloads `mcp-server` and runs `pnpm --filter @brain/mcp-server
  * test`, the gate is exercised. A future PR can mock the HTTP server in-
  * process so the skip is no longer needed.
+ *
+ * KEEPS its localhost default, unlike `session-lifecycle.test.ts` — the two
+ * files share a shape but not a risk profile, and the fix was graded on the
+ * risk rather than the shape (`KNOWN_ISSUES §0aw`). That suite mints a real
+ * `MCPToken` row and drives authenticated traffic, so pointing it at
+ * production is a genuine hazard and it is now opt-in with no default. This
+ * one imports no database, writes nothing, and sends only UNAUTHENTICATED
+ * requests asserting they are refused — the same thing every internet scanner
+ * does to a public MCP endpoint hourly. Making it opt-in would cost every
+ * developer automatic coverage of a security gate and buy no safety.
+ *
+ * It still refuses to run against a deployment that declares itself
+ * production: harmless is not the same as appropriate, and the `describe`
+ * label below would otherwise claim "dev server" while probing prod. Reads
+ * `BRAIN_DEPLOY_ENV`, never `ENVIRONMENT` — the prod host carries
+ * `ENVIRONMENT=dev` as a leftover label (see `§0al`, and the identical
+ * warning in `apps/web/app/api/healthz/route.ts`).
  */
 const MCP_URL = process.env.BRAIN_MCP_URL ?? "http://localhost:3100";
+
+if (process.env.BRAIN_DEPLOY_ENV?.trim() === "production") {
+  throw new Error(
+    "auth-gate.test.ts refuses to run against a production deployment " +
+      "(BRAIN_DEPLOY_ENV=production). Point BRAIN_MCP_URL at a disposable stack.",
+  );
+}
 
 async function reachable(): Promise<boolean> {
   try {

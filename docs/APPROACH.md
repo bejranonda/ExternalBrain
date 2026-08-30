@@ -3279,3 +3279,71 @@ missing half is a dependency, not an instruction — and it fails the same way
 every time, quietly, while looking like it worked.
 
 Full instance: `KNOWN_ISSUES.md §0au`.
+
+---
+
+## 5ce. The stale assertion was camouflage for the real bug (2026-08-30, v2.20.2)
+
+`session-lifecycle.test.ts` resolved its target as
+`process.env.BRAIN_MCP_URL ?? "http://localhost:3100"` and ran against
+whatever answered. On a laptop that is a dev stack. On the deployment host,
+port 3100 is the **live production MCP server** — and that file mints a real
+`MCPToken` row and drives authenticated traffic against it.
+
+It sat that way from 2026-06-02 to 2026-08-30. What is interesting is not the
+bug; it is **why nobody found it for three months.**
+
+The same suite also asserted `expect(names.length).toBe(9)` — a hardcoded
+count that went stale the moment the tool catalog grew. By August it expected
+9 against a catalog of 14, so the suite was reliably red *for a reason that
+had nothing to do with the hazard*. And nobody investigates a test that has
+always been red. The magic number was not merely a second defect sitting
+alongside the first; it was the thing **hiding** it.
+
+> **A test that fails for a boring reason stops being read, and every other
+> signal it could have carried dies with it.** The cost of a stale assertion
+> is never one bad test.
+
+That reframes what a "known-failing test" is. It is not a small debt accruing
+quietly — it is a **blindfold over everything that test touches**, and the
+longer it stays, the more it can be concealing. The remedy is not to be more
+diligent about reading red tests; it is to not have any, so that red means
+something again.
+
+The fix took two forms, and the second is the one that generalises:
+
+1. **Opt-in with no default.** The target is now `BRAIN_MCP_E2E_URL`; unset
+   skips. "Runs against whatever is listening" was the dangerous property, so
+   it was removed rather than narrowed. Plus a loud refusal — not a silent
+   skip — when `BRAIN_DEPLOY_ENV` says production, because someone who set the
+   variable meant to run something and deserves to be told why it did not.
+2. **The count is now derived from the catalog, not written down.** A
+   mismatch finally carries information — *the server you are pointed at is a
+   different build than this checkout* — which is precisely what a live
+   integration test should be able to tell you. A hardcoded expectation about
+   a growing thing has a known expiry date; the only question is whether
+   anyone is watching when it passes.
+
+**Two judgment calls worth recording, because both were tempting to get
+wrong.**
+
+The first: a repo-wide sweep found `auth-gate.test.ts` carrying the identical
+`?? "http://localhost:3100"` shape. The mechanical response is to apply the
+same fix to both. But it imports no database, writes nothing, and sends only
+*unauthenticated* requests asserting they are refused — the same traffic any
+internet scanner sends that endpoint hourly. Making it opt-in would have cost
+every developer automatic coverage of a security gate and bought no safety.
+**Two files, one shape, two different correct answers**: grade the fix on the
+risk, not on the pattern that matched. A consistency reflex applied to a
+grep result is how you end up with rules nobody can explain.
+
+The second: it would have been easy to declare victory once the red went away.
+But a suite that *only ever skips* is a vacuous gate (`§0r`) — and "I made the
+failure stop" is not the same claim as "I made it work." Proving the third
+state required standing up a throwaway Postgres on a scratch port, migrating
+it, seeding a `User` row, and running a second MCP server on :13100 against
+it, purely so the suite could be observed **passing** rather than merely not
+failing. All three states were checked: skips by default, refuses on
+production, and runs 7/7 green against a disposable stack.
+
+Full instance: `KNOWN_ISSUES.md §0aw`.

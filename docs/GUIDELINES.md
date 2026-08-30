@@ -385,6 +385,42 @@ This generalises past MCP to any environment-shaped work: a migration applied
 to the wrong database, a deploy verified against the wrong host, a test run
 against a stale container. The check was real; the subject was not.
 
+**The writing side of the same rule: a test must never choose a live target
+by default.** `session-lifecycle.test.ts` resolved
+`process.env.BRAIN_MCP_URL ?? "http://localhost:3100"` and ran against
+whatever answered — a dev stack on a laptop, and the **live production MCP
+server** on the deployment host, where it minted real `MCPToken` rows
+(`KNOWN_ISSUES §0aw`). When a test can write, the target is not a convenience
+default:
+
+- **Opt-in, no fallback.** Require an explicit env var and *skip* when unset.
+  "Runs against whatever is listening" is the property to delete, not narrow.
+- **Refuse loudly rather than skip silently** when an opted-in target
+  self-identifies as production. A skip tells someone who deliberately set the
+  variable nothing about why nothing happened.
+- **Read `BRAIN_DEPLOY_ENV`, never `ENVIRONMENT`** for that check — the prod
+  host carries `ENVIRONMENT=dev` as a leftover label, so trusting it makes the
+  guard confidently clear production (`§0al`, and the same warning in
+  `apps/web/app/api/healthz/route.ts`).
+- **Grade the fix on risk, not on the grep result.** A sweep found
+  `auth-gate.test.ts` with the identical shape, but it writes nothing and only
+  probes that unauthenticated requests are refused. It kept its default and
+  got the production refusal alone; making it opt-in would have cost real
+  coverage of a security gate for no safety. Same shape, different answer.
+- **Then prove it can still pass.** A suite that only ever skips is a vacuous
+  gate (below). Check all three states — skips by default, refuses on
+  production, and *runs green* against a disposable stack — because "the
+  failure stopped" and "it works" are different claims.
+
+**And never hardcode a count of a growing thing.** The same suite asserted
+`names.length === 9` against a tool catalog that had reached 14, so it was
+reliably red for a reason unrelated to the hazard — and **nobody investigates
+a test that has always been red.** The stale number was not a second defect
+beside the first; it was what concealed it for three months. Derive the
+expectation from the source of truth (`import { tools }`) so a mismatch means
+something real. A known-failing test is not a small debt: it is a blindfold
+over everything that test touches.
+
 ### A passing test can be pinned to a fact that stopped being true
 
 The inverse of the sibling problem, and harder to catch by construction. Every
