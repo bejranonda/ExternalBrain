@@ -3218,3 +3218,64 @@ much as no check. The predicate worth encoding is narrower than "undocumented":
 `.env.example`?**
 
 Full instance: `KNOWN_ISSUES.md §0at`.
+
+---
+
+## 5cd. Guidance that is read and still not followed is a design defect (2026-08-30, v2.20.0)
+
+`§0ar` had already fixed project-scope reporting: one shared resolver, a
+`project.source` on every response, a `hint` whenever a call fell back. The
+documentation said to pass `projectName` on every call. `AGENTS.md` said it
+twice.
+
+Then, in a single session, the agent that had written that fix filed four rules
+into the "Default" project anyway — including a rule *about* project-scoping
+discipline, and a supersede that failed cross-project precisely because its
+predecessor sat in the project the fallback had chosen. The hint fired every
+time. It was read every time.
+
+The reflex is to log this as carelessness and write a firmer rule. That reading
+is wrong, and the evidence is in the hint's own text:
+
+> Pass projectName on every teach call for work that belongs elsewhere.
+
+**It asked for a name and listed none.** Complying required already suspecting
+the problem and calling `brain_list_projects` unprompted. The instruction was
+true, urgent-sounding, and un-followable — so compliance depended entirely on
+the caller supplying context the system already had and had chosen not to
+share. That is not a discipline failure; it is an interface that withholds the
+one fact needed to obey it.
+
+> **When correct guidance is repeatedly ignored by a careful reader, suspect
+> the guidance before the reader.** Ask what the reader would need in hand to
+> comply, then check whether the message actually hands it over.
+
+The fix is not a stronger warning. It is `suggestedProjects` — the candidate
+list, ranked, in the response that reports the fallback.
+
+Three design choices worth keeping, because each was the *less* impressive
+option and each is right:
+
+1. **Suggest, never redirect.** Auto-routing the write to the better-fitting
+   project would score better on any demo and be strictly worse: a visible
+   misfile becomes an invisible one, and the caller loses the ability to detect
+   it at all. Correctness you cannot observe is not correctness.
+2. **No embeddings.** Ranking by similarity to each project's existing
+   knowledge is the sophisticated-sounding choice and fails where it counts —
+   a genuinely new topic has nothing similar filed, so "best fit" degrades to
+   "biggest project", and it costs a vector query on a hot path. Framework,
+   language and name-in-text are already loaded, cost nothing, and produce a
+   `why` string an operator can audit. **An unauditable suggestion is one a
+   user eventually follows off a cliff.**
+3. **A threshold, so it can say nothing.** `language: typescript` matches most
+   projects and distinguishes none of them. A system that always sounds
+   confident trains its reader to stop listening — the same reason `§0ar`'s
+   `ambiguous` flag exists to suppress the hint for a one-project user.
+
+The generalisation runs past this repo: **an agent-facing message is an
+interface, and the test of an interface is whether the recipient can act on it
+with only what it contains.** Prose that assumes the reader will go fetch the
+missing half is a dependency, not an instruction — and it fails the same way
+every time, quietly, while looking like it worked.
+
+Full instance: `KNOWN_ISSUES.md §0au`.

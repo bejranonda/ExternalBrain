@@ -199,7 +199,13 @@ across sessions (and it's the product's own dogfood):
    calls resolve to, and neither does the project you opened the session
    with. All three share one resolver: the response's `project.source` tells
    you whether the call landed where you asked or fell back, and a `hint`
-   appears when it fell back. `brain_teach_knowledge` and `brain_ask_oracle`
+   appears when it fell back — since v2.20.0 that hint **names your other
+   projects** and recommends one when it clearly fits, with the ranked list in
+   `suggestedProjects`. It only suggests: the call still lands in the fallback,
+   so act on it by re-sending. Read it — the previous hint asked for a
+   `projectName` while listing none, and an agent following this very
+   paragraph still filed four rules into "Default" in one session
+   (`KNOWN_ISSUES §0au`). `brain_teach_knowledge` and `brain_ask_oracle`
    say `explicit_name` / `explicit_id` / `default_fallback`;
    `brain_start_session` keeps its older `explicit` /
    `first_project_fallback` / `default_created` wording and hints only when

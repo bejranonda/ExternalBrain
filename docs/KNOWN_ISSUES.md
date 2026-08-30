@@ -2087,6 +2087,66 @@ again.
 
 ---
 
+## 0au. The fallback funnels knowledge into the least meaningful project (2026-08-30, v2.20.0)
+
+`resolveProjectForCall`'s fallback takes `projects[0]`, ordered oldest-first.
+For essentially every user that is the auto-created **"Default"** — so the
+platform's default behaviour files knowledge into the one project that means
+nothing, and it has done so since project scoping existed.
+
+`§0ar` fixed the *reporting* half of this: all three project-aware tools now
+share one resolver, return `project.source`, and emit a `hint` when they fall
+back. What that hint said was:
+
+> Filed under "Default" because no projectId/projectName was given. Pass
+> projectName on every teach call for work that belongs elsewhere.
+
+**It asked for a `projectName` and named none.** An agent cannot pass a name it
+was never shown; complying required already suspecting the problem and calling
+`brain_list_projects` unprompted. The hint was true, actionable-sounding, and
+not actually followable.
+
+**Measured, on this repo, by the agent that wrote `§0ar`.** In one session on
+2026-08-30, four rules landed in Default despite the hint firing every time —
+including a rule *about* project-scoping discipline, and a supersede that then
+failed cross-project (`superseded: false`) precisely because its predecessor
+was in the project the fallback had chosen. The guidance was being read and
+still not followed, which is the signal that the guidance was the problem.
+
+**Fix (v2.20.0).** A fallback response now carries ranked `suggestedProjects`
+and a hint that names them. Scored on framework, language, and whether the
+project's name occurs in the task/rule text — the last being strongest, because
+a caller who names the project has already said where it belongs and only
+missed the parameter.
+
+Four properties, each load-bearing:
+
+- **Suggests, never redirects.** The write still lands in the fallback project.
+  Rerouting silently would convert a visible misfile into an invisible one.
+- **No embeddings.** Similarity against a project's existing knowledge is
+  weakest exactly when it matters — a new topic has nothing similar filed, so
+  "best fit" collapses to "largest project" — and it costs a vector query on a
+  hot path. The three cheap signals are already loaded by `getUserProjects` and
+  yield a `why` string an operator can check. An unauditable suggestion is one
+  a user eventually follows off a cliff.
+- **Threshold before recommending.** `language: typescript` matches most
+  projects and distinguishes nothing; below the bar the hint only lists.
+- **Never re-suggests the project it just picked**, which also avoids a magic
+  `"Default"` string — the resolver excludes by id.
+
+**Not fixed here: the fallback target itself.** Preferring the oldest project
+is still arbitrary. Changing it would silently relocate where existing
+integrations write, so it wants a migration, not a patch.
+
+| Issue | Where | Status |
+|---|---|---|
+| Fallback hint asked for a `projectName` while naming none | `apps/mcp-server/src/scope.ts` + all three tools | fixed (v2.20.0) |
+| No fit ranking existed for choosing a project | `packages/core/src/project-fit.ts` | fixed (v2.20.0) |
+| Fallback still resolves to the oldest project regardless of fit | `apps/mcp-server/src/scope.ts` | open — needs a migration path, not a patch |
+| Knowledge already misfiled into Default before this shipped | prod data | open — needs `DELETE /api/knowledge/:id` per row or an operator-approved soft-delete; the MCP surface has no retire verb |
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:

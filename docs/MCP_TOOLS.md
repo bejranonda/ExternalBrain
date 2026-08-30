@@ -495,6 +495,38 @@ Scoping is **per call**. Opening a session with a project does not scope later
 teach or Oracle calls — pass the project again. See `KNOWN_ISSUES.md §0ar` for
 what the pre-v2.18.0 disagreement between these three cost.
 
+### The fallback now tells you where it probably belonged
+
+The fallback resolves to the user's **first** project, oldest-first — which for
+essentially every user is the auto-created "Default". Until v2.20.0 the hint
+that reported this said "pass `projectName`" **without naming a single
+project**, which is not an instruction a caller can follow: an agent would have
+to already suspect the problem and call `brain_list_projects` unprompted.
+
+A fallback response now carries `suggestedProjects`, ranked:
+
+```jsonc
+{
+  "project": { "id": "…", "name": "Default", "source": "default_fallback" },
+  "hint": "Filed under \"Default\" … This looks like it belongs in \"External Brain\" (matches framework nextjs + its name appears in the task text) — re-send with projectName: \"External Brain\" if so.",
+  "suggestedProjects": [
+    { "projectId": "…", "name": "External Brain", "score": 0.85, "why": "matches framework nextjs + its name appears in the task text" }
+  ]
+}
+```
+
+| Property | Why it is this way |
+|---|---|
+| **Suggests, never redirects** | The call still lands in the fallback project. Silently rerouting a write to a better-fitting project would turn a *visible* misfile into an invisible one. |
+| **Ranked on framework, language, and name-in-text — not embeddings** | Similarity to a project's existing knowledge is weakest exactly when it matters: a genuinely new topic has nothing similar filed, so "best fit" degrades to "biggest project". These three signals are already loaded, cost nothing, and produce a `why` an operator can audit. |
+| **Only recommends above a threshold** | `language: typescript` matches most projects and distinguishes nothing. Below the bar the hint just *lists* the candidates. A confident suggestion built from no signal teaches callers to ignore suggestions. |
+| **Never suggests the project it just picked** | Recommending what you already did is noise. Excluding by id also means no magic `"Default"` string. |
+
+The strongest single signal is the project's name appearing in your prompt or
+rule text — a caller who names the project has already said where it belongs
+and simply did not put it in the parameter. That was the exact shape of the
+2026-08-30 incident (`KNOWN_ISSUES §0au`).
+
 
 ## Reading a `brain_report_session_outcome` response
 

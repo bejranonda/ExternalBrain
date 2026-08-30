@@ -15,6 +15,7 @@ import {
 import type { ToolDef } from "./index.js";
 import { resolveOrgScope } from "../org-scope.js";
 import { resolveProjectForCall } from "../scope.js";
+import { SUGGESTION_THRESHOLD } from "@brain/core/project-fit";
 
 const log = getLogger("start-session");
 
@@ -120,6 +121,10 @@ export const startSession: ToolDef = {
         () => "",
         {
           allowCreate: true,
+          // The task prompt is the ranking signal — it is also the retrieval
+          // query, so a prompt phrased well enough to retrieve knowledge is
+          // already phrased well enough to identify the project.
+          ...(input.prompt ? { signalText: input.prompt } : {}),
           ...(input.framework ? { framework: input.framework } : {}),
           ...(input.language ? { language: input.language } : {}),
         },
@@ -325,11 +330,24 @@ export const startSession: ToolDef = {
         projectSource === "default_created") &&
       (landedOnDefault || ambiguousChoice)
     ) {
+      const suggestions = resolved.suggestions ?? [];
+      const top = suggestions[0];
+      // Name the candidates. The previous wording told the caller to "pass
+      // projectName" without listing one, which an agent cannot act on
+      // without separately thinking to call brain_list_projects.
+      const tail =
+        top && top.score >= SUGGESTION_THRESHOLD
+          ? ` This looks like "${top.name}" work (${top.why}) — re-open with ` +
+            `projectName: "${top.name}" if so.`
+          : suggestions.length > 0
+            ? ` Your other projects: ${suggestions.map((s) => `"${s.name}"`).join(", ")}.`
+            : "";
       hint =
         `This session is filed under the "${projectName ?? "Default"}" project because no ` +
         "projectId/projectName was given. If this work belongs to a specific project, " +
         "call brain_create_project or pass projectName on this call — project scoping is " +
-        "per-call, not persisted, so pass it again on future brain_start_session calls too.";
+        "per-call, not persisted, so pass it again on future brain_start_session calls too." +
+        tail;
     }
 
     return {
@@ -337,6 +355,9 @@ export const startSession: ToolDef = {
       startedAt: session.startedAt.toISOString(),
       project,
       ...(hint ? { hint } : {}),
+      ...(hint && resolved.suggestions
+        ? { suggestedProjects: resolved.suggestions }
+        : {}),
       ...(relevantKnowledge ? { relevantKnowledge } : {}),
       ...(openActionItems ? { openActionItems } : {}),
     };

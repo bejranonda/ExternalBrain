@@ -226,3 +226,75 @@ describe("start_session reporting signals", () => {
     });
   });
 });
+
+/**
+ * The fallback now SUGGESTS where the call probably belonged.
+ *
+ * The fallback takes `projects[0]` (oldest-first) — the auto-created "Default"
+ * for essentially every user — and the hint asked for a `projectName` while
+ * naming none, which is not an instruction a caller can follow. Measured on
+ * prod 2026-08-30: an agent following the documented discipline still filed
+ * four rules into Default in one session, one of which superseded a rule about
+ * not doing exactly that.
+ */
+describe("fallback suggestions", () => {
+  const threeProjects = {
+    getUserProjects: vi.fn(async () => [
+      { id: "proj_default", name: "Default", framework: null, language: null },
+      { id: "proj_eb", name: "External Brain", framework: "nextjs", language: "typescript" },
+    ]),
+  };
+
+  it("ranks the other projects and never re-suggests the one it picked", async () => {
+    const r = await resolveProjectForCall(unscoped, {}, deps(threeProjects), hint, {
+      allowCreate: true,
+      signalText: "audit the docs for the External Brain repo",
+    });
+    expect(r.source).toBe("default_fallback");
+    expect(r.suggestions?.map((s) => s.projectId)).toEqual(["proj_eb"]);
+    expect(r.suggestions?.[0]?.name).toBe("External Brain");
+  });
+
+  it("passes the signal through, so the hint can name a concrete project", async () => {
+    // The bug this guards: wiring the ranker but forgetting to feed it. The
+    // ranker would then return every project at score 0 and the hint would
+    // degrade to a bare list — working, useless, and silent about it.
+    const named = vi.fn((n: string, s: Array<{ name: string }>) =>
+      `${n}|${s.map((x) => x.name).join(",")}`,
+    );
+    const r = await resolveProjectForCall(unscoped, {}, deps(threeProjects), named, {
+      allowCreate: true,
+      signalText: "External Brain docs",
+    });
+    expect(r.hint).toBe("Default|External Brain");
+  });
+
+  it("omits suggestions entirely for a user with only the fallback project", async () => {
+    const r = await resolveProjectForCall(unscoped, {}, deps(), hint, { allowCreate: true });
+    expect(r.suggestions).toBeUndefined();
+  });
+
+  it("does not suggest when the caller named a project — nothing to correct", async () => {
+    const r = await resolveProjectForCall(
+      unscoped,
+      { projectName: "External Brain" },
+      deps(threeProjects),
+      hint,
+      { allowCreate: true, signalText: "anything" },
+    );
+    expect(r.source).toBe("explicit_name");
+    expect(r.suggestions).toBeUndefined();
+    expect(r.hint).toBeUndefined();
+  });
+
+  it("never AUTO-REDIRECTS: the resolved project is still the fallback", async () => {
+    // Suggesting is safe; silently rerouting a write to a better-fitting
+    // project would turn a visible misfile into an invisible one, and the
+    // caller would have no way to tell where their rule went.
+    const r = await resolveProjectForCall(unscoped, {}, deps(threeProjects), hint, {
+      allowCreate: true,
+      signalText: "External Brain External Brain External Brain",
+    });
+    expect(r.projectId).toBe("proj_default");
+  });
+});
