@@ -47,6 +47,15 @@ them safe to run on *every* PR. The `doc-refs` guard also runs on every PR (it's
 seconds and standalone); add it to your branch-protection required set if you
 want phantom references to be merge-blocking as well as visible.
 
+**Automated review (CodeRabbit) is not one of these gates.** The upstream repo
+runs it, but it is advisory: it is not in the required set and merges do not
+wait on it (operator decision, 2026-08-24). Two independent reasons, and the
+second is the one that matters — it is frequently rate-limited or out of
+credits, and **a run that reviewed nothing still reports green**, so treating
+it as a gate means blocking on a signal that is sometimes empty by
+construction. A fork inherits none of this; if you want a review gate, make it
+one you can tell apart from its own failure mode.
+
 A fourth workflow, [`prod-drift.yml`](../.github/workflows/prod-drift.yml),
 runs daily (not per-PR): it compares the deployed `/api/healthz` `version`
 against `main`'s `git describe` and keeps exactly one `prod-drift` issue open

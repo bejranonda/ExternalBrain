@@ -70,10 +70,19 @@ you (single Docker Compose stack; see `docs/QUICKSTART.md`).
 **The unit of review is the PR; the unit of history is the commit.** Keep
 commits small and single-purpose, then ship a coherent batch of them as one
 PR. A PR-per-fix habit is expensive here and buys nothing: every PR blocks on
-a full CI cycle (typecheck·test·build ~3 min, authed e2e ~4 min, plus
-CodeRabbit), the gates run per *push* rather than per *commit*, and a
-fifteen-PR session is roughly an hour of sequential waiting for work that
-would have passed CI once.
+a full CI cycle (typecheck·test·build ~3 min, authed e2e ~4 min), the gates
+run per *push* rather than per *commit*, and a fifteen-PR session is roughly
+an hour of sequential waiting for work that would have passed CI once.
+
+**CodeRabbit is advisory, not a gate** (operator decision, 2026-08-24). Read
+its comments if they have arrived and act on anything real, but **do not wait
+on it to merge** — it is not in the required-check set (`docs/CICD.md`), and
+it is frequently rate-limited or out of credits, in which case it posts a
+green check having reviewed nothing. Merge on the real gates. The corollary
+is older and still holds: a green CodeRabbit check is not evidence of review
+(`APPROACH §5am`) — when you want a second opinion before merging, run a
+code-review pass yourself rather than reading its absence or its green as a
+verdict.
 
 - **Review feedback on an open PR is another commit on that PR** — never a
   follow-up PR.
@@ -190,7 +199,13 @@ across sessions (and it's the product's own dogfood):
    calls resolve to, and neither does the project you opened the session
    with. All three share one resolver: the response's `project.source` tells
    you whether the call landed where you asked or fell back, and a `hint`
-   appears when it fell back. `brain_teach_knowledge` and `brain_ask_oracle`
+   appears when it fell back — since v2.20.0 that hint **names your other
+   projects** and recommends one when it clearly fits, with the ranked list in
+   `suggestedProjects`. It only suggests: the call still lands in the fallback,
+   so act on it by re-sending. Read it — the previous hint asked for a
+   `projectName` while listing none, and an agent following this very
+   paragraph still filed four rules into "Default" in one session
+   (`KNOWN_ISSUES §0au`). `brain_teach_knowledge` and `brain_ask_oracle`
    say `explicit_name` / `explicit_id` / `default_fallback`;
    `brain_start_session` keeps its older `explicit` /
    `first_project_fallback` / `default_created` wording and hints only when

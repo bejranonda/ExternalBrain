@@ -180,7 +180,7 @@ Each transition has a clear owner module:
 | 5 | MCP `brain_report_session_outcome` + user feedback endpoints |
 | 6 | `packages/core/src/evolution.ts` (scheduled) |
 | 7 | `evolution.detectObsolescence()` — soft delete |
-| 8 | admin REST `/api/admin/gdpr-erase` — physical delete |
+| 8 | admin REST `POST /api/admin/gdpr/erase/:userId` — physical delete |
 
 **Operator-initiated bulk reset** — in addition to the natural lifecycle
 above, an org-admin can mass-soft-delete rows via
@@ -241,7 +241,18 @@ Relationship rules:
 5. Quality filter: drop `confidence < 0.7`, drop short/generic rules, drop semantic duplicates (similarity > 0.85 → bump the keeper's confidence instead).
 6. Embed and persist with `extractedBy: "kea"`, `sourceSessionIds: [sessionId]`, `confidence: <from LLM>`.
 
-Cost budget: `MAX_KEA_COST_USD_PER_SESSION=0.05`. Above that the job should abort and log.
+Budget: **`MAX_KEA_EXTRACTIONS_PER_DAY`** (default `200`; `0` disables), checked
+in the worker *before* any LLM call. Over quota the session gets
+`extractionStatus = 'skipped_quota'` and the job completes rather than retrying
+— retrying cannot free quota. Failed attempts count against it, because they
+still spent tokens.
+
+> Until v2.10.0 this line read `MAX_KEA_COST_USD_PER_SESSION=0.05` — a variable
+> **nothing ever read**. It was removed rather than implemented: a per-session
+> dollar cap is unenforceable in principle, since KEA's cost is unknown until
+> the call returns and extraction cannot be partial, so it would either never
+> fire or fire after the money was spent. A count is also the dimension a tier
+> is actually sold in. See `KNOWN_ISSUES §"MAX_KEA_COST_USD_PER_SESSION"`.
 
 **Critical: the entire pipeline gates on `brain_report_session_outcome`.** A Session with `endedAt = null` never enqueues a `kea.extract` job, so the brain never learns from it. This is the single biggest reason a deployed Brain feels "stagnant" — the operator's tokens are connecting, sessions are opening, but no client ever closes them. Diagnose via `docs/RUNBOOK.md §"Tokens connect but brain doesn't learn"` (orphan-session detector). The v2 installer (2026-05-11, an early PR) makes the first such close automatic on every install so KEA has its first input from day 0. As of the v3 installer (2026-08-08) this holds for **every** client, not only Claude Code: `--client` selects the target, and each carries its own `sessionClientType`, so the ping records the tool that was actually installed rather than labelling every install `claude_code`. That value is constrained to the enum `brain_start_session` accepts — an out-of-enum string is rejected and the install silently records nothing, which is why it is asserted in `install-snippets.test.ts` rather than trusted.
 
@@ -570,7 +581,7 @@ Six admin endpoints live under `/api/admin/*` gated by `requireAdmin()` from `ap
 
 Every mutating admin action, plus every user-visible knowledge + token mutation, writes an `AuditLog` row via `writeAudit({actorUserId, action, targetType, targetId, payload, ip, userAgent})` from `@brain/core/audit`. The `payload` is deep-redacted against the key pattern `token|secret|password|apiKey|authorization` before serialization. Indexes on `(actorUserId, createdAt)`, `(action, createdAt)`, and `(targetType, targetId)` make the admin-surface queries cheap.
 
-**The log is append-only by contract** — not enforced by DB permissions, but no code path anywhere in the repo deletes an `AuditLog` row. GDPR soft-erase (`POST /api/admin/users/[id]/erase`) cascades through knowledge, sessions, tokens, cost ledger entries, but **leaves audit rows in place** — the audit of the erase is the record compliance requires. User FKs in audit rows therefore need LEFT-JOIN semantics.
+**The log is append-only by contract** — not enforced by DB permissions, but no code path anywhere in the repo deletes an `AuditLog` row. GDPR soft-erase (`POST /api/admin/gdpr/erase/:userId`) cascades through knowledge, sessions, tokens, cost ledger entries, but **leaves audit rows in place** — the audit of the erase is the record compliance requires. User FKs in audit rows therefore need LEFT-JOIN semantics.
 
 ---
 

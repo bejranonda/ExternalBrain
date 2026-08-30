@@ -1944,6 +1944,209 @@ a broken index. The description now says so.
 
 ---
 
+## 0at. A shipped, production-active feature that no document mentioned (2026-08-30)
+
+`BILLING_MODE` was added in v2.19.0, wired into all four services in
+`docker-compose.yml`, read by `billingMode()`/`costDisclaimer()` in
+`packages/core/src/cost.ts`, rendered by the `/admin` Oracle-spend tile, and
+returned as a `disclaimer` field from `GET /api/admin/cost-ledger`. Production
+has run `BILLING_MODE="subscription"` since the operator chose to stay on the
+GLM Coding Plan (§0aq).
+
+It appeared in **zero** documents. Its entire written description was a comment
+in `.env.example`. `docs/REST_API.md` did not list the endpoint; the README's
+"Operating a Brain" table did not list the tile. An operator forking this repo
+had no way to learn the flag exists, and therefore would run a subscription
+deployment whose dashboard silently presents list-value estimates as spend —
+precisely the mislabelling the flag was built to prevent.
+
+**Nothing was broken.** The code is correct and prod is configured correctly.
+The defect is entirely in the documentation, which is why the two preceding
+doc-audit passes missed it.
+
+**Why two audits missed it.** Both asked *"what changed since the last docs
+pass?"* — a `git diff` against the previous docs commit, plus a grep of the
+touched files. That question finds **staleness**: a doc that was true and has
+become false. It cannot find **omission**, because an omission never appears in
+a diff. Nothing was removed; the text simply never existed, so there was no
+change to detect and the audit came back clean. The first pass explicitly
+concluded "nothing to update" and was wrong in a way its own method could not
+reveal.
+
+**The check that finds this class** walks the *code surface* and asks whether
+each element is described anywhere — the inverse direction from a diff:
+
+```bash
+# Env vars that reach a container but appear in no doc.
+for v in $(grep -oE '^[A-Z_]+' .env.example | sort -u); do
+  grep -rqs "$v" README.md docs/ AGENTS.md || echo "UNDOCUMENTED ENV: $v"
+done
+
+# API routes with no entry in REST_API.md (normalise [id] -> :id first).
+for r in $(find apps/web/app/api -name route.ts \
+           | sed 's|apps/web/app/api/||; s|/route.ts||' \
+           | sed 's|\[\([a-zA-Z]*\)\]|:\1|g'); do
+  grep -q "/api/$r" docs/REST_API.md || echo "UNDOCUMENTED ROUTE: /api/$r"
+done
+```
+
+**Both halves of that were wrong when first written, and running them is what
+showed it** — the standing rule that a snippet in a document is code, not
+prose. The route half compared Next.js `[id]` against the reference's `:id` and
+reported 30 missing routes, 16 of them false. The env half was written
+`grep -oE '^[A-Z_]+(?==)'`, which *looks* like a lookahead for the `=` and is
+not one: `grep -E` has no lookahead, and it produced correct output only
+because `[A-Z_]+` cannot match `=` in the first place. It would have been
+copied forward as a working PCRE idiom. **A doc-coverage check that cries wolf
+gets ignored, which returns you to no check at all.**
+
+**Triage the output; it is a candidate list, not a defect list.** The env sweep
+also flags `WEB_HOST_PORT`, `STORAGE_REGION`, `LOG_LEVEL` and similar — infra
+knobs whose inline `.env.example` comment genuinely is sufficient. The
+predicate that separates those from `BILLING_MODE` is not "appears in no doc"
+but:
+
+> **Does this variable change a surface a user or operator sees — a rendered
+> figure, a returned field, an endpoint's behaviour — while being described
+> only in `.env.example`?**
+
+`BILLING_MODE` re-captions a dashboard tile and adds a field to an API
+response. `WEB_HOST_PORT` moves a port. Only the first is a documentation
+defect.
+
+Same sweep, same fix: `GET /api/admin/queue-health` was also absent from
+`REST_API.md` (it was described in the README and `§0q`, so this was a
+completeness gap rather than an information one). Both are now documented.
+
+**Related but distinct from `§0q`.** That family is *a mechanism that fails
+silently because nothing looks at its output*. This is *a mechanism that works
+perfectly and which nobody can discover*. Both are invisible; only one is
+broken. The shared lesson is that "it works" and "someone can find out it
+exists" are separate properties, and shipping only the first is a partial
+delivery.
+
+### The reverse sweep found something worse: endpoints that never existed
+
+Running the check in the other direction — every `/api/…` path cited in a doc,
+does a route file exist? — surfaced a strictly more damaging defect than the
+omission that started this. `docs/REST_API.md`, the integrator-facing
+reference, documented **five endpoints that have never existed**:
+
+| Cited as | Reality |
+|---|---|
+| `POST /api/oracle/ask` | the non-streaming Oracle route is `POST /api/oracle` |
+| `GET /api/graph/:skillId/backlinks` | no such route |
+| `GET /api/graph/:skillId/dependents` | no such route |
+| `GET /api/graph/orphans` | no such route — `/api/graph` reads only a `scope` param, so no spelling reached it |
+| `GET /api/graph/deadends` | no such route |
+| `GET /api/admin/brain-health` | no such route; the loop-vitals endpoint is `GET /api/dashboard/health` |
+| `GET /api/health/ingest-queue` | never built (see `BLUEPRINT §4.2`, corrected in the same pass) |
+
+Plus two wrong paths for a route that *does* exist: `POST
+/api/admin/users/[id]/erase` in `KNOWLEDGE.md` and this file, and
+`/api/admin/gdpr-erase` in `KNOWLEDGE.md`'s lifecycle table — the real route is
+`POST /api/admin/gdpr/erase/:userId`.
+
+**A phantom endpoint is worse than a missing one.** An omission makes a feature
+undiscoverable; a phantom sends an integrator to write a client against a URL
+that 404s, and it is *harder* to notice, because it looks exactly like
+documentation. The two defects also hide from opposite directions: walking
+code→docs finds omissions and cannot find phantoms; walking docs→code finds
+phantoms and cannot find omissions. **Auditing in one direction is not an
+audit.**
+
+Context decides whether a citation is a defect. `ROADMAP.md` also names
+`/api/admin/brain-health`, but as an unchecked `- [ ]` item — correctly marked
+unbuilt, so it is left alone. `BLUEPRINT §4.2` named `/api/health/ingest-queue`
+in an "Adopted as" column whose other rows describe shipped things, so present
+tense there *was* an overclaim and is now marked not-adopted. Same string,
+three different verdicts, decided by what the surrounding document promises.
+
+One stale claim in `docs/KNOWLEDGE.md` came from the same family and is the most
+consequential of the set: the KEA section documented a cost ceiling,
+`MAX_KEA_COST_USD_PER_SESSION=0.05`, saying "above that the job should abort and
+log." **That variable was removed in v2.10.0 precisely because nothing ever read
+it** (§"MAX_KEA_COST_USD_PER_SESSION"). The document therefore described a
+safety control that does not exist, to an operator with every reason to rely on
+it. The real control is `MAX_KEA_EXTRACTIONS_PER_DAY` (default 200), checked
+before the LLM call. Note this one predates the window any recent-changes audit
+would look at — a doc can be stale for a year and no diff will ever mention it
+again.
+
+| Issue | Where | Status |
+|---|---|---|
+| `BILLING_MODE` documented nowhere despite being prod-active across 4 services | `README.md`, `docs/REST_API.md` | fixed (2026-08-30) |
+| `GET /api/admin/cost-ledger` + its `disclaimer` field absent from the REST reference | `docs/REST_API.md` | fixed (2026-08-30) |
+| `GET /api/admin/queue-health` absent from the REST reference | `docs/REST_API.md` | fixed (2026-08-30) |
+| 5 phantom endpoints documented in the REST reference (`/api/oracle/ask`, 4 `/api/graph/*` sub-paths, `/api/admin/brain-health`) | `docs/REST_API.md` | fixed (2026-08-30) — corrected to the real routes, with a note so the removal isn't re-added |
+| KEA documented a cost ceiling (`MAX_KEA_COST_USD_PER_SESSION`) removed in v2.10.0 for never being enforced | `docs/KNOWLEDGE.md` | fixed (2026-08-30) — replaced with `MAX_KEA_EXTRACTIONS_PER_DAY` |
+| GDPR erase cited at two wrong paths | `docs/KNOWLEDGE.md`, `docs/KNOWN_ISSUES.md` | fixed (2026-08-30) |
+| `BLUEPRINT §4.2` listed `/api/health/ingest-queue` as adopted; never built | `docs/BLUEPRINT.md` | fixed (2026-08-30) — marked not-adopted |
+| 14 further routes absent from `docs/REST_API.md` | `docs/REST_API.md` | open — **not** the same defect: `/healthz`, `/readyz`, the GDPR pair and `/oracle/feedback` are all described in `QUICKSTART`/`SECURITY`/`PRIVACY`/`HOW_IT_WORKS`, so the reference is incomplete rather than the behaviour undiscoverable. `/api/auth/[...nextauth]` is NextAuth's own handler and is correctly absent. Worth a consolidating pass; not urgent |
+| No standing check that an env var or route is documented anywhere | — | open — the snippet above is manual; worth a CI gate alongside `check-doc-refs.sh`, but only once the triage predicate is encoded, or it will fail on port numbers |
+
+---
+
+## 0au. The fallback funnels knowledge into the least meaningful project (2026-08-30, v2.20.0)
+
+`resolveProjectForCall`'s fallback takes `projects[0]`, ordered oldest-first.
+For essentially every user that is the auto-created **"Default"** — so the
+platform's default behaviour files knowledge into the one project that means
+nothing, and it has done so since project scoping existed.
+
+`§0ar` fixed the *reporting* half of this: all three project-aware tools now
+share one resolver, return `project.source`, and emit a `hint` when they fall
+back. What that hint said was:
+
+> Filed under "Default" because no projectId/projectName was given. Pass
+> projectName on every teach call for work that belongs elsewhere.
+
+**It asked for a `projectName` and named none.** An agent cannot pass a name it
+was never shown; complying required already suspecting the problem and calling
+`brain_list_projects` unprompted. The hint was true, actionable-sounding, and
+not actually followable.
+
+**Measured, on this repo, by the agent that wrote `§0ar`.** In one session on
+2026-08-30, four rules landed in Default despite the hint firing every time —
+including a rule *about* project-scoping discipline, and a supersede that then
+failed cross-project (`superseded: false`) precisely because its predecessor
+was in the project the fallback had chosen. The guidance was being read and
+still not followed, which is the signal that the guidance was the problem.
+
+**Fix (v2.20.0).** A fallback response now carries ranked `suggestedProjects`
+and a hint that names them. Scored on framework, language, and whether the
+project's name occurs in the task/rule text — the last being strongest, because
+a caller who names the project has already said where it belongs and only
+missed the parameter.
+
+Four properties, each load-bearing:
+
+- **Suggests, never redirects.** The write still lands in the fallback project.
+  Rerouting silently would convert a visible misfile into an invisible one.
+- **No embeddings.** Similarity against a project's existing knowledge is
+  weakest exactly when it matters — a new topic has nothing similar filed, so
+  "best fit" collapses to "largest project" — and it costs a vector query on a
+  hot path. The three cheap signals are already loaded by `getUserProjects` and
+  yield a `why` string an operator can check. An unauditable suggestion is one
+  a user eventually follows off a cliff.
+- **Threshold before recommending.** `language: typescript` matches most
+  projects and distinguishes nothing; below the bar the hint only lists.
+- **Never re-suggests the project it just picked**, which also avoids a magic
+  `"Default"` string — the resolver excludes by id.
+
+**Not fixed here: the fallback target itself.** Preferring the oldest project
+is still arbitrary. Changing it would silently relocate where existing
+integrations write, so it wants a migration, not a patch.
+
+| Issue | Where | Status |
+|---|---|---|
+| Fallback hint asked for a `projectName` while naming none | `apps/mcp-server/src/scope.ts` + all three tools | fixed (v2.20.0) |
+| No fit ranking existed for choosing a project | `packages/core/src/project-fit.ts` | fixed (v2.20.0) |
+| Fallback still resolves to the oldest project regardless of fit | `apps/mcp-server/src/scope.ts` | open — needs a migration path, not a patch |
+| Knowledge already misfiled into Default before this shipped | prod data | open — needs `DELETE /api/knowledge/:id` per row or an operator-approved soft-delete; the MCP surface has no retire verb |
+
+---
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:
@@ -2103,7 +2306,7 @@ The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-
 | **pnpm 9 silently breaks `pnpm --filter @brain/db prisma migrate deploy`.** pnpm 9 looks for a `prisma` package.json script; when absent it no-ops instead of falling through to the bundled binary. Both `scripts/deploy.sh` and `scripts/deploy-prod.sh` were affected — migrations silently did nothing on fresh deploys. **Fix:** prefix with `exec`: `pnpm --filter @brain/db exec prisma migrate deploy`. |
 | ~~**`pg_dump` backups are on-host only.**~~ Closed 2026-04-25. Off-host replication via rclone added as an opt-in `backup-replicate` Compose profile (`rclone/rclone:1` sidecar, syncs `brain_backups` to any S3/R2/B2 bucket every `BACKUP_INTERVAL` seconds). Activate with `COMPOSE_PROFILES=...,backup-replicate`; configure via `scripts/setup-backup-replicate.sh`. Heartbeat visible at `GET /api/admin/backup-status`. See `docs/RUNBOOK.md §"Off-host backup replication"`. **Follow-up:** rclone is the only supported sync mechanism; operators who prefer native `aws s3 sync` or `gsutil` could add an alternate sidecar image — tracked as a future PR. | `deploy/docker-compose.prod.yml`, `scripts/setup-backup-replicate.sh`, `deploy/rclone.conf` (gitignored) | done |
 | **Admin role bootstrapping is manual.** `User.role` defaults to `"user"` with no first-admin grant path — you must `UPDATE "User" SET role='admin' WHERE email=…` by hand after deploy. Acceptable for a single-tenant / small-team deploy; a self-service admin grant flow is a Phase 3 item. |
-| **GDPR erase is soft.** `POST /api/admin/users/[id]/erase` nulls PII on User + cascades knowledge/sessions/tokens/cost-ledger deletes, but **retains AuditLog rows** (by design — compliance requires an append-only record of the erase itself). The erased user's `actorUserId` references in audit rows therefore outlive the User row; queries must LEFT JOIN rather than INNER JOIN. |
+| **GDPR erase is soft.** `POST /api/admin/gdpr/erase/:userId` nulls PII on User + cascades knowledge/sessions/tokens/cost-ledger deletes, but **retains AuditLog rows** (by design — compliance requires an append-only record of the erase itself). The erased user's `actorUserId` references in audit rows therefore outlive the User row; queries must LEFT JOIN rather than INNER JOIN. |
 
 ### Resolved / newly documented 2026-04-21 (Wave 1 backup + Playwright smoke suite)
 

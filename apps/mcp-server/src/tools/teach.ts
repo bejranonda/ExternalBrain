@@ -13,6 +13,7 @@ import {
 import type { ToolDef } from "./index.js";
 import { resolveProjectForCall } from "../scope.js";
 import { hasLeakedMarkup } from "@brain/core/text-guards";
+import { fallbackHint } from "@brain/core/project-fit";
 import { requireCapability } from "../capability.js";
 
 const inputShape = z.object({
@@ -133,11 +134,15 @@ export const teachKnowledge: ToolDef = {
           getUserProjects: (u) => getUserProjects(db, u),
           ensureDefaultProject: (u) => ensureDefaultProject(db, u),
         },
-        (name) =>
-          `Filed under "${name}" because no projectId/projectName was given. ` +
-          `Pass projectName on every teach call for work that belongs elsewhere — ` +
-          `scoping is per-call and is NOT inherited from brain_start_session.`,
-        { allowCreate: true },
+        (name, suggestions) => fallbackHint(name, suggestions),
+        {
+          allowCreate: true,
+          // The rule's own text is the ranking signal: a rule that names the
+          // project it is about has already said where it belongs.
+          signalText: `${input.trigger} ${input.rule}`,
+          ...(input.framework ? { framework: input.framework } : {}),
+          ...(input.language ? { language: input.language } : {}),
+        },
       );
     } catch (err) {
       // ONLY scope failures are 403. Blanket-converting every error meant a
@@ -255,6 +260,9 @@ export const teachKnowledge: ToolDef = {
         source: resolved.source,
       },
       ...(resolved.hint ? { hint: resolved.hint } : {}),
+      // Ranked alternatives, present only on a fallback. Structured as well as
+      // in the prose hint so a caller can branch on it rather than parse it.
+      ...(resolved.suggestions ? { suggestedProjects: resolved.suggestions } : {}),
       ...(superseded === undefined
         ? {}
         : {

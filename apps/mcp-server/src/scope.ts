@@ -21,6 +21,7 @@
  * them one implementation rather than four copies.
  */
 import type { AuthContext } from "./auth.js";
+import { suggestProjects, type ProjectSuggestion } from "@brain/core/project-fit";
 
 /**
  * Thrown when a scoped token asks for a project it is not bound to. Mirrors
@@ -120,6 +121,17 @@ export interface ResolvedProject {
    * trains them to ignore hints — so callers use this to hint selectively.
    */
   ambiguous?: boolean;
+  /**
+   * Where this probably belonged, ranked, when the call fell back.
+   *
+   * The fallback takes `projects[0]` (oldest-first), which is the auto-created
+   * "Default" for essentially every user — and the old hint asked for a
+   * `projectName` while naming none, so an agent could not comply without
+   * separately thinking to call `brain_list_projects`. Never auto-applied:
+   * silently redirecting a write to a "better-fitting" project would turn a
+   * visible misfile into an invisible one.
+   */
+  suggestions?: ProjectSuggestion[];
 }
 
 /**
@@ -141,12 +153,26 @@ export async function resolveProjectForCall(
       name: string,
       opts?: { framework?: string; language?: string },
     ) => Promise<{ projectId: string }>;
-    getUserProjects: (userId: string) => Promise<Array<{ id: string; name: string }>>;
+    getUserProjects: (
+      userId: string,
+    ) => Promise<
+      Array<{
+        id: string;
+        name: string;
+        framework?: string | null;
+        language?: string | null;
+      }>
+    >;
     ensureDefaultProject: (
       userId: string,
     ) => Promise<{ projectId: string; name: string; created?: boolean }>;
   },
-  hintFor: (projectName: string) => string,
+  /**
+   * Composes the fallback hint. Receives the ranked candidates so the hint can
+   * NAME them — the previous version asked for a `projectName` while listing
+   * none, which is not an instruction a caller can follow.
+   */
+  hintFor: (projectName: string, suggestions: ProjectSuggestion[]) => string,
   /**
    * `allowCreate` distinguishes writes from reads. Only a write may bring a
    * project into existence by naming it; a read that does so turns a typo into
@@ -157,6 +183,13 @@ export async function resolveProjectForCall(
     /** Passed through to project creation so a new project is typed correctly. */
     framework?: string | undefined;
     language?: string | undefined;
+    /**
+     * The task text or rule text this call is about, used only to rank
+     * fallback suggestions. A caller who names the project in their prompt has
+     * already said where it belongs — they just did not put it in the
+     * parameter, and that is the case worth catching.
+     */
+    signalText?: string | undefined;
   } = { allowCreate: false },
 ): Promise<ResolvedProject> {
   // A scoped token cannot be redirected. Reject a mismatch loudly rather than
@@ -221,21 +254,36 @@ export async function resolveProjectForCall(
   const projects = await deps.getUserProjects(auth.userId);
   if (projects.length > 0) {
     const first = projects[0]!;
+    // Rank the OTHER projects, excluding the one we just fell back to —
+    // recommending the thing you already did is noise, and excluding by id
+    // means this needs no magic "Default" string.
+    const suggestions = suggestProjects(
+      projects,
+      {
+        text: opts.signalText,
+        framework: opts.framework,
+        language: opts.language,
+      },
+      { excludeProjectId: first.id },
+    );
     return {
       projectId: first.id,
       projectName: first.name,
       source: "default_fallback",
-      hint: hintFor(first.name),
+      hint: hintFor(first.name, suggestions),
       created: false,
       ambiguous: projects.length > 1,
+      ...(suggestions.length > 0 ? { suggestions } : {}),
     };
   }
   const { projectId, name, created } = await deps.ensureDefaultProject(auth.userId);
+  // A user with no projects has nothing to suggest — the fallback just made
+  // their only one.
   return {
     projectId,
     projectName: name,
     source: "default_fallback",
-    hint: hintFor(name),
+    hint: hintFor(name, []),
     created: created ?? true,
     ambiguous: false,
   };

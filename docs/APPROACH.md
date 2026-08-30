@@ -3125,3 +3125,157 @@ habit rather than an anecdote: after fixing an input-validation bug, the next
 question is not "is it fixed" but **"how many entrances does this data have?"**
 — `grep` for the other writers before closing it. Here there were two, and the
 second was found by asking rather than by another incident.
+
+---
+
+## 5cc. A diff shows what changed; it cannot show what was never written (2026-08-30)
+
+The instruction was "update the README and the docs, then commit" — issued
+twice, the second time after I had reported there was nothing to do.
+
+The first pass was methodical and wrong. It diffed `HEAD` against the previous
+docs commit, found the tree byte-identical, grepped the named files for the
+claims the request implied, found them all accurate, and concluded — correctly,
+on the evidence gathered — that the docs were current. It even resisted the
+pull to invent an edit to look productive, which was the right instinct.
+
+The method was the defect. **"What changed since the last docs pass?" can only
+detect staleness — a statement that was true and has become false.** It is
+structurally blind to omission, because an omission produces no diff. Nothing
+was deleted; the text simply never existed.
+
+What it missed: `BILLING_MODE`, a flag wired through four services, read by two
+exported functions, rendering a caption on the `/admin` dashboard and a field on
+a REST response, and **active in production** — described in no document
+anywhere, its whole written existence a comment in `.env.example`. Two audits
+returned clean because both asked the same blind question.
+
+The check that finds it runs in the opposite direction — from the code surface
+to the docs, not from the git log to the docs:
+
+> Enumerate what the system *exposes* — env vars, routes, exported functions,
+> CLI flags — and ask of each: **is this described anywhere a reader would
+> look?** A diff answers "what did we change?"; this answers "what did we never
+> say?", and only the second finds a feature that has been invisible since the
+> day it shipped.
+
+Three things this cost, worth naming because each is generalisable:
+
+1. **The re-ask was the signal, and nearly wasted.** A user repeating an
+   instruction after being told "nothing to do" is evidence about the *method*,
+   not stubbornness about the conclusion. The correct response was not to
+   re-run the same audit more carefully — it would have returned clean a third
+   time — but to change the question being asked.
+2. **Confidence tracked the rigour of the process, not its coverage.** The
+   first pass was genuinely careful. Care applied through the wrong lens
+   produces a clean report and a false conclusion, and feels identical from the
+   inside to a real all-clear.
+3. **Executing the generated snippet rewrote the finding.** Both shell checks
+   written for `§0at` were wrong: the route sweep reported 30 gaps of which 16
+   were `[id]`-vs-`:id` false positives, and the env sweep used `(?==)` as if
+   `grep -E` supported lookahead — it does not, and the line worked only
+   because `[A-Z_]+` cannot match `=` regardless. Both would have shipped as
+   copyable idioms. A snippet inside a document is code; the repo's standing
+   rule to run what you generate applies to prose files too.
+
+**Then the same check, run backwards, found something worse.** Having built a
+code→docs sweep, the cheap next question was docs→code: every `/api/…` path
+cited in a document — does a route file exist? `docs/REST_API.md`, the
+integrator-facing reference, documented **five endpoints that have never
+existed**, including `POST /api/oracle/ask` (the route is `POST /api/oracle`)
+and four `/api/graph/*` sub-paths on a route that reads only a `scope` param.
+Two more docs cited the GDPR erase route at paths it has never had.
+
+A phantom is worse than an omission. An omission makes a feature
+undiscoverable; a phantom makes an integrator write a client against a URL that
+404s — and it is *harder* to spot, because it looks exactly like documentation.
+Critically, the two hide from opposite directions: **code→docs finds omissions
+and is blind to phantoms; docs→code finds phantoms and is blind to omissions.**
+Auditing in one direction is not an audit. I had just finished congratulating
+myself on inverting the question once; inverting it twice was what the job
+needed.
+
+Context, not the string, decides whether a citation is a defect. The same
+missing endpoint appears in `ROADMAP.md` as an unchecked `- [ ]` (correct — it
+is unbuilt and says so), and in `BLUEPRINT §4.2` inside an "Adopted as" column
+whose other rows describe shipped things (an overclaim, now marked
+not-adopted). A checker can find the string; only a reader can grade it.
+
+The worst single find was neither: `docs/KNOWLEDGE.md` documented a KEA cost
+ceiling, `MAX_KEA_COST_USD_PER_SESSION`, **removed in v2.10.0 precisely because
+nothing ever read it**. The doc promised a safety control that does not exist,
+to the one reader with every reason to depend on it. It had been wrong for
+months, and no diff would ever have mentioned it again — staleness has no
+expiry, and "recently changed" is uncorrelated with "currently false".
+
+The residue is also instructive: the corrected sweep still lists 14
+undocumented routes, and most are *not* defects — they are documented in
+`SECURITY`/`PRIVACY`/`QUICKSTART` instead, and `/api/auth/[...nextauth]` is a
+framework handler that should never appear. A coverage tool that reports those
+as failures gets muted within a week, and a muted check is worth exactly as
+much as no check. The predicate worth encoding is narrower than "undocumented":
+**does this change a surface someone sees, while being described only in
+`.env.example`?**
+
+Full instance: `KNOWN_ISSUES.md §0at`.
+
+---
+
+## 5cd. Guidance that is read and still not followed is a design defect (2026-08-30, v2.20.0)
+
+`§0ar` had already fixed project-scope reporting: one shared resolver, a
+`project.source` on every response, a `hint` whenever a call fell back. The
+documentation said to pass `projectName` on every call. `AGENTS.md` said it
+twice.
+
+Then, in a single session, the agent that had written that fix filed four rules
+into the "Default" project anyway — including a rule *about* project-scoping
+discipline, and a supersede that failed cross-project precisely because its
+predecessor sat in the project the fallback had chosen. The hint fired every
+time. It was read every time.
+
+The reflex is to log this as carelessness and write a firmer rule. That reading
+is wrong, and the evidence is in the hint's own text:
+
+> Pass projectName on every teach call for work that belongs elsewhere.
+
+**It asked for a name and listed none.** Complying required already suspecting
+the problem and calling `brain_list_projects` unprompted. The instruction was
+true, urgent-sounding, and un-followable — so compliance depended entirely on
+the caller supplying context the system already had and had chosen not to
+share. That is not a discipline failure; it is an interface that withholds the
+one fact needed to obey it.
+
+> **When correct guidance is repeatedly ignored by a careful reader, suspect
+> the guidance before the reader.** Ask what the reader would need in hand to
+> comply, then check whether the message actually hands it over.
+
+The fix is not a stronger warning. It is `suggestedProjects` — the candidate
+list, ranked, in the response that reports the fallback.
+
+Three design choices worth keeping, because each was the *less* impressive
+option and each is right:
+
+1. **Suggest, never redirect.** Auto-routing the write to the better-fitting
+   project would score better on any demo and be strictly worse: a visible
+   misfile becomes an invisible one, and the caller loses the ability to detect
+   it at all. Correctness you cannot observe is not correctness.
+2. **No embeddings.** Ranking by similarity to each project's existing
+   knowledge is the sophisticated-sounding choice and fails where it counts —
+   a genuinely new topic has nothing similar filed, so "best fit" degrades to
+   "biggest project", and it costs a vector query on a hot path. Framework,
+   language and name-in-text are already loaded, cost nothing, and produce a
+   `why` string an operator can audit. **An unauditable suggestion is one a
+   user eventually follows off a cliff.**
+3. **A threshold, so it can say nothing.** `language: typescript` matches most
+   projects and distinguishes none of them. A system that always sounds
+   confident trains its reader to stop listening — the same reason `§0ar`'s
+   `ambiguous` flag exists to suppress the hint for a one-project user.
+
+The generalisation runs past this repo: **an agent-facing message is an
+interface, and the test of an interface is whether the recipient can act on it
+with only what it contains.** Prose that assumes the reader will go fetch the
+missing half is a dependency, not an instruction — and it fails the same way
+every time, quietly, while looking like it worked.
+
+Full instance: `KNOWN_ISSUES.md §0au`.

@@ -11,6 +11,7 @@ import type { ToolDef } from "./index.js";
 import { resolveProjectForCall } from "../scope.js";
 import { requireCapability } from "../capability.js";
 import { resolveOrgScope } from "../org-scope.js";
+import { SUGGESTION_THRESHOLD } from "@brain/core/project-fit";
 
 const inputShape = z.object({
   question: z.string().min(3),
@@ -62,10 +63,21 @@ export const askOracle: ToolDef = {
         getUserProjects: (u) => getUserProjects(db, u),
         ensureDefaultProject: (u) => ensureDefaultProject(db, u),
       },
-      (name) =>
-        `Answered from "${name}" because no projectId/projectName was given. ` +
-        `Knowledge taught under a different project is NOT visible to this answer — ` +
-        `pass projectName to ask that project instead.`,
+      (name, suggestions) => {
+        const base =
+          `Answered from "${name}" because no projectId/projectName was given. ` +
+          `Knowledge taught under a different project is NOT visible to this answer — ` +
+          `pass projectName to ask that project instead.`;
+        if (suggestions.length === 0) return base;
+        const top = suggestions[0]!;
+        // A weak signal must not become "you asked the wrong project" — on a
+        // READ the cost of a confident wrong steer is an agent re-asking a
+        // question it already had the answer to.
+        return top.score >= SUGGESTION_THRESHOLD
+          ? `${base} "${top.name}" may be the one you meant (${top.why}).`
+          : `${base} Your other projects: ${suggestions.map((s) => `"${s.name}"`).join(", ")}.`;
+      },
+      { allowCreate: false, signalText: input.question },
     );
 
     // Without visibilityArgs the owner gate collapses to `ownerUserId = $2`,
