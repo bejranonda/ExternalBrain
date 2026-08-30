@@ -2143,7 +2143,92 @@ integrations write, so it wants a migration, not a patch.
 | Fallback hint asked for a `projectName` while naming none | `apps/mcp-server/src/scope.ts` + all three tools | fixed (v2.20.0) |
 | No fit ranking existed for choosing a project | `packages/core/src/project-fit.ts` | fixed (v2.20.0) |
 | Fallback still resolves to the oldest project regardless of fit | `apps/mcp-server/src/scope.ts` | open — needs a migration path, not a patch |
-| Knowledge already misfiled into Default before this shipped | prod data | open — needs `DELETE /api/knowledge/:id` per row or an operator-approved soft-delete; the MCP surface has no retire verb |
+| Knowledge already misfiled into Default before this shipped | prod data | fixed by hand (webapp Skills-tab delete) for the one row found in the incident; **`brain_retire_knowledge` (v2.20.0) now exists** for future cases — see below |
+
+---
+
+## 0av. `brain_retire_knowledge` — the first MCP verb that removes rather than adds (2026-08-30, v2.20.0)
+
+Direct continuation of `§0au`. Cleaning up the one row that misfiled into
+Default required raw SQL — blocked by the auto-mode classifier — or a manual
+webapp click. There was no third option: **the MCP surface had no verb for
+"undo a write I just made,"** even though `§0ar`/`§0as` had already made
+*write* mistakes (wrong project, leaked markup) both possible and, on a long
+session, not rare.
+
+**Scope, decided explicitly rather than assumed.** The obvious narrow answer —
+an agent may only retire rows it authored — was offered as the recommended
+option and the operator chose wider: **any row the caller could already read**,
+including a teammate's `visibility: "org"` decision. That is a real widening of
+what an agent can do unilaterally on its own initiative, accepted in exchange
+for one property: never destroy the content.
+
+**Two mechanisms make that trade survivable:**
+
+1. **Authorization is READ parity, enforced by re-running the actual
+   predicate — not a second copy of it.** `retireKnowledgeById`
+   (`packages/core/src/knowledge-retire.ts`) calls the exact
+   `buildKnowledgeWhereV2` filter `kra.ts`/`oracle.ts` already use for
+   retrieval. If a row would not come back from `brain_retrieve_knowledge`,
+   `brain_retire_knowledge` refuses it with `FORBIDDEN`. Two independent
+   copies of a visibility rule drift the way every duplicated rule in this
+   repo has (`GUIDELINES §4`) — here a drift would be a privilege escalation,
+   not a cosmetic bug, so reuse was not optional.
+2. **It never hard-deletes, and the content is never actually gone.**
+   `deletedAt` is set (same soft-delete every other Knowledge mutation in this
+   repo uses), and the full pre-delete row — trigger, rule, rationale, tags,
+   visibility, owner — is written into an `AuditLog` row *before* the update,
+   append-only per this platform's existing contract (no code path deletes an
+   `AuditLog` row; the same guarantee GDPR erase relies on for its own trail).
+   The tool also returns the snapshot directly in its response, so an agent
+   that retires the wrong row can re-teach it from that response without an
+   operator touching SQL. "Keep it in backup for future recovery" cost zero
+   new infrastructure — it is the audit log doing a second job.
+
+**Org membership is re-derived from the target row's own project, never from
+the caller's claimed context** — `retireKnowledgeById` looks up the target's
+`ownerProjectId → organizationId` itself and calls `getAccessibleProjectIds`
+against *that* org. A caller cannot widen its own reach by asserting it
+belongs to a different org than the one the row actually lives in.
+
+**Verified with a real Postgres, not mocks** (`knowledge-retire.test.ts`, 10
+tests): own private row retires cleanly; a stranger's private row is refused
+even inside the same org+project; a teammate's org-shared row *is* retirable
+(the explicit widening under test); a same-visibility row from a **different**
+org is refused (membership must be real); an already-retired row reads as
+`NOT_FOUND`, not a second success; the row is always still `SELECT`-able
+afterward; the audit snapshot is written and carries the caller-supplied
+`reason`. Mocking the Prisma client was rejected here specifically because the
+property under test — does the visibility predicate actually deny access — is
+exactly what a hand-built mock cannot honestly assert; it would return what
+the test author assumed the query does, not what it does.
+
+**A second, unrelated hazard found while proving the tests were real.** The
+new tests need a live Postgres; the checkout's own `.env` `DATABASE_URL` on
+this host **is production** (`autobahn-bot`). Running `pnpm test` naively here
+would create and delete real rows in the live database. A disposable
+`pgvector/pgvector:pg16` container on a scratch port, migrated fresh and torn
+down after, avoided that — but running the full suite against it surfaced a
+**second, pre-existing, unrelated finding**: `session-lifecycle.test.ts`
+(unchanged since 2026-06-02) probes `http://localhost:3100` and, finding it
+reachable, mints a real `MCPToken` and drives real HTTP requests against
+**whatever answers that port** — which on this host is the live production
+mcp-server container, not a local dev stack. The test's own hardcoded
+expectation ("returns the 9 brain_\* tools") has been stale since long before
+this session (the catalog has been at 13 since `§0ar`), which means this
+collision has likely been silent on this host for months: `pnpm test` run
+directly, without a deliberately overridden `DATABASE_URL`, would probe
+production's live MCP endpoint on every run and nobody would notice, because
+the test's own assertions were already wrong and already failing for an
+unrelated reason. Left unfixed here — deliberately: fixing the stale assertion
+without also addressing the port collision would make the hazard quieter, not
+gone, and both deserve one intentional decision rather than a fix folded into
+an unrelated PR.
+
+| Issue | Where | Status |
+|---|---|---|
+| No MCP verb existed to remove a Knowledge row, only to add or (own-row) supersede | `apps/mcp-server/src/tools/retire.ts`, `packages/core/src/knowledge-retire.ts` | fixed (v2.20.0) |
+| `session-lifecycle.test.ts` silently targets whatever answers `localhost:3100`, which is production on this host | `apps/mcp-server/src/__tests__/session-lifecycle.test.ts` | open — needs a decision: pin to a container-internal hostname, require an explicit opt-in env var, or accept the collision and fix the stale assertions with a loud warning when the target isn't a recognized dev/test instance |
 
 ---
 

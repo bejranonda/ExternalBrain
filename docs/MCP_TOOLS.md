@@ -64,11 +64,12 @@ still be able to ask what it is.
 | 5 | `brain_retrieve_knowledge` | BEFORE generating code | `{ bundle, injection }` — typed items + pre-formatted injection string |
 | 6 | `brain_report_session_outcome` | AFTER user accepts/rejects | `{ sqs, queued, resolvedActionItems?, hint? }` — `hint` is the ask-back nudge on a learning-less close (see below); `resolvedActionItems` counts retired meeting to-dos (V2.0) |
 | 7 | `brain_teach_knowledge` | when user says "remember …" | `{ id, confidence: 1.0, project, hint?, superseded?, supersedeHint? }` |
-| 8 | `brain_get_user_style` | when scaffolding new files | `{ peerCard, reflexes }` |
-| 9 | `brain_ask_oracle` | "how did I solve X?" | `{ answer, citations, project, hint?, ... }` |
-| 10 | `brain_log_event` | during session (per event) | `{ id, accepted }` |
-| 11 | `brain_find_skill` | rarely — see "Two things are called Skills" below | top-N skill *bundles* |
-| 12 | `brain_session_search` | "what did I do last week?" | recent matching sessions (Postgres FTS) |
+| 8 | `brain_retire_knowledge` (v2.20.0) | cleaning up a mistake — a misfile, a duplicate, a row you or a teammate got wrong. NOT a normal part of every session; most sessions never call this | `{ retired: true, wasOwnRow, snapshot, note? }` — `snapshot` is the full pre-delete content, kept so a wrong retire is recoverable by re-teaching from it |
+| 9 | `brain_get_user_style` | when scaffolding new files | `{ peerCard, reflexes }` |
+| 10 | `brain_ask_oracle` | "how did I solve X?" | `{ answer, citations, project, hint?, ... }` |
+| 11 | `brain_log_event` | during session (per event) | `{ id, accepted }` |
+| 12 | `brain_find_skill` | rarely — see "Two things are called Skills" below | top-N skill *bundles* |
+| 13 | `brain_session_search` | "what did I do last week?" | recent matching sessions (Postgres FTS) |
 
 Full JSON schemas live in `apps/mcp-server/src/tools/*.ts` — each file exports a `ToolDef` with `inputSchema`. Order in this table matches `apps/mcp-server/src/tools/index.ts`.
 
@@ -560,6 +561,38 @@ That last one exists because a malformed call used to succeed: the tail of a
 field swallowed every parameter after it, including `tags` — and `decision` is
 the tag that makes a rule `visibility: "org"`. A decision recorded to be
 team-visible was silently filed private.
+
+## Using `brain_retire_knowledge` (v2.20.0)
+
+Every other write on this surface only ever *adds* — `brain_teach_knowledge`
+creates a row, and its `supersedesKnowledgeId` only ever retires a row the
+**same caller already owns**, as a side effect of teaching a replacement.
+`brain_retire_knowledge` is the first verb whose whole job is removing a row,
+and its scope is wider than supersede's:
+
+> **If `brain_retrieve_knowledge` could have returned this row to you, you can
+> retire it — including a teammate's `visibility: "org"` decision, not only
+> rows you authored.**
+
+That is a real widening of what an agent can do on its own initiative, and it
+was chosen deliberately (operator decision, 2026-08-30) in exchange for one
+guarantee: **it never destroys the content.** `deletedAt` is set (never a hard
+delete), and the full row is written into an audit-log snapshot *before* the
+update — the same `snapshot` object comes back in the tool's own response. If
+you retire the wrong thing, re-teach it from that snapshot; there is no
+separate restore tool, and none is needed.
+
+**When to use it:** cleaning up a specific, identified mistake — a rule that
+landed in the wrong project via a fallback (`KNOWN_ISSUES §0au`), a duplicate
+left behind after a supersede failed cross-project, a decision you taught
+before catching a typo. **When not to use it:** as a routine part of closing a
+session, or to "tidy up" knowledge you merely disagree with — disagreement is
+what `supersedesKnowledgeId` is for, because a supersede leaves a lineage
+(`parentKnowledgeId`) an operator can trace; a retire does not.
+
+A `FORBIDDEN` response means the row was never visible to you in the first
+place — that is not a bug to route around by trying a different id or
+projectName; it means you don't have the access this operation requires.
 
 ## Two things are called "Skills" (read this before using `brain_find_skill`)
 

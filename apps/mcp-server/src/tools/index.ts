@@ -2,6 +2,7 @@ import type { AuthContext } from "../auth.js";
 import { retrieveKnowledge } from "./retrieve.js";
 import { reportSessionOutcome } from "./report.js";
 import { teachKnowledge } from "./teach.js";
+import { retireKnowledge } from "./retire.js";
 import { getUserStyle } from "./style.js";
 import { askOracle } from "./oracle.js";
 import { logEvent } from "./log-event.js";
@@ -28,6 +29,7 @@ export const tools: ToolDef[] = [
   retrieveKnowledge,
   reportSessionOutcome,
   teachKnowledge,
+  retireKnowledge,
   getUserStyle,
   askOracle,
   logEvent,

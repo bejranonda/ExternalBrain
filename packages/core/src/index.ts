@@ -123,6 +123,8 @@ export {
 } from "./knowledge-stats.js";
 export type { TopRuleRow } from "./knowledge-stats.js";
 export { resetKnowledge } from "./knowledge-reset.js";
+export { retireKnowledgeById } from "./knowledge-retire.js";
+export type { KnowledgeSnapshot, RetireOutcome } from "./knowledge-retire.js";
 export type {
   ResetOpts,
   ResetResult,
