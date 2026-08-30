@@ -264,6 +264,14 @@ across sessions (and it's the product's own dogfood):
    [`doc-draft`](./docs/protocols/doc-draft.md) (document templates as
    recipes), [`report-draft`](./docs/protocols/report-draft.md) (on-demand
    status report; never scheduled, never pushed).
+7. **Cleaning up a mistake**: `brain_retire_knowledge(id)` (v2.20.0) soft-
+   deletes one row you can currently see — including a teammate's org-shared
+   decision, not only your own rows. This is not a routine step; most sessions
+   never call it. It never destroys content: the response carries the full
+   `snapshot`, so a wrong retire is recoverable by re-teaching from it. Prefer
+   `supersedesKnowledgeId` on a fresh teach when you're *replacing* a rule you
+   disagree with — that keeps a traceable lineage; reach for retire only when
+   a row should not exist at all (a misfile, a duplicate).
 
 Why this matters: rules with registered usage survive decay and rise in
 retrieval; unclosed sessions teach nothing. The loop's two halves were each

@@ -1,11 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-// The 13 brain_* tools the MCP server is contracted to expose to clients.
+// The 14 brain_* tools the MCP server is contracted to expose to clients.
 // If any tool is renamed, removed, or a new one is added, this list must
 // be updated in lock-step — the test then doubles as a guard against
 // accidental surface-area drift (the kind of change that should break
 // every connected Claude Code / Cursor / Windsurf installation in
 // recognisable ways, not silently).
+//
+// brain_retire_knowledge (v2.20.0) is the deliberate exception to "this list
+// should almost never grow": it is the first write tool that removes rather
+// than adds, and its scope is READ parity — it can retire any row
+// brain_retrieve_knowledge could return, not only rows the caller owns
+// (KNOWN_ISSUES §0au). A drift check earning its keep here means a reviewer
+// reads this comment before approving a 13→14 diff, not that the count is
+// sacred.
 const EXPECTED_TOOL_NAMES = [
   "brain_start_session",
   "brain_create_project",
@@ -14,6 +22,7 @@ const EXPECTED_TOOL_NAMES = [
   "brain_retrieve_knowledge",
   "brain_report_session_outcome",
   "brain_teach_knowledge",
+  "brain_retire_knowledge",
   "brain_get_user_style",
   "brain_ask_oracle",
   "brain_log_event",
@@ -23,7 +32,7 @@ const EXPECTED_TOOL_NAMES = [
 ] as const;
 
 describe("tools catalog", () => {
-  it("exposes the 13 brain_* tools as a stable contract", async () => {
+  it("exposes the 14 brain_* tools as a stable contract", async () => {
     // Importing tools/index.js pulls in @brain/core (env validation) and
     // @brain/db (Prisma client). Both are happy with a dummy DATABASE_URL
     // here — they don't open a connection at import time, only on first
