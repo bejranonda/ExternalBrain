@@ -568,12 +568,18 @@ a protected branch. Deploy a single Docker Compose stack: `./scripts/dev-up.sh` 
 
 **Batch related work into one PR.** Commits stay small and single-purpose;
 the PR is the review unit and should carry a coherent batch of them. Each PR
-costs a full CI cycle (~3 min typecheck·test·build, ~4 min authed e2e, plus
-CodeRabbit), and the gates run per *push*, not per *commit* — so a PR-per-fix
-habit buys no extra safety and serializes an hour of waiting into a long
-session. Feedback on an open PR is another commit on that PR. Split only for
-something that must ship alone (a security patch) or that you want revertable
-on its own. Full rationale: `AGENTS.md` → *One PR, many commits*.
+costs a full CI cycle (~3 min typecheck·test·build, ~4 min authed e2e), and
+the gates run per *push*, not per *commit* — so a PR-per-fix habit buys no
+extra safety and serializes an hour of waiting into a long session. Feedback
+on an open PR is another commit on that PR. Split only for something that must
+ship alone (a security patch) or that you want revertable on its own. Full
+rationale: `AGENTS.md` → *One PR, many commits*.
+
+**CodeRabbit is advisory and does not block a merge** (operator decision,
+2026-08-24). It is not a required check, it is often rate-limited, and a
+rate-limited run still posts green — so waiting on it trades real minutes for
+a signal that may be worth nothing. Read it if it is there; merge on the real
+gates if it is not.
 
 Every PR must:
 
@@ -852,6 +858,59 @@ This repo is explicitly designed to be extended with AI assistance. When doing s
 - Prefer small, reviewable diffs. An AI-generated 1000-line change is a review failure, not a productivity win.
 - Always have the AI run tests before declaring a task complete.
 - If the AI proposes violating an invariant, reject the proposal and restart.
+
+**Auditing docs: walk the code surface, not the git log.** Asking "what changed
+since the last docs pass?" finds only *staleness* — text that was true and went
+false. It cannot find *omission*, because nothing that was never written shows
+up in a diff. Two consecutive audits reported the docs clean while
+`BILLING_MODE` — wired through four services, captioning an `/admin` tile,
+adding a field to an API response, live in production — was described in no
+document at all (`KNOWN_ISSUES §0at`, `APPROACH §5cc`). To find that class,
+enumerate what the system exposes (env vars in `.env.example`, routes under
+`apps/web/app/api`, exported functions) and ask of each whether it is described
+anywhere a reader would look. Triage the result: the gap that matters is a knob
+that **changes a surface someone sees while being documented only in
+`.env.example`** — a host port with an inline comment is fine, and a checker
+that flags it will be ignored into uselessness.
+
+**Then run it backwards — one direction is not an audit.** Code→docs finds
+omissions and is structurally blind to phantoms; docs→code finds phantoms and
+is blind to omissions. The reverse sweep found five endpoints documented in
+`docs/REST_API.md` that have never existed, including a `POST /api/oracle/ask`
+an integrator would have written a 404ing client against. **A phantom is worse
+than an omission** — it is indistinguishable from real documentation. Grade
+hits by context, not by string: the same absent endpoint is correct in
+`ROADMAP.md` as an unchecked `- [ ]` and an overclaim in a `BLUEPRINT`
+"Adopted as" column.
+
+```bash
+# docs -> code: cited API paths with no route file.
+find apps/web/app/api -name route.ts | sed 's|apps/web/app/api/||; s|/route.ts||' \
+  | sed 's|\[[a-zA-Z.]*\]|*|g' | sort -u > /tmp/real
+grep -rhoE '/api/[a-zA-Z0-9_/:-]+' docs/*.md README.md \
+  | sed 's|^/api/||; s|:[a-zA-Z]*|*|g; s|/$||' | sort -u | grep -v '^$' \
+  | grep -v '/route$' \
+  | while read -r p; do grep -Fqx "$p" /tmp/real || echo "PHANTOM? /api/$p"; done
+```
+
+`grep -Fqx`, not `grep -qx` — without `-F` the normalised `*` is read as a
+pattern and the whole loop dies on an empty-subexpression error. The `/route$`
+filter drops docs that cite source *files* (`…/oracle/stream/route.ts`) rather
+than URLs.
+
+Its output is still noisy, and **must be spot-checked against the route tree
+rather than trusted** — that triage is what separated the five real phantoms
+from the prose fragments. Expect two standing false positives: a doc that
+correctly explains a *removed* endpoint still names it, and a parent route
+serving sub-paths via query params looks absent under every sub-path spelling.
+
+**A shell snippet in a Markdown file is code — run it before committing it.**
+Both doc-coverage snippets written for `§0at` were wrong on first draft (a
+path-notation mismatch producing 16 false positives, and a `(?==)` "lookahead"
+that `grep -E` does not support and which worked only by accident). Neither
+would have been caught by review; both were caught by execution. This is the
+same rule as `§4`'s "assert the invariant, don't eyeball it", applied to prose
+files.
 
 This is the same spirit the platform is built to serve: AI + persistent knowledge + human oversight.
 

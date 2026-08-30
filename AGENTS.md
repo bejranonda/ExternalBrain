@@ -70,10 +70,19 @@ you (single Docker Compose stack; see `docs/QUICKSTART.md`).
 **The unit of review is the PR; the unit of history is the commit.** Keep
 commits small and single-purpose, then ship a coherent batch of them as one
 PR. A PR-per-fix habit is expensive here and buys nothing: every PR blocks on
-a full CI cycle (typecheck·test·build ~3 min, authed e2e ~4 min, plus
-CodeRabbit), the gates run per *push* rather than per *commit*, and a
-fifteen-PR session is roughly an hour of sequential waiting for work that
-would have passed CI once.
+a full CI cycle (typecheck·test·build ~3 min, authed e2e ~4 min), the gates
+run per *push* rather than per *commit*, and a fifteen-PR session is roughly
+an hour of sequential waiting for work that would have passed CI once.
+
+**CodeRabbit is advisory, not a gate** (operator decision, 2026-08-24). Read
+its comments if they have arrived and act on anything real, but **do not wait
+on it to merge** — it is not in the required-check set (`docs/CICD.md`), and
+it is frequently rate-limited or out of credits, in which case it posts a
+green check having reviewed nothing. Merge on the real gates. The corollary
+is older and still holds: a green CodeRabbit check is not evidence of review
+(`APPROACH §5am`) — when you want a second opinion before merging, run a
+code-review pass yourself rather than reading its absence or its green as a
+verdict.
 
 - **Review feedback on an open PR is another commit on that PR** — never a
   follow-up PR.

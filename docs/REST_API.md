@@ -427,9 +427,14 @@ other rules may already reference.
 ## Oracle
 
 ```
-POST   /api/oracle/ask              non-streaming
+POST   /api/oracle                  non-streaming
 POST   /api/oracle/stream           SSE — token stream + citations
+POST   /api/oracle/feedback         thumbs up/down on an answer
 ```
+
+> The non-streaming endpoint is `POST /api/oracle`. This block read
+> `/api/oracle/ask` until 2026-08-30; no such route has ever existed
+> (`KNOWN_ISSUES §0at`).
 
 ### Oracle response shape (non-streaming + streaming `final` event)
 
@@ -525,11 +530,20 @@ data: {}
 ## Graph
 
 ```
-GET    /api/graph/:skillId/backlinks
-GET    /api/graph/:skillId/dependents
-GET    /api/graph/orphans
-GET    /api/graph/deadends
+GET    /api/graph                   whole knowledge graph for the active project
+  query  scope=project (default) | all
+  auth   required (session cookie)
+  resp   200 { nodes: GraphNodeView[], edges: GraphEdgeView[] }
+         node: { id, label, type: recipe|heuristic|principle|reflex|anti,
+                 deg, confidence, uses, successRate, firstSeen, lastUsed, scope }
+         edge: { source, target, relation, weight }
 ```
+
+> This block previously listed four sub-paths — `/:skillId/backlinks`,
+> `/:skillId/dependents`, `/orphans`, `/deadends`. **None of them exist**, and
+> the parent route reads only a `scope` param, so none was reachable by any
+> spelling. Corrected 2026-08-30 (`KNOWN_ISSUES §0at`). Orphan and dead-end
+> views are derivable client-side from `deg` on the returned nodes.
 
 ## Agentic onboarding (anonymous)
 
@@ -779,12 +793,43 @@ Rules are sorted by `score` descending. Rows with `score === -1` (fewer than 3 o
 ## Admin / health
 
 ```
-GET    /api/admin/brain-health      SQS trend, knowledge health, retrieval quality
-GET    /api/health/ingest-queue     pending_work_units — block before time-sensitive queries (Honcho pattern)
+GET    /api/healthz                 liveness (public); reports the running `git describe` version
+GET    /api/dashboard/health        30-day loop vitals — sessions opened/closed/with-learnings,
+                                    injection used-rate, active+validated knowledge counts,
+                                    duplicate-project groups (user-wide, NOT project-scoped)
 GET    /api/admin/audit-log         paginated audit log (admin-only)
 GET    /api/admin/backup-status     off-host backup replication heartbeat (admin-only)
+GET    /api/admin/cost-ledger       last 30 days of Oracle spend, all users (admin-only)
+GET    /api/admin/queue-health      dead-letter depth/age + per-queue 24 h failure counts (admin-only)
 POST   /api/admin/knowledge/reset   bulk soft-delete (or hard-delete) Knowledge rows in current org
 ```
+
+**`GET /api/admin/cost-ledger`**
+
+Auth: admin. Writes an `admin.cost_ledger_view` audit row.
+
+```jsonc
+{
+  "entries": [
+    { "userId": "…", "email": "a@b.c", "day": "2026-08-30T00:00:00.000Z",
+      "tokensInput": 12043, "tokensOutput": 3310, "costUsd": 0.0421, "callCount": 7 }
+  ],
+  // Non-null ONLY when BILLING_MODE=subscription. See below.
+  "disclaimer": "List-value estimate — this deployment is on a flat subscription…"
+}
+```
+
+`email` is `null` for a deleted user: `OracleCostLedger` deliberately has no
+Prisma relation to `User`, so billing history survives account deletion rather
+than cascading away with it.
+
+**`disclaimer` is not decoration — render it wherever you render `costUsd`.**
+On a flat-subscription deployment those dollar figures are what the traffic
+*would* have cost at published per-token rates, not an amount anyone was
+billed. The string ships with the data rather than living in each client
+because the failure mode is the API and the dashboard captioning the same
+number two different ways, which is how an operator ends up trusting the wrong
+one. It is `null` on a per-token deployment, where the figures are literal.
 
 **`POST /api/admin/knowledge/reset`**
 
