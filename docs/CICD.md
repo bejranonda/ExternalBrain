@@ -122,6 +122,26 @@ No TLS, no Caddy, seeds a demo fixture so the app has something to show. This is
 the right choice on your laptop or any throwaway box. App on
 `http://localhost:3000`, MCP on `http://localhost:3100/mcp`.
 
+> **Live-integration suites are opt-in.**
+> `apps/mcp-server/src/__tests__/session-lifecycle.test.ts` mints a real
+> `MCPToken` row and drives authenticated HTTP, so it never picks a target on
+> its own — set `BRAIN_MCP_E2E_URL` (and point `DATABASE_URL` at the same
+> disposable stack) to run it; unset, it skips. It also **refuses** to run
+> when `BRAIN_DEPLOY_ENV=production`. This used to default to
+> `http://localhost:3100`, which on a deployment host is the live production
+> MCP server (`KNOWN_ISSUES §0aw`).
+>
+> ```bash
+> BRAIN_MCP_E2E_URL=http://localhost:3100 \
+> DATABASE_URL=postgresql://brain:brain@localhost:5432/brain \
+>   pnpm --filter @brain/mcp-server test
+> ```
+>
+> `auth-gate.test.ts` keeps its `localhost:3100` default on purpose — it
+> writes nothing and only asserts that unauthenticated requests are refused,
+> so developers keep that coverage for free; it carries the production refusal
+> alone.
+
 ### Public server — `./scripts/deploy.sh`
 
 ```bash
