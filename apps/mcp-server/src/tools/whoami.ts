@@ -64,18 +64,40 @@ export const whoami: ToolDef = {
     // The public hostname this deployment believes it serves. Reading it from
     // the server's own env (not from anything the client sent) is the point:
     // it is the fact the client cannot know and cannot get wrong.
-    const publicHost =
-      process.env.BRAIN_MCP_PUBLIC_HOSTNAME ||
-      process.env.BRAIN_PUBLIC_HOSTNAME ||
-      null;
+    //
+    // The `|| BRAIN_PUBLIC_HOSTNAME` fallback is deliberately NOT silent any
+    // more. On the reference deployment the MCP var was never passed to this
+    // container, so the fallback fired and this tool — whose entire job is
+    // answering "which Brain am I talking to?" — confidently reported the
+    // WEB host (`brain.autobahn.bot`) for an endpoint actually served at
+    // `mcp.brain.autobahn.bot` (`KNOWN_ISSUES §0ax`). A diagnostic that
+    // guesses is worse than one that admits it does not know, because the
+    // guess is indistinguishable from the answer.
+    const mcpHost = process.env.BRAIN_MCP_PUBLIC_HOSTNAME?.trim() || null;
+    const webHost = process.env.BRAIN_PUBLIC_HOSTNAME?.trim() || null;
 
     return {
       instance: {
-        mcpPublicHostname: publicHost,
+        mcpPublicHostname: mcpHost ?? webHost,
+        // Present ONLY when the value above is a fallback, so a reader can
+        // tell a known answer from a plausible one.
+        ...(mcpHost
+          ? {}
+          : {
+              mcpPublicHostnameIsFallback: true,
+              mcpPublicHostnameNote:
+                "BRAIN_MCP_PUBLIC_HOSTNAME is not set on this server; the value shown is the WEB hostname and is probably not the MCP endpoint you connected to.",
+            }),
         // Distinguishes two deployments that share a hostname but not a
         // database — a staging copy restored from a prod dump, say.
         databaseName: process.env.POSTGRES_DB ?? "brain",
-        environment: process.env.ENVIRONMENT ?? null,
+        // BRAIN_DEPLOY_ENV, never ENVIRONMENT. The reference prod host carries
+        // `ENVIRONMENT=dev` as a leftover label, so the old read here would
+        // have reported a production Brain as "dev" — the precise failure
+        // `apps/web/app/api/healthz/route.ts` was given a separate variable to
+        // avoid, reproduced in the tool meant to catch it (`§0al`, `§0ax`).
+        // Absent rather than guessed when unset: "cannot verify" ≠ "not prod".
+        environment: process.env.BRAIN_DEPLOY_ENV?.trim() || null,
       },
       identity: {
         userId: user?.id ?? auth.userId,

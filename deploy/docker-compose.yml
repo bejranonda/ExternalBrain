@@ -266,6 +266,23 @@ services:
       # so a developer pasting the MCP hostname in a browser has somewhere
       # to go. Empty default → those fields render as null (graceful).
       BRAIN_PUBLIC_HOSTNAME: ${BRAIN_PUBLIC_HOSTNAME:-}
+      # Lets `GET /health` answer "which tier am I?" — the question a
+      # destructive automated check must ask of the TARGET rather than of its
+      # own shell (KNOWN_ISSUES §0ax). Without this line the endpoint reports
+      # `environment: null` on a real production box and the guard that reads
+      # it cannot ever fire: v2.20.3 added the field to the code and passed
+      # its tests in a disposable container where the variable was set on the
+      # command line, while production stayed silent. The env read and the
+      # env PLUMBING are two separate things to verify (GUIDELINES §4 —
+      # assert the invariant across all N).
+      BRAIN_DEPLOY_ENV: ${BRAIN_DEPLOY_ENV:-}
+      # Both consumed by brain_whoami, whose whole job is answering "which
+      # Brain am I talking to?". Without the MCP hostname it silently fell
+      # back to the WEB hostname and reported the wrong endpoint with no hint
+      # that it had guessed; without the DB name it reported the "brain"
+      # default, which was right only by luck (§0ax).
+      BRAIN_MCP_PUBLIC_HOSTNAME: ${BRAIN_MCP_PUBLIC_HOSTNAME:-}
+      POSTGRES_DB: ${POSTGRES_DB:-brain}
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
     ports:
