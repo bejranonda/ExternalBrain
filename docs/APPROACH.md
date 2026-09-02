@@ -3347,3 +3347,64 @@ failing. All three states were checked: skips by default, refuses on
 production, and runs 7/7 green against a disposable stack.
 
 Full instance: `KNOWN_ISSUES.md §0aw`.
+
+---
+
+## 5cf. The guard asked the wrong machine (2026-09-02, v2.20.3)
+
+`§5ce` fixed a test that could write to production. Part of that fix was a
+refusal: throw if `BRAIN_DEPLOY_ENV === "production"`. I logged, honestly, that
+it only half-worked — nothing loads `.env` into vitest, so on the very host it
+protected, the variable was unset and the guard passed. I filed the remedy as
+"add a `dotenv` preload" and moved on.
+
+Re-reading it later, the proposal was wrong, and wrong in an instructive way.
+
+A preload would have made the **client** better at describing itself. But the
+process doing the writing can run anywhere — a laptop, CI, a container, the
+deployment host — while the thing at risk is always the **target**. Asking the
+client "am I production?" is a question about the wrong machine. The missing
+variable was never a loading bug; it was a category error wearing a loading
+bug's clothes, and patching the loader would have produced a guard that was
+merely harder to fool rather than one pointed the right way.
+
+> **A safety check belongs on the side that carries the risk.** If the check
+> can be satisfied by a machine that has nothing at stake, it is measuring
+> convenience, not safety.
+
+The repo already had this rule — `GUIDELINES §4`, *identify the target as part
+of the check*, written after a round-trip test verified the wrong Brain. It had
+only ever been applied to **assertions** ("did I measure the right box?"), never
+to **guards** ("may I write to this box?"). Same sentence, second application,
+and I had to fail once to see the second one.
+
+The fix inverts the question: `GET /health` now reports its own tier, and the
+suite asks the server it is about to write to. Verified with two disposable
+servers differing only in that variable, with the local one explicitly unset so
+only the target check could fire — the case the previous guard could not catch
+at all.
+
+**A second finding from the same re-audit, and a genuinely new failure axis.**
+Checking all eight items still marked open in `KNOWN_ISSUES.md`, seven held.
+One claimed `brain_ask_oracle` was project-context-free and proposed a fix
+naming the exact file and approach — which had **shipped six weeks earlier**.
+The vitest config likewise described a two-suite scaffold in a directory of
+fourteen.
+
+`§5cc` taught auditing docs against code in both directions: docs→code finds
+phantoms, code→docs finds omissions. Both check whether a **referent exists**.
+These entries reference things that exist, in files that exist, with links that
+resolve — what expired was the **claim about their state**. No reference check
+can catch that, because nothing dangles.
+
+> **A stale *open* item is worse than a stale *closed* one.** A "fixed" that is
+> secretly broken costs you a bug. A "broken, here's how to fix it" that is
+> secretly fixed costs you the work twice — and it is written in the
+> imperative, which is precisely the voice an agent obeys.
+
+It does not automate cheaply. The one cheap habit that helps: **verify an open
+item's proposed fix before acting on it** — a fix candidate specific enough to
+name a file and an approach is one grep from being confirmed already-shipped.
+Both of these were.
+
+Full instance: `KNOWN_ISSUES.md §0ax`.

@@ -1,11 +1,20 @@
 import { defineConfig } from "vitest/config";
 
-// Initial vitest scaffold for @brain/mcp-server (#42). Today's coverage is
-// limited to the pure helpers in `http-helpers.ts` and the static `tools`
-// catalog — both of which can be tested without standing up Postgres or the
-// MCP HTTP transport. Session-lifecycle and auth-roundtrip tests (the
-// regression nets for #4 and #15) need an in-process Streamable-HTTP server
-// + mocked `@brain/db`; tracked as follow-up in #42.
+// Vitest config for @brain/mcp-server. 14 suites, most of them pure (helpers,
+// the tools catalog, scope resolution, input validation) and runnable with no
+// Postgres and no HTTP transport.
+//
+// Two suites DO talk to a live server, and they are the reason to read this
+// file before adding a third: `auth-gate.test.ts` (read-only — probes that
+// unauthenticated requests are refused, keeps its localhost default) and
+// `session-lifecycle.test.ts` (WRITES — mints a real MCPToken, so it is
+// opt-in via `BRAIN_MCP_E2E_URL` with no default and refuses a target that
+// reports `environment: "production"`). See `KNOWN_ISSUES §0aw`/`§0ax`.
+//
+// This comment previously said coverage was "limited to http-helpers and the
+// tools catalog", with the live-server suites "tracked as follow-up" — both
+// had shipped long before, and the description sat wrong for months. Adding a
+// suite means editing this paragraph.
 export default defineConfig({
   test: {
     include: ["src/__tests__/**/*.test.ts"],
