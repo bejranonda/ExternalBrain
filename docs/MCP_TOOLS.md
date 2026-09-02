@@ -27,6 +27,22 @@ Mint a token at `/settings/tokens`. After mint, the wizard generates the exact i
 }
 ```
 
+### `GET /health` — unauthenticated liveness + tier
+
+```jsonc
+{ "ok": true, "transport": "http", "sessions": 5, "environment": "production" }
+```
+
+`environment` mirrors the web app's `/api/healthz` field of the same name and
+comes from `BRAIN_DEPLOY_ENV`. It is **absent (`null`) when unset, never
+guessed** — a caller must treat that as *cannot verify*, not as *not
+production*. It reports a tier label and never a hostname, since this endpoint
+is public.
+
+It exists so that a destructive automated check can ask **the box** what it is
+rather than trusting its own shell — the property a test guard needs when the
+process doing the writing may be running anywhere (`KNOWN_ISSUES §0ax`).
+
 ## Tools
 
 ### `brain_whoami` — which Brain am I talking to?

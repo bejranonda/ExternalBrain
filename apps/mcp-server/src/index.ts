@@ -227,7 +227,29 @@ async function runHttp(): Promise<void> {
   const http = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     if (req.url === "/health") {
       res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ ok: true, transport: "http", sessions: sessions.size }));
+      res.end(
+        JSON.stringify({
+          ok: true,
+          transport: "http",
+          sessions: sessions.size,
+          // Which tier is this? Mirrors `apps/web/app/api/healthz`'s field of
+          // the same name, deliberately down to the fail-safe: **absent when
+          // unset**, never guessed. A caller treats a missing value as
+          // "cannot verify" rather than "not production".
+          //
+          // This exists so a destructive check can ask the BOX rather than
+          // its own shell. `session-lifecycle.test.ts` writes real rows, and
+          // its production guard originally read `BRAIN_DEPLOY_ENV` from the
+          // *test process* — which is the wrong place to ask, because the
+          // process doing the writing can be anywhere while the thing at risk
+          // is the target (`GUIDELINES §4` "identify the target as part of
+          // the check", `KNOWN_ISSUES §0ax`).
+          //
+          // Reports a tier label, never a hostname: this is unauthenticated
+          // and the repo does not publish its deployment host.
+          environment: process.env.BRAIN_DEPLOY_ENV?.trim() || null,
+        }),
+      );
       return;
     }
     // Closes ExternalBrain #9 — bare GET / used to return nginx's 9-byte

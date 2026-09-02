@@ -31,14 +31,32 @@ import { db } from "@brain/db";
  *   1. `BRAIN_MCP_E2E_URL` must be set explicitly. There is NO default — an
  *      unset variable skips the suite. "Runs against whatever is listening"
  *      is the property that made this dangerous, so it is gone.
- *   2. Even when opted in, the suite REFUSES (loudly, not silently) if
- *      `BRAIN_DEPLOY_ENV` says production. A skip would be the wrong
- *      response: someone who set the variable meant to run something, and
- *      needs telling why it did not. Note this deliberately reads
- *      `BRAIN_DEPLOY_ENV`, not `ENVIRONMENT` — the prod host carries
- *      `ENVIRONMENT=dev` as a leftover label, and trusting it would make
- *      this guard confidently clear production (see the same warning in
- *      `apps/web/app/api/healthz/route.ts`).
+ *   2. Even when opted in, the suite REFUSES (loudly, not silently) if the
+ *      target says it is production. A skip would be the wrong response:
+ *      someone who set the variable meant to run something, and needs telling
+ *      why it did not.
+ *
+ * Guard 2 asks the TARGET, not this process. The first version of it read
+ * `BRAIN_DEPLOY_ENV` from the test process's own environment — which is the
+ * wrong place to ask, and only half-worked: nothing loads `.env` into vitest,
+ * so on the very host the guard existed to protect it was reading an unset
+ * variable and cheerfully passing. The process doing the writing can be
+ * anywhere; the thing at risk is the box being written to, so the box is what
+ * gets asked (`GUIDELINES §4` — identify the target as part of the check,
+ * `KNOWN_ISSUES §0ax`). `/health` now reports `environment` for exactly this.
+ *
+ * The local env check is kept as a cheap pre-flight — it can refuse before any
+ * network call — but it is no longer the load-bearing one. Both read
+ * `BRAIN_DEPLOY_ENV`, never `ENVIRONMENT`: the prod host carries
+ * `ENVIRONMENT=dev` as a leftover label, and trusting it would make this guard
+ * confidently clear production (same warning in
+ * `apps/web/app/api/healthz/route.ts`).
+ *
+ * A target that does not report `environment` at all is treated as
+ * unverifiable, not as safe — but it does not block, because an older
+ * mcp-server build legitimately predates the field. That is the deliberate
+ * residual: opt-in is what makes this safe, and these two checks are defence
+ * in depth on top of it.
  *
  * To run it: point both variables at a disposable stack, e.g.
  *   BRAIN_MCP_E2E_URL=http://localhost:3100 \
@@ -47,12 +65,36 @@ import { db } from "@brain/db";
  */
 const MCP_URL = process.env.BRAIN_MCP_E2E_URL?.trim();
 
+const PROD_REFUSAL =
+  "session-lifecycle.test.ts refuses to run against a production deployment: " +
+  "it mints a real MCPToken row and drives live HTTP. Point DATABASE_URL and " +
+  "BRAIN_MCP_E2E_URL at a disposable stack, or unset BRAIN_MCP_E2E_URL to skip " +
+  "this suite.";
+
+// Pre-flight: cheapest possible refusal, before a single packet is sent.
 if (MCP_URL && process.env.BRAIN_DEPLOY_ENV?.trim() === "production") {
+  throw new Error(`${PROD_REFUSAL} (BRAIN_DEPLOY_ENV=production in this shell.)`);
+}
+
+/**
+ * Ask the target what it is. Returns its self-reported tier, or null when it
+ * does not say — which callers must treat as "unverified", never as "safe".
+ */
+async function targetEnvironment(): Promise<string | null> {
+  if (!MCP_URL) return null;
+  try {
+    const r = await fetch(`${MCP_URL}/health`, { signal: AbortSignal.timeout(1500) });
+    if (!r.ok) return null;
+    const body = (await r.json()) as { environment?: string | null };
+    return body.environment?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+if (MCP_URL && (await targetEnvironment()) === "production") {
   throw new Error(
-    "session-lifecycle.test.ts refuses to run against a production deployment: " +
-      "it mints a real MCPToken row and drives live HTTP. BRAIN_DEPLOY_ENV=production " +
-      "was found in this environment. Point DATABASE_URL and BRAIN_MCP_E2E_URL at a " +
-      "disposable stack, or unset BRAIN_MCP_E2E_URL to skip this suite.",
+    `${PROD_REFUSAL} (The server at ${MCP_URL} reports environment="production".)`,
   );
 }
 

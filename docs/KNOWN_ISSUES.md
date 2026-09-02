@@ -332,7 +332,7 @@ behavior is v1.14-identical until the operator enables them.
 | **Teach path is live regardless of flags.** `brain_teach_knowledge(type:"action_item")` works today — the protocols under `docs/protocols/` are usable now; the flags only gate the *surfacing* (injection + Oracle). Dry-running meeting-miner on real meetings before flag-enable is the intended validation. | `docs/protocols/meeting-miner.md` | by design |
 | **Webapp renders `action_item` rows generically.** Knowledge lists show them as raw `chip k-action_item` (default styling) and the dashboard composition panel ignores unknown types (no crash, just uncounted). A task-aware presentation is deliberately deferred (spec §8: no new webapp surfaces in V2.0). | `apps/web/components/brain/dashboard.tsx` | accepted (deferred) |
 | **Non-dev Oracle adoption is the untested bet.** Meeting outputs for scrum masters/stakeholders are consumed via the signed-in Oracle (operator decision: no email/push, ever). Extraction quality is dry-run-testable; whether non-devs actually *ask* is not — validate with a real stakeholder in the first week after flag-enable (spec §1 names this residual risk). | spec §1 goal 3 | open |
-| **`brain_ask_oracle` (MCP) is project-context-free, so its OPEN TASKS block stays empty.** The MCP oracle tool calls `oracle.ask(userId, …)` without resolving a project, so even with `V2_ORACLE_TASKS` on, the deterministic task enumeration has no project to enumerate (surfaced during flag-enable validation 2026-07-09; a pre-existing tool limitation — the Brain already carried "validate project-bound knowledge via `brain_start_session`, not context-free oracle calls"). The spec's §4c surface — the **webapp** Oracle — has both the flag and project context and is unaffected. Fix candidate: resolve the caller's default project in `tools/oracle.ts` like `start-session.ts` does (changes semantic scoping of every MCP oracle answer — needs its own small design pass, not a drive-by). | `apps/mcp-server/src/tools/oracle.ts` | open (deferred) |
+| ~~**`brain_ask_oracle` (MCP) is project-context-free, so its OPEN TASKS block stays empty.**~~ **Fixed in v2.18.0**, and this row went on claiming otherwise until 2026-09-02. The tool now calls `resolveProjectForCall` and passes the resolved id into `oracle.ask(…, projectId, …)`, which is what reaches `listProjectActionItems({ userId, projectId })` — so with `V2_ORACLE_TASKS` on, the block populates. The "fix candidate" this row proposed ("resolve the caller's default project in `tools/oracle.ts` like `start-session.ts` does") is precisely what shipped, which is what makes a stale *open* entry worse than a stale *closed* one: it is a standing invitation to redo finished work. See `§0ax`. | `apps/mcp-server/src/tools/oracle.ts` | done (v2.18.0; row corrected 2026-09-02) |
 | **`for:` addressing uses the assignee's Brain account email**, which can differ from their work/external email (the operator's account is `admin@…local`, not the Gmail used in early fixtures). meeting-miner must map people to their Brain emails (webapp → Settings → members), lowercase. Surfaced by the first live addressed-injection test (2026-07-09). | `docs/protocols/meeting-miner.md` | fixed in protocol (v2.1.1) |
 
 ---
@@ -2320,7 +2320,95 @@ than it is, is worse than one you have measured.
 | Test defaulted to a live URL and wrote to whatever DB was configured | `apps/mcp-server/src/__tests__/session-lifecycle.test.ts` | fixed (v2.20.2) |
 | Hardcoded tool count went stale and camouflaged the above for ~3 months | same | fixed (v2.20.2) — derived from the catalog |
 | Same shape, lower risk (read-only unauth probes) | `apps/mcp-server/src/__tests__/auth-gate.test.ts` | fixed (v2.20.2) — prod refusal only; default kept deliberately |
-| `BRAIN_DEPLOY_ENV` is not loaded into a bare `pnpm test` shell | — | open (low) — the opt-in guard covers the case that matters; a `dotenv` preload in the vitest config would close the rest |
+| `BRAIN_DEPLOY_ENV` is not loaded into a bare `pnpm test` shell | — | **superseded (v2.20.3)** — the `dotenv` preload proposed here was the wrong fix: it would have made the *client* better at describing itself, when the thing at risk is the *target*. The guard now asks the server via `GET /health`. See `§0ax` |
+
+---
+
+## 0ax. A guard that asked the wrong side, and two claims that outlived their truth (2026-09-02, v2.20.3)
+
+Follow-up to `§0aw`, from re-auditing what that fix left behind.
+
+### The guard interrogated itself, not the thing at risk
+
+`session-lifecycle.test.ts` writes real rows, so `§0aw` gave it a refusal:
+throw if `BRAIN_DEPLOY_ENV === "production"`. That reads the **test process's**
+environment — and nothing loads `.env` into vitest, so on the very host the
+guard existed to protect, it read an unset variable and passed cheerfully.
+`§0aw` logged this honestly as a residual and proposed a `dotenv` preload.
+
+**That proposal was the wrong fix, and re-reading it made the reason obvious.**
+A preload would have made the client better at describing itself. But the
+process doing the writing can be anywhere; **the thing at risk is the target.**
+Asking the client "am I production?" is a question about the wrong machine —
+which is why the answer being absent was not a loading bug but a category
+error, and why patching the loader would have left a guard that is merely
+harder to fool rather than pointed the right way.
+
+`GUIDELINES §4` already had the rule, from a different incident: *identify the
+target as part of the check*. It had never been applied to a guard, only to
+assertions.
+
+**Fix:** `GET /health` on the MCP server now reports `environment` (mirroring
+`/api/healthz`, `BRAIN_DEPLOY_ENV`, absent-when-unset). The suite asks the
+target and refuses on `"production"`. The local env check stays as a cheap
+pre-flight that can refuse before a packet is sent, but it is no longer
+load-bearing. A target that does not report the field is *unverified*, not
+*safe* — it does not block, because an older build legitimately predates the
+field, and opt-in is what makes the suite safe regardless.
+
+Verified with two disposable servers on one host, differing only in that
+variable — and with `BRAIN_DEPLOY_ENV` explicitly **unset** in the test shell,
+so only the target check could fire:
+
+| Target self-report | Expected | Result |
+|---|---|---|
+| `environment: null` | runs | 7/7 pass ✓ |
+| `environment: "production"` | refuses, naming the target | threw, quoting the URL ✓ |
+
+The second row is the case the `§0aw` guard could not catch at all.
+
+### Two claims that outlived their truth
+
+The same audit checked all 8 entries in this file still marked open. Seven
+hold. One did not:
+
+**`brain_ask_oracle` (MCP) was listed as project-context-free** — with a "fix
+candidate: resolve the caller's default project in `tools/oracle.ts` like
+`start-session.ts` does". That shipped in **v2.18.0**. The row described a
+solved problem and recommended the solution as though it were future work, for
+roughly six weeks.
+
+And `apps/mcp-server/vitest.config.ts` opened by stating coverage was "limited
+to the pure helpers in `http-helpers.ts` and the static `tools` catalog", with
+the live-server suites "tracked as follow-up" — while sitting in a directory
+holding **14** suites including both of those.
+
+**This is a third failure axis, and the `§0at` sweeps cannot see it.** Those
+walk *existence* in both directions: docs→code finds phantoms (a documented
+thing that does not exist), code→docs finds omissions (a real thing nothing
+mentions). Both were about whether a referent exists. These two entries name
+things that exist, in files that exist, with links that resolve — the
+**claim about their state** is what went stale. No reference check can catch
+that, because nothing is dangling.
+
+> **A stale *open* item is worse than a stale *closed* one.** "Fixed" that is
+> secretly broken costs you a bug. "Broken, here's how to fix it" that is
+> secretly fixed costs you the work twice — it reads as a standing invitation
+> to redo finished work, and it is written in the imperative, which is exactly
+> the voice an agent obeys.
+
+The only check that finds these is re-deriving the claim from the code, which
+does not automate cheaply. What does help: **treat an open item's proposed fix
+as the thing to verify first** — a "fix candidate" naming a specific file and
+approach is a cheap grep away from being confirmed already-shipped.
+
+| Issue | Where | Status |
+|---|---|---|
+| Prod guard read the client's env, not the target's | `session-lifecycle.test.ts`, `apps/mcp-server/src/index.ts` | fixed (v2.20.3) |
+| MCP `/health` could not identify its own tier | `apps/mcp-server/src/index.ts` | fixed (v2.20.3) |
+| `brain_ask_oracle` row claimed a v2.18.0-fixed limitation was open | this file | fixed (v2.20.3) |
+| vitest config described a 2-suite scaffold that had grown to 14 | `apps/mcp-server/vitest.config.ts` | fixed (v2.20.3) |
+| Nothing re-derives "is this open item still open?" | — | open — inherent; the mitigation is verifying the proposed fix first, not a script |
 
 ---
 

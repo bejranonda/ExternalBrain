@@ -407,6 +407,15 @@ default:
   probes that unauthenticated requests are refused. It kept its default and
   got the production refusal alone; making it opt-in would have cost real
   coverage of a security gate for no safety. Same shape, different answer.
+- **Ask the target, not yourself.** The refusal must be driven by what the
+  *server* reports (`GET /health` → `environment`), not by an env var in the
+  test process. The process doing the writing can run anywhere; the thing at
+  risk is the target, so a check the client can satisfy on its own is
+  measuring convenience, not safety. The first version of this guard read
+  `BRAIN_DEPLOY_ENV` locally — and nothing loads `.env` into vitest, so on the
+  one host it protected it read an unset variable and passed (`§0ax`). Keep a
+  local check only as a cheap pre-flight. **A target that does not report a
+  tier is _unverified_, never _safe_.**
 - **Then prove it can still pass.** A suite that only ever skips is a vacuous
   gate (below). Check all three states — skips by default, refuses on
   production, and *runs green* against a disposable stack — because "the
@@ -908,6 +917,18 @@ anywhere a reader would look. Triage the result: the gap that matters is a knob
 that **changes a surface someone sees while being documented only in
 `.env.example`** — a host port with an inline comment is fine, and a checker
 that flags it will be ignored into uselessness.
+
+**And check claims, not just references — a third axis neither sweep sees.**
+Both directions below verify that a *referent exists*. Neither can tell you
+whether a sentence about state is still true: an entry naming a real file, with
+a link that resolves, can quietly describe a problem that was fixed weeks ago.
+Seven of eight open items in `KNOWN_ISSUES.md` held under audit; one proposed a
+"fix candidate" that had shipped six weeks earlier (`§0ax`). **A stale *open*
+item is worse than a stale *closed* one** — a wrong "fixed" costs you a bug, a
+wrong "still broken, do this" costs you the work twice, in the imperative voice
+an agent obeys. It does not automate; the cheap habit is to **verify an open
+item's proposed fix before acting on it**, since a candidate specific enough to
+name a file is one grep from being confirmed already-done.
 
 **Then run it backwards — one direction is not an audit.** Code→docs finds
 omissions and is structurally blind to phantoms; docs→code finds phantoms and
