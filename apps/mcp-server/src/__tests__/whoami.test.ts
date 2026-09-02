@@ -71,6 +71,26 @@ describe("brain_whoami", () => {
     expect(SRC).not.toMatch(/raw\.(host|url|instance)/);
   });
 
+  it("FLAGS the web-hostname fallback instead of passing it off as the answer", () => {
+    // Measured on the reference deployment 2026-09-02: BRAIN_MCP_PUBLIC_HOSTNAME
+    // was never passed to the mcp-server container, so this fell through to the
+    // WEB hostname and reported `brain.autobahn.bot` for an endpoint served at
+    // `mcp.brain.autobahn.bot`. The tool exists to answer "which Brain am I
+    // talking to?" — a silent guess there is worse than an admitted gap,
+    // because it is indistinguishable from a real answer (KNOWN_ISSUES §0ax).
+    expect(SRC).toMatch(/mcpPublicHostnameIsFallback/);
+    expect(SRC).toMatch(/mcpPublicHostnameNote/);
+  });
+
+  it("reports the tier from BRAIN_DEPLOY_ENV, never the stale ENVIRONMENT label", () => {
+    // The reference prod host carries `ENVIRONMENT=dev` as a leftover, so
+    // reading it would report a production Brain as dev — the exact failure
+    // apps/web/app/api/healthz/route.ts was given a separate variable to
+    // avoid, and it had been reproduced here in the tool meant to catch it.
+    expect(SRC).toMatch(/process\.env\.BRAIN_DEPLOY_ENV/);
+    expect(SRC).not.toMatch(/process\.env\.ENVIRONMENT/);
+  });
+
   it("is deliberately not capability-gated", () => {
     // A restricted token must still be able to ask what it is — that is
     // exactly the situation where the caller is most confused.

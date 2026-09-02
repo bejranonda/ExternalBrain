@@ -2410,6 +2410,46 @@ approach is a cheap grep away from being confirmed already-shipped.
 | vitest config described a 2-suite scaffold that had grown to 14 | `apps/mcp-server/vitest.config.ts` | fixed (v2.20.3) |
 | Nothing re-derives "is this open item still open?" | — | open — inherent; the mitigation is verifying the proposed fix first, not a script |
 
+### Addendum, same day: the fix above shipped inert, and the smoke test proved it
+
+Within minutes of deploying v2.20.3 the new guard was pointed at real
+production with `BRAIN_DEPLOY_ENV` unset locally — the exact shape of the
+hazard. **It did not refuse.** Production's `/health` answered
+`environment: null`.
+
+`BRAIN_DEPLOY_ENV` appears exactly once in `deploy/docker-compose.yml`, in the
+`web:` service. The **mcp-server container never received it**, so the code
+read an unset variable and reported `null` forever. The guard could not fire
+against the one deployment it existed to protect.
+
+The verification that missed it is the instructive part. v2.20.3 was tested
+with two disposable mcp-servers whose *only* difference was that variable —
+**set on the command line.** That design proves the code reads the variable and
+is structurally incapable of noticing that nothing supplies it in production.
+**An env read and its env plumbing are two separate things, and a test that
+provides the value itself can only ever verify the first.** The repo already
+had the shape of this rule (`GUIDELINES §4`, assert the invariant across all N;
+`§0q`, a mechanism reporting success while doing nothing) — it just had not
+been applied to config wiring.
+
+What caught it was refusing to treat "merged, tagged, deployed" as done and
+running the new behaviour against the real box. The check took one `curl`.
+
+**A second defect surfaced in the same run.** With no `DATABASE_URL`, the suite
+reported **"7 passed"** having executed no assertions: `beforeAll` swallowed the
+mint failure with a `console.warn`, and every test begins `if (!fixture)
+return`, which vitest scores as a pass. A suite that reports green while doing
+nothing is `§0r` again, one layer deeper — and it is what made "the guard let
+it through" look briefly like "the tests ran against prod and passed". Reaching
+`beforeAll` means the caller explicitly opted in and the target answered, so a
+missing fixture is now a thrown error, never a silent pass.
+
+| Issue | Where | Status |
+|---|---|---|
+| `BRAIN_DEPLOY_ENV` never reached the mcp-server container, so the v2.20.3 guard was inert in production | `deploy/docker-compose.yml` | fixed (v2.20.4) — verified against the live box: `/health` now reports `production`, and the guard refuses it |
+| Suite reported 7 passing tests while executing none (`if (!fixture) return`) | `session-lifecycle.test.ts` | fixed (v2.20.4) — `beforeAll` throws |
+| Other env vars may be plumbed to some services and not others | `deploy/docker-compose.yml` | open — worth one sweep comparing each service's env block against what its code reads |
+
 ---
 
 ## 1. Scaffolding-level issues (v0.1+)

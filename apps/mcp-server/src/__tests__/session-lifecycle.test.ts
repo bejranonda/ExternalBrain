@@ -142,12 +142,30 @@ const guard = live ? describe : describe.skip;
 
 guard(`MCP session lifecycle (live dev server at ${MCP_URL})`, () => {
   beforeAll(async () => {
+    // FAIL, don't warn. This used to swallow the error and leave `fixture`
+    // null, and every test below returns early when it is — so the suite
+    // reported "7 passed" while executing not one assertion. Observed
+    // 2026-09-02 running it opted-in with no DATABASE_URL: a green suite that
+    // had done nothing at all (`KNOWN_ISSUES §0ax`).
+    //
+    // Reaching here means the caller explicitly set BRAIN_MCP_E2E_URL and the
+    // target answered — they asked for these tests to run. If the fixture
+    // cannot be built, that is an error to surface, never a pass to hand back.
     try {
       fixture = await mintTestToken();
     } catch (err) {
-      // DB unreachable — every test skips via the inner guards below.
-      // eslint-disable-next-line no-console
-      console.warn("[session-lifecycle] could not mint test token:", err);
+      throw new Error(
+        `could not mint the test token — this suite cannot run without a writable DB. ` +
+          `Set DATABASE_URL to the same disposable stack as BRAIN_MCP_E2E_URL. Cause: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+      );
+    }
+    if (!fixture) {
+      throw new Error(
+        "could not mint the test token: no User row exists in the target database. " +
+          "Seed one (the dev seed creates 'Alex') before running this suite.",
+      );
     }
   });
 
