@@ -2448,7 +2448,108 @@ missing fixture is now a thrown error, never a silent pass.
 |---|---|---|
 | `BRAIN_DEPLOY_ENV` never reached the mcp-server container, so the v2.20.3 guard was inert in production | `deploy/docker-compose.yml` | fixed (v2.20.4) — verified against the live box: `/health` now reports `production`, and the guard refuses it |
 | Suite reported 7 passing tests while executing none (`if (!fixture) return`) | `session-lifecycle.test.ts` | fixed (v2.20.4) — `beforeAll` throws |
-| Other env vars may be plumbed to some services and not others | `deploy/docker-compose.yml` | open — worth one sweep comparing each service's env block against what its code reads |
+| Other env vars may be plumbed to some services and not others | `deploy/docker-compose.yml` | fixed (v2.21.0) — the sweep found seven; `compose-env-delivery.test.ts` now asserts it across every service (`§0ay`) |
+
+## 0ay. Switches, guards and claims that did nothing — a whole-repo review (2026-10-11, v2.21.0)
+
+A review of the whole repo (three read-only sweeps — env plumbing per service,
+auth coverage of all 62 routes / 7 server actions / 14 MCP tools, test + CI
+honesty — then every finding re-verified against the code) found one defect
+shape over and over: **a switch, guard or sentence exists on one surface and
+silently does nothing on another.** It is `§0as`'s "second door" and `§0ax`'s
+"env read vs env plumbing" generalised.
+
+### Privacy: the documented way to send nothing to an LLM did not work
+
+`PRIVACY.md` said `KEA_ENABLED=false` + `ORACLE_ENABLED=false` sends nothing to
+any LLM; `.env.example` labelled both KEA switches "WIRED". **No code read
+`KEA_ENABLED` or `AUTOSKILL_ENABLED`** — `envForWorker()` parsed them and
+`env.test.ts` asserted the parse, and that was all. And `ORACLE_ENABLED` was
+checked by the two web routes but not by MCP `brain_ask_oracle`, which reaches
+the same `oracle.ask()`. An env test proves a value *parses*; only a check at
+the call site proves it *gates*. `worker-kill-switches.test.ts` now asserts
+each LLM queue reads its switch before its LLM entry point.
+
+### Every per-IP limiter was keyed on a value the client chose
+
+Twenty call sites took the **first** `X-Forwarded-For` hop. Caddy overwrites
+that header; the nginx fronting production **appends**
+(`$proxy_add_x_forwarded_for`). On prod, register, forgot-password, voucher,
+onboard-claim and the `/api/*` limiter were all bypassable by sending the
+header. Separately, the login-page server actions called their API routes
+without the visitor's address, so every visitor shared one `"local"` bucket —
+three reset requests an hour from anyone blocked everyone's reset email, while
+the route answered "sent". And password sign-in had no limit at all: it runs
+outside the proxy matcher, and `/api/auth/*` is exempt by design.
+
+One rule now lives in `apps/web/lib/brain/client-ip.ts` (prefer `X-Real-IP`,
+then the **last** XFF hop); a sweep fails if any other file parses the header.
+
+### Cross-user reads and writes
+
+- `GET /api/projects/:id` returned `ruleText` for every rule injected into any
+  session in the project — a teammate's `private` rules included.
+- `GET /api/sessions/:id` filtered `OrganizationMember` by `organizationId`
+  (the field is `orgId`), so every non-owner got a 500 — and fixing only that
+  would have opened the same leak. **`tsc` passed it**: Prisma's generic args
+  skip excess-property checks inside a nested `where`. Typecheck is not
+  evidence that a Prisma filter names real fields; only a query is.
+- `recordInjection` wrote "injected" rows into whatever `sessionId` the caller
+  sent, on both retrieval doors.
+- `brain_start_session`, `brain_get_user_style` and the `style-profile`
+  resource returned rule text with no `knowledge` capability check.
+
+### Seven env vars read by code but never delivered (`§0ax`, closed)
+
+`MAX_ORACLE_COST_USD_PER_DAY`, `PG_BOSS_SCHEMA`, `DASHSCOPE_API_KEY` → mcp-server;
+`KEA_MODEL`, `PG_BOSS_SCHEMA`, `MCP_HOST_PORT` → web; `KEA_REFINE_MODEL`,
+`CROSS_SESSION_*` → worker; the `GEMINI_API_KEY` alias → nowhere. Each was
+hidden only because the live `.env` held the code default. Delivering optional
+vars as `X: ${X:-}` then exposed the second half: compose sends `""` for an
+unset var and `process.env.X ?? fallback` keeps it — an unset `AUTH_URL` made
+`envForWeb()` throw (`/api/me` 500), `Number("")` made windows 0. `env.ts` now
+treats `""` as unset; 56 reads moved from `??` to `||`; a sweep forbids `??`
+on env reads.
+
+### CI and tests that claimed more than they did
+
+- The package-boundary rule "fails CI" per CLAUDE.md — nothing checked it.
+  Now `scripts/check-package-boundaries.mjs`.
+- `ci.yml` said `session-lifecycle` runs against the DB; it needs a running MCP
+  server and skipped green on every PR. It and `auth-gate` now run in
+  `authed-e2e.yml`, which **fails on a skip** — vitest reports a throwing
+  `beforeAll` as "skipped", so the exit code alone would not catch it.
+- `knowledge-stats.test.ts` asserted local copies of two scoring formulas; the
+  KRA copy still tested the pre-#103 formula. It now imports the real ones.
+- Web never called `initSentry()`, though `SENTRY_DSN` was delivered and
+  PRIVACY.md implied it worked; Sentry's `environment` was `production` in
+  every container. Now `instrumentation.ts`, tagged by `BRAIN_DEPLOY_ENV`.
+
+### Also in this release
+
+`next` 16.2.4 → 16.3.8 (three critical unauthenticated-RCE advisories) and a
+`proxy-addr ≥ 2.0.8` override (IP spoofing, via the MCP SDK's express) — CI's
+critical audit began failing on `main` itself after advisories published
+since v2.20.4.
+
+| Issue | Where | Status |
+|---|---|---|
+| KEA/autoskill kill-switches read by nothing; MCP Oracle ignored `ORACLE_ENABLED` | worker, `tools/oracle.ts`, PRIVACY.md | fixed (v2.21.0) |
+| Per-IP limiters keyed on the client-controlled first XFF hop (nginx appends) | 20 web call sites | fixed (v2.21.0) |
+| Login-page actions shared one `"local"` rate-limit bucket | signin / forgot / reset pages | fixed (v2.21.0) |
+| No rate limit on password sign-in | `auth.ts` | fixed (v2.21.0) — 30/IP + 10/account per 15 min |
+| Teammate's private rule text via project / session detail | `api/projects/[id]`, `api/sessions/[id]` | fixed (v2.21.0) |
+| Session detail 500 for org members (`organizationId` vs `orgId`) | `api/sessions/[id]` | fixed (v2.21.0) |
+| Injection rows writable into another user's session | `kra.recordInjection` | fixed (v2.21.0) |
+| Rule text without the `knowledge` capability | start_session, get_user_style, style-profile | fixed (v2.21.0) |
+| Seven env vars not delivered; `""` defeating defaults | compose, `env.ts`, 56 reads | fixed (v2.21.0) |
+| Package boundary unenforced; live-MCP suites skipped green; replica formula test | CI, tests | fixed (v2.21.0) |
+| Web Sentry never initialised | `apps/web/instrumentation.ts` | fixed (v2.21.0) |
+| Critical advisories in `next` and `proxy-addr` | deps | fixed (v2.21.0); **27 high remain**, below the CI gate |
+| **Pre-account takeover**: register/voucher-claim never verify email ownership, GitHub sign-in links to that row by email (`auth.ts` signIn callback), and `reset-password` does not revoke MCP tokens | `api/auth/register`, `auth.ts` | **open — deferred by operator decision.** Reachable only by a voucher holder while `REGISTRATION_REQUIRES_VOUCHER` is on (the default). Proposed fix: stop adopting an existing credentials row on GitHub sign-in until its owner links GitHub while signed in; revoke tokens on password reset; full email verification is the larger alternative |
+| `brain_retire_knowledge` reach exceeds MCP read parity (scope `"all"` admits a teammate's `project`-visibility row) and ignores a project-scoped token's project | `knowledge-retire.ts` | open — needs a decision: is "visible in the webapp" or "visible over MCP" the bar? Recoverable via the audit snapshot |
+| Node 20 runtime is past EOL (April 2026) | Dockerfiles, CI | open |
+| `lint` runs in no workflow; no dependabot/renovate; 20 of 31 Playwright specs run in no workflow; the worker has no test runner | CI | open |
 
 ---
 
