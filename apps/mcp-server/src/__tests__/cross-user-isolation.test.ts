@@ -348,7 +348,9 @@ guard("MCP cross-user isolation (IDOR fix #106)", () => {
   // ── Capability gaps closed 2026-10-11 (KNOWN_ISSUES §0ay) ──────────────
   // Tools that hand back rule text must honour the `knowledge` capability,
   // like brain_retrieve_knowledge always did — but softly where the tool is
-  // also a connectivity check or a session opener.
+  // also a connectivity check or a session opener. The start_session gate
+  // lives in start-session-capability.test.ts, which mocks retrieval so a
+  // denied call is distinguishable from one that found nothing.
   const bobSessionsOnly = () => ({ ...bobAuth(), capabilities: ["sessions"] });
 
   it("brain_get_user_style withholds reflexes from a token without `knowledge`", async () => {
@@ -383,14 +385,5 @@ guard("MCP cross-user isolation (IDOR fix #106)", () => {
     await expect(readResource("brain://user/style-profile", bobSessionsOnly())).rejects.toThrow(
       /FORBIDDEN_CAPABILITY/,
     );
-  });
-
-  it("brain_start_session still opens for a sessions-only token (gate is soft)", async () => {
-    const res = (await startSession.handler(
-      { clientType: "custom", prompt: "a prompt that would trigger inject-at-open" },
-      { ...bobSessionsOnly(), tokenId: null } as unknown as Parameters<typeof startSession.handler>[1],
-    )) as { sessionId: string; relevantKnowledge?: unknown };
-    expect(res.sessionId).toBeTruthy();
-    expect(res.relevantKnowledge).toBeUndefined();
   });
 });
