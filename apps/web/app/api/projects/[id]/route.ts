@@ -13,6 +13,7 @@ import {
   uniqueSlugInOrg,
   writeAudit,
 } from "@brain/core";
+import { auditIpFrom } from "@/lib/brain/client-ip";
 
 interface AggregatedKnowledgeView {
   id: string;
@@ -203,7 +204,7 @@ export async function PATCH(
       targetType: "project",
       targetId: id,
       payload: { name: body.name, slug: newSlug },
-      ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+      ip: auditIpFrom(req.headers),
       userAgent: req.headers.get("user-agent") ?? null,
     });
 
@@ -301,7 +302,7 @@ export async function DELETE(
       payload: withData
         ? { withData: true, deletedKnowledge: knowledgeCount, deletedSessions: sessionCount }
         : {},
-      ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+      ip: auditIpFrom(req.headers),
       userAgent: req.headers.get("user-agent") ?? null,
     });
 

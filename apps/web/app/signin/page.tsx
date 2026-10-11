@@ -11,6 +11,8 @@ import { hashSecret } from "@brain/core/secret-hash";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { checkVoucherRateLimit } from "@/lib/brain/vouchers";
+import { clientIpFrom, forwardClientIp } from "@/lib/brain/client-ip";
+import { selfOrigin } from "@/lib/brain/self-origin";
 import { LocalePicker } from "@/components/brain/locale-picker";
 import { getServerT } from "@/lib/brain/i18n-server";
 
@@ -52,31 +54,6 @@ function safeRedirect(raw: string | undefined): string {
   return raw;
 }
 
-/**
- * Origin for this container to call its OWN route handlers.
- *
- * These two server actions POST to the app's own API. They used to build the
- * URL as `NEXTAUTH_URL ?? AUTH_URL ?? "http://localhost:3000"`, which is wrong
- * twice over:
- *
- *   - `NEXTAUTH_URL` is the Auth.js **v4** name and was checked FIRST, despite
- *     this repo running v5 and wiring only `AUTH_URL`.
- *   - `AUTH_URL` is required to be the exact browser-facing origin
- *     (.env.example says so), so in production the container called itself
- *     back out through Caddy — needing self-egress and split-horizon DNS, both
- *     of which a locked-down host commonly denies.
- *
- * Loopback is what this actually wants: same process, no TLS, no DNS, no
- * egress. `INTERNAL_SELF_ORIGIN` is the escape hatch if a deployment ever
- * puts the route handlers somewhere else.
- */
-function selfOrigin(): string {
-  return (
-    process.env.INTERNAL_SELF_ORIGIN ??
-    `http://127.0.0.1:${process.env.PORT ?? "3000"}`
-  );
-}
-
 const ERROR_MESSAGES: Record<string, string> = {
   // UX-newcomer-pass-3 (iter 26): the previous copy leaked env-var
   // names (ADMIN_USERNAME, ADMIN_PASSWORD_HASH, …) directly at the
@@ -86,6 +63,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   auth_not_configured:
     "Sign-in isn't set up on this deployment yet. Ask the operator to enable an auth mode — see docs/SECURITY.md for the options.",
   invalid_credentials: "Wrong username or password. Check your entry and try again.",
+  login_rate_limited:
+    "Too many sign-in attempts. Wait 15 minutes and try again — or reset your password if you've forgotten it.",
   voucher_required:
     "A voucher code is required to sign up here. Enter yours below and try again — or ask the person who invited you (or the operator of this Brain) for one.",
   // Codes are normalised with .trim().toUpperCase() before every lookup
@@ -317,7 +296,7 @@ export default async function SignIn({ searchParams }: Props) {
                 try {
                   res = await fetch(`${selfOrigin()}/api/invites/signup`, {
                     method: "POST",
-                    headers: { "content-type": "application/json" },
+                    headers: { "content-type": "application/json", ...forwardClientIp(await headers()) },
                     body: JSON.stringify({ token, name, password }),
                   });
                 } catch {
@@ -451,7 +430,7 @@ export default async function SignIn({ searchParams }: Props) {
                 try {
                   res = await fetch(`${selfOrigin()}/api/auth/register`, {
                     method: "POST",
-                    headers: { "content-type": "application/json" },
+                    headers: { "content-type": "application/json", ...forwardClientIp(await headers()) },
                     body: JSON.stringify({
                       email,
                       password,
@@ -629,6 +608,9 @@ export default async function SignIn({ searchParams }: Props) {
                     if ((err as { message?: string })?.message?.includes("NEXT_REDIRECT")) {
                       throw err;
                     }
+                    if ((err as { code?: string })?.code === "login_rate_limited") {
+                      redirect("/signin?error=login_rate_limited");
+                    }
                     redirect("/signin?error=invalid_credentials");
                   }
                 }}
@@ -675,10 +657,7 @@ export default async function SignIn({ searchParams }: Props) {
                   "use server";
                   const code = String(formData.get("voucher") ?? "").trim();
                   if (code) {
-                    const hdrs = await headers();
-                    const xff = hdrs.get("x-forwarded-for");
-                    const ip = xff ? xff.split(",")[0]!.trim() : "local";
-                    const gate = await checkVoucherRateLimit(ip);
+                    const gate = await checkVoucherRateLimit(clientIpFrom(await headers()));
                     if (!gate.ok) {
                       redirect("/signin?error=voucher_rate_limited");
                     }

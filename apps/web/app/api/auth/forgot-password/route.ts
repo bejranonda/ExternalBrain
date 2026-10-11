@@ -47,6 +47,7 @@ import { getRateLimitStore } from "@/lib/brain/rate-limit-store";
 import crypto from "crypto";
 import { hashSecret } from "@brain/core/secret-hash";
 import { envFlag } from "@brain/core/env";
+import { clientIpFrom } from "@/lib/brain/client-ip";
 
 const log = getLogger("forgot-password");
 
@@ -73,8 +74,7 @@ function getWebUrl(req: Request): string {
 export async function POST(req: Request): Promise<Response> {
   // --- Rate limit ---
   const hdrs = await headers();
-  const xff = hdrs.get("x-forwarded-for");
-  const ip = xff ? xff.split(",")[0]!.trim() : "local";
+  const ip = clientIpFrom(hdrs);
 
   const store = await getRateLimitStore();
   const gate = await rateLimitCheck(store, ip, LIMIT, Date.now());

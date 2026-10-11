@@ -12,6 +12,7 @@ import {
 import type { DataScope } from "@brain/core";
 import { toKnowledgeItemView } from "@/lib/brain/views";
 import { validateForTagAssignee } from "@/lib/brain/assignee-validation";
+import { auditIpFrom } from "@/lib/brain/client-ip";
 
 export async function GET(req: Request): Promise<Response> {
   try {
@@ -242,7 +243,7 @@ export async function POST(req: Request): Promise<Response> {
       action: "knowledge.create",
       targetType: "knowledge",
       targetId: row.id,
-      ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+      ip: auditIpFrom(req.headers),
       userAgent: req.headers.get("user-agent") ?? null,
     });
     return Response.json({ item: toKnowledgeItemView(row) }, { status: 201 });

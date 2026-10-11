@@ -2,6 +2,7 @@ import { db } from "@brain/db";
 import { z } from "zod";
 import { authErrorResponse, getCurrentUserId } from "@/lib/brain/auth";
 import { writeAudit } from "@brain/core";
+import { auditIpFrom } from "@/lib/brain/client-ip";
 
 const bodySchema = z.object({
   tokenId: z.string().min(1),
@@ -42,7 +43,7 @@ export async function POST(req: Request): Promise<Response> {
         targetType: "token",
         targetId: tokenId,
         payload,
-        ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+        ip: auditIpFrom(req.headers),
         userAgent: req.headers.get("user-agent") ?? null,
       });
       return Response.json({ ok: false, reason: "revoked" });
@@ -58,7 +59,7 @@ export async function POST(req: Request): Promise<Response> {
         targetType: "token",
         targetId: tokenId,
         payload,
-        ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+        ip: auditIpFrom(req.headers),
         userAgent: req.headers.get("user-agent") ?? null,
       });
       return Response.json({
@@ -78,7 +79,7 @@ export async function POST(req: Request): Promise<Response> {
         targetType: "token",
         targetId: tokenId,
         payload,
-        ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+        ip: auditIpFrom(req.headers),
         userAgent: req.headers.get("user-agent") ?? null,
       });
       return Response.json({
@@ -97,7 +98,7 @@ export async function POST(req: Request): Promise<Response> {
       targetType: "token",
       targetId: tokenId,
       payload,
-      ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+      ip: auditIpFrom(req.headers),
       userAgent: req.headers.get("user-agent") ?? null,
     });
     return Response.json({ ok: true, status: "active" });

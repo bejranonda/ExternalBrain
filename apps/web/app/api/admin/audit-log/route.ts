@@ -15,6 +15,7 @@ import { db } from "@brain/db";
 import { authErrorResponse } from "@/lib/brain/auth";
 import { requireAdmin } from "@/lib/brain/admin-auth";
 import { writeAudit } from "@brain/core";
+import { auditIpFrom } from "@/lib/brain/client-ip";
 
 export async function GET(req: Request): Promise<Response> {
   try {
@@ -43,7 +44,7 @@ export async function GET(req: Request): Promise<Response> {
       actorUserId: actorId,
       action: "admin.audit_log_view",
       payload: { filters: { action, actorUserId, orgId, projectId, limit } },
-      ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+      ip: auditIpFrom(req.headers),
       userAgent: req.headers.get("user-agent") ?? null,
     });
 

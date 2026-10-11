@@ -20,6 +20,7 @@ import { db } from "@brain/db";
 import { authErrorResponse, getCurrentUserId } from "@/lib/brain/auth";
 import { toKnowledgeItemView } from "@/lib/brain/views";
 import { writeAudit } from "@brain/core";
+import { auditIpFrom } from "@/lib/brain/client-ip";
 
 export async function POST(
   req: Request,
@@ -92,7 +93,7 @@ export async function POST(
         fromProjectId: row.ownerProjectId,
         toOrgVisibility: true,
       },
-      ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+      ip: auditIpFrom(req.headers),
       userAgent: req.headers.get("user-agent") ?? null,
     });
 

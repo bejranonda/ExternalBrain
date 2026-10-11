@@ -44,6 +44,7 @@ import {
   validateVoucher,
 } from "@/lib/brain/vouchers";
 import { registrationRequiresVoucher, adminCredentialsConfigured } from "@/auth";
+import { clientIpFrom } from "@/lib/brain/client-ip";
 
 const log = getLogger("register");
 
@@ -65,8 +66,7 @@ export async function POST(req: Request): Promise<Response> {
 
   // --- Rate limit (per IP) ---
   const hdrs = await headers();
-  const xff = hdrs.get("x-forwarded-for");
-  const ip = xff ? xff.split(",")[0]!.trim() : "local";
+  const ip = clientIpFrom(hdrs);
 
   const store = await getRateLimitStore();
   const gate = await rateLimitCheck(store, `register:${ip}`, LIMIT, Date.now());

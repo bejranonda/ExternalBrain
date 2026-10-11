@@ -17,6 +17,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { rateLimitCheck, type Limit } from "@brain/core";
 import { getRateLimitStore } from "@/lib/brain/rate-limit-store";
+import { clientIpFrom } from "@/lib/brain/client-ip";
 
 export const config = { matcher: ["/api/:path*"] };
 
@@ -50,9 +51,7 @@ function classify(pathname: string): Limit {
 }
 
 function clientKey(req: NextRequest): string {
-  const xff = req.headers.get("x-forwarded-for");
-  const ip = xff ? xff.split(",")[0]!.trim() : "local";
-  return ip || "local";
+  return clientIpFrom(req.headers);
 }
 
 export default async function proxy(req: NextRequest) {
