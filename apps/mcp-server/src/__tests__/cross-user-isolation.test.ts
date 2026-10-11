@@ -381,6 +381,32 @@ guard("MCP cross-user isolation (IDOR fix #106)", () => {
     }
   });
 
+  it("log_event / report_session_outcome refuse a project-scoped token's OTHER project", async () => {
+    // Bob's own session, in Bob's default project — but the token is bound
+    // to a different project of Bob's. Same user, wrong project: refused.
+    const other = await ensureNamedProject(db, fix!.bob.userId, `scoped-close-${fix!.bob.userId}`);
+    const own = await db.session.create({
+      data: { userId: fix!.bob.userId, projectId: fix!.bob.projectId, clientType: "custom" },
+      select: { id: true },
+    });
+    const scopedElsewhere = { ...bobAuth(), projectId: other.projectId };
+    try {
+      await expect(
+        logEvent.handler({ sessionId: own.id, eventType: "tool_use", payload: {} }, scopedElsewhere),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await expect(
+        reportSessionOutcome.handler({ sessionId: own.id, success: true }, scopedElsewhere),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+      // Control: the same user on a token bound to the session's project may log.
+      await expect(
+        logEvent.handler({ sessionId: own.id, eventType: "tool_use", payload: {} }, bobScopedAuth()),
+      ).resolves.toBeDefined();
+    } finally {
+      await db.sessionEvent.deleteMany({ where: { sessionId: own.id } }).catch(() => {});
+      await db.session.delete({ where: { id: own.id } }).catch(() => {});
+    }
+  });
+
   it("brain://user/style-profile requires `knowledge`", async () => {
     await expect(readResource("brain://user/style-profile", bobSessionsOnly())).rejects.toThrow(
       /FORBIDDEN_CAPABILITY/,

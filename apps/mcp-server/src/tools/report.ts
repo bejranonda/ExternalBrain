@@ -108,7 +108,14 @@ export const reportSessionOutcome: ToolDef = {
       where: { id: input.sessionId },
       select: { userId: true, projectId: true },
     });
-    if (!ownedSession || ownedSession.userId !== auth.userId) {
+    // A project-scoped token reaches only its project's sessions — the
+    // authorization matrix in MCP_TOOLS.md promised this; until 2026-10-11
+    // only the user half was checked (KNOWN_ISSUES §0ay).
+    if (
+      !ownedSession ||
+      ownedSession.userId !== auth.userId ||
+      (auth.projectId && ownedSession.projectId !== auth.projectId)
+    ) {
       throw new BrainError({
         message: "session not found",
         code: "NOT_FOUND",
