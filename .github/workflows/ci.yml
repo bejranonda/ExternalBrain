@@ -35,6 +35,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: bash scripts/check-doc-refs.sh
+      # Lives in this fast, dependency-free job (no pnpm install) so the
+      # boundary rule CLAUDE.md says "fails CI" now actually does. Kept as a
+      # step rather than a new job so the required-check names don't change.
+      - name: Package boundaries (types → db → core → apps)
+        run: node scripts/check-package-boundaries.mjs
 
   dep-audit:
     name: dependency audit (critical, prod only)
