@@ -96,7 +96,7 @@ export async function retrieveScored(
 
   const injectedIds = diversified.map((s) => s.item.id);
   if (injectedIds.length > 0 && context.sessionId) {
-    await recordInjection(context.sessionId, injectedIds);
+    await recordInjection(context.sessionId, context.userId, injectedIds);
   }
   bundle.injectedIds = injectedIds;
 
@@ -403,25 +403,39 @@ function bucketByType(items: Knowledge[]): KnowledgeBundle {
 // Side effects — record what was injected
 // ============================================================
 
-async function recordInjection(
+/** @internal exported for the ownership regression test. */
+export async function recordInjection(
   sessionId: string,
+  userId: string,
   knowledgeIds: string[],
 ): Promise<void> {
-  await Promise.all(
-    knowledgeIds.map((id) =>
-      db.sessionKnowledgeApplication
-        .create({
-          data: {
-            sessionId,
-            knowledgeId: id,
-            role: "injected",
-          },
-        })
-        .catch(() => {
-          /* duplicate — unique constraint already covered */
-        }),
-    ),
-  );
+  // `sessionId` arrives from the caller (MCP `context.sessionId`, the web
+  // retrieve body), not from the server. Without this check any user could
+  // write "injected" rows into someone else's session — rows that later
+  // drive that user's outcome bumps and show the caller's rule text on their
+  // session page (KNOWN_ISSUES §0ay). Retrieval still succeeds; it just
+  // isn't attributed to a session the caller doesn't own.
+  const owned = await db.session.findFirst({
+    where: { id: sessionId, userId },
+    select: { id: true },
+  });
+  if (owned) {
+    await Promise.all(
+      knowledgeIds.map((id) =>
+        db.sessionKnowledgeApplication
+          .create({
+            data: {
+              sessionId,
+              knowledgeId: id,
+              role: "injected",
+            },
+          })
+          .catch(() => {
+            /* duplicate — unique constraint already covered */
+          }),
+      ),
+    );
+  }
   await db.knowledge.updateMany({
     where: { id: { in: knowledgeIds } },
     data: { usageCount: { increment: 1 }, lastUsedAt: new Date() },
