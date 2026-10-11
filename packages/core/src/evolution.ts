@@ -16,6 +16,19 @@ import { effectivenessScore } from "./knowledge-stats.js";
 import { DECISION_TAG } from "./learnings.js";
 
 const HALF_LIFE_DAYS = 90;
+
+/**
+ * Effectiveness-aware half-life: proven rules (score ≥ 0.7) decay half as
+ * fast, underperformers (< 0.3) twice as fast; under 5 outcomes or the -1
+ * insufficient-data sentinel, baseline. Exported so tests assert the real
+ * rule rather than a copy of it.
+ */
+export function decayHalfLifeDays(score: number, outcomes: number): number {
+  if (score === -1 || outcomes < 5) return HALF_LIFE_DAYS;
+  if (score < 0.3) return HALF_LIFE_DAYS / 2;
+  if (score >= 0.7) return HALF_LIFE_DAYS * 2;
+  return HALF_LIFE_DAYS;
+}
 const MIN_DECAY = 0.05;
 
 /** Decisions are user-stated facts, not scored heuristics — never decay/flag them (spec 2026-06-16 §5). */
@@ -98,11 +111,7 @@ async function processDecayBatch(
       usageCount: r.usageCount,
     });
     const outcomes = r.successCount + r.failureCount;
-    let halfLife = HALF_LIFE_DAYS;
-    if (score !== -1 && outcomes >= 5) {
-      if (score < 0.3) halfLife = HALF_LIFE_DAYS / 2;
-      else if (score >= 0.7) halfLife = HALF_LIFE_DAYS * 2;
-    }
+    const halfLife = decayHalfLifeDays(score, outcomes);
     const decay = Math.max(Math.exp(-days / halfLife), MIN_DECAY);
 
     // Flag low-effectiveness rules for operator review.

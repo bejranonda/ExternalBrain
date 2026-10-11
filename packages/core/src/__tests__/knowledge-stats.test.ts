@@ -7,6 +7,8 @@
  */
 import { describe, it, expect } from "vitest";
 import { effectivenessScore } from "../knowledge-stats.js";
+import { successComponent } from "../kra.js";
+import { decayHalfLifeDays } from "../evolution.js";
 
 describe("effectivenessScore", () => {
   // ─── Insufficient-data sentinel ──────────────────────────────────────────
@@ -97,14 +99,7 @@ describe("effectivenessScore", () => {
 // `evolution.decay` schedule.
 
 describe("effectiveness-aware half-life formula", () => {
-  const HALF_LIFE_DAYS = 90;
-
-  function halfLifeFor(score: number, outcomes: number): number {
-    if (score === -1 || outcomes < 5) return HALF_LIFE_DAYS;
-    if (score < 0.3) return HALF_LIFE_DAYS / 2;
-    if (score >= 0.7) return HALF_LIFE_DAYS * 2;
-    return HALF_LIFE_DAYS;
-  }
+  const halfLifeFor = decayHalfLifeDays;
 
   it("low effectiveness with sufficient data → half-life is halved", () => {
     expect(halfLifeFor(0.2, 5)).toBe(45);
@@ -134,12 +129,8 @@ describe("effectiveness-aware half-life formula", () => {
 // ─── KRA score: insufficient-data neutral floor (kra.ts::scoreItem) ─────────
 
 describe("KRA effectiveness floor for insufficient data", () => {
-  function successComponent(successCount: number, failureCount: number): number {
-    const totalOutcomes = successCount + failureCount;
-    return totalOutcomes < 3
-      ? 0.5
-      : successCount / (successCount + failureCount + 1);
-  }
+  // Imported, not re-implemented: the local copy that lived here tested
+  // `s/(s+f+1)` long after production moved to Laplace (KNOWN_ISSUES §0ay).
 
   it("brand-new rule (0/0) gets neutral 0.5, not penalized 0", () => {
     expect(successComponent(0, 0)).toBe(0.5);
@@ -154,14 +145,15 @@ describe("KRA effectiveness floor for insufficient data", () => {
   });
 
   it("rule with exactly 3 outcomes uses Laplace-smoothed ratio", () => {
-    expect(successComponent(3, 0)).toBeCloseTo(3 / 4, 5);
+    expect(successComponent(3, 0)).toBeCloseTo(4 / 5, 5);
   });
 
   it("rule with strong success record (n≥3) is well above 0.5", () => {
-    expect(successComponent(10, 0)).toBeCloseTo(10 / 11, 5);
+    expect(successComponent(10, 0)).toBeCloseTo(11 / 12, 5);
   });
 
   it("rule with poor record (n≥3) is well below 0.5", () => {
-    expect(successComponent(0, 5)).toBe(0);
+    expect(successComponent(0, 5)).toBeCloseTo(1 / 7, 5);
+    expect(successComponent(0, 5)).toBeLessThan(0.5);
   });
 });
