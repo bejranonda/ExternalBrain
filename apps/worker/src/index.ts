@@ -293,6 +293,10 @@ async function main(): Promise<void> {
       if (!job) return;
       const data = parseSessionJob(job.data, "kea.extract");
       if (!data) return; // malformed — drop without retry
+      if (!env.KEA_ENABLED) {
+        log.info({ op: "kea.extract", outcome: "disabled", sessionId: data.sessionId }, "kea.extract skipped — KEA_ENABLED=false");
+        return;
+      }
       await withRequest(`job-${job.id ?? shortId()}`, async () => {
         const start = performance.now();
         try {
@@ -385,6 +389,10 @@ async function main(): Promise<void> {
       if (!job) return;
       const data = parseSessionJob(job.data, "autoskill.run");
       if (!data) return;
+      if (!env.AUTOSKILL_ENABLED) {
+        log.info({ op: "autoskill.run", outcome: "disabled", sessionId: data.sessionId }, "autoskill.run skipped — AUTOSKILL_ENABLED=false");
+        return;
+      }
       await withRequest(`job-${job.id ?? shortId()}`, async () => {
         const start = performance.now();
         try {
@@ -540,6 +548,10 @@ async function main(): Promise<void> {
   // worker log shape histogram (`grep '"op":"kea.cross.daily_done"'` in
   // docs/RUNBOOK.md §"Tokens connect but brain doesn't learn").
   await boss.work("kea.cross_extract", async () => {
+    if (!env.KEA_ENABLED) {
+      log.info({ op: "kea.cross_extract", outcome: "disabled" }, "kea.cross_extract skipped — KEA_ENABLED=false");
+      return;
+    }
     const start = performance.now();
     try {
       const results = await kea.runCrossExtractDaily();

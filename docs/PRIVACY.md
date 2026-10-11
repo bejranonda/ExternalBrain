@@ -62,8 +62,24 @@ Nothing else leaves the instance. There is no telemetry, no analytics, no
 crash reporting unless *you* set `SENTRY_DSN`, and no outbound call to any
 service operated by this project's authors.
 
-**To send nothing to any LLM:** set `KEA_ENABLED=false` and
-`ORACLE_ENABLED=false`. Brain still stores and retrieves; it stops enriching.
+**To send nothing to any LLM**, every path below must be off. Each switch is
+checked where the call is made, on every door that reaches it:
+
+| LLM path | Switch | Default | Checked in |
+|---|---|---|---|
+| Session extraction (KEA, incl. the daily cross-session pass) | `KEA_ENABLED=false` | on | worker `kea.extract` + `kea.cross_extract` handlers |
+| Autoskill LLM classifier | `AUTOSKILL_ENABLED=false` (or leave `AUTOSKILL_LLM_CLASSIFIER=false`) | classifier off | worker `autoskill.run` handler |
+| Oracle | `ORACLE_ENABLED=false` | on | `/api/oracle`, `/api/oracle/stream` **and** MCP `brain_ask_oracle` |
+| Meeting extraction | `MEETING_UPLOAD_ENABLED=false` | off | `/api/meetings/extract` |
+
+Brain still stores and retrieves; it stops enriching. **Embeddings are separate**
+— they are not an LLM call but they do send knowledge text to
+`EMBEDDING_BASE_URL`; point that at a self-hosted endpoint to keep it in-house.
+
+The worker reads `KEA_ENABLED` / `AUTOSKILL_ENABLED` at start-up, so recreate the
+`worker` container after changing them. Until 2026-10-11 neither switch was read
+by any code, and the MCP Oracle ignored `ORACLE_ENABLED` — this paragraph made a
+promise the stack did not keep (`KNOWN_ISSUES.md §0ay`).
 
 ---
 
