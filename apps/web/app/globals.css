@@ -94,6 +94,17 @@
      #FAFAF7). The inline pre-hydrate script overrides --accent-text per
      accent choice when localStorage carries a non-default selection. */
   --accent-text: #2D54E0;
+
+  /* Status inks. These were never overridden for light mode, so the dark
+     theme's pastels (#F5C451 warn, #F58B7D bad, …) rendered as text on
+     #FAFAF7/#FFFFFF at 1.4–2.3:1 — every sign-in error banner, warning chip
+     and status line failed WCAG AA. Darkened to ≥ 5:1 on --bg, --bg-elev-1
+     and --bg-elev-2 (KNOWN_ISSUES §0ay). Dark mode keeps the pastels. */
+  --ok: #17703F;
+  --warn: #8A5300;
+  --bad: #B3261E;
+  --cool: #175E96;
+  --violet: #6B46C1;
 }
 
 * { box-sizing: border-box; }
