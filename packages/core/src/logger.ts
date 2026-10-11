@@ -291,15 +291,18 @@ export async function withTimer<T>(
  * multiple times; subsequent calls are ignored by Sentry itself.
  */
 let sentryInitialized = false;
-export async function initSentry(service: string): Promise<void> {
-  if (sentryInitialized) return;
+export async function initSentry(service: string): Promise<boolean> {
+  if (sentryInitialized) return true;
   const dsn = process.env.SENTRY_DSN;
-  if (!dsn) return;
+  if (!dsn) return false;
   try {
     const Sentry = await import("@sentry/node");
     Sentry.init({
       dsn,
-      environment: process.env.NODE_ENV || "development",
+      // NODE_ENV is "production" in every container (the Dockerfile sets it),
+      // so dev and prod events were indistinguishable. BRAIN_DEPLOY_ENV is
+      // the tier label the deploy already carries (§0ax).
+      environment: process.env.BRAIN_DEPLOY_ENV?.trim() || process.env.NODE_ENV || "development",
       serverName: service,
       // Traces are off by default — call volume can be high. Operators
       // who want tracing set SENTRY_TRACES_SAMPLE_RATE explicitly.
@@ -321,6 +324,7 @@ export async function initSentry(service: string): Promise<void> {
   } catch {
     // Never block startup on a logging pipeline failure.
   }
+  return sentryInitialized;
 }
 
 /**

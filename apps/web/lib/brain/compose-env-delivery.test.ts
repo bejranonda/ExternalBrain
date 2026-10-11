@@ -71,6 +71,7 @@ const CORE_CONSUMERS: Record<string, Service[]> = {
   RESEND_API: ["web"],
   // logger.ts
   LOG_LEVEL: APPS,
+  BRAIN_DEPLOY_ENV: APPS, // Sentry environment tag
   SENTRY_DSN: APPS,
   SENTRY_TRACES_SAMPLE_RATE: APPS,
 };

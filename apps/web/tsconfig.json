@@ -8,6 +8,6 @@
     "allowJs": true,
     "paths": { "@/*": ["./*"] }
   },
-  "include": ["next-env.d.ts", "app/**/*", "lib/**/*", "components/**/*"],
+  "include": ["next-env.d.ts", "app/**/*", "lib/**/*", "components/**/*", "*.ts"],
   "exclude": ["node_modules"]
 }
