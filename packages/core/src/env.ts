@@ -152,8 +152,21 @@ const WorkerExtra = z.object({
   AUTOSKILL_ENABLED: boolish(true),
 });
 
+/**
+ * process.env with empty values removed. Compose forwards optional vars as
+ * `X: ${X:-}`, so an unset var reaches the container as `""`, not absent —
+ * and `""` fails `.url()`, bypasses `.default()`, and parses as a value. An
+ * unset AUTH_URL therefore made envForWeb() throw and /api/me return 500
+ * (KNOWN_ISSUES §0ay). Empty means unset, everywhere, decided once here.
+ */
+function presentEnv(): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(process.env)) if (v !== undefined && v !== "") out[k] = v;
+  return out;
+}
+
 function run<S extends z.ZodTypeAny>(schema: S): z.infer<S> {
-  const r = schema.safeParse(process.env);
+  const r = schema.safeParse(presentEnv());
   if (r.success) return r.data;
   const issues = r.error.issues
     .map((i) => `  · ${i.path.join(".") || "(root)"} — ${i.message}`)

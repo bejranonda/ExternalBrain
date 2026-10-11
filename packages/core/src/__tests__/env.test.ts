@@ -23,6 +23,7 @@ const KEEP = [
   "V2_ACTION_ITEMS",
   "V2_ORACLE_TASKS",
   "MEETING_UPLOAD_ENABLED",
+  "AUTH_URL",
 ] as const;
 
 let saved: Partial<Record<(typeof KEEP)[number], string | undefined>>;
@@ -57,6 +58,17 @@ describe("env", () => {
   it("throws when DATABASE_URL is not a postgres URL", () => {
     setEnv({ DATABASE_URL: "mysql://foo" });
     expect(() => envForWeb()).toThrow(/postgres:\/\/ URL/);
+  });
+
+  it("treats an empty value as unset — compose forwards unset vars as \"\"", () => {
+    // `AUTH_URL: ${AUTH_URL:-}` delivers "" — which used to fail .url() and
+    // make envForWeb() throw (/api/me → 500), and bypass every .default().
+    setEnv({ DATABASE_URL: "postgresql://x", AUTH_URL: "", ORACLE_MODEL: "", PG_BOSS_SCHEMA: "" });
+    const web = envForWeb();
+    expect(web.AUTH_URL).toBeUndefined();
+    expect(web.ORACLE_MODEL).toBe("claude-sonnet-4-6");
+    _resetEnvCache();
+    expect(envForWorker().PG_BOSS_SCHEMA).toBe("pgboss");
   });
 
   it("applies defaults when optional vars are unset", () => {

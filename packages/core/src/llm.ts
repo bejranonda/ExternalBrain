@@ -84,7 +84,7 @@ export function reportServedModel(requested: string, served?: string): void {
   if (seenModelAliases.has(pair)) return;
   seenModelAliases.add(pair);
   log.warn(
-    { requested, served, baseUrl: process.env.ANTHROPIC_BASE_URL ?? null },
+    { requested, served, baseUrl: process.env.ANTHROPIC_BASE_URL || null },
     "provider served a different model than requested (gateway alias) — " +
       "cost rows and config naming `requested` describe a model that did not run",
   );
@@ -99,7 +99,7 @@ export function reportServedModel(requested: string, served?: string): void {
     action: "llm.model_alias",
     targetType: "Model",
     targetId: requested,
-    payload: { requested, served, baseUrl: process.env.ANTHROPIC_BASE_URL ?? null },
+    payload: { requested, served, baseUrl: process.env.ANTHROPIC_BASE_URL || null },
   });
 }
 
@@ -245,7 +245,7 @@ export function reportQuotaError(model: string, err: unknown): void {
   quotaReported.add(model);
   const message = err instanceof Error ? err.message : String(err);
   log.warn(
-    { model, err: message, baseUrl: process.env.ANTHROPIC_BASE_URL ?? null },
+    { model, err: message, baseUrl: process.env.ANTHROPIC_BASE_URL || null },
     "provider refused the call for rate-limit/quota reasons — on a subscription " +
       "plan this means the usage window is exhausted, not that the service is down",
   );
@@ -256,8 +256,8 @@ export function reportQuotaError(model: string, err: unknown): void {
     payload: {
       model,
       message: message.slice(0, 500),
-      baseUrl: process.env.ANTHROPIC_BASE_URL ?? null,
-      billingMode: process.env.BILLING_MODE ?? "per_token",
+      baseUrl: process.env.ANTHROPIC_BASE_URL || null,
+      billingMode: process.env.BILLING_MODE || "per_token",
     },
   });
 }

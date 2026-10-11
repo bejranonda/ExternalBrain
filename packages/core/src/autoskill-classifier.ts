@@ -256,13 +256,13 @@ Respond with JSON: {"verdicts":[{"index":<n>,"target":"rules|knowledge|ignore","
 // ============================================================
 
 const FEWSHOT_BUDGET = () =>
-  Number(process.env.AUTOSKILL_FEWSHOT_TOKEN_BUDGET ?? 1500);
-const CLASSIFY_MAX = () => Number(process.env.AUTOSKILL_CLASSIFY_MAX ?? 12);
+  Number(process.env.AUTOSKILL_FEWSHOT_TOKEN_BUDGET || 1500);
+const CLASSIFY_MAX = () => Number(process.env.AUTOSKILL_CLASSIFY_MAX || 12);
 const MODEL = () =>
-  process.env.AUTOSKILL_MODEL ?? process.env.KEA_MODEL ?? "qwen3-coder";
+  process.env.AUTOSKILL_MODEL || process.env.KEA_MODEL || "qwen3-coder";
 
 export function classifierEnabled(): boolean {
-  return /^(1|true|yes|on)$/i.test(process.env.AUTOSKILL_LLM_CLASSIFIER ?? "");
+  return /^(1|true|yes|on)$/i.test(process.env.AUTOSKILL_LLM_CLASSIFIER || "");
 }
 
 /**
@@ -271,7 +271,7 @@ export function classifierEnabled(): boolean {
  * not just behaviour-neutral. Implied on when the classifier itself is enabled.
  */
 export function shadowEnabled(): boolean {
-  return /^(1|true|yes|on)$/i.test(process.env.AUTOSKILL_SHADOW ?? "");
+  return /^(1|true|yes|on)$/i.test(process.env.AUTOSKILL_SHADOW || "");
 }
 
 // ============================================================

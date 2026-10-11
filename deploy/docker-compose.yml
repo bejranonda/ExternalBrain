@@ -158,6 +158,7 @@ services:
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
       EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
       GOOGLE_GEMINI_API_KEY: ${GOOGLE_GEMINI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}  # alias embedding.ts accepts; DEPLOY.md documents it
       # Operator kill-switch (#56 gap 3) — flip to "false" to take Oracle
       # offline without blocking the rest of the app. Read at request time.
       ORACLE_ENABLED: ${ORACLE_ENABLED:-true}
@@ -201,6 +202,11 @@ services:
       RATE_LIMIT_KEA_PER_HOUR: ${RATE_LIMIT_KEA_PER_HOUR:-60}
       RATE_LIMIT_MCP_PER_MINUTE: ${RATE_LIMIT_MCP_PER_MINUTE:-200}
       MAX_ORACLE_COST_USD_PER_DAY: ${MAX_ORACLE_COST_USD_PER_DAY:-10}
+      # Meeting extraction falls back MEETING_EXTRACT_MODEL || KEA_MODEL ||
+      # "qwen3-coder"; without KEA_MODEL here the middle step never applied.
+      KEA_MODEL: ${KEA_MODEL:-}
+      PG_BOSS_SCHEMA: ${PG_BOSS_SCHEMA:-pgboss}  # /api/admin/queue-health reads the queue
+      MCP_HOST_PORT: ${MCP_HOST_PORT:-3100}  # skill-template fallback when BRAIN_MCP_PUBLIC_HOSTNAME is unset
       LOG_LEVEL: ${LOG_LEVEL:-info}
       # Empty default → in-process rate-limit state (fine for local/single).
       # On the server set REDIS_URL=redis://redis:6379 and run --profile edge.
@@ -248,6 +254,13 @@ services:
       ORACLE_ENABLED: ${ORACLE_ENABLED:-true}
       V2_ACTION_ITEMS: ${V2_ACTION_ITEMS:-false}
       V2_ORACLE_TASKS: ${V2_ORACLE_TASKS:-false}
+      # brain_ask_oracle spends against the SAME ledger as /api/oracle; without
+      # this the MCP door was always capped at the code default ($10/day).
+      MAX_ORACLE_COST_USD_PER_DAY: ${MAX_ORACLE_COST_USD_PER_DAY:-10}
+      # brain_report_session_outcome enqueues KEA/autoskill jobs — it must
+      # write to the schema the worker reads, or extraction stops silently.
+      PG_BOSS_SCHEMA: ${PG_BOSS_SCHEMA:-pgboss}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}  # an ORACLE_MODEL of qwen*/glm* routes here
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       # How this deployment is billed for LLM calls: "per_token" (default) or
       # "subscription". On a flat plan the cost ledger's dollar figures are
@@ -262,6 +275,7 @@ services:
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
       EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
       GOOGLE_GEMINI_API_KEY: ${GOOGLE_GEMINI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}  # alias embedding.ts accepts; DEPLOY.md documents it
       LOG_LEVEL: ${LOG_LEVEL:-info}
       # Needed for the no-auth GET / landing page introduced in #9 — the
       # JSON response includes deep links to the webapp's /docs + /welcome
@@ -359,6 +373,7 @@ services:
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
       EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
       GOOGLE_GEMINI_API_KEY: ${GOOGLE_GEMINI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}  # alias embedding.ts accepts; DEPLOY.md documents it
       PG_BOSS_SCHEMA: ${PG_BOSS_SCHEMA:-pgboss}
       KEA_ENABLED: ${KEA_ENABLED:-true}
       # Daily per-user extraction ceiling, checked before any LLM call.
@@ -375,6 +390,9 @@ services:
       # if the operator hasn't minted a DashScope key. The worker previously
       # didn't pass this var through, silently ignoring .env overrides.
       KEA_MODEL: ${KEA_MODEL:-qwen3-coder}
+      KEA_REFINE_MODEL: ${KEA_REFINE_MODEL:-}          # empty → KEA_MODEL
+      CROSS_SESSION_KEA_MODEL: ${CROSS_SESSION_KEA_MODEL:-}  # empty → ORACLE_MODEL
+      CROSS_SESSION_WINDOW: ${CROSS_SESSION_WINDOW:-20}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
       AUTOSKILL_ENABLED: ${AUTOSKILL_ENABLED:-true}
       # Autoskill LLM classifier (packages/core/src/autoskill-classifier.ts).
@@ -413,6 +431,7 @@ services:
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
       EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
       GOOGLE_GEMINI_API_KEY: ${GOOGLE_GEMINI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}  # alias embedding.ts accepts; DEPLOY.md documents it
       # LLM passthrough — bootstrap runs one-off jobs that make model calls
       # (`eval:kea`), not just migrations. Without these, ANTHROPIC_BASE_URL is
       # unset INSIDE the container even though the host .env sets it, so

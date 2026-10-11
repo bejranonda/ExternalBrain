@@ -32,7 +32,7 @@ export async function POST(req: Request): Promise<Response> {
   // Operator kill-switch (#56 gap 3). Same gate as the unary /api/oracle
   // endpoint. Read at request time so an env change is picked up without
   // a redeploy — `reload.sh` is enough.
-  if ((process.env.ORACLE_ENABLED ?? "true").toLowerCase() === "false") {
+  if ((process.env.ORACLE_ENABLED || "true").toLowerCase() === "false") {
     return Response.json(
       { error: "oracle_paused", message: "Oracle is currently paused by the operator. Try again later." },
       { status: 503, headers: { "retry-after": "60" } },

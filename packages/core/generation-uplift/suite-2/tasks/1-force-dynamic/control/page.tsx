@@ -1,4 +1,4 @@
-const publicHostname = process.env.PUBLIC_HOSTNAME ?? 'localhost';
+const publicHostname = process.env.PUBLIC_HOSTNAME || 'localhost';
 
 export default function Page() {
   return (

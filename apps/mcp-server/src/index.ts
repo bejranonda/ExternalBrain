@@ -286,7 +286,7 @@ async function runHttp(): Promise<void> {
     // Operator kill-switch (#56 gap 3). Read at request time so a flip
     // takes effect on the next request without a redeploy. /health stays
     // open above so monitoring + oncall liveness probes still work.
-    if ((process.env.MCP_ENABLED ?? "true").toLowerCase() === "false") {
+    if ((process.env.MCP_ENABLED || "true").toLowerCase() === "false") {
       res.writeHead(503, {
         "content-type": "application/json",
         "retry-after": "60",

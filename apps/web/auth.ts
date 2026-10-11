@@ -92,7 +92,7 @@ export function authEnabled(): boolean {
 }
 
 function parseAdminEmails(): Set<string> {
-  const raw = process.env.ADMIN_EMAILS ?? "";
+  const raw = process.env.ADMIN_EMAILS || "";
   return new Set(
     raw
       .split(",")

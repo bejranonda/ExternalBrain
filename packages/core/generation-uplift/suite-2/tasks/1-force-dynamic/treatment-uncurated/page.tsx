@@ -4,7 +4,7 @@
 export const dynamic = "force-dynamic";
 
 export default function Page() {
-  const publicHostname = process.env.PUBLIC_HOSTNAME ?? "";
+  const publicHostname = process.env.PUBLIC_HOSTNAME || "";
 
   return <h1>{publicHostname}</h1>;
 }

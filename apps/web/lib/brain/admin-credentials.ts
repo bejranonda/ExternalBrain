@@ -31,8 +31,8 @@ import bcrypt from "bcryptjs";
 
 /** True when both ADMIN_USERNAME and ADMIN_PASSWORD_HASH are set + non-empty. */
 export function adminCredentialsConfigured(): boolean {
-  const u = (process.env.ADMIN_USERNAME ?? "").trim();
-  const h = (process.env.ADMIN_PASSWORD_HASH ?? "").trim();
+  const u = (process.env.ADMIN_USERNAME || "").trim();
+  const h = (process.env.ADMIN_PASSWORD_HASH || "").trim();
   return u.length > 0 && h.length > 0;
 }
 
@@ -51,13 +51,13 @@ let warnedDeprecatedAdminEmail = false;
  *      on User.email still holds when neither is set.
  */
 export function adminEmail(): string {
-  const list = (process.env.ADMIN_EMAILS ?? "")
+  const list = (process.env.ADMIN_EMAILS || "")
     .split(",")
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
   if (list.length > 0) return list[0]!;
 
-  const legacy = (process.env.ADMIN_EMAIL ?? "").trim().toLowerCase();
+  const legacy = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
   if (legacy) {
     if (!warnedDeprecatedAdminEmail) {
       warnedDeprecatedAdminEmail = true;
@@ -69,7 +69,7 @@ export function adminEmail(): string {
     return legacy;
   }
 
-  const username = (process.env.ADMIN_USERNAME ?? "admin").trim();
+  const username = (process.env.ADMIN_USERNAME || "admin").trim();
   // Strip anything the username/email-charset doesn't allow; we'd rather
   // produce `admin@admin.local` than error on an exotic username.
   const safe = username.replace(/[^a-zA-Z0-9._-]/g, "").toLowerCase() || "admin";
@@ -101,8 +101,8 @@ export async function verifyAdminCredentials(
   username: string,
   password: string,
 ): Promise<{ ok: true; email: string; name: string } | { ok: false }> {
-  const expectedUsername = (process.env.ADMIN_USERNAME ?? "").trim();
-  const hash = (process.env.ADMIN_PASSWORD_HASH ?? "").trim();
+  const expectedUsername = (process.env.ADMIN_USERNAME || "").trim();
+  const hash = (process.env.ADMIN_PASSWORD_HASH || "").trim();
   if (!expectedUsername || !hash) {
     // Still run bcrypt to match the success-path timing shape. Otherwise
     // a deployment with no credentials configured would respond in ~1ms

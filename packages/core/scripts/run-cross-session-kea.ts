@@ -13,7 +13,7 @@
 import { db } from "@brain/db";
 import { extractFromCrossSessions } from "../src/kea.js";
 
-const WINDOW = Number(process.env.CROSS_SESSION_WINDOW ?? 20);
+const WINDOW = Number(process.env.CROSS_SESSION_WINDOW || 20);
 
 async function main(): Promise<void> {
   // Group recently-closed sessions by user, keep up to WINDOW per user.

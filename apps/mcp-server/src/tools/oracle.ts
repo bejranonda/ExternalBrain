@@ -51,7 +51,7 @@ export const askOracle: ToolDef = {
     // MCP door reaches oracle.ask() without passing through the web route, so
     // ORACLE_ENABLED=false used to stop the webapp Oracle while agents kept
     // sending knowledge to the LLM (KNOWN_ISSUES §0ay).
-    if ((process.env.ORACLE_ENABLED ?? "true").toLowerCase() === "false") {
+    if ((process.env.ORACLE_ENABLED || "true").toLowerCase() === "false") {
       throw new BrainError({
         message: "Oracle is currently paused by the operator (ORACLE_ENABLED=false).",
         code: "ORACLE_PAUSED",

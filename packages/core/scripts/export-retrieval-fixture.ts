@@ -31,7 +31,7 @@ import type { BenchmarkCase } from "../src/retrieval-benchmark.js";
 // per CodeRabbit's review on #168) so an unscoped export can't silently drift
 // from what production actually ranks; override to re-probe a different depth.
 const POOL_SIZE = Number(
-  process.env.BENCHMARK_POOL_SIZE ?? CANDIDATE_POOL_SIZE,
+  process.env.BENCHMARK_POOL_SIZE || CANDIDATE_POOL_SIZE,
 );
 const USER_ID = process.env.BENCHMARK_USER_ID?.trim() || undefined;
 

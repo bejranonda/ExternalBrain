@@ -5,7 +5,7 @@ import path from "node:path";
 // Defaults to local dev server for the legacy `./e2e` suite; the newer
 // `./tests/e2e` suite (roadmap-3) is written against the deployed dev brain
 // and is opt-in via E2E_AUTH_COOKIE + E2E_BASE_URL=https://brain-dev.example.com.
-const baseURL = process.env["E2E_BASE_URL"] ?? "http://localhost:3000";
+const baseURL = process.env["E2E_BASE_URL"] || "http://localhost:3000";
 
 // Authenticated-suite gate. When E2E_ADMIN_PASSWORD is present, an auth
 // "setup" project signs in once (e2e/auth.setup.ts) and persists the

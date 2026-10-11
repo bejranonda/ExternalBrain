@@ -3,7 +3,7 @@
 // bake the wrong hostname into the static HTML.
 export const dynamic = "force-dynamic";
 
-const publicHostname = process.env.PUBLIC_HOSTNAME ?? "";
+const publicHostname = process.env.PUBLIC_HOSTNAME || "";
 
 export default function Page() {
   return <h1>{publicHostname}</h1>;

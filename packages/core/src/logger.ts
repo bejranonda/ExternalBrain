@@ -181,7 +181,7 @@ function pinoSerializers() {
 
 function baseLogger(service: string): Logger {
   return pino({
-    level: process.env.LOG_LEVEL ?? "info",
+    level: process.env.LOG_LEVEL || "info",
     base: { service },
     timestamp: pino.stdTimeFunctions.isoTime,
     formatters: {
@@ -216,7 +216,7 @@ export function getLogger(
   const fresh = dest
     ? pino(
         {
-          level: process.env.LOG_LEVEL ?? "info",
+          level: process.env.LOG_LEVEL || "info",
           base: { service },
           timestamp: pino.stdTimeFunctions.isoTime,
           formatters: { level: (label) => ({ level: label }) },
@@ -299,11 +299,11 @@ export async function initSentry(service: string): Promise<void> {
     const Sentry = await import("@sentry/node");
     Sentry.init({
       dsn,
-      environment: process.env.NODE_ENV ?? "development",
+      environment: process.env.NODE_ENV || "development",
       serverName: service,
       // Traces are off by default — call volume can be high. Operators
       // who want tracing set SENTRY_TRACES_SAMPLE_RATE explicitly.
-      tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? "0"),
+      tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE || "0"),
       // Don't leak API keys / tokens.
       beforeSend(event) {
         if (event.request?.headers) {
