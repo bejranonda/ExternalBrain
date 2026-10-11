@@ -295,7 +295,7 @@ scope="all":
                               │ MCP / REST / LiveSync
 ┌─────────────────────────────▼─────────────────────────────┐
 │  EXPERIENCE LAYER                                         │
-│    apps/web   apps/mcp-server   REST API   apps/sync-bridge │
+│    apps/web   apps/mcp-server   REST API   (sync-bridge*)   │
 └─────────────────────────────┬─────────────────────────────┘
 ┌─────────────────────────────▼─────────────────────────────┐
 │  INTELLIGENCE LAYER (packages/core)                        │
@@ -330,7 +330,7 @@ scope="all":
 | Autoskill (Hermes-inspired) | `packages/core/src/autoskill.ts` + LLM type-classifier `autoskill-classifier.ts` (shared `llm.ts` provider dispatch) + `AutoskillProposal` table |
 | Peer Card (Honcho-inspired) | `PeerCard` table + `brain_get_user_style` tool |
 | Graph engine (Obsidian-inspired) | `packages/core/src/graph.ts` + `GraphEdge` table |
-| LiveSync bridge (CouchDB-inspired) | `apps/sync-bridge` (optional, Phase 4) |
+| LiveSync bridge (CouchDB-inspired) | **Designed, not built** — `apps/sync-bridge` does not exist (`docs/SYNC.md`). *Starred in the diagram above for that reason. |
 
 ## Data flow (a single session, end to end)
 

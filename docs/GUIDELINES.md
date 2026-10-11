@@ -21,7 +21,7 @@ How we write code, structure changes, and ship safely in this repo.
 ## 2. Package boundaries
 
 ```
-types → db → core → (mcp-server | web | worker | sync-bridge)
+types → db → core → (mcp-server | web | worker)
 ```
 
 Rules:
@@ -31,7 +31,11 @@ Rules:
 - `core` depends on `types` + `db`. It must never import from `apps/*`.
 - Apps depend on `core` + `db` + `types`. They must not import from each other; share logic via a new package.
 
-Violations block CI.
+Violations block CI: `node scripts/check-package-boundaries.mjs` checks every
+package.json's `@brain/*` deps **and** every import specifier, including a
+relative path that walks into another package. It runs in `ci.yml`'s
+`doc refs` job. (Before 2026-10-11 this sentence was true of nothing — no
+check existed; `KNOWN_ISSUES §0ay`.)
 
 ---
 
