@@ -11,6 +11,7 @@ import {
   actionItems,
   envForMcp,
   getLogger,
+  hasCapability,
 } from "@brain/core";
 import type { ToolDef } from "./index.js";
 import { resolveOrgScope } from "../org-scope.js";
@@ -198,7 +199,12 @@ export const startSession: ToolDef = {
     let relevantKnowledge:
       | { knowledgeIds: string[]; injection: string }
       | undefined;
-    if (input.prompt && input.prompt.trim().length > 0) {
+    // Rule text is the `knowledge` capability's payload — the same rows
+    // brain_retrieve_knowledge refuses to such a token. Gated soft: a
+    // sessions-only token still opens and closes sessions, it just isn't
+    // handed rules it was minted not to read (KNOWN_ISSUES §0ay).
+    const mayReadKnowledge = hasCapability(auth.capabilities, "knowledge");
+    if (mayReadKnowledge && input.prompt && input.prompt.trim().length > 0) {
       try {
         // Inject-at-open is the path AGENTS.md points at when it says a
         // teammate's decisions surface at session start — so this is the
@@ -250,7 +256,7 @@ export const startSession: ToolDef = {
     let openActionItems:
       | { knowledgeIds: string[]; injection: string }
       | undefined;
-    if (envForMcp().V2_ACTION_ITEMS) {
+    if (mayReadKnowledge && envForMcp().V2_ACTION_ITEMS) {
       try {
         const me = await db.user.findUnique({
           where: { id: auth.userId },

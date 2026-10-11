@@ -8,6 +8,7 @@ import { teachKnowledge } from "../tools/teach.js";
 import { retrieveKnowledge } from "../tools/retrieve.js";
 import { sessionSearch } from "../tools/session-search.js";
 import { readResource } from "../resources.js";
+import { getUserStyle } from "../tools/style.js";
 import { ensureDefaultProject, ensureNamedProject, BrainError } from "@brain/core";
 
 /**
@@ -343,5 +344,53 @@ guard("MCP cross-user isolation (IDOR fix #106)", () => {
         bobAuth(),
       ),
     ).rejects.toBeInstanceOf(BrainError);
+  });
+  // ── Capability gaps closed 2026-10-11 (KNOWN_ISSUES §0ay) ──────────────
+  // Tools that hand back rule text must honour the `knowledge` capability,
+  // like brain_retrieve_knowledge always did — but softly where the tool is
+  // also a connectivity check or a session opener.
+  const bobSessionsOnly = () => ({ ...bobAuth(), capabilities: ["sessions"] });
+
+  it("brain_get_user_style withholds reflexes from a token without `knowledge`", async () => {
+    const reflex = await db.knowledge.create({
+      data: {
+        type: "reflex",
+        ownerUserId: fix!.bob.userId,
+        ownerProjectId: fix!.bob.projectId,
+        triggerText: "bob-style-trigger",
+        ruleText: "bob-style-rule",
+        confidence: 0.95,
+      },
+      select: { id: true },
+    });
+    try {
+      const full = (await getUserStyle.handler({}, bobAuth())) as { reflexes: Array<{ ruleText: string }> };
+      expect(full.reflexes.map((r) => r.ruleText)).toContain("bob-style-rule");
+      const limited = (await getUserStyle.handler({}, bobSessionsOnly())) as { reflexes: unknown[] };
+      expect(limited.reflexes).toEqual([]);
+      // A token bound to another project sees none of this project's reflexes.
+      const other = await ensureNamedProject(db, fix!.bob.userId, `style-other-${fix!.bob.userId}`);
+      const scoped = (await getUserStyle.handler({}, { ...bobAuth(), projectId: other.projectId })) as {
+        reflexes: Array<{ ruleText: string }>;
+      };
+      expect(scoped.reflexes.map((r) => r.ruleText)).not.toContain("bob-style-rule");
+    } finally {
+      await db.knowledge.delete({ where: { id: reflex.id } }).catch(() => {});
+    }
+  });
+
+  it("brain://user/style-profile requires `knowledge`", async () => {
+    await expect(readResource("brain://user/style-profile", bobSessionsOnly())).rejects.toThrow(
+      /FORBIDDEN_CAPABILITY/,
+    );
+  });
+
+  it("brain_start_session still opens for a sessions-only token (gate is soft)", async () => {
+    const res = (await startSession.handler(
+      { clientType: "custom", prompt: "a prompt that would trigger inject-at-open" },
+      { ...bobSessionsOnly(), tokenId: null } as unknown as Parameters<typeof startSession.handler>[1],
+    )) as { sessionId: string; relevantKnowledge?: unknown };
+    expect(res.sessionId).toBeTruthy();
+    expect(res.relevantKnowledge).toBeUndefined();
   });
 });
