@@ -20,12 +20,8 @@ interface Props {
   searchParams: Promise<{ token?: string; error?: string; success?: string }>;
 }
 
-const ERROR_MESSAGES: Record<string, string> = {
-  invalid_token: "This link is invalid, expired, or has already been used. Request a new one.",
-  weak_password: "Password must be at least 8 characters.",
-  password_mismatch: "Passwords do not match.",
-  server_error: "Something went wrong. Please try again.",
-};
+// Copy lives in `auth.errors`; only these codes are produced by this page.
+const RESET_ERROR_KEYS = new Set(["invalid_token", "weak_password", "password_mismatch", "server_error"]);
 
 async function getTokenValidity(token: string): Promise<{ valid: boolean }> {
   if (!token) return { valid: false };
@@ -77,7 +73,9 @@ export default async function ResetPasswordPage({ searchParams }: Props) {
   // Validate token (unless showing success screen)
   const { valid } = success ? { valid: true } : await getTokenValidity(token);
 
-  const errorMessage = ERROR_MESSAGES[errorKey] ?? (errorKey ? "An error occurred." : "");
+  const errorMessage = RESET_ERROR_KEYS.has(errorKey)
+    ? t(`auth.errors.${errorKey}`)
+    : errorKey ? t("auth.errors.server_error") : "";
 
   return (
     <main

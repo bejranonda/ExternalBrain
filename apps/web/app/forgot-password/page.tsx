@@ -87,11 +87,10 @@ export default async function ForgotPasswordPage({ searchParams }: Props) {
             >
               <strong style={{ color: "var(--ink, #ececf0)" }}>{t("auth.checkEmail")}</strong>
               <br />
-              If an account with that address exists, we sent a password reset link.
-              The link expires in 1 hour.
+              {t("auth.sentBody")}
             </div>
             <div style={{ fontSize: 12, color: "var(--ink-4, #6b6d7a)", lineHeight: 1.5 }}>
-              Did not receive it?{" "}
+              {t("auth.didNotReceive")}{" "}
               <a href="/forgot-password" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>{t("auth.tryAgain")}</a>
               {" "}&mdash;{" "}
               <a href="/signin" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>{t("auth.backToSignIn")}</a>
