@@ -291,10 +291,11 @@ what we learned into the Brain") — each mapped to the `brain_*` tool it trigge
 4. **Anytime**, ask the **Oracle** in plain language and get grounded, cited
    answers from your own knowledge.
 5. **When something lands wrong**, `brain_retire_knowledge` soft-deletes it —
-   the one `brain_*` verb that removes rather than adds. It never destroys the
-   content: the full row is snapshotted into the append-only audit log first
-   and handed back in the response, so a mistaken retire is undone by
-   re-teaching from that snapshot.
+   the one `brain_*` verb that removes rather than adds. Knowledge leaves when
+   new knowledge replaces it: your own rows go freely, a teammate's only by
+   naming its replacement. It never destroys the content: the full row is
+   snapshotted into the append-only audit log first and handed back in the
+   response, so a mistaken retire is undone by re-teaching from that snapshot.
 6. **Meetings too (V2.0):** feed a transcript through the
    [meeting-miner protocol](./docs/protocols/meeting-miner.md) (agentic) or
    paste it straight into the `/meetings` webapp surface (no agent required

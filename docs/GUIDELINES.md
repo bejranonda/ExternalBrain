@@ -679,6 +679,10 @@ Reviewer checklist:
   included.** Provider-specific logic there must branch on
   `account.provider`. Keep callback logic in `lib/brain/auth-callbacks.ts`,
   not `auth.ts` — `auth.ts` is mocked in every test (`KNOWN_ISSUES §0az`).
+- **A write that removes or overrides someone else's data needs a successor,
+  not just permission.** `brain_retire_knowledge` retires a teammate's row only
+  with `replacedById`; visibility alone is not enough (`KNOWN_ISSUES §0ba`).
+  Apply the same test to any new "delete what you can see" path.
 - **Anything on the sign-in path gets a browser check against the built image
   before deploy** — sign in, reload a protected page, sign out. Unit tests
   share the author's assumptions (`APPROACH §5ch`).

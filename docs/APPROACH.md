@@ -3498,3 +3498,26 @@ the GitHub provider was added. Logic that must be tested does not belong in
 a module the test harness has to stub out.
 
 Full instance: `KNOWN_ISSUES.md §0az`.
+
+## 5ci. Ask the question in the user's terms, and let the Brain remember the old answer (2026-10-12, v2.23.0)
+
+Two small things went right on the retire-reach decision, both worth keeping.
+
+*The question was asked in the wrong vocabulary.* "How far should
+`brain_retire_knowledge` reach?" meant *whose* rows; the operator read it as
+*how old*. Their answer still found the real rule — "the new knowledge can
+replace" — because they reasoned from what should happen, not from the
+mechanism. Next time, ask the decision as a choice between outcomes ("may an
+agent delete a teammate's rule with nothing in its place?"), not as a property
+of the implementation.
+
+*The Brain surfaced the decision being revised.* Opening the session injected
+the 2026-08-30 operator decision with its rationale — including that the
+wider scope was accepted *only* because of the snapshot. That kept the
+safety net in the new design instead of re-deriving it, and the new decision
+was taught with `supersedesKnowledgeId` so the next session gets the current
+rule rather than two contradicting ones. This is the memory loop doing exactly
+its job on its own codebase.
+
+Full instance: `KNOWN_ISSUES.md §0ba`.
+

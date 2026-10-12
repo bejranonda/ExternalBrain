@@ -5,7 +5,7 @@ agent. It records **current state and what is waiting on whom**; the reasoning
 lives in the documents it links. Update it at the end of a working session
 that changes either.
 
-_Last updated: 2026-10-12 · release **v2.22.0** · live on the reference instance._
+_Last updated: 2026-10-12 · release **v2.23.0** · live on the reference instance._
 
 ---
 
@@ -13,7 +13,7 @@ _Last updated: 2026-10-12 · release **v2.22.0** · live on the reference instan
 
 | | |
 |---|---|
-| Released | **v2.22.0** (2026-10-12): pre-account takeover closed, Node 24 LTS, all high advisories cleared. v2.21.0 / v2.21.1 the same day. |
+| Released | **v2.23.0** (2026-10-12): knowledge leaves the Brain only when new knowledge replaces it (`§0ba`). **v2.22.0** the same evening: pre-account takeover closed, Node 24 LTS, all high advisories cleared. v2.21.0 / v2.21.1 earlier that day. |
 | Runtime | Node 24 (`node:24-bookworm-slim`) in every image and in CI |
 | Schema | latest migration `20261012190000_email_ownership` (additive: `User.emailVerifiedAt`, `User.sessionsRevokedAt`) |
 | Dependencies | `pnpm audit --prod`: 0 critical, 0 high (21 low/moderate) |
@@ -21,7 +21,8 @@ _Last updated: 2026-10-12 · release **v2.22.0** · live on the reference instan
 
 What each release fixed, and how it was verified on the live instance:
 [`KNOWN_ISSUES.md §0ay`](./KNOWN_ISSUES.md) (v2.21.x, sixteen "switch that did
-nothing" defects) and [`§0az`](./KNOWN_ISSUES.md) (v2.22.0).
+nothing" defects), [`§0az`](./KNOWN_ISSUES.md) (v2.22.0) and
+[`§0ba`](./KNOWN_ISSUES.md) (v2.23.0).
 
 ## Waiting on the operator
 
@@ -34,8 +35,6 @@ These cannot be done from the repo:
 2. **Mark the GitGuardian incident on PR #278 a false positive.** It flagged a
    test-fixture password literal; the replacement PR #279 has no such literal
    in its history, but the dashboard incident stays open until dismissed.
-3. **Decide `brain_retire_knowledge`'s reach** — "visible in the webapp" or
-   "visible over MCP" as the bar (`§0ay`). Code waits on the decision.
 
 ## Open engineering work, in suggested order
 
@@ -46,7 +45,15 @@ These cannot be done from the repo:
 | 20 of 31 Playwright specs run in no workflow; worker has no test runner | Coverage that exists but never runs | `§0ay` |
 | Per-device sign-out / admin "revoke sessions" | Revocation is per user only | `§0az` |
 
-## How to ship (the path used for v2.22.0)
+## Unattended runs
+
+The operator keeps stop rules for overnight work in the local, gitignored
+`CLAUDE.local.md` (backup before deploy; roll back on failed health, lockdown,
+live sign-in or new errors; additive migrations only; at most one rollback a
+night). If a run stopped on one of them, the reason is written at the top of
+this page.
+
+## How to ship (the path used for v2.22.0 and v2.23.0)
 
 1. One PR, many commits (`AGENTS.md`). Wait for required checks when the change
    touches auth, tokens, MCP gating, schema, deps, `deploy/`, or is going to

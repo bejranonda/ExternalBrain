@@ -182,20 +182,20 @@ Each transition has a clear owner module:
 | 7 | `evolution.detectObsolescence()` — soft delete |
 | 8 | admin REST `POST /api/admin/gdpr/erase/:userId` — physical delete |
 
-**Agent-initiated retirement (v2.20.1)** — the lifecycle above is what happens
-*to* knowledge over time; `brain_retire_knowledge` is the one path by which an
-agent removes a specific row on purpose, typically to clean up its own
-misfile. Scope is **read parity**: any row `brain_retrieve_knowledge` could
-return to that caller, including a teammate's `visibility: "org"` decision —
-authorization re-runs the same `buildKnowledgeWhereV2` predicate retrieval
-uses, rather than a second copy that could drift into a privilege escalation.
-It only ever soft-deletes, and writes the full pre-delete row into an
-`AuditLog` snapshot (`action: "knowledge.retire"`) *before* the update, so the
-content survives the deletion and comes back in the tool's own response —
-recovery is re-teaching from that snapshot, not a restore endpoint. Prefer
-`supersedesKnowledgeId` when *replacing* a rule (it leaves a traceable
-`parentKnowledgeId` lineage); retire is for rows that should not exist at all.
-See `packages/core/src/knowledge-retire.ts` and `KNOWN_ISSUES §0av`.
+**Agent-initiated retirement (v2.20.1; replacement rule v2.23.0)** — the
+lifecycle above is what happens *to* knowledge over time;
+`brain_retire_knowledge` is the one path by which an agent removes a specific
+row on purpose. **Knowledge leaves when new knowledge replaces it:** the
+caller's own rows retire freely; anyone else's row only with `replacedById`, a
+different live row the caller can read (authorization re-runs the same
+`buildKnowledgeWhereV2` predicate retrieval uses, for both rows). A teach with
+`supersedesKnowledgeId` on a teammate's visible row goes through the same
+path. A project-scoped token reaches only its own project. Retirement is
+never time-based — decay handles ordinary rules and decisions are exempt. It
+only ever soft-deletes, and writes the full pre-delete row plus `replacedById`
+into an `AuditLog` snapshot (`action: "knowledge.retire"`) *before* the update,
+so recovery is re-teaching from that snapshot. See
+`packages/core/src/knowledge-retire.ts`, `KNOWN_ISSUES §0av` and `§0ba`.
 
 **Operator-initiated bulk reset** — in addition to the natural lifecycle
 above, an org-admin can mass-soft-delete rows via
