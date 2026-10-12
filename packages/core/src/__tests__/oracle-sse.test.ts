@@ -98,6 +98,7 @@ describe("encodeOracleEvent — final", () => {
       retrievedCounts: { knowledge: 6, sessions: 1 },
       relatedQuestions: ["What about edge case X?", "How does Y interact?"],
       tokensUsed: 1234,
+      truncated: true,
     };
     const frame = encodeOracleEvent(ev);
     expect(frame.startsWith("event: final\n")).toBe(true);
@@ -112,10 +113,13 @@ describe("encodeOracleEvent — final", () => {
         "relatedQuestions",
         "retrievedCounts",
         "tokensUsed",
+        "truncated",
       ].sort(),
     );
     expect(payload['confidence']).toBe("high");
     expect(payload['tokensUsed']).toBe(1234);
+    // Dropping this key is how a cut-off answer reaches the UI looking whole.
+    expect(payload['truncated']).toBe(true);
     expect(payload['relatedQuestions']).toEqual([
       "What about edge case X?",
       "How does Y interact?",
@@ -131,6 +135,7 @@ describe("encodeOracleEvent — final", () => {
       retrievedCounts: { knowledge: 0, sessions: 0 },
       relatedQuestions: [],
       tokensUsed: 0,
+      truncated: false,
     };
     const payload = parseDataLine(encodeOracleEvent(ev)) as Record<string, unknown>;
     expect(payload).not.toHaveProperty("kind");
@@ -200,6 +205,7 @@ describe("encoder → parser round-trip", () => {
         retrievedCounts: { knowledge: 4, sessions: 1 },
         relatedQuestions: [],
         tokensUsed: 42,
+        truncated: false,
       },
     ];
     const body = streamFrames([

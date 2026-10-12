@@ -727,6 +727,15 @@ function TurnView({ turn, t, feedback, onFeedback, onFollow, onCopy, onTeach, st
             </span>
           )}
         </div>
+        {!streaming && turn.truncated && (
+          <div
+            role="note"
+            className="oracle-truncated"
+            style={{ marginTop: 10, fontSize: 12, color: "var(--warn)", lineHeight: 1.5 }}
+          >
+            {t("oracle.truncated")}
+          </div>
+        )}
 
         {/* Collapsible citations section */}
         {turn.citations.length > 0 && (

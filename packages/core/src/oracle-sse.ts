@@ -53,6 +53,7 @@ export function encodeOracleEvent(ev: OracleStreamEvent): string {
     retrievedCounts: ev.retrievedCounts,
     relatedQuestions: ev.relatedQuestions,
     tokensUsed: ev.tokensUsed,
+    truncated: ev.truncated,
   });
 }
 

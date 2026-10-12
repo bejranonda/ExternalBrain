@@ -471,9 +471,12 @@ POST   /api/oracle/feedback         thumbs up/down on an answer
   "groundedness": "strong|moderate|weak|none",
   "retrievedCounts": { "knowledge": 7, "sessions": 3 },
   "relatedQuestions": ["…"],
-  "tokensUsed": 1234
+  "tokensUsed": 1234,
+  "truncated": false
 }
 ```
+
+**`truncated`** (v2.21.1) — `true` when the model stopped at the reasoning level's output-token cap (`minimal` 256 · `low` 512 · `medium` 1024 · `high` 2048 · `max` 4096), so the answer ends mid-thought. Re-ask at a higher `reasoningLevel`. Before v2.21.1 a cut-off answer was indistinguishable from a complete one.
 
 **`OracleCitation.meta`** — optional "Why this answer" enrichment. Absent when the row cannot be resolved (e.g. deleted row referenced by a stale marker). Fields for knowledge citations:
 - `knowledgeType` — `"reflex"|"recipe"|"heuristic"|"principle"|"anti_principle"`
@@ -514,7 +517,7 @@ data: {"text":"…chunk…"}
 
 ```
 event: final
-data: {"citations":[…],"confidence":"high","groundedness":"strong","retrievedCounts":{…},"relatedQuestions":[…],"tokensUsed":1234}
+data: {"citations":[…],"confidence":"high","groundedness":"strong","retrievedCounts":{…},"relatedQuestions":[…],"tokensUsed":1234,"truncated":false}
 ```
 
 ```

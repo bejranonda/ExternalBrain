@@ -320,6 +320,9 @@ export interface OracleResponse {
   retrievedCounts: OracleRetrievedCounts;
   relatedQuestions: string[];
   tokensUsed: number;
+  /** The model stopped at the reasoning level's output-token cap, so the
+   * answer ends mid-thought. Re-ask at a higher `reasoningLevel`. */
+  truncated: boolean;
 }
 
 // ============================================================

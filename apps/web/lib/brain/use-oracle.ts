@@ -58,6 +58,7 @@ export interface OracleAnswer {
   retrievedCounts: OracleRetrievedCounts;
   relatedQuestions: string[];
   tokensUsed: number;
+  truncated: boolean;
   reasoningLevel: OracleReasoningLevel;
   latencyMs: number;
   retrieval: RetrievalRowView[];
@@ -93,6 +94,7 @@ export function useOracle(scope: ProjectScopeKey = "project") {
         retrievedCounts: { knowledge: 0, sessions: 0 },
         relatedQuestions: [],
         tokensUsed: 0,
+        truncated: false,
         reasoningLevel,
         latencyMs: 0,
         retrieval: [],
@@ -184,6 +186,7 @@ export function useOracle(scope: ProjectScopeKey = "project") {
               retrievedCounts: OracleRetrievedCounts;
               relatedQuestions: string[];
               tokensUsed: number;
+              truncated?: boolean;
             };
             const t1 = performance.now();
             setState((s) => {
@@ -198,6 +201,7 @@ export function useOracle(scope: ProjectScopeKey = "project") {
                   retrievedCounts: final.retrievedCounts ?? t.retrievedCounts,
                   relatedQuestions: final.relatedQuestions ?? [],
                   tokensUsed: final.tokensUsed,
+                  truncated: final.truncated === true,
                   latencyMs: Math.round(t1 - t0),
                 };
               return { ...s, turns, status: "ready" };

@@ -15,6 +15,7 @@ import { clientIpFrom, forwardClientIp } from "@/lib/brain/client-ip";
 import { selfOrigin } from "@/lib/brain/self-origin";
 import { LocalePicker } from "@/components/brain/locale-picker";
 import { getServerT } from "@/lib/brain/i18n-server";
+import { I18N } from "@/lib/brain/i18n-dict";
 
 export const dynamic = "force-dynamic";
 
@@ -54,44 +55,12 @@ function safeRedirect(raw: string | undefined): string {
   return raw;
 }
 
-const ERROR_MESSAGES: Record<string, string> = {
-  // UX-newcomer-pass-3 (iter 26): the previous copy leaked env-var
-  // names (ADMIN_USERNAME, ADMIN_PASSWORD_HASH, …) directly at the
-  // first-time visitor — operator-only detail. Point the user at the
-  // operator without exposing internals; the operator already has the
-  // env-var-level recipe in docs/SECURITY.md.
-  auth_not_configured:
-    "Sign-in isn't set up on this deployment yet. Ask the operator to enable an auth mode — see docs/SECURITY.md for the options.",
-  invalid_credentials: "Wrong username or password. Check your entry and try again.",
-  login_rate_limited:
-    "Too many sign-in attempts. Wait 15 minutes and try again — or reset your password if you've forgotten it.",
-  voucher_required:
-    "A voucher code is required to sign up here. Enter yours below and try again — or ask the person who invited you (or the operator of this Brain) for one.",
-  // Codes are normalised with .trim().toUpperCase() before every lookup
-  // (lib/brain/vouchers.ts::normalize), so capitalisation and stray spaces
-  // are NOT the cause — the old copy said "case-sensitive" and sent stuck
-  // users down the one dead end that cannot be the problem.
-  voucher_invalid: "That voucher code isn't valid. Check for a typo, or ask your admin to confirm the code (capitalisation and surrounding spaces don't matter).",
-  voucher_expired: "That voucher code has expired. Ask your admin for a fresh one.",
-  voucher_exhausted: "That voucher code has already been used the maximum number of times. Ask your admin for a fresh one.",
-  voucher_disabled: "That voucher code has been disabled by an admin. Ask for a new one.",
-  voucher_rate_limited:
-    "Too many voucher attempts from this address. Wait an hour and try again, or ask your admin for a fresh code.",
-  CredentialsSignin: "Wrong username or password. Check your entry and try again.",
-  weak_password: "Password must be at least 8 characters. Mix letters, numbers, and symbols for safety.",
-  password_mismatch: "Passwords do not match.",
-  email_taken:
-    "An account with that email already exists. Sign in instead, or reset your password if you've forgotten it.",
-  rate_limited:
-    "Too many sign-up attempts from this address. Wait an hour and try again.",
-  registration_failed: "Couldn't create your account. Try again, or ask the operator for help.",
-  registration_unavailable:
-    "Self-service sign-up isn't enabled on this deployment. Ask the operator for an invite.",
-  invite_not_found: "Invite token not found. Check the link and try again.",
-  invite_revoked: "This invite has been revoked. Ask the org admin for a new one.",
-  invite_expired: "This invite has expired. Ask the org admin for a new one.",
-  invite_already_accepted: "This invite has already been used.",
-};
+// The copy lives in `auth.errors` (i18n-dict.ts) so a Thai or German visitor
+// reads it in their language. `?error=` is attacker-controlled — only an own
+// key of the English table is looked up, never an arbitrary path.
+function errorKeyKnown(key: string): boolean {
+  return Object.hasOwn(I18N.en.auth.errors, key);
+}
 
 /** Fetch invite metadata for the banner — null if invalid/missing token. */
 async function getInviteMeta(token: string | undefined) {
@@ -173,7 +142,9 @@ export default async function SignIn({ searchParams }: Props) {
   const t = await getServerT();
   const params = await searchParams;
   const errorKey = params.error ?? "";
-  const errorMessage = ERROR_MESSAGES[errorKey] ?? (errorKey ? "Sign-in failed. Try again." : "");
+  const errorMessage = errorKeyKnown(errorKey)
+    ? t(`auth.errors.${errorKey}`)
+    : errorKey ? t("auth.errors.fallback") : "";
   // Carry the code across so a user whose voucher errored doesn't have to
   // retype it — /start prefills from ?voucher=.
   const startHref = params.voucher

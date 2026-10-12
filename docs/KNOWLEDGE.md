@@ -898,7 +898,7 @@ Per-event payload schemas (locked by `oracle-sse.test.ts`):
 |---|---|---|
 | `meta` | `groundedness`, `retrievedCounts` | Emitted immediately after retrieval, before LLM call |
 | `delta` | `text` | Streamed tokens; clients append to current message |
-| `final` | `citations`, `confidence`, `groundedness`, `retrievedCounts`, `relatedQuestions`, `tokensUsed` | Terminal answer frame |
+| `final` | `citations`, `confidence`, `groundedness`, `retrievedCounts`, `relatedQuestions`, `tokensUsed`, `truncated` | Terminal answer frame. `truncated` (v2.21.1): the model hit the reasoning level's token cap |
 | `error` (cap) | `code: "cost_cap_exceeded"`, `message`, `spentUsd`, `capUsd` | UI special-cases `code` to render budget copy |
 | `error` (other) | `message` | Generic failure |
 | `done` | `{}` | Always last; signals clean close vs socket reset |

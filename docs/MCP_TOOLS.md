@@ -82,7 +82,7 @@ still be able to ask what it is.
 | 7 | `brain_teach_knowledge` | when user says "remember …" | `{ id, confidence: 1.0, project, hint?, superseded?, supersedeHint? }` |
 | 8 | `brain_retire_knowledge` (v2.20.0) | cleaning up a mistake — a misfile, a duplicate, a row you or a teammate got wrong. NOT a normal part of every session; most sessions never call this | `{ retired: true, wasOwnRow, snapshot, note? }` — `snapshot` is the full pre-delete content, kept so a wrong retire is recoverable by re-teaching from it |
 | 9 | `brain_get_user_style` | when scaffolding new files | `{ peerCard, reflexes }` |
-| 10 | `brain_ask_oracle` | "how did I solve X?" | `{ answer, citations, project, hint?, ... }` |
+| 10 | `brain_ask_oracle` | "how did I solve X?" | `{ answer, citations, truncated, project, hint?, ... }` — `truncated: true` means the answer hit its `reasoningLevel` token cap; re-ask higher |
 | 11 | `brain_log_event` | during session (per event) | `{ id, accepted }` |
 | 12 | `brain_find_skill` | rarely — see "Two things are called Skills" below | top-N skill *bundles* |
 | 13 | `brain_session_search` | "what did I do last week?" | recent matching sessions (Postgres FTS) |
