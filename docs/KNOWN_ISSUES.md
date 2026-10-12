@@ -2548,7 +2548,7 @@ since v2.20.4.
 | Light-theme status inks (`--warn`, `--bad`, `--ok`, `--cool`, `--violet`) never overridden — dark pastels as text on near-white at 1.4–2.3:1; every sign-in error banner failed WCAG AA, on prod. Found by the visitor-side UI pass, not by any test | `app/globals.css` | fixed (v2.21.0) — 5–6:1; `theme-contrast.test.ts` computes the ratio from the CSS |
 | Critical advisories in `next` and `proxy-addr` | deps | fixed (v2.21.0); the 27 high that remained are fixed in v2.22.0 (`§0az`) |
 | **Pre-account takeover**: register/voucher-claim never verify email ownership, GitHub sign-in links to that row by email, and `reset-password` does not revoke MCP tokens | `api/auth/register`, `auth.ts` | **fixed (v2.22.0)** — `§0az` |
-| `brain_retire_knowledge` reach exceeds MCP read parity (scope `"all"` admits a teammate's `project`-visibility row) and ignores a project-scoped token's project | `knowledge-retire.ts` | open — needs a decision: is "visible in the webapp" or "visible over MCP" the bar? Recoverable via the audit snapshot |
+| `brain_retire_knowledge` reach exceeds MCP read parity (scope `"all"` admits a teammate's `project`-visibility row) and ignores a project-scoped token's project | `knowledge-retire.ts` | **fixed (v2.23.0)** — a teammate's row now needs a named replacement, and the token's project is enforced (`§0ba`) |
 | Node 20 runtime is past EOL (April 2026) | Dockerfiles, CI | fixed (v2.22.0) — Node 24 LTS (`§0az`) |
 | `lint` runs in no workflow; no dependabot/renovate; 20 of 31 Playwright specs run in no workflow; the worker has no test runner | CI | open |
 | `brain_ask_oracle` truncates silently: `minimal` is capped at 256 output tokens (`MAX_TOKENS_BY_LEVEL`) and the response carries no stop reason, so an agent reads a mid-sentence cut ("Two related cautions: verify you") as the whole answer. Found on prod during the v2.21.0 deploy check | `packages/core/src/oracle.ts` | fixed (v2.21.1) — `truncated` on the REST, SSE and MCP responses, read from Anthropic `stop_reason` / OpenAI `finish_reason` on all four call paths; the webapp shows a notice under the answer. `oracle-truncation.test.ts` pins each path (fails 4/8 with detection removed) |
@@ -2566,6 +2566,45 @@ since v2.20.4.
 - Visitor browser with `bp_lang` = en / th / de: the throttle banner, the forgot-password "sent" copy and the reset invalid-link view render in the chosen language at 390 px. `?error=constructor`, `__proto__`, `toString` and an unknown code all render the localised generic fallback — never a key path. The reset page's error *banner* only shows for a valid token, so it was checked by typecheck and review, not live.
 
 ---
+
+## 0ba. Who may retire whose knowledge (2026-10-12, v2.23.0)
+
+`brain_retire_knowledge` (v2.20.0) let a caller soft-delete any row it could
+read — a teammate's org-shared decision included — with nothing in its place,
+and ignored a project-scoped token's project (`§0ay`). That was an explicit
+2026-08-30 operator choice, accepted because every retire keeps a full
+snapshot. `§0ay` left the open question: *how far should it reach?*
+
+**The operator's answer reframed it.** Asked about "reach", the operator first
+read it as *time* ("1 year?"), then landed on the real criterion: "it might
+not be time, but about the new knowledge can replace." That is the rule now:
+**knowledge leaves the Brain when new knowledge replaces it.**
+
+- Own rows: retire freely (unchanged — the misfile clean-up the tool exists for).
+- Anyone else's row: only with `replacedById` — a different, live row the
+  caller can see. Covers both real cases (an outdated rule after its successor
+  is taught; a duplicate, pointing at the copy that stays). Without it:
+  `REPLACEMENT_REQUIRED`, nothing changes. Ordered after the visibility check,
+  so a row you cannot see still answers `FORBIDDEN`, not "exists, name a
+  replacement".
+- `brain_teach_knowledge`'s `supersedesKnowledgeId` used to report
+  `superseded: false` for a teammate's row and leave the stale decision
+  active — the one path that *was* a replacement could not replace. It now
+  goes through the same retire path.
+- Project-scoped tokens reach only their project, own rows included.
+- **No time-based retirement.** Decay already fades unused ordinary rules;
+  decisions are exempt, because an old decision that is still true is the most
+  valuable kind. Age is not evidence a rule is wrong; a successor is.
+
+The 2026-08-30 Brain decision was superseded by the new one (so the next
+agent's session start injects the current rule, not the old).
+
+| Item | Where | Status |
+|---|---|---|
+| A teammate's decision retirable with nothing in its place | `knowledge-retire.ts` | fixed (v2.23.0) |
+| Project-scoped token ignored by retire | `knowledge-retire.ts`, `tools/retire.ts` | fixed (v2.23.0) |
+| Teach `supersedesKnowledgeId` silently no-ops on a teammate's row | `tools/teach.ts` | fixed (v2.23.0) |
+| The visibility predicate for retire still uses `scope: "all"` with the target's org, not the caller's MCP retrieval scope | `knowledge-retire.ts` | accepted — with a named replacement required for any row not your own, the wider read reach no longer lets a caller erase anything without leaving a successor |
 
 ## 0az. Pre-account takeover, Node 20 EOL, 27 high advisories (2026-10-12, v2.22.0)
 

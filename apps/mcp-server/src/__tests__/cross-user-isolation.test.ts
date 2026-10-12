@@ -9,6 +9,7 @@ import { retrieveKnowledge } from "../tools/retrieve.js";
 import { sessionSearch } from "../tools/session-search.js";
 import { readResource } from "../resources.js";
 import { getUserStyle } from "../tools/style.js";
+import { retireKnowledge } from "../tools/retire.js";
 import { ensureDefaultProject, ensureNamedProject, BrainError } from "@brain/core";
 
 /**
@@ -404,6 +405,33 @@ guard("MCP cross-user isolation (IDOR fix #106)", () => {
     } finally {
       await db.sessionEvent.deleteMany({ where: { sessionId: own.id } }).catch(() => {});
       await db.session.delete({ where: { id: own.id } }).catch(() => {});
+    }
+  });
+
+  it("brain_retire_knowledge: a project-scoped token cannot retire its owner's row in another project", async () => {
+    // The token's project reached core: without it this row (Bob's own) retires.
+    const other = await ensureNamedProject(db, fix!.bob.userId, `scoped-retire-${fix!.bob.userId}`);
+    const row = await db.knowledge.create({
+      data: {
+        type: "reflex",
+        triggerText: "scoped retire probe",
+        ruleText: "scoped retire probe",
+        ownerUserId: fix!.bob.userId,
+        ownerProjectId: fix!.bob.projectId,
+        visibility: "project",
+      },
+      select: { id: true },
+    });
+    try {
+      await expect(
+        retireKnowledge.handler({ id: row.id }, { ...bobAuth(), projectId: other.projectId }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN_PROJECT" });
+      await expect(retireKnowledge.handler({ id: row.id }, bobScopedAuth())).resolves.toMatchObject({
+        retired: true,
+        wasOwnRow: true,
+      });
+    } finally {
+      await db.knowledge.delete({ where: { id: row.id } }).catch(() => {});
     }
   });
 

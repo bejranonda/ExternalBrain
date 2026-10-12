@@ -265,14 +265,17 @@ across sessions (and it's the product's own dogfood):
    [`doc-draft`](./docs/protocols/doc-draft.md) (document templates as
    recipes), [`report-draft`](./docs/protocols/report-draft.md) (on-demand
    status report; never scheduled, never pushed).
-7. **Cleaning up a mistake**: `brain_retire_knowledge(id)` (v2.20.0) soft-
-   deletes one row you can currently see — including a teammate's org-shared
-   decision, not only your own rows. This is not a routine step; most sessions
-   never call it. It never destroys content: the response carries the full
-   `snapshot`, so a wrong retire is recoverable by re-teaching from it. Prefer
-   `supersedesKnowledgeId` on a fresh teach when you're *replacing* a rule you
-   disagree with — that keeps a traceable lineage; reach for retire only when
-   a row should not exist at all (a misfile, a duplicate).
+7. **Cleaning up a mistake**: knowledge leaves the Brain when new knowledge
+   replaces it (v2.23.0). `brain_retire_knowledge(id)` soft-deletes **your own**
+   rows freely — a misfile, a duplicate you made. **Someone else's** row (a
+   teammate's org decision) only goes with `replacedById`: teach the corrected
+   rule first and pass its id, or for a duplicate pass the copy that stays —
+   otherwise `REPLACEMENT_REQUIRED` and nothing changes. Simplest of all:
+   teach the new rule with `supersedesKnowledgeId` — since v2.23.0 that also
+   replaces a teammate's visible row in one call. A project-scoped token
+   reaches only its own project. Nothing is ever destroyed: the response
+   carries the full `snapshot`, so a wrong retire is recovered by re-teaching
+   from it. Most sessions never call this.
 
 Why this matters: rules with registered usage survive decay and rise in
 retrieval; unclosed sessions teach nothing. The loop's two halves were each

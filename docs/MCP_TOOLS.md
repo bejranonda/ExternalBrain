@@ -80,7 +80,7 @@ still be able to ask what it is.
 | 5 | `brain_retrieve_knowledge` | BEFORE generating code | `{ bundle, injection }` — typed items + pre-formatted injection string |
 | 6 | `brain_report_session_outcome` | AFTER user accepts/rejects | `{ sqs, queued, resolvedActionItems?, hint? }` — `hint` is the ask-back nudge on a learning-less close (see below); `resolvedActionItems` counts retired meeting to-dos (V2.0) |
 | 7 | `brain_teach_knowledge` | when user says "remember …" | `{ id, confidence: 1.0, project, hint?, superseded?, supersedeHint? }` |
-| 8 | `brain_retire_knowledge` (v2.20.0) | cleaning up a mistake — a misfile, a duplicate, a row you or a teammate got wrong. NOT a normal part of every session; most sessions never call this | `{ retired: true, wasOwnRow, snapshot, note? }` — `snapshot` is the full pre-delete content, kept so a wrong retire is recoverable by re-teaching from it |
+| 8 | `brain_retire_knowledge` (v2.20.0; replacement rule v2.23.0) | cleaning up a mistake — a misfile or duplicate of yours; a teammate's row only with `replacedById`. NOT a normal part of every session | `{ retired: true, wasOwnRow, replacedById, snapshot, note? }` — `snapshot` is the full pre-delete content, kept so a wrong retire is recoverable by re-teaching from it. Errors: `REPLACEMENT_REQUIRED` (409), `REPLACEMENT_INVALID` (400), `FORBIDDEN_PROJECT` (403) |
 | 9 | `brain_get_user_style` | when scaffolding new files | `{ peerCard, reflexes }` |
 | 10 | `brain_ask_oracle` | "how did I solve X?" | `{ answer, citations, truncated, project, hint?, ... }` — `truncated: true` means the answer hit its `reasoningLevel` token cap; re-ask higher |
 | 11 | `brain_log_event` | during session (per event) | `{ id, accepted }` |
@@ -589,37 +589,41 @@ field swallowed every parameter after it, including `tags` — and `decision` is
 the tag that makes a rule `visibility: "org"`. A decision recorded to be
 team-visible was silently filed private.
 
-## Using `brain_retire_knowledge` (v2.20.0)
+## Using `brain_retire_knowledge` (v2.20.0 · replacement rule v2.23.0)
 
-Every other write on this surface only ever *adds* — `brain_teach_knowledge`
-creates a row, and its `supersedesKnowledgeId` only ever retires a row the
-**same caller already owns**, as a side effect of teaching a replacement.
-`brain_retire_knowledge` is the first verb whose whole job is removing a row,
-and its scope is wider than supersede's:
+**Knowledge leaves the Brain when new knowledge replaces it** (operator
+decision, 2026-10-12):
 
-> **If `brain_retrieve_knowledge` could have returned this row to you, you can
-> retire it — including a teammate's `visibility: "org"` decision, not only
-> rows you authored.**
+| Row | Can you retire it? |
+|---|---|
+| Your own | Yes, freely — the misfile or duplicate you just made |
+| A teammate's (org-shared) you can see | Only with `replacedById`: a different, live row you can see that takes its place |
+| One you cannot see (a teammate's private row, another org) | No — `FORBIDDEN_PROJECT` |
+| Outside a project-scoped token's project | No — the token reaches only its own project |
 
-That is a real widening of what an agent can do on its own initiative, and it
-was chosen deliberately (operator decision, 2026-08-30) in exchange for one
-guarantee: **it never destroys the content.** `deletedAt` is set (never a hard
-delete), and the full row is written into an audit-log snapshot *before* the
-update — the same `snapshot` object comes back in the tool's own response. If
-you retire the wrong thing, re-teach it from that snapshot; there is no
-separate restore tool, and none is needed.
+The two real reasons to touch a teammate's row are both replacements: an
+**outdated rule** (teach the corrected one, then retire the old with its id —
+or just teach with `supersedesKnowledgeId`, which since v2.23.0 does both in
+one call for a teammate's visible row) and a **duplicate** (pass the id of the
+copy that stays). What is no longer possible is erasing a teammate's decision
+with nothing in its place — the case a hallucinating agent or a bad prompt
+would hit. When you own the replacement, it gets `parentKnowledgeId` pointing
+at the retired row; a teammate's row named as the replacement is never
+modified.
 
-**When to use it:** cleaning up a specific, identified mistake — a rule that
-landed in the wrong project via a fallback (`KNOWN_ISSUES §0au`), a duplicate
-left behind after a supersede failed cross-project, a decision you taught
-before catching a typo. **When not to use it:** as a routine part of closing a
-session, or to "tidy up" knowledge you merely disagree with — disagreement is
-what `supersedesKnowledgeId` is for, because a supersede leaves a lineage
-(`parentKnowledgeId`) an operator can trace; a retire does not.
+**There is no age-based retirement.** Ordinary rules already fade through
+decay; decisions are exempt because a still-true old decision is the most
+valuable kind. Age is not evidence that a rule is wrong — a successor is.
 
-A `FORBIDDEN` response means the row was never visible to you in the first
-place — that is not a bug to route around by trying a different id or
-projectName; it means you don't have the access this operation requires.
+**Nothing is destroyed.** `deletedAt` is set (never a hard delete) and the
+full row is written into an audit-log snapshot *before* the update, with
+`replacedById`; the same `snapshot` comes back in the response. Retire the
+wrong thing, re-teach it from the snapshot.
+
+History: v2.20.0 (2026-08-30) let a caller retire any row it could read,
+teammates' decisions included, with nothing in its place — chosen with the
+snapshot as the safety net. v2.23.0 keeps the safety net and adds the
+replacement requirement (`KNOWN_ISSUES §0ba`).
 
 ## Two things are called "Skills" (read this before using `brain_find_skill`)
 

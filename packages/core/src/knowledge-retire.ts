@@ -1,7 +1,20 @@
 /**
- * Retire ANY Knowledge row the caller can currently see — not only rows they
- * authored — with a soft-delete plus a full-content audit snapshot.
+ * Retire a Knowledge row with a soft-delete plus a full-content audit snapshot.
  *
+ * WHO may retire WHAT (operator decision 2026-10-12, v2.23.0 — narrows the
+ * 2026-08-30 one below): your own rows freely; anyone else's row only by
+ * naming the knowledge that REPLACES it (`replacedById` — a live row you can
+ * see). Knowledge leaves the Brain because better knowledge took its place,
+ * not because an agent decided it was wrong. That covers the two real cases
+ * for touching a teammate's row — an outdated rule (teach the new one, then
+ * retire the old with its id) and a duplicate (point at the copy that stays)
+ * — while a hallucinating agent can no longer erase a teammate's decision
+ * with nothing in its place. A project-scoped token reaches only rows in its
+ * own project. There is no age-based retirement: ordinary rules already fade
+ * through decay, and decisions are exempt because a still-true old decision
+ * is the most valuable kind.
+ *
+ * History (2026-08-30):
  * This is new, and deliberately broader than every other write on this
  * surface. `supersedeKnowledge` (knowledge-stats.ts) only ever retires a row
  * the SAME user owns; `brain_teach_knowledge` only ever adds. Nothing before
@@ -53,8 +66,18 @@ export interface KnowledgeSnapshot {
 }
 
 export type RetireOutcome =
-  | { ok: true; snapshot: KnowledgeSnapshot; wasOwnRow: boolean }
-  | { ok: false; error: "NOT_FOUND" | "FORBIDDEN" };
+  | { ok: true; snapshot: KnowledgeSnapshot; wasOwnRow: boolean; replacedById: string | null }
+  | {
+      ok: false;
+      error:
+        | "NOT_FOUND"
+        | "FORBIDDEN"
+        // Someone else's row, and no replacement named.
+        | "REPLACEMENT_REQUIRED"
+        // The named replacement is missing, retired, the row itself, or not
+        // visible to the caller.
+        | "REPLACEMENT_INVALID";
+    };
 
 export async function retireKnowledgeById(
   db: PrismaClient,
@@ -62,6 +85,10 @@ export async function retireKnowledgeById(
     id: string;
     actorUserId: string;
     reason?: string | undefined;
+    /** The live row that takes this one's place. Required for others' rows. */
+    replacedById?: string | undefined;
+    /** Set for a project-scoped token: only rows in this project are reachable. */
+    tokenProjectId?: string | null | undefined;
   },
 ): Promise<RetireOutcome> {
   const target = await db.knowledge.findUnique({
@@ -88,6 +115,12 @@ export async function retireKnowledgeById(
   // Already-retired reads as NOT_FOUND, not a second success — a caller
   // retrying a retire must not be told it worked twice.
   if (!target || target.deletedAt) return { ok: false, error: "NOT_FOUND" };
+
+  // A project-scoped token is a narrower credential than its owner; it must
+  // not reach the owner's rows in other projects (KNOWN_ISSUES §0ay).
+  if (args.tokenProjectId && target.ownerProjectId !== args.tokenProjectId) {
+    return { ok: false, error: "FORBIDDEN" };
+  }
 
   const wasOwnRow = target.ownerUserId === args.actorUserId;
   if (!wasOwnRow) {
@@ -125,12 +158,71 @@ export async function retireKnowledgeById(
       select: { id: true },
     });
     if (!visible) return { ok: false, error: "FORBIDDEN" };
+    // After the visibility check, so a row the caller cannot see answers
+    // FORBIDDEN rather than confirming it exists.
+    if (!args.replacedById) return { ok: false, error: "REPLACEMENT_REQUIRED" };
+  }
+
+  let replacement: { id: string; ownerUserId: string | null; parentKnowledgeId: string | null } | null =
+    null;
+  if (args.replacedById) {
+    if (args.replacedById === args.id) return { ok: false, error: "REPLACEMENT_INVALID" };
+    replacement = await db.knowledge.findFirst({
+      where: { id: args.replacedById, deletedAt: null },
+      select: { id: true, ownerUserId: true, ownerProjectId: true, parentKnowledgeId: true },
+    }).then(async (r) => {
+      if (!r) return null;
+      if (args.tokenProjectId && r.ownerProjectId !== args.tokenProjectId) return null;
+      if (r.ownerUserId === args.actorUserId) return r;
+      // The replacement must be something the caller can actually read —
+      // same predicate as retrieval, resolved from the replacement's own org.
+      let ids: string[] = [];
+      if (r.ownerProjectId) {
+        const project = await db.project.findUnique({
+          where: { id: r.ownerProjectId },
+          select: { organizationId: true },
+        });
+        if (project?.organizationId) {
+          ids = await getAccessibleProjectIds(db, args.actorUserId, project.organizationId);
+        }
+      }
+      const seen = await db.knowledge.findFirst({
+        where: {
+          AND: [
+            { id: r.id },
+            buildKnowledgeWhereV2({
+              userId: args.actorUserId,
+              activeProjectId: null,
+              activeOrgId: null,
+              accessibleProjectIds: ids,
+              scope: "all",
+            }),
+          ],
+        },
+        select: { id: true },
+      });
+      return seen ? r : null;
+    });
+    if (!replacement) return { ok: false, error: "REPLACEMENT_INVALID" };
   }
 
   await db.knowledge.update({
     where: { id: args.id },
     data: { deletedAt: new Date() },
   });
+  // Lineage, the same link `supersedeKnowledge` writes — but only on a row
+  // the caller owns and that has no parent yet: naming a teammate's row as
+  // the replacement must not rewrite that teammate's row.
+  if (
+    replacement &&
+    replacement.ownerUserId === args.actorUserId &&
+    replacement.parentKnowledgeId === null
+  ) {
+    await db.knowledge.update({
+      where: { id: replacement.id },
+      data: { parentKnowledgeId: args.id },
+    });
+  }
 
   const snapshot: KnowledgeSnapshot = {
     id: target.id,
@@ -158,9 +250,14 @@ export async function retireKnowledgeById(
     action: "knowledge.retire",
     targetType: "knowledge",
     targetId: args.id,
-    payload: { snapshot, reason: args.reason ?? null, retiredSomeoneElsesRow: !wasOwnRow },
+    payload: {
+      snapshot,
+      reason: args.reason ?? null,
+      retiredSomeoneElsesRow: !wasOwnRow,
+      replacedById: replacement?.id ?? null,
+    },
     ...(target.ownerProjectId ? { projectId: target.ownerProjectId } : {}),
   });
 
-  return { ok: true, snapshot, wasOwnRow };
+  return { ok: true, snapshot, wasOwnRow, replacedById: replacement?.id ?? null };
 }
