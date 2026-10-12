@@ -367,7 +367,7 @@ export async function ask(
   const groundedness = groundednessFrom(knowledge, sessions);
   const retrievedCounts = retrievedCountsFrom(knowledge, sessions);
 
-  const { answer, tokensIn, tokensOut } = await callOracle(
+  const { answer, tokensIn, tokensOut, truncated } = await callOracle(
     userPrompt,
     MAX_TOKENS_BY_LEVEL[reasoningLevel],
     systemPromptOverride,
@@ -384,6 +384,7 @@ export async function ask(
     retrievedCounts,
     relatedQuestions: deriveFollowUps(query.question),
     tokensUsed: tokensIn + tokensOut,
+    truncated,
   };
 }
 
@@ -410,6 +411,7 @@ export type OracleStreamEvent =
       retrievedCounts: OracleRetrievedCounts;
       relatedQuestions: string[];
       tokensUsed: number;
+      truncated: boolean;
     };
 
 export async function* askStream(
@@ -456,6 +458,7 @@ export async function* askStream(
   let answer = "";
   let tokensIn = 0;
   let tokensOut = 0;
+  let truncated = false;
 
   for await (const ev of callOracleStream(
     userPrompt,
@@ -469,6 +472,7 @@ export async function* askStream(
     } else {
       tokensIn = ev.tokensIn;
       tokensOut = ev.tokensOut;
+      truncated = ev.truncated;
     }
   }
 
@@ -485,6 +489,7 @@ export async function* askStream(
     retrievedCounts,
     relatedQuestions: deriveFollowUps(query.question),
     tokensUsed: tokensIn + tokensOut,
+    truncated,
   };
 }
 
@@ -496,11 +501,11 @@ export async function* askStream(
  * case the provider's own model names (`glm-*`, etc.) are passed
  * through verbatim.
  */
-async function callOracle(
+export async function callOracle(
   userPrompt: string,
   maxTokens: number,
   systemPromptOverride?: string,
-): Promise<{ answer: string; tokensIn: number; tokensOut: number }> {
+): Promise<{ answer: string; tokensIn: number; tokensOut: number; truncated: boolean }> {
   const model = process.env.ORACLE_MODEL || "claude-sonnet-4-6";
   const systemPrompt = systemPromptOverride ?? SYSTEM_PROMPT;
   if (useAnthropicSdk(model)) {
@@ -536,6 +541,7 @@ async function callOracle(
       answer: text,
       tokensIn: res.usage.input_tokens,
       tokensOut: res.usage.output_tokens,
+      truncated: res.stop_reason === "max_tokens",
     };
   }
   const { default: OpenAI } = await import("openai");
@@ -552,14 +558,15 @@ async function callOracle(
     answer: res.choices[0]?.message.content ?? "",
     tokensIn: res.usage?.prompt_tokens ?? 0,
     tokensOut: res.usage?.completion_tokens ?? 0,
+    truncated: res.choices[0]?.finish_reason === "length",
   };
 }
 
 type StreamEvent =
   | { kind: "delta"; text: string }
-  | { kind: "done"; tokensIn: number; tokensOut: number };
+  | { kind: "done"; tokensIn: number; tokensOut: number; truncated: boolean };
 
-async function* callOracleStream(
+export async function* callOracleStream(
   userPrompt: string,
   maxTokens: number,
   signal: AbortSignal | undefined,
@@ -602,6 +609,7 @@ async function* callOracleStream(
         kind: "done",
         tokensIn: final.usage.input_tokens,
         tokensOut: final.usage.output_tokens,
+        truncated: final.stop_reason === "max_tokens",
       };
     } catch (err) {
       if (isAbortError(err, signal)) return;
@@ -627,9 +635,11 @@ async function* callOracleStream(
   );
   let tokensIn = 0;
   let tokensOut = 0;
+  let truncated = false;
   try {
     for await (const chunk of stream) {
       if (signal?.aborted) break;
+      if (chunk.choices[0]?.finish_reason === "length") truncated = true;
       const delta = chunk.choices[0]?.delta.content;
       if (typeof delta === "string" && delta.length > 0) {
         yield { kind: "delta", text: delta };
@@ -639,7 +649,7 @@ async function* callOracleStream(
         tokensOut = chunk.usage.completion_tokens ?? tokensOut;
       }
     }
-    yield { kind: "done", tokensIn, tokensOut };
+    yield { kind: "done", tokensIn, tokensOut, truncated };
   } catch (err) {
     if (isAbortError(err, signal)) return;
     throw err;
