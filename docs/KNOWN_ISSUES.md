@@ -2650,6 +2650,24 @@ only the operator can create. Set `SENTRY_DSN` in `.env` and
 | Production has no `SENTRY_DSN` | `.env` | open — operator action |
 | Per-device sign-out / admin "revoke sessions" button | — | open |
 
+**Deployed and verified on the live instance, 2026-10-12.** Before deploy: DB
+dump (34 tables, restorable) and running images tagged for rollback. The
+migration ran on its own first (the old app stayed healthy on the new
+columns; 4 of 15 users backfilled as verified, none revoked), then web →
+mcp-server → worker, one at a time. All three report Node 24.21;
+`verify-lockdown.sh` PASS; no errors in worker or MCP logs.
+- Visitor browser, en/th/de at 390 px: the three new messages render
+  localised, no overflow, no console errors; public pages 200.
+- Signed-in, real browser on the live site with one throwaway account: password
+  sign-in on an unproven account works; the session survives three protected
+  page loads; a reset in a second browser reports 1 revoked token, revokes it,
+  marks the email verified and signs the first browser out; the new password
+  works and the old one is refused. The account's 7 rows were then deleted in
+  FK order (15 users before and after).
+- Agent over MCP (new SDK 1.32): `whoami`, Oracle answer (`truncated:false`),
+  teach; closing a session ran `kea.extract` and `autoskill.run` to `ok` on the
+  Node 24 worker.
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:
