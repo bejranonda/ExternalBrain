@@ -70,7 +70,8 @@ describe("voucher tenancy", () => {
   it("every OAuth/credentials sign-up path bootstraps a personal org too", () => {
     // The register route is not the only way an account is created; the
     // NextAuth callbacks create users as well. All of them must bootstrap.
-    const src = read("auth.ts");
+    // The callbacks live in lib/brain/auth-callbacks.ts since v2.22.0 (§0az).
+    const src = read("auth.ts") + read("lib/brain/auth-callbacks.ts");
     const calls = src.match(/ensurePersonalOrg\(/g) ?? [];
     expect(calls.length).toBeGreaterThanOrEqual(3);
   });

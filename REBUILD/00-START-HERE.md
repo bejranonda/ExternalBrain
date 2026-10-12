@@ -107,7 +107,7 @@ migration. The worker backfills NULL embeddings asynchronously; never block on i
 
 | Concern | Choice |
 |---------|--------|
-| Runtime | Node 20 LTS · TypeScript strict |
+| Runtime | Node 24 LTS · TypeScript strict |
 | Monorepo | pnpm workspaces (`pnpm@9.15.0`) + Turborepo |
 | Web | Next.js (App Router, `output: "standalone"`) · React 19 · Tailwind v4 |
 | Auth | NextAuth v5 (JWT) + `@auth/prisma-adapter` + `bcryptjs` |

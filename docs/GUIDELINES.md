@@ -10,7 +10,7 @@ How we write code, structure changes, and ship safely in this repo.
 
 - **TypeScript strict**, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`. Set in `tsconfig.base.json`; do not relax per-package.
   - `exactOptionalPropertyTypes` has a sharp edge worth knowing before it bites: `foo?: string` means *"absent, or a string"* — it **rejects an explicitly-passed `undefined`** (TS2375). Any optional prop whose value comes from a function rather than being conditionally spread needs `foo?: string | undefined`. This is the normal shape for a server component threading a resolved-or-undefined value into a client component: `<C mcpUrl={resolvePublicMcpUrl()} />`.
-- **Node 20+**, ESM modules (`"type": "module"` everywhere).
+- **Node 24+** (Docker, CI and `engines`; Node 20 reached end-of-life in April 2026), ESM modules (`"type": "module"` everywhere).
 - **Formatting**: Prettier defaults, 2-space indent, single quotes for JS/TS, trailing commas.
 - **Naming**: `camelCase` for values, `PascalCase` for types/classes, `kebab-case` for file names, `SCREAMING_SNAKE` only for env vars.
 - **No `any`, no `@ts-ignore`** without a comment explaining the reason.
@@ -675,6 +675,13 @@ Reviewer checklist:
 
 ## 7. Security
 
+- **NextAuth runs `callbacks.signIn` for every provider, credentials
+  included.** Provider-specific logic there must branch on
+  `account.provider`. Keep callback logic in `lib/brain/auth-callbacks.ts`,
+  not `auth.ts` — `auth.ts` is mocked in every test (`KNOWN_ISSUES §0az`).
+- **Anything on the sign-in path gets a browser check against the built image
+  before deploy** — sign in, reload a protected page, sign out. Unit tests
+  share the author's assumptions (`APPROACH §5ch`).
 - **A denied destructive-write command is a fact about the gate, not something a follow-up message unlocks.** Raw destructive SQL against a live database (a `docker exec … psql … DELETE`, not a Prisma migration) goes through the harness's auto-mode classifier, independent of `AGENTS.md §3`'s Prisma-level consent flag. It is deterministic: retrying the identical command, even after the user explicitly says "run it," is denied identically, because the classifier evaluates the call itself, not the surrounding chat. The only unlock is the user exiting auto mode (a distinct harness state). Before any such request: survey and state the exact blast radius (tables, row counts, FK-order — `Project.organizationId`'s `RESTRICT` is a real example of order mattering) so whichever approval path is used is informed. Full incident: `KNOWLEDGE.md §12.36`, `KNOWN_ISSUES.md §0am`, `APPROACH.md §5bx`.
 - **Every MCP tool handler authenticates first.** The `AuthContext` parameter is not optional.
 - **Every REST handler authenticates first.** NextAuth session or API token; unauthenticated requests return 401.

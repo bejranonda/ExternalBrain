@@ -315,7 +315,7 @@ Full walkthrough with examples: **[docs/HOW_IT_WORKS.md](./docs/HOW_IT_WORKS.md)
 
 | Concern | Choice |
 |---|---|
-| Runtime | Node 20 LTS · TypeScript (strict) |
+| Runtime | Node 24 LTS · TypeScript (strict) |
 | Webapp | Next.js · React · Tailwind |
 | Database | Postgres + pgvector |
 | Embeddings | Provider-agnostic via `EMBEDDING_BASE_URL` (Gemini / OpenAI / Qwen3 — any OpenAI-compatible endpoint). Each vector records the model that produced it, so switching models re-embeds the corpus instead of silently corrupting retrieval |

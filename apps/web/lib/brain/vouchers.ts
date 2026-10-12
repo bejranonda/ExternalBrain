@@ -118,6 +118,8 @@ export interface ClaimParams {
   name: string | null;
   image: string | null;
   roleIfAdmin?: "admin";
+  /** The caller has proven `email` (GitHub, verified + primary). §0az. */
+  emailVerified?: true;
   /**
    * Pre-computed bcrypt hash for an email+password registration. When set, a
    * `UserCredential` row is created for the new user inside the same
@@ -198,6 +200,7 @@ export async function claimVoucher(params: ClaimParams): Promise<ClaimResult> {
         name: params.name,
         image: params.image,
         role: params.roleIfAdmin === "admin" ? "admin" : "user",
+        ...(params.emailVerified ? { emailVerifiedAt: new Date() } : {}),
       },
     });
 

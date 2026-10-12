@@ -3474,3 +3474,27 @@ PR gets **no real CI until it is retargeted**, since workflows trigger only on
 PRs into `main` — #274's live-MCP step first ran in CI after #273 merged.
 
 Full instance: `KNOWN_ISSUES.md §0ay`.
+
+## 5ch. Test the thing at the layer the bug lives in (2026-10-12, v2.22.0)
+
+The takeover fix passed 12 unit tests and typecheck, and would have locked
+every user out of production. The unit tests called the `signIn` callback the
+way the code's own comment said it was called — GitHub only — so they encoded
+the same false belief as the code. NextAuth runs that callback for every
+provider; one click in a real browser against the built image showed it.
+
+The rule this adds to `§5cg`: **a test written from the same mental model as
+the code cannot catch that model being wrong.** For anything on the sign-in
+path, the pre-deploy check is a browser session against the production image —
+sign in, survive a few requests, sign out, reset — not only a unit suite. The
+pattern also applies to the second half of this batch: the Node 24 upgrade was
+judged on the built images running against a scratch database, not on the
+dev host's Node version.
+
+And one about testability: `@/auth` is mocked wholesale in every web test
+because `NextAuth()` cannot load under vitest. That made the account-linking
+logic untestable by construction, which is how the takeover survived since
+the GitHub provider was added. Logic that must be tested does not belong in
+a module the test harness has to stub out.
+
+Full instance: `KNOWN_ISSUES.md §0az`.
