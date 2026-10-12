@@ -30,20 +30,27 @@
  *   - Voucher-code gating for new registrations when
  *     `REGISTRATION_REQUIRES_VOUCHER=true`. A pending voucher code is read
  *     from the `bp_voucher` cookie (set by /signin before the OAuth hop).
- * The Credentials provider doesn't use the signIn callback — it does its
- * own User lookup/create inside `authorize`.
+ * The Credentials provider does its own User lookup/create inside
+ * `authorize`, but NextAuth still runs the signIn callback for it afterwards
+ * — so provider-specific logic there must check `account.provider`.
  */
 import NextAuth, { CredentialsSignin, type NextAuthConfig, type Session, type User } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import GitHub from "next-auth/providers/github";
-import { cookies } from "next/headers";
 import { envFlag } from "@brain/core/env";
+import GitHub from "next-auth/providers/github";
 import { clientIpFrom } from "./lib/brain/client-ip";
 import { checkLoginRateLimit, LOGIN_RATE_LIMITED } from "./lib/brain/login-rate-limit";
 import {
   adminCredentialsConfigured,
   verifyAdminCredentials,
 } from "./lib/brain/admin-credentials";
+import {
+  jwtCallback,
+  registrationRequiresVoucher,
+  signInCallback,
+} from "./lib/brain/auth-callbacks";
+
+export { registrationRequiresVoucher };
 
 // Prisma is imported lazily inside callbacks — see the top-of-file comment
 // in the previous version; same rationale. Next's page-data collection
@@ -91,29 +98,6 @@ export function authEnabled(): boolean {
   return anySignInConfigured() || devAuthAllowed();
 }
 
-function parseAdminEmails(): Set<string> {
-  const raw = process.env.ADMIN_EMAILS || "";
-  return new Set(
-    raw
-      .split(",")
-      .map((s) => s.trim().toLowerCase())
-      .filter((s) => s.length > 0),
-  );
-}
-
-export function registrationRequiresVoucher(): boolean {
-  // Default true — a secure-by-default posture for a multi-tenant platform.
-  // Governs BOTH the GitHub-OAuth signup path (signIn callback below) and the
-  // email+password self-service registration endpoint (/api/auth/register), so
-  // the operator has a single knob for "is open signup allowed here".
-  //
-  // `envFlag` rather than a local comparison: this flag is ALSO declared
-  // `boolish(true)` in the core env schema, and two parsers for one flag
-  // disagree eventually. It also makes a typo (`falsch`) keep the safe default
-  // instead of silently opening public signup.
-  return envFlag("REGISTRATION_REQUIRES_VOUCHER", true);
-}
-
 class LoginRateLimited extends CredentialsSignin {
   override code = LOGIN_RATE_LIMITED;
 }
@@ -155,10 +139,13 @@ const providers: NextAuthConfig["providers"] = [
               if (existing) {
                 // Ensure role is admin — promote if a previously-non-admin row
                 // has a matching email.
-                if (existing.role !== "admin") {
+                if (existing.role !== "admin" || existing.emailVerifiedAt === null) {
                   await db.user.update({
                     where: { id: existing.id },
-                    data: { role: "admin" },
+                    data: {
+                      role: "admin",
+                      emailVerifiedAt: existing.emailVerifiedAt ?? new Date(),
+                    },
                   });
                 }
                 // Eagerly bootstrap personal org + default project (idempotent).
@@ -180,6 +167,7 @@ const providers: NextAuthConfig["providers"] = [
                   email: adminResult.email,
                   name: adminResult.name,
                   role: "admin",
+                  emailVerifiedAt: new Date(),
                 },
               });
               try {
@@ -238,6 +226,9 @@ const providers: NextAuthConfig["providers"] = [
         GitHub({
           clientId: process.env.AUTH_GITHUB_ID!,
           clientSecret: process.env.AUTH_GITHUB_SECRET!,
+          // No adapter (JWT sessions), so NextAuth itself links nothing; the
+          // signIn callback below decides which User row a GitHub login gets,
+          // and only adopts a row whose email has been proven (§0az).
           allowDangerousEmailAccountLinking: true,
         }),
       ]
@@ -257,98 +248,8 @@ export const config: NextAuthConfig = {
     signIn: "/signin",
   },
   callbacks: {
-    async signIn({ user }) {
-      if (!user.email) return false;
-      const email = user.email.toLowerCase();
-      const { db } = await import("@brain/db");
-
-      const existing = await db.user.findUnique({ where: { email } });
-      const adminEmails = parseAdminEmails();
-      const shouldBeAdmin = adminEmails.has(email);
-
-      if (existing) {
-        // Existing user — refresh profile + promote to admin if their email
-        // is now in ADMIN_EMAILS and they weren't already. NEVER demote via
-        // this path; demotion requires explicit admin action in the admin UI.
-        const patch: Record<string, unknown> = {};
-        if (user.name) patch["name"] = user.name;
-        if (user.image) patch["image"] = user.image;
-        if (shouldBeAdmin && existing.role !== "admin") patch["role"] = "admin";
-        if (Object.keys(patch).length > 0) {
-          await db.user.update({ where: { id: existing.id }, data: patch });
-        }
-        user.id = existing.id;
-        // Eagerly ensure the personal org + default project exist for this
-        // user. Both helpers are idempotent — safe on every sign-in. We do
-        // this here (rather than lazily in getActiveProject) so that the
-        // first-run defaults are ready before the user lands on the dashboard.
-        try {
-          const { ensurePersonalOrg, ensureDefaultProject } = await import("@brain/core");
-          await ensurePersonalOrg(db, existing.id);
-          await ensureDefaultProject(db, existing.id);
-        } catch (e) {
-          // Never fail sign-in for a bootstrap error — log and continue.
-          console.error("[auth] ensurePersonalOrg/ensureDefaultProject failed:", e);
-        }
-        return true;
-      }
-
-      // New user — enforce voucher gate unless the first admin is signing in.
-      // First admin is special: an operator listed in ADMIN_EMAILS can always
-      // bootstrap themselves in without a voucher (otherwise chicken-and-egg).
-      if (registrationRequiresVoucher() && !shouldBeAdmin) {
-        const cookieStore = await cookies();
-        const voucherCode = cookieStore.get("bp_voucher")?.value?.trim();
-        if (!voucherCode) {
-          // Redirect back to /signin with an error. NextAuth's signIn return
-          // "false" produces a generic error; we use the errorPage query param
-          // to surface a specific message.
-          return "/signin?error=voucher_required";
-        }
-
-        // Validate + reserve the voucher. `claimVoucher()` is atomic: it
-        // checks validity, increments usedCount, creates the VoucherRedemption
-        // row, and returns the User it created. Failure returns an explicit
-        // reason so the signin page can show it.
-        const { claimVoucher } = await import("@/lib/brain/vouchers");
-        const result = await claimVoucher({
-          code: voucherCode,
-          email,
-          name: user.name ?? null,
-          image: user.image ?? null,
-          ...(shouldBeAdmin ? ({ roleIfAdmin: "admin" } as const) : {}),
-        });
-        if (!result.ok) {
-          return `/signin?error=voucher_${result.reason}`;
-        }
-        user.id = result.userId;
-        return true;
-      }
-
-      // Either voucher gate is off, or this is an operator-bootstrap signin.
-      const created = await db.user.create({
-        data: {
-          email,
-          name: user.name ?? null,
-          image: user.image ?? null,
-          role: shouldBeAdmin ? "admin" : "user",
-        },
-      });
-      user.id = created.id;
-      // Bootstrap the personal org + default project for the brand-new user.
-      try {
-        const { ensurePersonalOrg, ensureDefaultProject } = await import("@brain/core");
-        await ensurePersonalOrg(db, created.id);
-        await ensureDefaultProject(db, created.id);
-      } catch (e) {
-        console.error("[auth] ensurePersonalOrg/ensureDefaultProject failed for new user:", e);
-      }
-      return true;
-    },
-    async jwt({ token, user }) {
-      if (user?.id) token.userId = user.id;
-      return token;
-    },
+    signIn: signInCallback,
+    jwt: jwtCallback,
     async session({ session, token }) {
       if (token.userId && typeof token.userId === "string") {
         (session as Session & { userId?: string }).userId = token.userId;

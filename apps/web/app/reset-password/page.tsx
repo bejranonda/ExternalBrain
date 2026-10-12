@@ -17,7 +17,7 @@ import { getServerT } from "@/lib/brain/i18n-server";
 export const dynamic = "force-dynamic";
 
 interface Props {
-  searchParams: Promise<{ token?: string; error?: string; success?: string }>;
+  searchParams: Promise<{ token?: string; error?: string; success?: string; revoked?: string }>;
 }
 
 // Copy lives in `auth.errors`; only these codes are produced by this page.
@@ -43,6 +43,7 @@ export default async function ResetPasswordPage({ searchParams }: Props) {
   const token = params.token ?? "";
   const errorKey = params.error ?? "";
   const success = params.success === "1";
+  const revokedCount = Math.max(0, Math.floor(Number(params.revoked ?? 0)) || 0);
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
@@ -119,7 +120,14 @@ export default async function ResetPasswordPage({ searchParams }: Props) {
               }}
             >
               <strong style={{ color: "var(--ink, #ececf0)" }}>{t("auth.resetDone")}</strong>
-              <br />{t("auth.resetDoneBody")}</div>
+              <br />{t("auth.resetDoneBody")}
+              {revokedCount > 0 && (
+                <>
+                  <br />
+                  <br />
+                  {t("auth.resetTokensRevoked", { n: revokedCount })}
+                </>
+              )}</div>
             <a
               href="/signin"
               style={{
@@ -211,7 +219,9 @@ export default async function ResetPasswordPage({ searchParams }: Props) {
                   redirect(`/reset-password?token=${encodeURIComponent(t)}&error=${errKey}`);
                 }
 
-                redirect("/reset-password?success=1");
+                const done = (await res.json().catch(() => ({}))) as { tokensRevoked?: number };
+                const revoked = Number(done.tokensRevoked ?? 0);
+                redirect(revoked > 0 ? `/reset-password?success=1&revoked=${revoked}` : "/reset-password?success=1");
               }}
             >
               <input type="hidden" name="token" value={token} />
