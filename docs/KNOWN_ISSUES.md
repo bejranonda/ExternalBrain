@@ -2546,10 +2546,10 @@ since v2.20.4.
 | Package boundary unenforced; live-MCP suites skipped green; replica formula test | CI, tests | fixed (v2.21.0) |
 | Web Sentry never initialised | `apps/web/instrumentation.ts` | fixed (v2.21.0) |
 | Light-theme status inks (`--warn`, `--bad`, `--ok`, `--cool`, `--violet`) never overridden — dark pastels as text on near-white at 1.4–2.3:1; every sign-in error banner failed WCAG AA, on prod. Found by the visitor-side UI pass, not by any test | `app/globals.css` | fixed (v2.21.0) — 5–6:1; `theme-contrast.test.ts` computes the ratio from the CSS |
-| Critical advisories in `next` and `proxy-addr` | deps | fixed (v2.21.0); **27 high remain**, below the CI gate |
-| **Pre-account takeover**: register/voucher-claim never verify email ownership, GitHub sign-in links to that row by email (`auth.ts` signIn callback), and `reset-password` does not revoke MCP tokens | `api/auth/register`, `auth.ts` | **open — deferred by operator decision.** Reachable only by a voucher holder while `REGISTRATION_REQUIRES_VOUCHER` is on (the default). Proposed fix: stop adopting an existing credentials row on GitHub sign-in until its owner links GitHub while signed in; revoke tokens on password reset; full email verification is the larger alternative |
+| Critical advisories in `next` and `proxy-addr` | deps | fixed (v2.21.0); the 27 high that remained are fixed in v2.22.0 (`§0az`) |
+| **Pre-account takeover**: register/voucher-claim never verify email ownership, GitHub sign-in links to that row by email, and `reset-password` does not revoke MCP tokens | `api/auth/register`, `auth.ts` | **fixed (v2.22.0)** — `§0az` |
 | `brain_retire_knowledge` reach exceeds MCP read parity (scope `"all"` admits a teammate's `project`-visibility row) and ignores a project-scoped token's project | `knowledge-retire.ts` | open — needs a decision: is "visible in the webapp" or "visible over MCP" the bar? Recoverable via the audit snapshot |
-| Node 20 runtime is past EOL (April 2026) | Dockerfiles, CI | open |
+| Node 20 runtime is past EOL (April 2026) | Dockerfiles, CI | fixed (v2.22.0) — Node 24 LTS (`§0az`) |
 | `lint` runs in no workflow; no dependabot/renovate; 20 of 31 Playwright specs run in no workflow; the worker has no test runner | CI | open |
 | `brain_ask_oracle` truncates silently: `minimal` is capped at 256 output tokens (`MAX_TOKENS_BY_LEVEL`) and the response carries no stop reason, so an agent reads a mid-sentence cut ("Two related cautions: verify you") as the whole answer. Found on prod during the v2.21.0 deploy check | `packages/core/src/oracle.ts` | fixed (v2.21.1) — `truncated` on the REST, SSE and MCP responses, read from Anthropic `stop_reason` / OpenAI `finish_reason` on all four call paths; the webapp shows a notice under the answer. `oracle-truncation.test.ts` pins each path (fails 4/8 with detection removed) |
 | Sign-in / reset error banners are hard-coded English (`ERROR_MESSAGES` in `signin/page.tsx`), so a ไทย/DE visitor gets the throttle message in English — same debt class as the dashboard section labels in `§1` | `apps/web/app/signin/page.tsx` | fixed (v2.21.1) — `auth.errors.*` in all three locales (sign-in, reset, forgot-password "sent" copy); the `?error=` code is looked up only as an own key of the English table, never as a free path |
@@ -2566,6 +2566,89 @@ since v2.20.4.
 - Visitor browser with `bp_lang` = en / th / de: the throttle banner, the forgot-password "sent" copy and the reset invalid-link view render in the chosen language at 390 px. `?error=constructor`, `__proto__`, `toString` and an unknown code all render the localised generic fallback — never a key path. The reset page's error *banner* only shows for a valid token, so it was checked by typecheck and review, not live.
 
 ---
+
+## 0az. Pre-account takeover, Node 20 EOL, 27 high advisories (2026-10-12, v2.22.0)
+
+The three items `§0ay` left open, plus the Sentry follow-up, fixed in one batch.
+
+### Pre-account takeover
+
+Every signup path — email+password, voucher claim, agentic onboarding — stores
+the address it was given without proving it. GitHub sign-in then adopted any
+`User` row with that email (`auth.ts` signIn callback). So an attacker could
+register `victim@x` first; when the victim later signed in with GitHub they
+landed in the attacker's row, which the attacker still held a password, MCP
+tokens and live JWT sessions for — and could read everything the victim's
+agents wrote. Invite signup had the same shape one door over: an invite to an
+existing email granted org membership to that row **with no sign-in at all**
+(`api/invites/signup`). A password reset evicted nothing.
+
+**Fix.** `User.emailVerifiedAt` and `User.sessionsRevokedAt`
+(`20261012190000_email_ownership`).
+- Proof of inbox = GitHub sign-in with a GitHub-**verified primary** email
+  (`githubVerifiedPrimaryEmail` calls `/user/emails`; the NextAuth provider
+  takes the primary without checking `verified`), or a completed reset.
+- GitHub links to an existing row only when its email is proven; otherwise
+  `account_email_unverified` → forgot-password. Invite signup returns
+  `invite_account_unverified` and leaves the invite unconsumed.
+- `proveEmailOwnership`: the **first** proof revokes every MCP token and sets
+  `sessionsRevokedAt`; later proofs only sign out other sessions. The reset
+  page tells the user when tokens were revoked.
+- The `jwt` callback stamps `authAt` at sign-in (`iat` is re-stamped on every
+  refresh, so it cannot say when someone signed in) and returns `null` for a
+  session older than `sessionsRevokedAt`, which clears the cookie.
+- The migration marks admins and prior reset-completers verified.
+
+**Why it had no tests.** `apps/web/vitest.setup.ts` mocks `@/auth` for every
+test, because `NextAuth()` cannot load under vitest — so the account-linking
+logic had never run in a test. The callbacks moved to
+`lib/brain/auth-callbacks.ts`; `email-ownership.test.ts` walks the attack end
+to end (with the gate and the proof removed, 3 of 13 fail).
+
+**Caught before deploy, not by unit tests.** The first version gated every
+`signIn` call on GitHub's verified email. The comment in `auth.ts` said "the
+Credentials provider doesn't use the signIn callback" — false: NextAuth v5
+runs it for every provider. Every password sign-in returned
+`github_email_unverified`. The unit tests passed because they were written
+from the same wrong belief and only fed GitHub inputs. A real browser against
+the built image found it in one click. Now gated on `account.provider ===
+"github"`, the comment is corrected, and a credentials-provider case is in the
+suite (fails with the gate widened).
+
+### Node 20 → Node 24 LTS
+
+Node 20 reached end-of-life in April 2026. Every Docker stage is now
+`node:24-bookworm-slim` (same Debian release as before, so only Node changes),
+CI runs 24, `engines` is `>=24.0.0`. Node 22 was skipped: it ends April 2027.
+
+### 27 high advisories → 0
+
+`@modelcontextprotocol/sdk` ^1.31.0 (OAuth client credential leak), plus
+range-scoped pnpm overrides for transitive `brace-expansion`, `fast-uri`,
+`hono`, `ip-address`, `js-yaml`, `mysql2`, `nanoid`, `postcss`,
+`source-map-js`, `deepmerge-ts` (the only major bump — inside Prisma's config
+loader; `prisma generate` / `migrate status` verified). `pnpm audit --prod`:
+82 → 21, none high or critical.
+
+### Sentry
+
+The wiring is verified: with `SENTRY_DSN` set, the web image logs
+`web.sentry_init {enabled:true}`, and compose delivers the DSN to all three
+services. Production still has no DSN — that needs a Sentry project, which
+only the operator can create. Set `SENTRY_DSN` in `.env` and
+`./scripts/reload.sh web mcp-server worker`.
+
+| Item | Where | Status |
+|---|---|---|
+| Pre-account takeover via GitHub sign-in | `auth-callbacks.ts` | fixed (v2.22.0) |
+| Invite signup grants an org to an unproven existing account | `api/invites/signup` | fixed (v2.22.0) |
+| Password reset evicts nothing (tokens, sessions) | `api/auth/reset-password` | fixed (v2.22.0) — first proof revokes both |
+| `signIn`/`jwt` callbacks untestable (whole `@/auth` mocked) | `vitest.setup.ts` | fixed (v2.22.0) — moved to `lib/brain/auth-callbacks.ts` |
+| Node 20 EOL | Docker, CI | fixed (v2.22.0) |
+| 27 high prod advisories | deps | fixed (v2.22.0) |
+| No confirm-on-signup email: a stranger can still *occupy* an address until its owner proves it | signup paths | open — the owner can always reclaim via forgot-password, which now evicts the occupant |
+| Production has no `SENTRY_DSN` | `.env` | open — operator action |
+| Per-device sign-out / admin "revoke sessions" button | — | open |
 
 ## 1. Scaffolding-level issues (v0.1+)
 

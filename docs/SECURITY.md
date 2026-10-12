@@ -21,6 +21,30 @@ The adversaries we defend against:
 
 Out of scope (for now): nation-state APT, physical VM compromise, side-channel attacks on embedding inference.
 
+## v2.22.0 — an account is only handed over once someone proves its email
+
+**Pre-account takeover is closed** (`KNOWN_ISSUES.md §0az`). Every signup path
+stores the address it was given without proving it, and GitHub sign-in used to
+adopt any row with a matching email — so whoever registered an address first
+owned the account its real owner later signed into, still holding a password,
+MCP tokens and live sessions. Invite signup had the same shape.
+
+- `User.emailVerifiedAt` records proof of inbox control: a GitHub sign-in whose
+  **primary email GitHub has verified** (checked against `/user/emails` — the
+  NextAuth provider does not check `verified`), or a completed password reset.
+- GitHub sign-in links to an existing row **only if its email is proven**;
+  otherwise it sends the user to forgot-password. Invite signup refuses an
+  unproven existing account and leaves the invite unused.
+- The **first** proof revokes every MCP token and signs out every web session
+  that predates it (`User.sessionsRevokedAt`, enforced in the `jwt` callback
+  via an `authAt` claim). Later resets keep tokens, so an owner who forgot a
+  password keeps their agents; the reset page says when tokens were revoked.
+- The migration marks admins and anyone who already completed a reset as
+  verified.
+
+**Operator note:** the `jwt` callback now reads one `User` row per
+authenticated request. Sessions issued before the upgrade stay valid.
+
 ## v2.21.0 — rate limits now key on the real client, and password sign-in has one
 
 **If you run behind nginx (or any proxy that *appends* to `X-Forwarded-For`),
@@ -722,15 +746,17 @@ VM deployment (use `scripts/setup-backup-replicate.sh`).
 - **No self-service admin role UI.** Admin promotion is via `ADMIN_EMAILS` env; demotion is SQL. Tracked in KNOWN_ISSUES.
 - **Vouchers are not scoped to emails.** A voucher can be redeemed by any email that knows the code. An email-pinned voucher (`emailAllowlist String[]`) is a natural next step; current model supports it with a schema addition.
 - **`/api/auth/*` is still exempt from the proxy limiter** (an OAuth callback must not 429 on a cold deploy). Password guessing through it is covered since v2.21.0 — the limit lives inside the credentials `authorize()`, which both the sign-in action and the direct callback run.
-- **No email-ownership verification (pre-account takeover).** Register and voucher-claim create an account for any email without proving the caller owns it; a later GitHub sign-in with that email lands in the existing row, whose password the creator knows; and `reset-password` does not revoke that account's MCP tokens. Reachable only by a voucher holder while `REGISTRATION_REQUIRES_VOUCHER` is on (the default). Deferred by operator decision — `KNOWN_ISSUES.md §0ay` has the proposed fix.
+- **Signup still does not send a verification email.** Since v2.22.0 an unproven address can no longer be *adopted* by GitHub sign-in or an invite (see above), but a stranger can still occupy an address until its owner proves it via forgot-password. A confirm-on-signup email is the larger follow-up (`KNOWN_ISSUES.md §0az`).
 - **No CAPTCHA on voucher entry.** A brute-forcer that enumerates short codes is plausible. Mitigated by the 8-char alphanumeric space (≥ 10^10 possibilities per prefix) but a rate-limit on voucher-validate attempts is cheap defense.
-- **No session revocation for rotating compromised JWTs.** JWT expiry is the only mechanism today; a compromised token works until it expires. A `revokedAt` field on a Session table is the retrofit path.
+- **Session revocation is per user, not per session.** Since v2.22.0 `User.sessionsRevokedAt` signs out every web session that authenticated before it (set by a password reset); there is no "sign out this one device" and no admin button for it yet.
 
 ---
 
 ## See also
 
-- `apps/web/auth.ts` — NextAuth config + signIn callback.
+- `apps/web/auth.ts` — NextAuth config.
+- `apps/web/lib/brain/auth-callbacks.ts` — `signIn` / `jwt` callbacks (account linking, session revocation).
+- `apps/web/lib/brain/email-ownership.ts` — `proveEmailOwnership`, `sessionStillValid`, GitHub verified-email check.
 - `apps/web/lib/brain/auth.ts` — per-request `getCurrentUserId()` and the 503 path.
 - `apps/web/lib/brain/vouchers.ts` — `validateVoucher` + `claimVoucher` (transactional).
 - `apps/web/lib/brain/admin-auth.ts` — `requireAdmin()`.
