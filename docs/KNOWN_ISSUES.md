@@ -2551,6 +2551,15 @@ since v2.20.4.
 | `brain_retire_knowledge` reach exceeds MCP read parity (scope `"all"` admits a teammate's `project`-visibility row) and ignores a project-scoped token's project | `knowledge-retire.ts` | open — needs a decision: is "visible in the webapp" or "visible over MCP" the bar? Recoverable via the audit snapshot |
 | Node 20 runtime is past EOL (April 2026) | Dockerfiles, CI | open |
 | `lint` runs in no workflow; no dependabot/renovate; 20 of 31 Playwright specs run in no workflow; the worker has no test runner | CI | open |
+| `brain_ask_oracle` truncates silently: `minimal` is capped at 256 output tokens (`MAX_TOKENS_BY_LEVEL`) and the response carries no stop reason, so an agent reads a mid-sentence cut ("Two related cautions: verify you") as the whole answer. Found on prod during the v2.21.0 deploy check | `packages/core/src/oracle.ts` | open — surface `truncated: true` when the provider stops on `max_tokens` (both SDK paths + the stream), and render it in the webapp |
+| Sign-in / reset error banners are hard-coded English (`ERROR_MESSAGES` in `signin/page.tsx`), so a ไทย/DE visitor gets the throttle message in English — same debt class as the dashboard section labels in `§1` | `apps/web/app/signin/page.tsx` | open — move to i18n keys |
+
+**Deployed and verified on prod, 2026-10-12** (`reload.sh` web → mcp-server → worker, one at a time — a parallel build risks OOM on the 8 GB host; no migration in the batch):
+- `/api/healthz` reports `v2.21.0`; `verify-lockdown.sh` PASS; all six containers healthy; MCP clients reconnected within a minute.
+- Env delivery checked *inside* each container: web `KEA_MODEL`/`PG_BOSS_SCHEMA`, mcp-server `MAX_ORACLE_COST_USD_PER_DAY`/`PG_BOSS_SCHEMA`/`ORACLE_ENABLED`, worker `KEA_ENABLED`/`AUTOSKILL_ENABLED`/`BRAIN_DEPLOY_ENV`/`CROSS_SESSION_WINDOW` all set. Web logs `web.sentry_init {enabled:false, dsnSet:false}` — prod has no `SENTRY_DSN`, now visible instead of assumed.
+- Visitor, real browser against `brain.autobahn.bot`: `/`, `/signin`, `/forgot-password`, `/reset-password` render with no console errors and no overflow at 390 px; a wrong password says so; the 11th attempt on one account shows the throttle banner (5.84:1 light, 10.68:1 dark); forgot-password with an unknown email answers the generic `sent=1`; `/<org>/{skills,sessions,oracle}`, `/settings`, `/admin` redirect a signed-out visitor to `/signin`.
+- Signed-in agent over MCP (knowledge-capable token): `brain_start_session` returns rules with `project.source: explicit`; `brain_ask_oracle` answers grounded, not `ORACLE_PAUSED`.
+- Per-role coverage (owner, org teammate, non-member, project-scoped token, sessions-only token, unrestricted token, operator kill-switches): 37 tests against a scratch DB plus CI's live-MCP suites (11 run, 0 skipped). The *denied* side of each gate was exercised in tests, not on prod — doing it live means minting restricted tokens in the production DB.
 
 ---
 
