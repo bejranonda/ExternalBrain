@@ -2606,6 +2606,17 @@ agent's session start injects the current rule, not the old).
 | Teach `supersedesKnowledgeId` silently no-ops on a teammate's row | `tools/teach.ts` | fixed (v2.23.0) |
 | The visibility predicate for retire still uses `scope: "all"` with the target's org, not the caller's MCP retrieval scope | `knowledge-retire.ts` | accepted — with a named replacement required for any row not your own, the wider read reach no longer lets a caller erase anything without leaving a successor |
 
+**Deployed and verified on the live instance, 2026-10-12** (backup + rollback
+tags first; only `mcp-server` redeployed — the retire/teach paths live there,
+so web and worker still report `v2.22.0` and run identical code for their
+paths). `verify-lockdown.sh` PASS, no MCP errors. Over MCP with throwaway rows:
+a self-replacement is refused (`REPLACEMENT_INVALID`); retiring an own row
+with `replacedById` records the lineage (`parentKnowledgeId` on the
+replacement, `replacedById` in the audit payload); an own row retires without
+one. The teammate refusal could not be exercised live — no other user's
+shared row is visible to the operator's account — and is covered by the
+suites. The 2026-08-30 Brain decision was superseded live (`superseded: true`).
+
 ## 0az. Pre-account takeover, Node 20 EOL, 27 high advisories (2026-10-12, v2.22.0)
 
 The three items `§0ay` left open, plus the Sentry follow-up, fixed in one batch.

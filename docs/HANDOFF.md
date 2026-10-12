@@ -15,6 +15,7 @@ _Last updated: 2026-10-12 · release **v2.23.0** · live on the reference instan
 |---|---|
 | Released | **v2.23.0** (2026-10-12): knowledge leaves the Brain only when new knowledge replaces it (`§0ba`). **v2.22.0** the same evening: pre-account takeover closed, Node 24 LTS, all high advisories cleared. v2.21.0 / v2.21.1 earlier that day. |
 | Runtime | Node 24 (`node:24-bookworm-slim`) in every image and in CI |
+| Deployed | `mcp-server` at v2.23.0; `web` and `worker` at v2.22.0 (no code change on their paths). Rollback tags `deploy-*:rollback-v2.22.0`; dumps in the operator's backup directory |
 | Schema | latest migration `20261012190000_email_ownership` (additive: `User.emailVerifiedAt`, `User.sessionsRevokedAt`) |
 | Dependencies | `pnpm audit --prod`: 0 critical, 0 high (21 low/moderate) |
 | CI | 8 checks, all required ones green on `main`. CodeRabbit is advisory (`AGENTS.md`). |
