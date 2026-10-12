@@ -10,7 +10,7 @@ How we write code, structure changes, and ship safely in this repo.
 
 - **TypeScript strict**, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`. Set in `tsconfig.base.json`; do not relax per-package.
   - `exactOptionalPropertyTypes` has a sharp edge worth knowing before it bites: `foo?: string` means *"absent, or a string"* — it **rejects an explicitly-passed `undefined`** (TS2375). Any optional prop whose value comes from a function rather than being conditionally spread needs `foo?: string | undefined`. This is the normal shape for a server component threading a resolved-or-undefined value into a client component: `<C mcpUrl={resolvePublicMcpUrl()} />`.
-- **Node 20+**, ESM modules (`"type": "module"` everywhere).
+- **Node 24+** (Docker, CI and `engines`; Node 20 reached end-of-life in April 2026), ESM modules (`"type": "module"` everywhere).
 - **Formatting**: Prettier defaults, 2-space indent, single quotes for JS/TS, trailing commas.
 - **Naming**: `camelCase` for values, `PascalCase` for types/classes, `kebab-case` for file names, `SCREAMING_SNAKE` only for env vars.
 - **No `any`, no `@ts-ignore`** without a comment explaining the reason.

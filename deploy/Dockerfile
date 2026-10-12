@@ -5,23 +5,23 @@
 #   docker build -f deploy/Dockerfile --target mcp-server -t brain/mcp-server .
 #   docker build -f deploy/Dockerfile --target worker     -t brain/worker .
 #
-# Each final stage is a lean `node:20-slim` with only the files needed
+# Each final stage is a lean `node:24-bookworm-slim` with only the files needed
 # to run the given app. Prisma client is generated once in the build stage.
 
 # ---------- Base: dependencies and prisma generate ----------
-FROM node:20-slim AS base
+FROM node:24-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH="$PNPM_HOME:$PATH"
 # Keep pnpm's content-addressable store in a fixed location so BuildKit's
 # cache mount can preserve it across builds. The store holds unpacked
 # tarballs, so a fresh build only re-hardlinks rather than re-downloading.
 ENV PNPM_STORE_DIR=/pnpm/store
-# node:20-slim strips openssl; Prisma's engine detection needs libssl.so
+# node:*-slim strips openssl; Prisma's engine detection needs libssl.so
 # to pick the right binary target, so install the package explicitly.
 # python3 is added so the bootstrap image can run the installer-reconcile
 # regression test (PR #226 / #225). The python3 itself ships ~50MB but
 # only into the bootstrap target — production web/mcp/worker images
-# stay slim because they re-FROM node:20-slim independently below.
+# stay slim because they re-FROM node:24-bookworm-slim independently below.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends openssl ca-certificates python3 \
  && rm -rf /var/lib/apt/lists/* \
@@ -99,7 +99,7 @@ RUN --mount=type=cache,target=/repo/apps/web/.next/cache,sharing=locked \
  && pnpm --filter @brain/web build
 
 # ---------- Web ----------
-FROM node:20-slim AS web
+FROM node:24-bookworm-slim AS web
 RUN apt-get update \
  && apt-get install -y --no-install-recommends openssl ca-certificates \
  && rm -rf /var/lib/apt/lists/* \
@@ -113,7 +113,7 @@ ENV HOSTNAME=0.0.0.0
 # Standalone bundle has all workspace deps already inlined.
 # `public/` is optional in Next.js — we don't ship one, so the copy step
 # is omitted to avoid buildkit's "not found" checksum error.
-# Audit C15 (#110): drop root for the runtime — node:20-slim ships a
+# Audit C15 (#110): drop root for the runtime — node:24-bookworm-slim ships a
 # `node` user (uid 1000). Use `--chown` on each COPY so files land
 # already owned correctly, avoiding a recursive chown step that would
 # duplicate every file in a new layer.
@@ -136,7 +136,7 @@ CMD ["node", "apps/web/server.js"]
 # without a TS loader would fail. Switching to tsx keeps the production
 # runtime aligned with the dev runtime — fine for the MVP, revisit if
 # cold-start becomes a concern.
-FROM node:20-slim AS mcp-server
+FROM node:24-bookworm-slim AS mcp-server
 RUN apt-get update \
  && apt-get install -y --no-install-recommends openssl ca-certificates \
  && rm -rf /var/lib/apt/lists/* \
@@ -162,7 +162,7 @@ WORKDIR /app/apps/mcp-server
 CMD ["/app/node_modules/.pnpm/node_modules/.bin/tsx", "src/index.ts"]
 
 # ---------- Worker ----------
-FROM node:20-slim AS worker
+FROM node:24-bookworm-slim AS worker
 RUN apt-get update \
  && apt-get install -y --no-install-recommends openssl ca-certificates \
  && rm -rf /var/lib/apt/lists/* \
