@@ -8,6 +8,7 @@ import {
   ensureNamedProject,
   BrainError,
   supersedeKnowledge,
+  retireKnowledgeById,
   getLogger,
 } from "@brain/core";
 import type { ToolDef } from "./index.js";
@@ -236,6 +237,28 @@ export const teachKnowledge: ToolDef = {
         userId: auth.userId,
         projectId: resolvedProjectId ?? undefined,
       });
+      // A teammate's row is not the caller's to supersede in place, but the
+      // rule since v2.23.0 is that knowledge leaves when new knowledge
+      // replaces it — and this teach IS that replacement. Route it through
+      // the retire path, which checks the caller can see the row and keeps
+      // the audit snapshot. The caller's own rows keep the stricter
+      // same-project rule above (and its hint).
+      if (!superseded) {
+        const prior = await db.knowledge.findUnique({
+          where: { id: input.supersedesKnowledgeId },
+          select: { ownerUserId: true },
+        });
+        if (prior && prior.ownerUserId !== auth.userId) {
+          const r = await retireKnowledgeById(db, {
+            id: input.supersedesKnowledgeId,
+            actorUserId: auth.userId,
+            replacedById: row.id,
+            tokenProjectId: auth.projectId,
+            reason: "superseded by brain_teach_knowledge",
+          });
+          superseded = r.ok;
+        }
+      }
     }
     // Measurement (APPROACH §1.3): split decision capture out of generic teach.
     if (input.tags.includes("decision")) {
@@ -272,9 +295,9 @@ export const teachKnowledge: ToolDef = {
               : {
                   supersedeHint:
                     `Supersession did NOT apply: ${input.supersedesKnowledgeId} was not found ` +
-                    `for this user in project ${resolvedProjectId}. The old rule is still ACTIVE. ` +
-                    `Most likely it lives in a different project — re-run this teach with that ` +
-                    `project's projectId/projectName.`,
+                    `for this user in project ${resolvedProjectId}, and is not a teammate's row ` +
+                    `you can see. The old rule is still ACTIVE. Most likely it lives in a ` +
+                    `different project — re-run this teach with that project's projectId/projectName.`,
                 }),
           }),
     };

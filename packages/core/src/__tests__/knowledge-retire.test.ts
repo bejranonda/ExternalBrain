@@ -148,7 +148,7 @@ guard("retireKnowledgeById", () => {
     expect(row?.deletedAt).toBeNull();
   });
 
-  it("ALLOWS retiring a teammate's ORG-shared row — the explicit widening under test", async () => {
+  it("ALLOWS retiring a teammate's ORG-shared row when naming its replacement", async () => {
     const owner = await makeUser();
     const teammate = await makeUser();
     const org = await makeOrgWithMembers([owner, teammate]);
@@ -160,15 +160,27 @@ guard("retireKnowledgeById", () => {
       tags: ["decision"],
     });
 
+    // The teammate teaches the corrected decision first, then retires the old
+    // one by naming it — knowledge leaves because new knowledge replaced it.
+    const replacement = await makeKnowledge({
+      ownerUserId: teammate,
+      ownerProjectId: project,
+      visibility: "org",
+      tags: ["decision"],
+    });
     const result = await retireKnowledgeById(db, {
       id,
       actorUserId: teammate,
-      reason: "test: cleaning up a duplicate decision",
+      reason: "test: the decision changed",
+      replacedById: replacement,
     });
 
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.wasOwnRow).toBe(false);
+      expect(result.replacedById).toBe(replacement);
+      const lineage = await db.knowledge.findUnique({ where: { id: replacement }, select: { parentKnowledgeId: true } });
+      expect(lineage?.parentKnowledgeId).toBe(id);
       // The snapshot must carry enough to re-teach it if this was a mistake.
       expect(result.snapshot.ruleText).toBeTruthy();
       expect(result.snapshot.visibility).toBe("org");
@@ -257,8 +269,9 @@ guard("retireKnowledgeById", () => {
     const org = await makeOrgWithMembers([owner, teammate]);
     const project = await makeProject(org, owner);
     const id = await makeKnowledge({ ownerUserId: owner, ownerProjectId: project, visibility: "org" });
+    const replacement = await makeKnowledge({ ownerUserId: teammate, ownerProjectId: project, visibility: "org" });
 
-    await retireKnowledgeById(db, { id, actorUserId: teammate });
+    await retireKnowledgeById(db, { id, actorUserId: teammate, replacedById: replacement });
 
     const audit = await db.auditLog.findFirst({
       where: { action: "knowledge.retire", targetId: id },
@@ -266,5 +279,80 @@ guard("retireKnowledgeById", () => {
     });
     const payload = audit?.payload as { retiredSomeoneElsesRow?: boolean } | null;
     expect(payload?.retiredSomeoneElsesRow).toBe(true);
+  });
+
+  // ── v2.23.0: someone else's row leaves only when new knowledge replaces it ──
+
+  async function teamFixture() {
+    const owner = await makeUser();
+    const teammate = await makeUser();
+    const org = await makeOrgWithMembers([owner, teammate]);
+    const project = await makeProject(org, owner);
+    const decision = await makeKnowledge({ ownerUserId: owner, ownerProjectId: project, visibility: "org", tags: ["decision"] });
+    return { owner, teammate, org, project, decision };
+  }
+
+  it("REFUSES a teammate's row with no replacement — and leaves it live", async () => {
+    const { teammate, decision } = await teamFixture();
+    const result = await retireKnowledgeById(db, { id: decision, actorUserId: teammate });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe("REPLACEMENT_REQUIRED");
+    const row = await db.knowledge.findUnique({ where: { id: decision }, select: { deletedAt: true } });
+    expect(row?.deletedAt).toBeNull();
+  });
+
+  it("a teammate's PRIVATE row still answers FORBIDDEN, not REPLACEMENT_REQUIRED (no existence leak)", async () => {
+    const { owner, teammate, project } = await teamFixture();
+    const secret = await makeKnowledge({ ownerUserId: owner, ownerProjectId: project, visibility: "private" });
+    const result = await retireKnowledgeById(db, { id: secret, actorUserId: teammate });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe("FORBIDDEN");
+  });
+
+  it("REFUSES a replacement that is the row itself, already retired, missing, or invisible", async () => {
+    const { owner, teammate, project, decision } = await teamFixture();
+    const stranger = await makeUser();
+    const strangersPrivate = await makeKnowledge({ ownerUserId: stranger, visibility: "private" });
+    const retired = await makeKnowledge({ ownerUserId: teammate, ownerProjectId: project, visibility: "org" });
+    await db.knowledge.update({ where: { id: retired }, data: { deletedAt: new Date() } });
+    const ownersPrivate = await makeKnowledge({ ownerUserId: owner, ownerProjectId: project, visibility: "private" });
+
+    for (const replacedById of [decision, retired, "missing-id", strangersPrivate, ownersPrivate]) {
+      const result = await retireKnowledgeById(db, { id: decision, actorUserId: teammate, replacedById });
+      expect(result.ok, replacedById).toBe(false);
+      if (!result.ok) expect(result.error).toBe("REPLACEMENT_INVALID");
+    }
+    const row = await db.knowledge.findUnique({ where: { id: decision }, select: { deletedAt: true } });
+    expect(row?.deletedAt).toBeNull();
+  });
+
+  it("a DUPLICATE: naming the teammate's other copy works, and does not rewrite that copy", async () => {
+    const { owner, teammate, project, decision } = await teamFixture();
+    const keep = await makeKnowledge({ ownerUserId: owner, ownerProjectId: project, visibility: "org", tags: ["decision"] });
+    const result = await retireKnowledgeById(db, { id: decision, actorUserId: teammate, replacedById: keep });
+    expect(result.ok).toBe(true);
+    const kept = await db.knowledge.findUnique({ where: { id: keep }, select: { parentKnowledgeId: true, deletedAt: true } });
+    expect(kept?.deletedAt).toBeNull();
+    expect(kept?.parentKnowledgeId).toBeNull();
+  });
+
+  it("own rows still retire freely, with or without a replacement", async () => {
+    const user = await makeUser();
+    const a = await makeKnowledge({ ownerUserId: user, visibility: "private" });
+    expect((await retireKnowledgeById(db, { id: a, actorUserId: user })).ok).toBe(true);
+  });
+
+  it("a PROJECT-SCOPED token reaches only rows in its own project — own rows included", async () => {
+    const user = await makeUser();
+    const org = await makeOrgWithMembers([user]);
+    const scoped = await makeProject(org, user);
+    const other = await makeProject(org, user);
+    const elsewhere = await makeKnowledge({ ownerUserId: user, ownerProjectId: other, visibility: "project" });
+    const here = await makeKnowledge({ ownerUserId: user, ownerProjectId: scoped, visibility: "project" });
+
+    const blocked = await retireKnowledgeById(db, { id: elsewhere, actorUserId: user, tokenProjectId: scoped });
+    expect(blocked.ok).toBe(false);
+    if (!blocked.ok) expect(blocked.error).toBe("FORBIDDEN");
+    expect((await retireKnowledgeById(db, { id: here, actorUserId: user, tokenProjectId: scoped })).ok).toBe(true);
   });
 });
