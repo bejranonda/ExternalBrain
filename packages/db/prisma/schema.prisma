@@ -43,6 +43,13 @@ model User {
   // Authorization role. `admin` unlocks /api/admin/*; `user` is the default.
   // Promote via SQL: `UPDATE "User" SET role='admin' WHERE email=...;`
   role      String   @default("user")
+  // Set when someone proved they control `email`: a GitHub sign-in with that
+  // address verified and primary, or a completed password reset (the link only
+  // reaches the inbox). NULL means the address was typed in and never proven —
+  // GitHub sign-in will not adopt such a row (KNOWN_ISSUES §0az).
+  emailVerifiedAt   DateTime?
+  // Web sessions (JWTs) that authenticated before this instant are rejected.
+  sessionsRevokedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

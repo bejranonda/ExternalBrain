@@ -15,6 +15,7 @@
  * onboarding (User + API token, no credential). See forgot-password/route.ts.
  */
 import { db } from "@brain/db";
+import { proveEmailOwnership } from "@/lib/brain/email-ownership";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { writeAudit, validatePasswordPolicy, BCRYPT_COST, BrainError, getLogger } from "@brain/core";
@@ -78,27 +79,34 @@ export async function POST(req: Request): Promise<Response> {
   // the token is single-use and time-boxed either way.
   const newHash = await bcrypt.hash(newPassword, BCRYPT_COST);
 
-  await db.$transaction([
-    db.userCredential.upsert({
+  // The reset link only reaches the inbox, so completing it proves the email.
+  // On the first proof that also evicts whatever an earlier registrant of
+  // this address planted — MCP tokens and live web sessions (§0az).
+  const proof = await db.$transaction(async (tx) => {
+    await tx.userCredential.upsert({
       where: { userId: resetToken.userId },
       update: { passwordHash: newHash },
       create: { userId: resetToken.userId, passwordHash: newHash },
-    }),
-    db.passwordResetToken.update({
+    });
+    await tx.passwordResetToken.update({
       where: { id: resetToken.id },
       data: { usedAt: new Date() },
-    }),
-  ]);
+    });
+    return proveEmailOwnership(tx, resetToken.userId);
+  });
 
-  log.info({ userId: resetToken.userId }, "password reset complete");
+  log.info(
+    { userId: resetToken.userId, firstProof: proof.firstProof, tokensRevoked: proof.tokensRevoked },
+    "password reset complete",
+  );
 
   await writeAudit({
     actorUserId: resetToken.userId,
     action: "user.password_reset_complete",
     targetType: "user",
     targetId: resetToken.userId,
-    payload: {},
+    payload: { firstProof: proof.firstProof, tokensRevoked: proof.tokensRevoked },
   });
 
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, tokensRevoked: proof.tokensRevoked });
 }

@@ -103,8 +103,16 @@ export async function POST(req: Request): Promise<Response> {
   // Check whether a User for this email already exists.
   const existingUser = await db.user.findUnique({
     where: { email: inviteEmail },
-    select: { id: true, email: true, name: true },
+    select: { id: true, email: true, name: true, emailVerifiedAt: true },
   });
+
+  // This branch grants membership without the caller signing in. If the
+  // existing row's email was never proven, it may belong to whoever registered
+  // the address first — not the invitee — and they would get the org (§0az).
+  // The invite stays unconsumed; it works once the address is confirmed.
+  if (existingUser && existingUser.emailVerifiedAt === null) {
+    return Response.json({ error: "invite_account_unverified" }, { status: 409 });
+  }
 
   if (existingUser) {
     // Existing user — just accept invite + add org membership; skip credential.
