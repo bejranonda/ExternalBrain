@@ -2561,6 +2561,10 @@ since v2.20.4.
 - Signed-in agent over MCP (knowledge-capable token): `brain_start_session` returns rules with `project.source: explicit`; `brain_ask_oracle` answers grounded, not `ORACLE_PAUSED`.
 - Per-role coverage (owner, org teammate, non-member, project-scoped token, sessions-only token, unrestricted token, operator kill-switches): 37 tests against a scratch DB plus CI's live-MCP suites (11 run, 0 skipped). The *denied* side of each gate was exercised in tests, not on prod — doing it live means minting restricted tokens in the production DB.
 
+**v2.21.1 deployed and verified on prod, same day** (`reload.sh` web → mcp-server; the worker does not serve the Oracle):
+- `brain_ask_oracle` over MCP: a `minimal` question too big for 256 tokens returned `truncated: true`; a one-sentence `medium` question returned `truncated: false`.
+- Visitor browser with `bp_lang` = en / th / de: the throttle banner, the forgot-password "sent" copy and the reset invalid-link view render in the chosen language at 390 px. `?error=constructor`, `__proto__`, `toString` and an unknown code all render the localised generic fallback — never a key path. The reset page's error *banner* only shows for a valid token, so it was checked by typecheck and review, not live.
+
 ---
 
 ## 1. Scaffolding-level issues (v0.1+)
