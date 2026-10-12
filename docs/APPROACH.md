@@ -3461,4 +3461,16 @@ port, never the live database; the live-MCP suites ran against a throwaway MCP
 server. The first build was OOM-killed on the 8 GB host and left orphaned
 workers holding RAM — `next build` needs a capped heap there.
 
+**Landing a stacked PR after its base is squash-merged.** #274 was stacked on
+#273's branch; once #273 squash-merged, retargeting #274 to `main` showed it
+*conflicting* — git saw #273's individual commits and the squash as unrelated
+edits to the same lines. The fix needs no rebase and no force-push: confirm the
+squash commit's tree is byte-identical to the base branch tip (`git diff
+--quiet <squash> origin/<base-branch>`), then `git merge -s ours origin/main`.
+That merge adds no content — it only records `main` as an ancestor — and its
+correctness rests entirely on that tree check; without it `-s ours` would
+silently discard whatever else landed on `main`. Stacking also means the upper
+PR gets **no real CI until it is retargeted**, since workflows trigger only on
+PRs into `main` — #274's live-MCP step first ran in CI after #273 merged.
+
 Full instance: `KNOWN_ISSUES.md §0ay`.
