@@ -73,6 +73,34 @@ function assertNoLeakedMarkup(field: string, value: string | undefined): void {
   });
 }
 
+/**
+ * Why a supersession did not apply, in terms the caller can act on. The
+ * teammate path reports a specific reason; telling a project-scoped token to
+ * "re-run with that project" would send it after a fix it cannot make.
+ */
+function supersedeHintFor(
+  id: string,
+  projectId: string,
+  failure: string | undefined,
+  tokenIsProjectScoped: boolean,
+): string {
+  const head = `Supersession did NOT apply: the old rule ${id} is still ACTIVE. `;
+  if (failure === "FORBIDDEN" && tokenIsProjectScoped) {
+    return head + "It is outside this token's project, and a project-scoped token cannot reach other projects — supersede it with a token for that project.";
+  }
+  if (failure === "FORBIDDEN") {
+    return head + "It belongs to someone else and is not visible to you (private, or another org/project), so it cannot be replaced from here.";
+  }
+  if (failure === "REPLACEMENT_INVALID") {
+    return head + "The new rule could not stand as its replacement (it must be a live row the caller can see, inside a project-scoped token's project).";
+  }
+  return (
+    head +
+    `It was not found for this user in project ${projectId}. Most likely it lives in a ` +
+    `different project — re-run this teach with that project's projectId/projectName.`
+  );
+}
+
 export const teachKnowledge: ToolDef = {
   name: "brain_teach_knowledge",
   description:
@@ -230,6 +258,7 @@ export const teachKnowledge: ToolDef = {
     // possible outcome for a supersession: the caller believes the old advice
     // is retired and it is not.
     let superseded: boolean | undefined;
+    let supersedeFailure: string | undefined;
     if (input.supersedesKnowledgeId) {
       superseded = await supersedeKnowledge(db, {
         newId: row.id,
@@ -257,6 +286,7 @@ export const teachKnowledge: ToolDef = {
             reason: "superseded by brain_teach_knowledge",
           });
           superseded = r.ok;
+          if (!r.ok) supersedeFailure = r.error;
         }
       }
     }
@@ -293,11 +323,13 @@ export const teachKnowledge: ToolDef = {
             ...(superseded
               ? {}
               : {
-                  supersedeHint:
-                    `Supersession did NOT apply: ${input.supersedesKnowledgeId} was not found ` +
-                    `for this user in project ${resolvedProjectId}, and is not a teammate's row ` +
-                    `you can see. The old rule is still ACTIVE. Most likely it lives in a ` +
-                    `different project — re-run this teach with that project's projectId/projectName.`,
+                  ...(supersedeFailure ? { supersedeError: supersedeFailure } : {}),
+                  supersedeHint: supersedeHintFor(
+                    input.supersedesKnowledgeId!,
+                    resolvedProjectId,
+                    supersedeFailure,
+                    auth.projectId !== null,
+                  ),
                 }),
           }),
     };
