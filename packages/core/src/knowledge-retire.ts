@@ -79,6 +79,61 @@ export type RetireOutcome =
         | "REPLACEMENT_INVALID";
     };
 
+/**
+ * Whether `actorUserId` can read this Knowledge row, by the same predicate
+ * retrieval uses. The org is resolved from the row's OWN project — never from
+ * the caller's session or a client-supplied value, which a caller could use
+ * to claim membership in an unrelated org and widen `accessibleProjectIds`.
+ */
+async function canRead(
+  db: PrismaClient,
+  actorUserId: string,
+  row: { id: string; ownerProjectId: string | null },
+): Promise<boolean> {
+  let accessibleProjectIds: string[] = [];
+  if (row.ownerProjectId) {
+    const project = await db.project.findUnique({
+      where: { id: row.ownerProjectId },
+      select: { organizationId: true },
+    });
+    if (project?.organizationId) {
+      accessibleProjectIds = await getAccessibleProjectIds(db, actorUserId, project.organizationId);
+    }
+  }
+  const visible = await db.knowledge.findFirst({
+    where: {
+      AND: [
+        { id: row.id },
+        buildKnowledgeWhereV2({
+          userId: actorUserId,
+          activeProjectId: null,
+          activeOrgId: null,
+          accessibleProjectIds,
+          scope: "all",
+        }),
+      ],
+    },
+    select: { id: true },
+  });
+  return visible !== null;
+}
+
+/** The named replacement, if it is a different live row the caller may use. */
+async function resolveVisibleReplacement(
+  db: PrismaClient,
+  args: { id: string; replacedById: string; actorUserId: string; tokenProjectId?: string | null | undefined },
+) {
+  if (args.replacedById === args.id) return null;
+  const r = await db.knowledge.findFirst({
+    where: { id: args.replacedById, deletedAt: null },
+    select: { id: true, ownerUserId: true, ownerProjectId: true, parentKnowledgeId: true },
+  });
+  if (!r) return null;
+  if (args.tokenProjectId && r.ownerProjectId !== args.tokenProjectId) return null;
+  if (r.ownerUserId === args.actorUserId) return r;
+  return (await canRead(db, args.actorUserId, r)) ? r : null;
+}
+
 export async function retireKnowledgeById(
   db: PrismaClient,
   args: {
@@ -124,105 +179,37 @@ export async function retireKnowledgeById(
 
   const wasOwnRow = target.ownerUserId === args.actorUserId;
   if (!wasOwnRow) {
-    // Resolve the target's OWN org from its OWN project — never from the
-    // caller's session or a client-supplied value. A caller could otherwise
-    // claim membership in an unrelated org to widen `accessibleProjectIds`
-    // for a row that has nothing to do with it.
-    let accessibleProjectIds: string[] = [];
-    if (target.ownerProjectId) {
-      const project = await db.project.findUnique({
-        where: { id: target.ownerProjectId },
-        select: { organizationId: true },
-      });
-      if (project?.organizationId) {
-        accessibleProjectIds = await getAccessibleProjectIds(
-          db,
-          args.actorUserId,
-          project.organizationId,
-        );
-      }
-    }
-    const visible = await db.knowledge.findFirst({
-      where: {
-        AND: [
-          { id: args.id },
-          buildKnowledgeWhereV2({
-            userId: args.actorUserId,
-            activeProjectId: null,
-            activeOrgId: null,
-            accessibleProjectIds,
-            scope: "all",
-          }),
-        ],
-      },
-      select: { id: true },
-    });
-    if (!visible) return { ok: false, error: "FORBIDDEN" };
+    if (!(await canRead(db, args.actorUserId, target))) return { ok: false, error: "FORBIDDEN" };
     // After the visibility check, so a row the caller cannot see answers
     // FORBIDDEN rather than confirming it exists.
     if (!args.replacedById) return { ok: false, error: "REPLACEMENT_REQUIRED" };
   }
 
-  let replacement: { id: string; ownerUserId: string | null; parentKnowledgeId: string | null } | null =
-    null;
-  if (args.replacedById) {
-    if (args.replacedById === args.id) return { ok: false, error: "REPLACEMENT_INVALID" };
-    replacement = await db.knowledge.findFirst({
-      where: { id: args.replacedById, deletedAt: null },
-      select: { id: true, ownerUserId: true, ownerProjectId: true, parentKnowledgeId: true },
-    }).then(async (r) => {
-      if (!r) return null;
-      if (args.tokenProjectId && r.ownerProjectId !== args.tokenProjectId) return null;
-      if (r.ownerUserId === args.actorUserId) return r;
-      // The replacement must be something the caller can actually read —
-      // same predicate as retrieval, resolved from the replacement's own org.
-      let ids: string[] = [];
-      if (r.ownerProjectId) {
-        const project = await db.project.findUnique({
-          where: { id: r.ownerProjectId },
-          select: { organizationId: true },
-        });
-        if (project?.organizationId) {
-          ids = await getAccessibleProjectIds(db, args.actorUserId, project.organizationId);
-        }
-      }
-      const seen = await db.knowledge.findFirst({
-        where: {
-          AND: [
-            { id: r.id },
-            buildKnowledgeWhereV2({
-              userId: args.actorUserId,
-              activeProjectId: null,
-              activeOrgId: null,
-              accessibleProjectIds: ids,
-              scope: "all",
-            }),
-          ],
-        },
-        select: { id: true },
-      });
-      return seen ? r : null;
-    });
-    if (!replacement) return { ok: false, error: "REPLACEMENT_INVALID" };
-  }
+  const replacement = args.replacedById
+    ? await resolveVisibleReplacement(db, {
+        id: args.id,
+        replacedById: args.replacedById,
+        actorUserId: args.actorUserId,
+        tokenProjectId: args.tokenProjectId,
+      })
+    : null;
+  if (args.replacedById && !replacement) return { ok: false, error: "REPLACEMENT_INVALID" };
 
-  await db.knowledge.update({
-    where: { id: args.id },
-    data: { deletedAt: new Date() },
-  });
-  // Lineage, the same link `supersedeKnowledge` writes — but only on a row
-  // the caller owns and that has no parent yet: naming a teammate's row as
-  // the replacement must not rewrite that teammate's row.
-  if (
-    replacement &&
+  // One transaction: a retire whose lineage write failed would leave the row
+  // gone with nothing recording what replaced it. Lineage — the same link
+  // `supersedeKnowledge` writes — goes only on a row the caller owns that has
+  // no parent yet: naming a teammate's row as the replacement must not
+  // rewrite that teammate's row.
+  const writeLineage =
+    replacement !== null &&
     replacement.ownerUserId === args.actorUserId &&
-    replacement.parentKnowledgeId === null
-  ) {
-    await db.knowledge.update({
-      where: { id: replacement.id },
-      data: { parentKnowledgeId: args.id },
-    });
-  }
+    replacement.parentKnowledgeId === null;
+  await db.$transaction([
+    db.knowledge.update({ where: { id: args.id }, data: { deletedAt: new Date() } }),
+    ...(writeLineage
+      ? [db.knowledge.update({ where: { id: replacement.id }, data: { parentKnowledgeId: args.id } })]
+      : []),
+  ]);
 
   const snapshot: KnowledgeSnapshot = {
     id: target.id,

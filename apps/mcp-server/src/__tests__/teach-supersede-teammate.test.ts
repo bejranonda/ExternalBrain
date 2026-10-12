@@ -106,6 +106,30 @@ guard("brain_teach_knowledge supersedes a teammate's decision", () => {
     expect((audit?.payload as { replacedById?: string } | null)?.replacedById).toBe(res.id);
   });
 
+  it("a project-scoped token is told the row is outside its project, not to re-run elsewhere", async () => {
+    const old = await decision("org");
+    const elsewhere = (
+      await db.project.create({ data: { organizationId: orgId, name: "Other", slug: `sup-other-${tag}` } })
+    ).id;
+    const res = (await teachKnowledge.handler(
+      {
+        type: "principle",
+        trigger: `choosing an HTTP client ${tag}`,
+        rule: "Scoped token tries to replace a rule in another project",
+        scope: "project",
+        tags: ["decision"],
+        supersedesKnowledgeId: old.id,
+      },
+      { ...auth(mateId), projectId: elsewhere },
+    )) as { superseded?: boolean; supersedeHint?: string; supersedeError?: string };
+    expect(res.superseded).toBe(false);
+    expect(res.supersedeError).toBe("FORBIDDEN");
+    expect(res.supersedeHint).toMatch(/outside this token's project/);
+    expect((await db.knowledge.findUniqueOrThrow({ where: { id: old.id } })).deletedAt).toBeNull();
+    await db.knowledge.deleteMany({ where: { ownerProjectId: elsewhere } });
+    await db.project.delete({ where: { id: elsewhere } });
+  });
+
   it("leaves a teammate's PRIVATE row alone and says so", async () => {
     const secret = await decision("private");
     const res = (await teachKnowledge.handler(
@@ -119,10 +143,12 @@ guard("brain_teach_knowledge supersedes a teammate's decision", () => {
         supersedesKnowledgeId: secret.id,
       },
       auth(mateId),
-    )) as { superseded?: boolean; supersedeHint?: string };
+    )) as { superseded?: boolean; supersedeHint?: string; supersedeError?: string };
+    expect(res.supersedeError).toBe("FORBIDDEN");
 
     expect(res.superseded).toBe(false);
     expect(res.supersedeHint).toMatch(/still ACTIVE/);
+    expect(res.supersedeHint).toMatch(/not visible to you/);
     const row = await db.knowledge.findUniqueOrThrow({ where: { id: secret.id } });
     expect(row.deletedAt).toBeNull();
   });
