@@ -4,6 +4,7 @@ import { authErrorResponse, getCurrentUserId } from "@/lib/brain/auth";
 import { toKnowledgeItemView } from "@/lib/brain/views";
 import { writeAudit } from "@brain/core";
 import { validateForTagAssignee } from "@/lib/brain/assignee-validation";
+import { auditIpFrom } from "@/lib/brain/client-ip";
 
 /**
  * Knowledge rows are semantically immutable once created (KNOWLEDGE.md §5.1).
@@ -105,7 +106,7 @@ export async function PATCH(
       targetType: "knowledge",
       targetId: id,
       payload: patch as Record<string, unknown>,
-      ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+      ip: auditIpFrom(req.headers),
       userAgent: req.headers.get("user-agent") ?? null,
     });
     return Response.json({ item: toKnowledgeItemView(updated) });
@@ -133,7 +134,7 @@ export async function DELETE(
       action: "knowledge.delete",
       targetType: "knowledge",
       targetId: id,
-      ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+      ip: auditIpFrom(req.headers),
       userAgent: req.headers.get("user-agent") ?? null,
     });
     return Response.json({ ok: true });
@@ -185,7 +186,7 @@ export async function POST(
       targetType: "knowledge",
       targetId: fork.id,
       payload: { sourceId: src.id },
-      ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+      ip: auditIpFrom(req.headers),
       userAgent: req.headers.get("user-agent") ?? null,
     });
     return Response.json({ item: toKnowledgeItemView(fork) });

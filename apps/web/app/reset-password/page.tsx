@@ -5,7 +5,10 @@
  * Shows form: new password + confirm, submits to POST /api/auth/reset-password.
  * On success → "Password reset. You can now sign in."
  */
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { forwardClientIp } from "@/lib/brain/client-ip";
+import { selfOrigin } from "@/lib/brain/self-origin";
 import { db } from "@brain/db";
 import { hashSecret } from "@brain/core/secret-hash";
 import { LocalePicker } from "@/components/brain/locale-picker";
@@ -193,14 +196,16 @@ export default async function ResetPasswordPage({ searchParams }: Props) {
                   redirect(`/reset-password?token=${encodeURIComponent(t)}&error=password_mismatch`);
                 }
 
-                const baseUrl =
-                  process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-
-                const res = await fetch(`${baseUrl}/api/auth/reset-password`, {
-                  method: "POST",
-                  headers: { "content-type": "application/json" },
-                  body: JSON.stringify({ token: t, newPassword }),
-                });
+                let res: Response;
+                try {
+                  res = await fetch(`${selfOrigin()}/api/auth/reset-password`, {
+                    method: "POST",
+                    headers: { "content-type": "application/json", ...forwardClientIp(await headers()) },
+                    body: JSON.stringify({ token: t, newPassword }),
+                  });
+                } catch {
+                  redirect(`/reset-password?token=${encodeURIComponent(t)}&error=server_error`);
+                }
 
                 if (!res.ok) {
                   const data = (await res.json().catch(() => ({}))) as { error?: string };

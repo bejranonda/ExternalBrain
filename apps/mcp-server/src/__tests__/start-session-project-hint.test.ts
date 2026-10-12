@@ -45,7 +45,7 @@ guard("brain_start_session project visibility + hint", () => {
   }
 
   const authFor = (userId: string) =>
-    ({ userId, projectId: null, tokenId: null }) as unknown as Parameters<
+    ({ userId, projectId: null, tokenId: null, capabilities: [] }) as unknown as Parameters<
       typeof startSession.handler
     >[1];
 

@@ -3,6 +3,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { db } from "@brain/db";
 import { authErrorResponse, getCurrentUserId } from "@/lib/brain/auth";
 import { writeAudit } from "@brain/core";
+import { auditIpFrom } from "@/lib/brain/client-ip";
 
 /**
  * POST /api/tokens/:id/change
@@ -95,7 +96,7 @@ export async function POST(
       targetId: id,
       // raw token intentionally excluded — only safe metadata logged
       payload: { tokenId: id, projectId: row.projectId ?? null },
-      ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+      ip: auditIpFrom(req.headers),
       userAgent: req.headers.get("user-agent") ?? null,
       orgId: row.organizationId ?? null,
       projectId: row.projectId ?? null,

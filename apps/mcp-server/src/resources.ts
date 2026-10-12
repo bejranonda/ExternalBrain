@@ -53,6 +53,8 @@ export async function readResource(uri: string, auth: AuthContext) {
   const projectId = auth.projectId ?? undefined;
   switch (uri) {
     case "brain://user/style-profile":
+      // Reflex rule text — the resource half of brain_get_user_style.
+      requireCapability(auth, "knowledge");
       return jsonResource(uri, await styleProfile(auth.userId, projectId));
     case "brain://user/active-skills":
       // The resource half of `brain_find_skill` — restricting one without the

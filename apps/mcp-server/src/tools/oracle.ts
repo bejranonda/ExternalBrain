@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  BrainError,
   oracle,
   getUserProjects,
   ensureDefaultProject,
@@ -46,6 +47,18 @@ export const askOracle: ToolDef = {
   },
   handler: async (raw, auth) => {
     requireCapability(auth, "oracle");
+    // Same operator kill-switch as /api/oracle. Checked here too because the
+    // MCP door reaches oracle.ask() without passing through the web route, so
+    // ORACLE_ENABLED=false used to stop the webapp Oracle while agents kept
+    // sending knowledge to the LLM (KNOWN_ISSUES §0ay).
+    if ((process.env.ORACLE_ENABLED ?? "true").toLowerCase() === "false") {
+      throw new BrainError({
+        message: "Oracle is currently paused by the operator (ORACLE_ENABLED=false).",
+        code: "ORACLE_PAUSED",
+        category: "validation",
+        status: 503,
+      });
+    }
     const input = inputShape.parse(raw);
 
     // This tool used to take no project parameter at all and resolve purely

@@ -18,6 +18,7 @@ import { db } from "@brain/db";
 import { z } from "zod";
 import { authErrorResponse, getCurrentUserId } from "@/lib/brain/auth";
 import { writeAudit, ensurePersonalOrg } from "@brain/core";
+import { auditIpFrom } from "@/lib/brain/client-ip";
 
 const bodySchema = z
   .object({
@@ -169,7 +170,7 @@ export async function PATCH(
           projectId: updated.projectId ?? null,
         },
       },
-      ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+      ip: auditIpFrom(req.headers),
       userAgent: req.headers.get("user-agent") ?? null,
       orgId: targetOrgId,
       projectId: targetProjectId,

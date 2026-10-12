@@ -1,6 +1,7 @@
 import { db } from "@brain/db";
 import { authErrorResponse, getCurrentUserId } from "@/lib/brain/auth";
 import { writeAudit } from "@brain/core";
+import { auditIpFrom } from "@/lib/brain/client-ip";
 
 export async function DELETE(
   req: Request,
@@ -28,7 +29,7 @@ export async function DELETE(
       action: "token.revoke",
       targetType: "token",
       targetId: id,
-      ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+      ip: auditIpFrom(req.headers),
       userAgent: req.headers.get("user-agent") ?? null,
     });
     return Response.json({ ok: true });

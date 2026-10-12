@@ -10,6 +10,7 @@ import { authErrorResponse } from "@/lib/brain/auth";
 import { requireAdmin } from "@/lib/brain/admin-auth";
 import { writeAudit } from "@brain/core";
 import { costDisclaimer } from "@brain/core/cost";
+import { auditIpFrom } from "@/lib/brain/client-ip";
 
 export async function GET(req: Request): Promise<Response> {
   try {
@@ -44,7 +45,7 @@ export async function GET(req: Request): Promise<Response> {
     void writeAudit({
       actorUserId: actorId,
       action: "admin.cost_ledger_view",
-      ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+      ip: auditIpFrom(req.headers),
       userAgent: req.headers.get("user-agent") ?? null,
     });
 

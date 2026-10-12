@@ -33,11 +33,13 @@
  * The Credentials provider doesn't use the signIn callback — it does its
  * own User lookup/create inside `authorize`.
  */
-import NextAuth, { type NextAuthConfig, type Session, type User } from "next-auth";
+import NextAuth, { CredentialsSignin, type NextAuthConfig, type Session, type User } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import { cookies } from "next/headers";
 import { envFlag } from "@brain/core/env";
+import { clientIpFrom } from "./lib/brain/client-ip";
+import { checkLoginRateLimit, LOGIN_RATE_LIMITED } from "./lib/brain/login-rate-limit";
 import {
   adminCredentialsConfigured,
   verifyAdminCredentials,
@@ -112,6 +114,10 @@ export function registrationRequiresVoucher(): boolean {
   return envFlag("REGISTRATION_REQUIRES_VOUCHER", true);
 }
 
+class LoginRateLimited extends CredentialsSignin {
+  override code = LOGIN_RATE_LIMITED;
+}
+
 const providers: NextAuthConfig["providers"] = [
   // Credentials provider — primary sign-in path for the phase-1 pilot.
   // `authorize` does the bcrypt verify AND the lookup-or-create of the
@@ -127,10 +133,15 @@ const providers: NextAuthConfig["providers"] = [
             username: { label: "Username", type: "text" },
             password: { label: "Password", type: "password" },
           },
-          async authorize(credentials): Promise<User | null> {
+          async authorize(credentials, request): Promise<User | null> {
             const username = String(credentials?.username ?? "").trim();
             const password = String(credentials?.password ?? "");
             if (!username || !password) return null;
+
+            // Before bcrypt, so a throttled guess costs us nothing either.
+            if (!(await checkLoginRateLimit(clientIpFrom(request.headers), username))) {
+              throw new LoginRateLimited();
+            }
 
             // Lazy import to avoid build-time Prisma init.
             const { db } = await import("@brain/db");

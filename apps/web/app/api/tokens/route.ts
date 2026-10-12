@@ -4,6 +4,7 @@ import { db } from "@brain/db";
 import { z } from "zod";
 import { authErrorResponse, getCurrentUserId } from "@/lib/brain/auth";
 import { writeAudit, ensurePersonalOrg , sanitizeCapabilities, CAPABILITIES } from "@brain/core";
+import { auditIpFrom } from "@/lib/brain/client-ip";
 
 // 90-day default follows best practice for long-lived bearer tokens.
 // Callers can override with any positive integer up to 3650 (10y) or set
@@ -177,7 +178,7 @@ export async function POST(req: Request): Promise<Response> {
         organizationId: row.organizationId ?? null,
         projectId: row.projectId ?? null,
       },
-      ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+      ip: auditIpFrom(req.headers),
       userAgent: req.headers.get("user-agent") ?? null,
       orgId: resolvedOrgId,
       projectId: row.projectId ?? null,

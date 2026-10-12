@@ -24,6 +24,7 @@ import { z } from "zod";
 import { authErrorResponse } from "@/lib/brain/auth";
 import { requireAdmin } from "@/lib/brain/admin-auth";
 import { writeAudit } from "@brain/core";
+import { auditIpFrom } from "@/lib/brain/client-ip";
 
 const eraseSchema = z.object({
   confirm: z.literal(true),
@@ -75,7 +76,7 @@ export async function POST(
       targetType: "user",
       targetId: userId,
       payload: { userId, reason: body.reason },
-      ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+      ip: auditIpFrom(req.headers),
       userAgent: req.headers.get("user-agent") ?? null,
     });
 

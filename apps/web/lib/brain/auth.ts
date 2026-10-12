@@ -19,7 +19,7 @@
  * only posture then fell through to the dev-shim silently.
  */
 import { db } from "@brain/db";
-import { getLogger } from "@brain/core";
+import { BrainError, getLogger } from "@brain/core";
 import { envFlag } from "@brain/core/env";
 import { auth, anySignInConfigured, devAuthAllowed } from "@/auth";
 
@@ -102,6 +102,12 @@ export function authErrorResponse(err: unknown): Response {
       "auth rejected",
     );
     return Response.json({ error: err.message }, { status: err.status });
+  }
+  // Core's membership guards (requireOrgMember → FORBIDDEN_ORG) throw
+  // BrainError with a client status. Without this they fell through to the
+  // 500 below, so "not a member of this org" read as a server fault.
+  if (err instanceof BrainError && err.status && err.status >= 400 && err.status < 500) {
+    return Response.json({ error: err.code }, { status: err.status });
   }
   // Zod validation errors are client errors, not 500s. We detect them
   // structurally to avoid a hard import of the `zod` package here.

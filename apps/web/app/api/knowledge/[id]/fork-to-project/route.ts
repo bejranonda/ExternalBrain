@@ -26,6 +26,7 @@ import { authErrorResponse, getCurrentUserId } from "@/lib/brain/auth";
 import { getActiveProject } from "@/lib/brain/active-project";
 import { toKnowledgeItemView } from "@/lib/brain/views";
 import { writeAudit, getAccessibleProjectIds } from "@brain/core";
+import { auditIpFrom } from "@/lib/brain/client-ip";
 
 const bodySchema = z.object({
   projectId: z.string().optional(),
@@ -166,7 +167,7 @@ export async function POST(
         newId: forked.id,
         projectId: targetProjectId,
       },
-      ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+      ip: auditIpFrom(req.headers),
       userAgent: req.headers.get("user-agent") ?? null,
     });
 

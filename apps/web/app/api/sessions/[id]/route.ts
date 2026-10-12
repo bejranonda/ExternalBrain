@@ -16,6 +16,7 @@
 import { db } from "@brain/db";
 import { authErrorResponse, getCurrentUserId } from "@/lib/brain/auth";
 import { extractPrompt } from "@/lib/brain/views";
+import { readableKnowledgeWhere } from "@/lib/brain/readable-knowledge";
 
 interface KnowledgeRow {
   id: string;
@@ -61,7 +62,7 @@ export async function GET(
     let isOrgMember = false;
     if (!isOwner && session.project?.organizationId) {
       const member = await db.organizationMember.findFirst({
-        where: { userId, organizationId: session.project.organizationId },
+        where: { userId, orgId: session.project.organizationId },
         select: { id: true },
       });
       isOrgMember = !!member;
@@ -70,8 +71,16 @@ export async function GET(
       return Response.json({ error: "forbidden" }, { status: 403 });
     }
 
+    // The owner sees every row their own session touched. A teammate sees
+    // the session, but only the rules they could read anyway — otherwise
+    // this page becomes a window onto the owner's private rules.
     const applications = await db.sessionKnowledgeApplication.findMany({
-      where: { sessionId: id },
+      where: isOwner
+        ? { sessionId: id }
+        : {
+            sessionId: id,
+            knowledge: await readableKnowledgeWhere(userId, session.project?.organizationId ?? null),
+          },
       orderBy: { createdAt: "asc" },
       select: {
         role: true,

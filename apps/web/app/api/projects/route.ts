@@ -14,6 +14,7 @@ import {
   uniqueSlugInOrg,
   writeAudit,
 } from "@brain/core";
+import { auditIpFrom } from "@/lib/brain/client-ip";
 
 const createSchema = z.object({
   orgId: z.string().min(1),
@@ -53,7 +54,7 @@ export async function POST(req: Request): Promise<Response> {
       targetType: "project",
       targetId: project.id,
       payload: { orgId: body.orgId, name: body.name, slug },
-      ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+      ip: auditIpFrom(req.headers),
       userAgent: req.headers.get("user-agent") ?? null,
     });
 

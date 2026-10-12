@@ -31,7 +31,8 @@
   "pnpm": {
     "overrides": {
       "postcss": "^8.5.10",
-      "vite": "^7.0.0"
+      "vite": "^7.0.0",
+      "proxy-addr": "^2.0.8"
     }
   }
 }

@@ -6,7 +6,10 @@
  * "check your email" message regardless of whether the address
  * was found (prevents enumeration).
  */
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { forwardClientIp } from "@/lib/brain/client-ip";
+import { selfOrigin } from "@/lib/brain/self-origin";
 import { LocalePicker } from "@/components/brain/locale-picker";
 import { getServerT } from "@/lib/brain/i18n-server";
 
@@ -105,12 +108,9 @@ export default async function ForgotPasswordPage({ searchParams }: Props) {
                 const email = String(formData.get("email") ?? "").trim();
                 if (!email) redirect("/forgot-password");
 
-                const baseUrl =
-                  process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-
-                await fetch(`${baseUrl}/api/auth/forgot-password`, {
+                await fetch(`${selfOrigin()}/api/auth/forgot-password`, {
                   method: "POST",
-                  headers: { "content-type": "application/json" },
+                  headers: { "content-type": "application/json", ...forwardClientIp(await headers()) },
                   body: JSON.stringify({ email }),
                 }).catch(() => {
                   // Best-effort — show "sent" regardless of network error

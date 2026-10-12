@@ -27,7 +27,7 @@ const dbReachable = await db.$queryRaw`SELECT 1`
 const guard = dbReachable ? describe : describe.skip;
 
 const authFor = (userId: string) =>
-  ({ userId, projectId: null, tokenId: null }) as unknown as Parameters<
+  ({ userId, projectId: null, tokenId: null, capabilities: [] }) as unknown as Parameters<
     typeof startSession.handler
   >[1];
 

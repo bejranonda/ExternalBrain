@@ -13,6 +13,8 @@ import {
   uniqueSlugInOrg,
   writeAudit,
 } from "@brain/core";
+import { auditIpFrom } from "@/lib/brain/client-ip";
+import { readableKnowledgeWhere } from "@/lib/brain/readable-knowledge";
 
 interface AggregatedKnowledgeView {
   id: string;
@@ -30,7 +32,7 @@ interface AggregatedKnowledgeView {
  * Returns a per-knowledge roll-up so the panel can render one row per skill
  * with a hit count instead of N duplicate rows.
  */
-async function buildProjectValue(projectId: string): Promise<{
+async function buildProjectValue(projectId: string, readable: object): Promise<{
   injected: AggregatedKnowledgeView[];
   extracted: AggregatedKnowledgeView[];
   totals: { sessionCount: number; injectedCount: number; extractedCount: number };
@@ -43,7 +45,7 @@ async function buildProjectValue(projectId: string): Promise<{
   const applications = await db.sessionKnowledgeApplication.findMany({
     where: {
       session: { projectId },
-      knowledge: { deletedAt: null },
+      knowledge: { AND: [{ deletedAt: null }, readable] },
     },
     select: {
       role: true,
@@ -128,7 +130,10 @@ export async function GET(
     // other's sessions through the org-shared scope).
     await requireOrgMember(db, userId, project.organizationId);
 
-    const { injected, extracted, totals } = await buildProjectValue(project.id);
+    const { injected, extracted, totals } = await buildProjectValue(
+      project.id,
+      await readableKnowledgeWhere(userId, project.organizationId),
+    );
 
     return Response.json({
       project: {
@@ -203,7 +208,7 @@ export async function PATCH(
       targetType: "project",
       targetId: id,
       payload: { name: body.name, slug: newSlug },
-      ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+      ip: auditIpFrom(req.headers),
       userAgent: req.headers.get("user-agent") ?? null,
     });
 
@@ -301,7 +306,7 @@ export async function DELETE(
       payload: withData
         ? { withData: true, deletedKnowledge: knowledgeCount, deletedSessions: sessionCount }
         : {},
-      ip: req.headers.get("x-forwarded-for")?.split(",").at(0)?.trim() ?? null,
+      ip: auditIpFrom(req.headers),
       userAgent: req.headers.get("user-agent") ?? null,
     });
 

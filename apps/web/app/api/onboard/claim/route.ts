@@ -40,6 +40,7 @@ import {
   BOOTSTRAP_TOKEN_NAME,
   BOOTSTRAP_TOKEN_TTL_DAYS,
 } from "@/lib/brain/agentic-onboarding";
+import { clientIpFrom } from "@/lib/brain/client-ip";
 
 const log = getLogger("onboard-claim");
 
@@ -73,8 +74,7 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const hdrs = await headers();
-  const xff = hdrs.get("x-forwarded-for");
-  const ip = xff ? xff.split(",")[0]!.trim() : "local";
+  const ip = clientIpFrom(hdrs);
 
   const store = await getRateLimitStore();
   const gate = await rateLimitCheck(store, `onboard-claim:${ip}`, LIMIT, Date.now());
