@@ -22,7 +22,7 @@ import { BrainError, getLogger } from "./logger.js";
 
 const log = getLogger("core").child({ subsystem: "embedding" });
 
-const DIM = Number(process.env.EMBEDDING_DIMENSIONS ?? "1536");
+const DIM = Number(process.env.EMBEDDING_DIMENSIONS || "1536");
 /**
  * Legacy override — used only when no Gemini API key is configured.
  *
@@ -33,7 +33,7 @@ const DIM = Number(process.env.EMBEDDING_DIMENSIONS ?? "1536");
  * while `.env.example` ships one and docker-compose passes it through.
  */
 function fallbackModel(): string {
-  return process.env.EMBEDDING_MODEL ?? "text-embedding-3-small";
+  return process.env.EMBEDDING_MODEL || "text-embedding-3-small";
 }
 
 /** Provider chain. Highest-priority entry tried first; on transient

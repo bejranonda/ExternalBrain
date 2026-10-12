@@ -21,6 +21,29 @@ The adversaries we defend against:
 
 Out of scope (for now): nation-state APT, physical VM compromise, side-channel attacks on embedding inference.
 
+## v2.21.0 — rate limits now key on the real client, and password sign-in has one
+
+**If you run behind nginx (or any proxy that *appends* to `X-Forwarded-For`),
+every per-IP limiter before v2.21.0 was bypassable** — register,
+forgot-password, voucher, onboard-claim and the `/api/*` limiter all keyed on
+the first XFF hop, which the client controls. Caddy (the bundled `edge`
+profile) overwrites the header, so Caddy deployments were not exposed.
+
+- **Client IP** is decided once, in `apps/web/lib/brain/client-ip.ts`:
+  `X-Real-IP` first (both supported proxies set it from the socket), then the
+  **last** XFF hop, then `"local"`. If you front the app with something else,
+  make it set `X-Real-IP` to the connecting address.
+- **Password sign-in** is limited before bcrypt runs: 30 attempts per IP and
+  10 per account per 15 minutes (`lib/brain/login-rate-limit.ts`). The
+  per-account bucket means an attacker can lock a known account out for one
+  window — the accepted trade against unlimited guessing.
+- **Login-page server actions** call their API routes over loopback and
+  forward the visitor's IP; before, all visitors shared one bucket.
+- **Cross-user reads closed:** project and session detail no longer show a
+  teammate's `private` rules; retrieval no longer writes into a session the
+  caller does not own; MCP tools returning rule text require the `knowledge`
+  capability. Details: `KNOWN_ISSUES.md §0ay`.
+
 ## v2.14.0 — compose no longer ships a permissive auth default
 
 **If you self-host and you brought the stack up with a bare `docker compose up`
@@ -698,7 +721,8 @@ VM deployment (use `scripts/setup-backup-replicate.sh`).
 
 - **No self-service admin role UI.** Admin promotion is via `ADMIN_EMAILS` env; demotion is SQL. Tracked in KNOWN_ISSUES.
 - **Vouchers are not scoped to emails.** A voucher can be redeemed by any email that knows the code. An email-pinned voucher (`emailAllowlist String[]`) is a natural next step; current model supports it with a schema addition.
-- **No rate-limit on `/api/auth/callback/*`.** NextAuth endpoints are exempt from the proxy limiter. If this becomes an abuse vector, add a separate per-IP limiter inside the callback.
+- **`/api/auth/*` is still exempt from the proxy limiter** (an OAuth callback must not 429 on a cold deploy). Password guessing through it is covered since v2.21.0 — the limit lives inside the credentials `authorize()`, which both the sign-in action and the direct callback run.
+- **No email-ownership verification (pre-account takeover).** Register and voucher-claim create an account for any email without proving the caller owns it; a later GitHub sign-in with that email lands in the existing row, whose password the creator knows; and `reset-password` does not revoke that account's MCP tokens. Reachable only by a voucher holder while `REGISTRATION_REQUIRES_VOUCHER` is on (the default). Deferred by operator decision — `KNOWN_ISSUES.md §0ay` has the proposed fix.
 - **No CAPTCHA on voucher entry.** A brute-forcer that enumerates short codes is plausible. Mitigated by the 8-char alphanumeric space (≥ 10^10 possibilities per prefix) but a rate-limit on voucher-validate attempts is cheap defense.
 - **No session revocation for rotating compromised JWTs.** JWT expiry is the only mechanism today; a compromised token works until it expires. A `revokedAt` field on a Session table is the retrofit path.
 

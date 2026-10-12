@@ -651,7 +651,7 @@ async function main(): Promise<void> {
   // worth asserting, rather than merely "the event loop is alive".
   // (Checked against pg-boss@12's own types: `getQueue(name)` /
   // `getQueues()` exist; `getQueueSize` does not.)
-  const healthPort = Number(process.env.WORKER_HEALTH_PORT ?? 9091);
+  const healthPort = Number(process.env.WORKER_HEALTH_PORT || 9091);
   const health = createServer((req, res) => {
     if (req.url !== "/health") {
       res.writeHead(404).end();

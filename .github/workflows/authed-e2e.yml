@@ -223,8 +223,20 @@ jobs:
             "web/e2e/page-scroll.spec.ts" \
             "web/e2e/meetings.spec.ts"
           RC=$?
+          # The two live-MCP vitest suites (auth-gate, session-lifecycle) need
+          # a RUNNING server and describe.skip without one. ci.yml's verify job
+          # has a DB but no server, so for months they skipped green while its
+          # comment said session-lifecycle ran (KNOWN_ISSUES §0ay). This is the
+          # one job with a server up. A skip here is a failure: the JSON report
+          # is checked for pending tests, not just the exit code.
+          BRAIN_MCP_URL=http://localhost:3100 BRAIN_MCP_E2E_URL=http://localhost:3100 \
+            pnpm --filter @brain/mcp-server exec vitest run \
+              src/__tests__/auth-gate.test.ts src/__tests__/session-lifecycle.test.ts \
+              --reporter=default --reporter=json --outputFile=/tmp/live-mcp.json
+          RC_MCP=$?
+          node -e 'const r=require("/tmp/live-mcp.json"); if (r.numPendingTests>0 || r.numTotalTests===0) { console.error("::error::live MCP suites skipped " + r.numPendingTests + " of " + r.numTotalTests + " tests"); process.exit(1) }' || RC_MCP=1
           cleanup
-          exit $RC
+          [ "$RC" -eq 0 ] && [ "$RC_MCP" -eq 0 ]
 
       - name: Upload Playwright report on failure
         if: ${{ failure() && steps.changes.outputs.web == 'true' }}

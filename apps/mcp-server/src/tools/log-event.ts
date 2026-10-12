@@ -60,9 +60,14 @@ export const logEvent: ToolDef = {
     // KEA pipeline by passing their sessionId.
     const session = await db.session.findUnique({
       where: { id: input.sessionId },
-      select: { userId: true },
+      select: { userId: true, projectId: true },
     });
-    if (!session || session.userId !== auth.userId) {
+    // Same rule as brain_report_session_outcome: user AND token project.
+    if (
+      !session ||
+      session.userId !== auth.userId ||
+      (auth.projectId && session.projectId !== auth.projectId)
+    ) {
       throw new BrainError({
         message: "session not found",
         code: "NOT_FOUND",

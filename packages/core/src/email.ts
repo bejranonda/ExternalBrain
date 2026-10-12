@@ -55,7 +55,7 @@ function resolveProvider(): { provider: EmailProvider; apiKey: string } {
   // Resend. Operators commonly drop a key into .env without remembering the
   // EMAIL_PROVIDER toggle, and .env.example documents that path — so the
   // fallback prevents a silent "disabled".
-  const explicitProvider = process.env.EMAIL_PROVIDER ?? "";
+  const explicitProvider = process.env.EMAIL_PROVIDER || "";
   const apiKey =
     process.env.EMAIL_API_KEY ||
     process.env.RESEND_API ||
@@ -80,8 +80,8 @@ export async function sendEmail(args: SendEmailArgs): Promise<SendResult> {
   }
 
   const from =
-    process.env.EMAIL_FROM ?? "External Brain <noreply@brain-dev.example.com>";
-  const replyTo = process.env.EMAIL_REPLY_TO ?? from;
+    process.env.EMAIL_FROM || "External Brain <noreply@brain-dev.example.com>";
+  const replyTo = process.env.EMAIL_REPLY_TO || from;
 
   const payload: Record<string, unknown> = {
     from,

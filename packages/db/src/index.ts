@@ -47,7 +47,7 @@ function makeClient(): PrismaClient {
   // If it's empty, the underlying pg client will fail on first query —
   // matching the Prisma-5 behaviour (lazy connection failure) so tests
   // that import @brain/db without ever using it still load cleanly.
-  const url = process.env.DATABASE_URL ?? "";
+  const url = process.env.DATABASE_URL || "";
   const adapter = new PrismaPg({ connectionString: url });
   return new PrismaClient({
     adapter,

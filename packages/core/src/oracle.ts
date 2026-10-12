@@ -214,7 +214,7 @@ async function buildContext(
   // oracle.ts's existing process.env.ORACLE_MODEL style.
   let taskBlock = "";
   const tasksEnabled = /^(1|true|yes|on)$/i.test(
-    process.env.V2_ORACLE_TASKS ?? "",
+    process.env.V2_ORACLE_TASKS || "",
   );
   if (tasksEnabled) {
     try {
@@ -361,7 +361,7 @@ export async function ask(
       dataScope,
       visibilityArgs,
     );
-  const model = process.env.ORACLE_MODEL ?? "claude-sonnet-4-6";
+  const model = process.env.ORACLE_MODEL || "claude-sonnet-4-6";
 
   // Compute groundedness BEFORE the LLM call — reflects retrieval bundle quality.
   const groundedness = groundednessFrom(knowledge, sessions);
@@ -443,7 +443,7 @@ export async function* askStream(
       opts.visibilityArgs,
     );
   const maxTokens = MAX_TOKENS_BY_LEVEL[reasoningLevel];
-  const model = process.env.ORACLE_MODEL ?? "claude-sonnet-4-6";
+  const model = process.env.ORACLE_MODEL || "claude-sonnet-4-6";
 
   // Compute groundedness BEFORE the LLM call — reflects retrieval bundle quality.
   const groundedness = groundednessFrom(knowledge, sessions);
@@ -501,7 +501,7 @@ async function callOracle(
   maxTokens: number,
   systemPromptOverride?: string,
 ): Promise<{ answer: string; tokensIn: number; tokensOut: number }> {
-  const model = process.env.ORACLE_MODEL ?? "claude-sonnet-4-6";
+  const model = process.env.ORACLE_MODEL || "claude-sonnet-4-6";
   const systemPrompt = systemPromptOverride ?? SYSTEM_PROMPT;
   if (useAnthropicSdk(model)) {
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
@@ -566,7 +566,7 @@ async function* callOracleStream(
   systemPromptOverride?: string,
 ): AsyncGenerator<StreamEvent> {
   if (signal?.aborted) return;
-  const model = process.env.ORACLE_MODEL ?? "claude-sonnet-4-6";
+  const model = process.env.ORACLE_MODEL || "claude-sonnet-4-6";
   const systemPrompt = systemPromptOverride ?? SYSTEM_PROMPT;
   if (useAnthropicSdk(model)) {
     const { default: Anthropic } = await import("@anthropic-ai/sdk");

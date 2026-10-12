@@ -43,7 +43,7 @@ export async function GET(): Promise<Response> {
     // pg-boss owns its schema, so this is raw SQL by necessity. The schema
     // name comes from env, never from the request — it is interpolated, so it
     // must never become caller-controlled.
-    const schema = (process.env.PG_BOSS_SCHEMA ?? "pgboss").replace(
+    const schema = (process.env.PG_BOSS_SCHEMA || "pgboss").replace(
       /[^a-zA-Z0-9_]/g,
       "",
     );

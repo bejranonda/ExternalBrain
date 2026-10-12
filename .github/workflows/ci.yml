@@ -35,6 +35,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: bash scripts/check-doc-refs.sh
+      # Lives in this fast, dependency-free job (no pnpm install) so the
+      # boundary rule CLAUDE.md says "fails CI" now actually does. Kept as a
+      # step rather than a new job so the required-check names don't change.
+      - name: Package boundaries (types → db → core → apps)
+        run: node scripts/check-package-boundaries.mjs
 
   dep-audit:
     name: dependency audit (critical, prod only)
@@ -117,10 +122,12 @@ jobs:
     # tests stop silent-skipping. Before this, the IDOR regression net
     # (cross-user-isolation.test.ts) was gated on `await reachable()`
     # which failed without a real DB and tripped describe.skip — green
-    # CI hid that 5 IDOR tests never ran. With a real pgvector here,
-    # both DB-gated test files (cross-user-isolation, session-lifecycle,
-    # kea-audit-writes, kea-cross-extract, installer-templates-reconcile)
-    # execute against the actual schema.
+    # CI hid that 5 IDOR tests never ran. With a real pgvector here, the
+    # DB-gated test files (cross-user-isolation, kea-audit-writes,
+    # kea-cross-extract, installer-templates-reconcile, …) execute against
+    # the actual schema. NOT session-lifecycle or auth-gate: those need a
+    # running MCP server, which this job does not start — they skip here and
+    # run in authed-e2e.yml, which fails if they skip (KNOWN_ISSUES §0ay).
     #
     # Cost: ~15s for postgres boot + migrate-deploy. Buys: regression
     # coverage for closed CVE-class IDOR cluster (#106).

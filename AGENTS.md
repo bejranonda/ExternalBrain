@@ -35,7 +35,6 @@ apps/
   web/                   # Next.js webapp — dashboard, Oracle, Skills, settings
   mcp-server/            # MCP server (stdio + HTTP) — exposes the brain_* tools
   worker/                # pg-boss background jobs (extraction, decay, embeddings)
-  sync-bridge/           # Optional CouchDB LiveSync for Obsidian
 packages/
   core/                  # Intelligence layer (extraction, retrieval, Oracle)
   db/                    # Prisma schema + client
@@ -47,7 +46,9 @@ REBUILD/                 # Phase-by-phase vibe-coding guide — start at REBUILD
 ```
 
 **Package boundary rule:** `types → db → core → (mcp-server | web | worker)`.
-Apps must not import from each other; share via a package. Violations fail CI.
+Apps must not import from each other; share via a package. Violations fail CI
+(`scripts/check-package-boundaries.mjs`, run in the `doc refs` job — until
+2026-10-11 nothing enforced this sentence; `KNOWN_ISSUES §0ay`).
 
 ---
 

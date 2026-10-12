@@ -181,7 +181,7 @@ function pinoSerializers() {
 
 function baseLogger(service: string): Logger {
   return pino({
-    level: process.env.LOG_LEVEL ?? "info",
+    level: process.env.LOG_LEVEL || "info",
     base: { service },
     timestamp: pino.stdTimeFunctions.isoTime,
     formatters: {
@@ -216,7 +216,7 @@ export function getLogger(
   const fresh = dest
     ? pino(
         {
-          level: process.env.LOG_LEVEL ?? "info",
+          level: process.env.LOG_LEVEL || "info",
           base: { service },
           timestamp: pino.stdTimeFunctions.isoTime,
           formatters: { level: (label) => ({ level: label }) },
@@ -291,19 +291,22 @@ export async function withTimer<T>(
  * multiple times; subsequent calls are ignored by Sentry itself.
  */
 let sentryInitialized = false;
-export async function initSentry(service: string): Promise<void> {
-  if (sentryInitialized) return;
+export async function initSentry(service: string): Promise<boolean> {
+  if (sentryInitialized) return true;
   const dsn = process.env.SENTRY_DSN;
-  if (!dsn) return;
+  if (!dsn) return false;
   try {
     const Sentry = await import("@sentry/node");
     Sentry.init({
       dsn,
-      environment: process.env.NODE_ENV ?? "development",
+      // NODE_ENV is "production" in every container (the Dockerfile sets it),
+      // so dev and prod events were indistinguishable. BRAIN_DEPLOY_ENV is
+      // the tier label the deploy already carries (§0ax).
+      environment: process.env.BRAIN_DEPLOY_ENV?.trim() || process.env.NODE_ENV || "development",
       serverName: service,
       // Traces are off by default — call volume can be high. Operators
       // who want tracing set SENTRY_TRACES_SAMPLE_RATE explicitly.
-      tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? "0"),
+      tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE || "0"),
       // Don't leak API keys / tokens.
       beforeSend(event) {
         if (event.request?.headers) {
@@ -321,6 +324,7 @@ export async function initSentry(service: string): Promise<void> {
   } catch {
     // Never block startup on a logging pipeline failure.
   }
+  return sentryInitialized;
 }
 
 /**

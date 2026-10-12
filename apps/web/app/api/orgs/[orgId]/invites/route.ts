@@ -32,7 +32,7 @@ const createSchema = z.object({
 function getWebUrl(req: Request): string {
   const url = new URL(req.url);
   return (
-    process.env.AUTH_URL?.replace(/\/$/, "") ??
+    process.env.AUTH_URL?.replace(/\/$/, "") ||
     `${url.protocol}//${url.host}`
   );
 }

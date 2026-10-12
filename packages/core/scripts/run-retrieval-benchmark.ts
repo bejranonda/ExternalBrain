@@ -20,7 +20,7 @@ function main(): void {
     process.exit(2);
   }
   const cases = JSON.parse(readFileSync(path, "utf8")) as BenchmarkCase[];
-  const k = Number(process.env.BENCHMARK_K ?? 5);
+  const k = Number(process.env.BENCHMARK_K || 5);
   const r = runBenchmark(cases, { k });
 
   const pct = (x: number) => x.toFixed(4);

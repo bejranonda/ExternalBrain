@@ -31,7 +31,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 // pattern in v7. Match `packages/db/src/index.ts` so the seed's
 // connection lifecycle behaves identically to the runtime singleton.
 const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL ?? "",
+  connectionString: process.env.DATABASE_URL || "",
 });
 const db = new PrismaClient({ adapter });
 

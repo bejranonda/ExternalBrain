@@ -274,6 +274,18 @@ const WEIGHTS = {
 } as const;
 
 /**
+ * The effectiveness term of `scoreItem`: neutral 0.5 under 3 outcomes, true
+ * Laplace `(s+1)/(s+f+2)` from there. Exported so tests assert THIS function —
+ * a local replica in knowledge-stats.test.ts kept testing the pre-#103
+ * `s/(s+f+1)` formula for months after production changed (KNOWN_ISSUES §0ay).
+ */
+export function successComponent(successCount: number, failureCount: number): number {
+  return successCount + failureCount < 3
+    ? 0.5
+    : (successCount + 1) / (successCount + failureCount + 2);
+}
+
+/**
  * The production retrieval score for one candidate. Exported so the retrieval
  * benchmark (retrieval-benchmark.ts) ranks by the *exact* formula production
  * uses — a re-implementation would prove nothing once WEIGHTS drift. `now` is
@@ -297,11 +309,7 @@ export function scoreItem(
   // packages/core/src/knowledge-stats.ts, and keeps fresh rules from
   // being over-penalized during onboarding before outcomes accumulate.
   // Rules with ≥3 outcomes now rank by true Laplace.
-  const totalOutcomes = item.successCount + item.failureCount;
-  const success =
-    totalOutcomes < 3
-      ? 0.5
-      : (item.successCount + 1) / (item.successCount + item.failureCount + 2);
+  const success = successComponent(item.successCount, item.failureCount);
 
   const ref = item.confirmedAt ?? item.createdAt;
   const daysSince =

@@ -39,7 +39,7 @@ async function getBoss(): Promise<PgBoss> {
     // this var, but for the producer we just need the same value — read it
     // from process.env directly to avoid widening McpEnv just for the
     // enqueue side.
-    schema: process.env.PG_BOSS_SCHEMA ?? "pgboss",
+    schema: process.env.PG_BOSS_SCHEMA || "pgboss",
   });
 
   startPromise = instance.start().then(() => {

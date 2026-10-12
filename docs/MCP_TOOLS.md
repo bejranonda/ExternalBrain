@@ -369,7 +369,18 @@ Closed audit findings C3-C6 / issue #106. The regression net lives in `apps/mcp-
 | `brain_get_active_project` | First-project fallback (Phase 2b) | Token's project (`source: "token_scope"`) |
 | `brain_retrieve_knowledge`, `brain_ask_oracle`, `brain_session_search`, `brain_find_skill`, `brain_get_user_style` | Scope filter resolves to user + accessible-project IDs | Scope filter narrowed to the token's project |
 | `brain_teach_knowledge` | Any accessible project | Token's project only |
-| `brain_log_event`, `brain_report_session_outcome` | Caller must own the `sessionId` | Same + session must belong to token's project |
+| `brain_log_event`, `brain_report_session_outcome` | Caller must own the `sessionId` | Same + session must belong to token's project (enforced since v2.21.0 — before, only the user was checked; `KNOWN_ISSUES §0ay`) |
+
+**Capability gating (v2.21.0).** Every tool or resource that returns rule text
+honours the `knowledge` capability: `brain_retrieve_knowledge` and
+`brain://user/style-profile` refuse with `FORBIDDEN_CAPABILITY`;
+`brain_start_session` still opens the session but omits `relevantKnowledge`
+and `openActionItems`; `brain_get_user_style` still returns the peer card but
+`reflexes: []` (it is the documented connectivity check, so it degrades rather
+than throws). `brain_get_user_style` also narrows reflexes to a project-scoped
+token's project — the matrix row above claimed this before the code did it.
+`brain_ask_oracle` additionally refuses with `ORACLE_PAUSED` (503) when the
+operator sets `ORACLE_ENABLED=false`, matching `/api/oracle`.
 
 ### Session binding (v0.11.2, audit C1)
 

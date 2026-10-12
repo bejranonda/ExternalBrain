@@ -3408,3 +3408,57 @@ name a file and an approach is one grep from being confirmed already-shipped.
 Both of these were.
 
 Full instance: `KNOWN_ISSUES.md §0ax`.
+
+## 5cg. Every switch needs a test at the place it switches (2026-10-11, v2.21.0)
+
+Asked an open question — *anything to improve?* — I ran three read-only sweeps
+(env plumbing per service, auth coverage of every entrypoint, test and CI
+honesty), then re-verified each candidate against the code before believing
+it. About thirty candidates went in; sixteen survived. The survivors were
+mostly one bug wearing different clothes:
+
+- a privacy kill-switch that `PRIVACY.md` told operators to use, which was
+  parsed, unit-tested, and **read by nothing**;
+- an Oracle switch honoured by the web door and ignored by the MCP door;
+- seven env vars read by code and delivered to no container;
+- a boundary rule that "fails CI", with nothing in CI to fail it;
+- a test suite described as running that skipped green on every PR;
+- a scoring test asserting a copy of a formula production had replaced.
+
+In each, the thing that existed was real — a switch, a guard, a sentence, a
+test — and it **was verified**, just at the wrong place. `env.test.ts` proved
+`KEA_ENABLED` parses. Nothing proved it gates. That is `§0ax`'s *an env read
+and its env plumbing are two separate facts*, one step further out:
+
+> **A switch has three facts, not one: it parses, it reaches the process, and
+> the code path consults it.** A test of the first says nothing about the
+> other two. Test a switch where it switches.
+
+So the fixes are sweeps, not patches — `GUIDELINES §4`, *enumerate its
+siblings before you close the PR*, applied as a test that asserts the invariant
+across all N: every LLM queue consults its switch before its LLM call; every
+service receives every var its code reads (with shared code classified in a
+manifest that fails on anything new); no file but one parses
+`X-Forwarded-For`; no env read falls back with `??`.
+
+**Two lessons about the verification itself.**
+
+*Typecheck is not evidence about Prisma filters.* `organizationMember.findFirst
+({ where: { organizationId } })` names a field that does not exist, and `tsc`
+passed it — Prisma's generic args skip excess-property checks inside a nested
+`where`. The route 500'd for every org member in production for as long as it
+existed. Only running the query finds that.
+
+*"Skipped" can mean "failed".* Validating the CI step that now runs the live-MCP
+suites, a `beforeAll` threw (no user row in a scratch DB) and vitest reported
+the suite as **7 skipped, 0 failed**. A gate that reads the exit code would
+have shipped green again; the step reads the JSON report and fails on any
+pending test.
+
+**And one about the environment.** This session ran on the production host.
+The DB-gated suites ran against a throwaway pgvector container on another
+port, never the live database; the live-MCP suites ran against a throwaway MCP
+server. The first build was OOM-killed on the 8 GB host and left orphaned
+workers holding RAM — `next build` needs a capped heap there.
+
+Full instance: `KNOWN_ISSUES.md §0ay`.

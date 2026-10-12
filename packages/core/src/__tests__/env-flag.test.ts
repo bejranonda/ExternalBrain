@@ -65,8 +65,11 @@ describe("parseFlag semantics", () => {
  *    with exactly one parser, `billingMode()` in cost.ts, which every surface
  *    calls. Same shape as EMAIL_PROVIDER: the thing this guard exists to stop
  *    is N hand-rolled parses of one var, and there is one.
+ *  - NEXT_RUNTIME: set by Next itself ("nodejs" | "edge"), not an operator
+ *    flag; apps/web/instrumentation.ts must compare it literally so Next can
+ *    drop the Node-only import from edge compiles.
  */
-const RAW_COMPARISON_ALLOWED = /\b(NODE_ENV|SKIP_DB_INIT|SKIP_E2E|EMAIL_PROVIDER|BILLING_MODE)\b/;
+const RAW_COMPARISON_ALLOWED = /\b(NODE_ENV|SKIP_DB_INIT|SKIP_E2E|EMAIL_PROVIDER|BILLING_MODE|NEXT_RUNTIME)\b/;
 
 const REPO = join(__dirname, "..", "..", "..", "..");
 /**

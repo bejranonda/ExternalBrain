@@ -90,7 +90,7 @@ export const whoami: ToolDef = {
             }),
         // Distinguishes two deployments that share a hostname but not a
         // database — a staging copy restored from a prod dump, say.
-        databaseName: process.env.POSTGRES_DB ?? "brain",
+        databaseName: process.env.POSTGRES_DB || "brain",
         // BRAIN_DEPLOY_ENV, never ENVIRONMENT. The reference prod host carries
         // `ENVIRONMENT=dev` as a leftover label, so the old read here would
         // have reported a production Brain as "dev" — the precise failure

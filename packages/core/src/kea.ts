@@ -249,7 +249,7 @@ export async function extractFromSession(
       llmFindings: findings.length,
       filterPassed: filtered.length,
       persisted: persisted.length,
-      model: process.env.KEA_MODEL ?? "qwen3-coder",
+      model: process.env.KEA_MODEL || "qwen3-coder",
     },
     ...(payload.projectId ? { projectId: payload.projectId } : {}),
   });
@@ -296,7 +296,7 @@ async function defaultRefineJudge(
   learnings: Learning[],
   payload: KEAInputPayload,
 ): Promise<KEAFinding[]> {
-  const model = process.env.KEA_REFINE_MODEL ?? process.env.KEA_MODEL ?? "qwen3-coder";
+  const model = process.env.KEA_REFINE_MODEL || process.env.KEA_MODEL || "qwen3-coder";
   const userPrompt =
     `SESSION CONTEXT (for judging durability):\n` +
     JSON.stringify(
@@ -429,9 +429,9 @@ export async function extractFromCrossSessions(opts: {
   // operators can set CROSS_SESSION_KEA_MODEL=claude-sonnet-4-6 explicitly.
   const model =
     opts.model ??
-    process.env.CROSS_SESSION_KEA_MODEL ??
-    process.env.ORACLE_MODEL ??
-    "claude-sonnet-4-6";
+    (process.env.CROSS_SESSION_KEA_MODEL ||
+      process.env.ORACLE_MODEL ||
+      "claude-sonnet-4-6");
   const start = performance.now();
   const userPrompt =
     `Here are the user's last ${payloads.length} coding sessions, oldest first.\n` +
@@ -530,7 +530,7 @@ export async function runCrossExtractDaily(opts: {
 } = {}): Promise<Array<{ userId: string; persisted: number; skipped?: string }>> {
   const extractFn = opts.extract ?? extractFromCrossSessions;
   const log = getLogger("kea", { stream: "stdout" });
-  const windowSize = opts.windowSize ?? Number(process.env.CROSS_SESSION_WINDOW ?? 20);
+  const windowSize = opts.windowSize ?? Number(process.env.CROSS_SESSION_WINDOW || 20);
 
   // Per-user candidate selection. We need: closed Sessions where
   // endedAt > the user's most recent cross-session Knowledge row's
@@ -603,7 +603,7 @@ export async function runCrossExtractDaily(opts: {
       processed: results.filter((r) => !r.skipped).length,
       skipped: results.filter((r) => r.skipped).length,
       totalPersisted,
-      model: opts.model ?? process.env.CROSS_SESSION_KEA_MODEL ?? process.env.ORACLE_MODEL ?? null,
+      model: opts.model ?? (process.env.CROSS_SESSION_KEA_MODEL || process.env.ORACLE_MODEL || null),
     },
     "kea.cross.daily_done",
   );
@@ -718,7 +718,7 @@ async function summarizeSessionLite(sessionId: string): Promise<SessionMetrics> 
 // ============================================================
 
 async function runLLM(payload: KEAInputPayload): Promise<KEAFinding[]> {
-  const model = process.env.KEA_MODEL ?? "qwen3-coder";
+  const model = process.env.KEA_MODEL || "qwen3-coder";
   const userPrompt = `SESSION SUMMARY:\n${JSON.stringify(payload, null, 2)}\n\nExtract now.`;
 
   // Dispatch on model family — all return normalized KEAFinding[]

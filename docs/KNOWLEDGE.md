@@ -127,9 +127,9 @@ Starts at `0.7` for KEA output, `1.0` for user-taught. Updated via outcome feedb
 - Session success with knowledge injected → `successCount += 1`.
 - Session failure → `failureCount += 1`.
 - Duplicate detected → increment on the keeper, drop the duplicate.
-- Decayed daily by `evolution.decayUnused()` with half-life 90 days.
+- Decayed daily by `evolution.decayUnused()` with a 90-day half-life, adjusted by effectiveness once a rule has ≥ 5 outcomes: halved below 0.3, doubled at ≥ 0.7 (`evolution.decayHalfLifeDays`).
 
-The KRA ranking formula uses `success_rate = successCount / (successCount + failureCount + 1)` and `confidence` as separate factors — do not collapse them.
+The KRA ranking formula uses `success_rate` — neutral `0.5` under 3 outcomes, then Laplace `(successCount + 1) / (successCount + failureCount + 2)` (`kra.successComponent`, since audit #103) — and `confidence` as separate factors; do not collapse them. (This line stated the pre-#103 `s/(s+f+1)` until 2026-10-11, as did the test that claimed to check it — `KNOWN_ISSUES §0ay`.)
 
 ---
 
@@ -309,7 +309,7 @@ the session open, and a `used_reported` persist failure never blocks the close.
 3. pgvector query for top-50 candidates filtered by scope + decay > 0.3 + user match (widened from top-20 by [#146](https://github.com/bejranonda/ExternalBrain/issues/146), post-Stage-3-gate — see `kra.ts`'s `CANDIDATE_POOL_SIZE`).
 4. Score each with `0.70·sim + 0.08·success + 0.08·recency + 0.08·contextFit + 0.06·confidence` (the live `kra.ts` `WEIGHTS`; semantic similarity dominates and the rest act as tie-breakers — see the `WEIGHTS` history comment for the pre-2026-04-23 formula and why it changed).
 5. Diversify: ≤ 3 per type, ≤ 10 total, min score 0.45.
-6. Record `SessionKnowledgeApplication(role: injected)` for each returned item.
+6. Record `SessionKnowledgeApplication(role: injected)` for each returned item — **only when the session belongs to the caller** (`recordInjection` checks; since v2.21.0). `sessionId` arrives from the request, so without the check any user could plant injection rows in another user's session.
 7. Return `{bundle, injection}` — the `injection` is a pre-formatted string ready to drop into a user message block.
 
 > **Validating this ranking.** The re-rank (steps 3–4) is what the retrieval

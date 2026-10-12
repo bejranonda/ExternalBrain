@@ -1,5 +1,9 @@
 # LiveSync Bridge (optional, Phase 4)
 
+> **Status: designed, not built.** There is no `apps/sync-bridge` in this
+> repository and never has been — this page is the design. Commands below
+> (`pnpm --filter @brain/sync-bridge …`) will fail until it is implemented.
+
 For users who already maintain an Obsidian vault, we offer a two-way sync bridge so platform skills appear as notes in their vault and vice versa.
 
 ## Topology

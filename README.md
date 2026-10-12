@@ -358,6 +358,8 @@ rather than leaving them in container logs:
 | `/admin` → **Oracle spend** tile | what has the Oracle cost over 30 days, per user? (`GET /api/admin/cost-ledger`). Set `BILLING_MODE=subscription` if you run a flat plan — the tile then reads "Oracle spend (est.)" and the API returns a `disclaimer`, because on a subscription those dollars are list-value estimates, not money owed |
 | `./scripts/smoke.sh` | are all containers healthy, and does a real MCP session still complete end-to-end? |
 | `./scripts/verify-lockdown.sh` | is the deployment still refusing anonymous access on every gated surface? |
+| `web.sentry_init` log line at web start-up | is crash reporting actually on? `{enabled:true}` when `SENTRY_DSN` is set and the SDK loaded; `enabled:false, dsnSet:true` means it failed to start. Events are tagged with `BRAIN_DEPLOY_ENV` so dev and prod stay apart |
+| `KEA_ENABLED` / `AUTOSKILL_ENABLED` / `ORACLE_ENABLED` / `MEETING_UPLOAD_ENABLED` = `false` | the switches that stop each outbound LLM path — every door, checked where the call is made ([PRIVACY.md §2](./docs/PRIVACY.md)). Recreate the worker after changing the KEA/autoskill ones |
 
 `./scripts/deploy.sh` runs the last two automatically and **fails the deploy**
 if either does. That is deliberate: this project's most expensive bugs have all
