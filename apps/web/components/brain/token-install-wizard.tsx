@@ -4,6 +4,9 @@ import { useState } from "react";
 import { CLIENTS, clientById, needsOsChoice } from "@brain/core/install-snippets";
 import type { ClientId, TargetOS } from "@brain/core/install-snippets";
 import { buildTokenAgentPrompt } from "@/lib/brain/agent-prompt";
+import { useLang, useT } from "@/lib/brain/i18n";
+import { rich } from "@/lib/brain/rich-text";
+import { runTokenTest, tokenTestMessage, type TokenTestResult } from "@/lib/brain/token-test";
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -56,6 +59,8 @@ export function TokenInstallWizard({
   oldTokenScheduledRevokeAt,
   onClose,
 }: TokenInstallWizardProps) {
+  const t = useT();
+  const lang = useLang();
   const [tab, setTab] = useState<"manual" | "prompt">("manual");
   const [copiedPrompt, setCopiedPrompt] = useState(false);
   const [selectedClient, setSelectedClient] = useState<ClientId>("claude-code");
@@ -74,10 +79,7 @@ export function TokenInstallWizard({
     null | "token" | "snippet" | "path" | "command" | "prompt"
   >(null);
   const [testStatus, setTestStatus] = useState<
-    | null
-    | { loading: true }
-    | { loading: false; ok: true }
-    | { loading: false; ok: false; reason: string; detail?: string }
+    null | { loading: true } | { loading: false; result: TokenTestResult }
   >(null);
 
   const clientOption = clientById(selectedClient)!;
@@ -153,51 +155,7 @@ export function TokenInstallWizard({
 
   const testConnection = async () => {
     setTestStatus({ loading: true });
-    try {
-      const res = await fetch("/api/tokens/test", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ tokenId }),
-      });
-      const data = (await res.json()) as {
-        ok: boolean;
-        status?: string;
-        reason?: string;
-        expiresAt?: string;
-        scheduledRevokeAt?: string;
-      };
-      if (!res.ok) {
-        setTestStatus({
-          loading: false,
-          ok: false,
-          reason: data.reason ?? `HTTP ${res.status}`,
-        });
-        return;
-      }
-      if (data.ok) {
-        setTestStatus({ loading: false, ok: true });
-      } else {
-        let detail: string | undefined;
-        if (data.reason === "expired" && data.expiresAt) {
-          detail = `expired at ${new Date(data.expiresAt).toLocaleString()}`;
-        } else if (data.reason === "scheduled-revoke" && data.scheduledRevokeAt) {
-          detail = `scheduled revoke at ${new Date(data.scheduledRevokeAt).toLocaleString()}`;
-        }
-        const failState: { loading: false; ok: false; reason: string; detail?: string } = {
-          loading: false,
-          ok: false,
-          reason: data.reason ?? "unknown",
-        };
-        if (detail !== undefined) failState.detail = detail;
-        setTestStatus(failState);
-      }
-    } catch (e) {
-      setTestStatus({
-        loading: false,
-        ok: false,
-        reason: e instanceof Error ? e.message : "request failed",
-      });
-    }
+    setTestStatus({ loading: false, result: await runTokenTest(tokenId) });
   };
 
   return (
@@ -219,7 +177,7 @@ export function TokenInstallWizard({
           className="mono"
           style={{ fontSize: 11, color: "var(--ink-4)", letterSpacing: "0.06em" }}
         >
-          COPY NOW — THIS IS SHOWN ONCE
+          {t("wizard.shown_once")}
         </div>
         <div className="grow" />
         <button
@@ -227,9 +185,9 @@ export function TokenInstallWizard({
           className="btn btn-ghost"
           style={{ fontSize: 12, height: 22 }}
           onClick={onClose}
-          aria-label="Dismiss wizard"
+          aria-label={t("wizard.dismiss_label")}
         >
-          Dismiss
+          {t("common.dismiss")}
         </button>
       </div>
 
@@ -241,7 +199,7 @@ export function TokenInstallWizard({
           letterSpacing: "-0.01em",
         }}
       >
-        Install in your client
+        {t("wizard.heading")}
       </h3>
 
       {/* ── Raw token warning ── */}
@@ -262,16 +220,16 @@ export function TokenInstallWizard({
             className="mono"
             style={{ fontSize: 11, color: "var(--ink-4)", flex: 1 }}
           >
-            YOUR TOKEN — SAVE IT NOW, IT CANNOT BE RETRIEVED LATER
+            {t("wizard.your_token")}
           </div>
           <button
             type="button"
             className="btn btn-ghost"
             style={{ fontSize: 11, height: 20, padding: "0 6px", marginLeft: 6 }}
             onClick={() => void copyToken()}
-            aria-label="Copy raw token"
+            aria-label={t("wizard.copy_token_label")}
           >
-            {copiedToken ? "Copied" : "Copy"}
+            {copiedToken ? t("common.copied") : t("common.copy")}
           </button>
         </div>
         <code
@@ -295,8 +253,7 @@ export function TokenInstallWizard({
               lineHeight: 1.45,
             }}
           >
-            Clipboard unavailable in this context — triple-click the token above to
-            select it, then ⌘/Ctrl+C.
+            {t("wizard.clip_token")}
           </div>
         )}
       </div>
@@ -311,12 +268,9 @@ export function TokenInstallWizard({
             lineHeight: 1.5,
           }}
         >
-          Old token auto-revokes at:{" "}
-          <strong>
-            {new Date(oldTokenScheduledRevokeAt).toLocaleString()}
-          </strong>
-          . Both tokens authenticate until then — update your clients at your
-          own pace.
+          {rich(t("wizard.old_revokes"), {
+            date: <strong>{new Date(oldTokenScheduledRevokeAt).toLocaleString(lang)}</strong>,
+          })}
         </div>
       )}
 
@@ -325,7 +279,7 @@ export function TokenInstallWizard({
         className="mono"
         style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 8 }}
       >
-        CHOOSE HOW TO INSTALL
+        {t("wizard.choose_how")}
       </div>
       {/* The inactive tab needs a border the user can actually see WITHOUT
           hovering. Two earlier attempts failed, both reported from screenshots
@@ -342,12 +296,12 @@ export function TokenInstallWizard({
           default `.btn` border. */}
       <div
         role="tablist"
-        aria-label="Install method"
+        aria-label={t("wizard.method_label")}
         style={{ display: "flex", gap: 6, marginBottom: 14 }}
       >
         {([
-          ["manual", "Run it myself"],
-          ["prompt", "Paste a prompt"],
+          ["manual", t("wizard.tab_manual")],
+          ["prompt", t("wizard.tab_prompt")],
         ] as const).map(([id, label]) => {
           const active = tab === id;
           return (
@@ -382,8 +336,7 @@ export function TokenInstallWizard({
               lineHeight: 1.5,
             }}
           >
-            Paste this into your AI agent — it fetches the setup doc and
-            connects itself. No client/OS picking needed.
+            {t("wizard.prompt_intro")}
           </div>
           <pre
             className="mono"
@@ -411,8 +364,7 @@ export function TokenInstallWizard({
                 lineHeight: 1.45,
               }}
             >
-              Clipboard unavailable — click anywhere in the prompt to select
-              all, then ⌘/Ctrl+C.
+              {t("wizard.clip_prompt")}
             </div>
           )}
           <button
@@ -421,7 +373,7 @@ export function TokenInstallWizard({
             style={{ fontSize: 13 }}
             onClick={() => void copyPrompt()}
           >
-            {copiedPrompt ? "Copied" : "Copy prompt"}
+            {copiedPrompt ? t("common.copied") : t("wizard.copy_prompt")}
           </button>
         </div>
       )}
@@ -433,7 +385,7 @@ export function TokenInstallWizard({
         className="mono"
         style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 8 }}
       >
-        STEP 1 — CHOOSE YOUR CLIENT
+        {t("wizard.step_client")}
       </div>
       <div
         style={{
@@ -443,9 +395,9 @@ export function TokenInstallWizard({
           lineHeight: 1.5,
         }}
       >
-        Pick the AI tool you actually use. Not sure?{" "}
-        <strong style={{ color: "var(--ink-2)" }}>Claude Code (CLI)</strong> is
-        the most common starting point.
+        {rich(t("wizard.pick_client"), {
+          default: <strong style={{ color: "var(--ink-2)" }}>Claude Code (CLI)</strong>,
+        })}
       </div>
       <div
         style={{
@@ -486,7 +438,7 @@ export function TokenInstallWizard({
             className="mono"
             style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 8 }}
           >
-            STEP 2 — CHOOSE YOUR OS
+            {t("wizard.step_os")}
           </div>
           <div
             style={{
@@ -526,8 +478,9 @@ export function TokenInstallWizard({
         className="mono"
         style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 8 }}
       >
-        {needsOsChoice(snippet) ? "STEP 3" : "STEP 2"} —{" "}
-        {command ? "RUN THIS COMMAND" : "COPY THE SNIPPET"}
+        {t(command ? "wizard.step_run" : "wizard.step_copy", {
+          n: needsOsChoice(snippet) ? 3 : 2,
+        })}
       </div>
 
       {/* One-line install. Shown above the JSON on purpose: pasting config by
@@ -565,8 +518,7 @@ export function TokenInstallWizard({
                 lineHeight: 1.45,
               }}
             >
-              Clipboard unavailable — click anywhere in the command to select
-              all, then ⌘/Ctrl+C.
+              {t("wizard.clip_command")}
             </div>
           )}
           <div className="row" style={{ gap: 8, marginBottom: 10 }}>
@@ -576,7 +528,7 @@ export function TokenInstallWizard({
               style={{ fontSize: 13 }}
               onClick={() => void copyCommand()}
             >
-              {copiedCommand ? "Copied" : "Copy command"}
+              {copiedCommand ? t("common.copied") : t("wizard.copy_command")}
             </button>
           </div>
           <div
@@ -587,16 +539,14 @@ export function TokenInstallWizard({
               lineHeight: 1.5,
             }}
           >
-            {command.via === "native"
-              ? "Wires it up with the client's own MCP command, then verifies the connection end-to-end."
-              : "Merges into your existing config (other MCP servers are preserved and the file is backed up first), then verifies the connection end-to-end."}
+            {command.via === "native" ? t("wizard.via_native") : t("wizard.via_merge")}
             {command.note ? ` ${command.note}` : ""}
           </div>
           <div
             className="mono"
             style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 8 }}
           >
-            OR CONFIGURE IT BY HAND
+            {t("wizard.by_hand")}
           </div>
         </>
       )}
@@ -614,7 +564,7 @@ export function TokenInstallWizard({
           <span
             style={{ fontSize: 13, color: "var(--ink-3)" }}
           >
-            Config path:
+            {t("wizard.config_path")}
           </span>
           <code
             style={{
@@ -624,7 +574,7 @@ export function TokenInstallWizard({
               cursor: "pointer",
               textDecoration: "underline dotted",
             }}
-            title="Click to copy path"
+            title={t("wizard.copy_path_title")}
             onClick={() => void copyPath(configPathForOs)}
           >
             {configPathForOs}
@@ -635,7 +585,7 @@ export function TokenInstallWizard({
             style={{ fontSize: 11, height: 20, padding: "0 6px" }}
             onClick={() => void copyPath(configPathForOs)}
           >
-            {copiedPath ? "Copied" : "Copy path"}
+            {copiedPath ? t("common.copied") : t("wizard.copy_path")}
           </button>
         </div>
       )}
@@ -670,7 +620,7 @@ export function TokenInstallWizard({
               lineHeight: 1.45,
             }}
           >
-            Clipboard unavailable — click anywhere in the snippet to select all, then ⌘/Ctrl+C.
+            {t("wizard.clip_snippet")}
           </div>
         )}
       </div>
@@ -697,7 +647,7 @@ export function TokenInstallWizard({
           style={{ fontSize: 13 }}
           onClick={() => void copySnippet()}
         >
-          {copiedSnippet ? "Copied" : "Copy"}
+          {copiedSnippet ? t("common.copied") : t("common.copy")}
         </button>
       </div>
       </>
@@ -711,37 +661,23 @@ export function TokenInstallWizard({
           className="btn btn-ghost"
           style={{ fontSize: 13 }}
           onClick={() => void testConnection()}
-          disabled={testStatus !== null && "loading" in testStatus && testStatus.loading}
+          disabled={testStatus?.loading === true}
         >
-          {testStatus !== null && "loading" in testStatus && testStatus.loading
-            ? "Testing…"
-            : "Test connection"}
+          {testStatus?.loading ? t("wizard.testing") : t("wizard.test")}
         </button>
       </div>
 
       {/* Test result */}
-      {testStatus !== null && !("loading" in testStatus && testStatus.loading) && (
+      {testStatus && !testStatus.loading && (
         <div
+          role="status"
           style={{
             marginTop: 8,
             fontSize: 13,
-            color:
-              "ok" in testStatus && testStatus.ok
-                ? "var(--good, #22c55e)"
-                : "var(--bad, #ff6b6b)",
+            color: testStatus.result.ok ? "var(--good, #22c55e)" : "var(--bad, #ff6b6b)",
           }}
         >
-          {"ok" in testStatus && testStatus.ok ? (
-            <>&#10003; Token is active</>
-          ) : (
-            <>
-              &#10007;{" "}
-              {"reason" in testStatus ? testStatus.reason : "error"}
-              {"detail" in testStatus && testStatus.detail
-                ? ` — ${testStatus.detail}`
-                : ""}
-            </>
-          )}
+          {testStatus.result.ok ? "\u2713" : "\u2717"} {tokenTestMessage(t, lang, testStatus.result)}
         </div>
       )}
     </div>

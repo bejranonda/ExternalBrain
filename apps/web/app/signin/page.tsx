@@ -16,8 +16,17 @@ import { selfOrigin } from "@/lib/brain/self-origin";
 import { LocalePicker } from "@/components/brain/locale-picker";
 import { getServerT } from "@/lib/brain/i18n-server";
 import { I18N } from "@/lib/brain/i18n-dict";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT();
+  return {
+    title: `${t("auth.signIn")} — External Brain`,
+    description: t("meta.signinDescription"),
+  };
+}
 
 interface Props {
   searchParams: Promise<{
@@ -491,7 +500,7 @@ export default async function SignIn({ searchParams }: Props) {
                   <input
                     type="text"
                     name="voucher"
-                    placeholder="e.g. PILOT-2026-A1B2"
+                    placeholder={t("auth.voucherPlaceholder")}
                     autoComplete="off"
                     spellCheck={false}
                     required
@@ -677,7 +686,7 @@ export default async function SignIn({ searchParams }: Props) {
                   <input
                     type="text"
                     name="voucher"
-                    placeholder="e.g. PILOT-2026-A1B2"
+                    placeholder={t("auth.voucherPlaceholder")}
                     autoComplete="off"
                     spellCheck={false}
                     // Same prefill as the credentials form above — a voucher

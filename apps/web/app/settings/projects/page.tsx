@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { HelpPopover } from "@/components/brain/help-popover";
+import { useLang, useT } from "@/lib/brain/i18n";
+import { roleLabel } from "@/lib/brain/roles";
+import { apiErrorMessage, caughtMessage, throwApiError } from "@/lib/brain/api-error";
 
 interface OrgProject {
   id: string;
@@ -26,8 +29,8 @@ interface OrgsResponse {
   activeProjectId: string | null;
 }
 
-function fmt(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
+function fmt(iso: string, lang: string): string {
+  return new Date(iso).toLocaleDateString(lang, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -35,6 +38,8 @@ function fmt(iso: string): string {
 }
 
 export default function ProjectsPage() {
+  const t = useT();
+  const lang = useLang();
   const [data, setData] = useState<OrgsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +59,7 @@ export default function ProjectsPage() {
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/orgs", { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) await throwApiError(t, res);
       const d = (await res.json()) as OrgsResponse;
       setData(d);
       if (d.orgs[0] && !createOrgId) {
@@ -62,7 +67,7 @@ export default function ProjectsPage() {
       }
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "load failed");
+      setError(caughtMessage(t, e));
     } finally {
       setLoading(false);
     }
@@ -82,14 +87,11 @@ export default function ProjectsPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ orgId: createOrgId, name: createName.trim() }),
       });
-      if (!res.ok) {
-        const body = (await res.json()) as { error?: string };
-        throw new Error(body.error ?? `HTTP ${res.status}`);
-      }
+      if (!res.ok) await throwApiError(t, res);
       setCreateName("");
       await load();
     } catch (e) {
-      setCreateError(e instanceof Error ? e.message : "create failed");
+      setCreateError(caughtMessage(t, e));
     } finally {
       setCreating(false);
     }
@@ -111,21 +113,18 @@ export default function ProjectsPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name: renameName.trim() }),
       });
-      if (!res.ok) {
-        const body = (await res.json()) as { error?: string; message?: string };
-        throw new Error(body.message ?? body.error ?? `HTTP ${res.status}`);
-      }
+      if (!res.ok) await throwApiError(t, res);
       setRenameTarget(null);
       await load();
     } catch (e) {
-      setRenameError(e instanceof Error ? e.message : "rename failed");
+      setRenameError(caughtMessage(t, e));
     } finally {
       setRenaming(false);
     }
   };
 
   const onDelete = async (p: OrgProject) => {
-    if (!window.confirm(`Delete project "${p.name}"? This cannot be undone.`)) return;
+    if (!window.confirm(t("projects.delete_confirm", { name: p.name }))) return;
     try {
       // Parse a 409 body at most once — re-reading the same Response throws a
       // stream-already-read error and masks the server's real message.
@@ -137,9 +136,7 @@ export default function ProjectsPage() {
         errorBody = (await res.json()) as { error?: string; message?: string };
         if (errorBody.error === "project_not_empty") {
           if (
-            !window.confirm(
-              `"${p.name}" still has skills and/or sessions. Permanently delete the project AND all of its data? This cannot be undone.`,
-            )
+            !window.confirm(t("projects.delete_with_data_confirm", { name: p.name }))
           )
             return;
           res = await fetch(`/api/projects/${p.id}?withData=true`, { method: "DELETE" });
@@ -148,13 +145,13 @@ export default function ProjectsPage() {
       }
       if (!res.ok) {
         const body =
-          errorBody ?? ((await res.json()) as { error?: string; message?: string });
-        setError(body.message ?? body.error ?? `HTTP ${res.status}`);
+          errorBody ?? ((await res.json().catch(() => ({}))) as { error?: string });
+        setError(apiErrorMessage(t, body.error, res.status));
         return;
       }
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "delete failed");
+      setError(caughtMessage(t, e));
     }
   };
 
@@ -170,33 +167,34 @@ export default function ProjectsPage() {
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "18px 0 6px" }}>
         <h1 style={{ fontSize: 22, fontWeight: 500, margin: 0, letterSpacing: "-0.02em" }}>
-          Projects
+          {t("projects.title")}
         </h1>
         <HelpPopover
           content={{
-            what: "Projects scope your knowledge and sessions. Each project belongs to one organization; rules and sessions are tagged to a project so they don't bleed across contexts.",
+            what: t("projects.help_what"),
             whatToDo: [
-              "Create a new project for a distinct codebase or client.",
-              "Promote a personal project to a team org if collaborators need access.",
-              "Delete cascades to its tokens and sessions — verify before confirming.",
+              t("projects.help_todo_1"),
+              t("projects.help_todo_2"),
+              t("projects.help_todo_3"),
             ],
           }}
         />
       </div>
       <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "0 0 28px", lineHeight: 1.55 }}>
-        Projects group your knowledge and sessions. Each project belongs to one organization.
+        {t("projects.intro")}
       </p>
 
       {/* Create form */}
       <section className="panel" style={{ padding: "16px 18px", marginBottom: 28 }}>
         <div className="mono" style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 10 }}>
-          CREATE NEW PROJECT
+          {t("projects.create_heading")}
         </div>
         <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
           {data && data.orgs.length > 1 && (
             <select
               value={createOrgId}
               onChange={(e) => setCreateOrgId(e.target.value)}
+              aria-label={t("common.organization")}
               style={{
                 padding: "7px 10px",
                 fontSize: 13,
@@ -217,7 +215,8 @@ export default function ProjectsPage() {
           <input
             value={createName}
             onChange={(e) => setCreateName(e.target.value)}
-            placeholder="Project name"
+            placeholder={t("projects.name_label")}
+            aria-label={t("projects.name_label")}
             style={{
               flex: 1,
               padding: "8px 10px",
@@ -239,20 +238,21 @@ export default function ProjectsPage() {
             onClick={() => void onCreate()}
             disabled={!createName.trim() || creating}
           >
-            {creating ? "Creating…" : "Create"}
+            {creating ? t("common.creating") : t("common.create")}
           </button>
         </div>
         {createError && (
-          <div style={{ fontSize: 13, color: "var(--bad, #ff6b6b)", marginTop: 8 }}>
+          <div role="alert" style={{ fontSize: 13, color: "var(--bad, #ff6b6b)", marginTop: 8 }}>
             {createError}
           </div>
         )}
       </section>
 
       {/* Project list */}
-      {loading && <div style={{ fontSize: 13, color: "var(--ink-3)" }}>Loading…</div>}
+      {loading && <div style={{ fontSize: 13, color: "var(--ink-3)" }}>{t("common.loading")}</div>}
       {error && (
         <div
+          role="alert"
           className="panel"
           style={{ padding: "10px 12px", fontSize: 13, borderLeft: "3px solid var(--bad, #ff6b6b)", marginBottom: 12 }}
         >
@@ -266,13 +266,16 @@ export default function ProjectsPage() {
             className="mono"
             style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 10, letterSpacing: "0.06em" }}
           >
-            {org.slug.toUpperCase()} ({org.role}) — {org.projects.length} project
-            {org.projects.length !== 1 ? "s" : ""}
+            {t(org.projects.length === 1 ? "projects.org_heading_one" : "projects.org_heading_many", {
+              org: org.slug.toUpperCase(),
+              role: roleLabel(t, org.role),
+              n: org.projects.length,
+            })}
           </div>
 
           {org.projects.length === 0 && (
             <div style={{ fontSize: 13, color: "var(--ink-3)", padding: "8px 0" }}>
-              No projects in this org.
+              {t("projects.empty_org")}
             </div>
           )}
 
@@ -293,8 +296,9 @@ export default function ProjectsPage() {
                     {p.slug}
                     {p.framework ? ` · ${p.framework}` : ""}
                     {p.language ? ` · ${p.language}` : ""}
-                    {" · "}created {fmt(p.createdAt)}
-                    {p.id === data.activeProjectId ? " · active" : ""}
+                    {" · "}
+                    {t("projects.meta_created", { date: fmt(p.createdAt, lang) })}
+                    {p.id === data.activeProjectId ? ` · ${t("projects.meta_active")}` : ""}
                   </div>
                 </div>
                 <div className="grow" />
@@ -306,7 +310,7 @@ export default function ProjectsPage() {
                       style={{ fontSize: 11 }}
                       onClick={() => openRenameModal(p)}
                     >
-                      Rename
+                      {t("common.rename")}
                     </button>
                     <button
                       type="button"
@@ -314,7 +318,7 @@ export default function ProjectsPage() {
                       style={{ fontSize: 11 }}
                       onClick={() => void onDelete(p)}
                     >
-                      Delete
+                      {t("common.delete")}
                     </button>
                   </div>
                 )}
@@ -352,13 +356,14 @@ export default function ProjectsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 style={{ fontSize: 16, fontWeight: 500, margin: "0 0 16px", letterSpacing: "-0.01em" }}>
-              Rename project
+              {t("projects.rename_title")}
             </h2>
             <input
               autoFocus
               value={renameName}
               onChange={(e) => setRenameName(e.target.value)}
-              placeholder="New name"
+              placeholder={t("projects.rename_placeholder")}
+              aria-label={t("projects.rename_label")}
               style={{
                 width: "100%",
                 padding: "8px 10px",
@@ -377,7 +382,7 @@ export default function ProjectsPage() {
               }}
             />
             {renameError && (
-              <div style={{ fontSize: 13, color: "var(--bad, #ff6b6b)", marginBottom: 12 }}>
+              <div role="alert" style={{ fontSize: 13, color: "var(--bad, #ff6b6b)", marginBottom: 12 }}>
                 {renameError}
               </div>
             )}
@@ -389,7 +394,7 @@ export default function ProjectsPage() {
                 onClick={() => setRenameTarget(null)}
                 disabled={renaming}
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -398,7 +403,7 @@ export default function ProjectsPage() {
                 onClick={() => void onRename()}
                 disabled={!renameName.trim() || renaming}
               >
-                {renaming ? "Saving…" : "Save"}
+                {renaming ? t("common.saving") : t("common.save")}
               </button>
             </div>
           </div>

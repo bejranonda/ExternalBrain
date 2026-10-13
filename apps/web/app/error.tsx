@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useT } from "@/lib/brain/i18n";
 
 /**
  * Root error boundary — catches uncaught render errors anywhere below
@@ -25,6 +26,7 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useT();
   useEffect(() => {
     // Forward to console so the dev overlay still shows the stack;
     // also reaches Sentry's client SDK if it's been initialized
@@ -35,6 +37,7 @@ export default function GlobalError({
 
   return (
     <div
+      role="alert"
       style={{
         minHeight: "60vh",
         display: "flex",
@@ -47,34 +50,23 @@ export default function GlobalError({
         color: "var(--ink, #e5e5e5)",
       }}
     >
-      <h1 style={{ fontSize: 20, fontWeight: 500, margin: 0 }}>
-        Something went wrong on this surface
-      </h1>
+      <h1 style={{ fontSize: 20, fontWeight: 500, margin: 0 }}>{t("errorPage.title")}</h1>
       <p style={{ fontSize: 14, color: "var(--ink-2, #b0b0b0)", margin: 0, maxWidth: 480, textAlign: "center" }}>
-        The Brain webapp hit an unexpected error rendering this view.
-        You can try again, or navigate to a different surface from the
-        rail / bottom nav.
+        {t("errorPage.body")}
       </p>
       {error.digest ? (
         <p style={{ fontSize: 11, fontFamily: "var(--font-mono, monospace)", color: "var(--ink-4, #6b6b6b)", margin: 0 }}>
-          digest: {error.digest}
+          {t("errorPage.reference", { digest: error.digest })}
         </p>
       ) : null}
-      <button
-        type="button"
-        onClick={reset}
-        style={{
-          padding: "8px 16px",
-          fontSize: 13,
-          background: "var(--accent, #d8ff3e)",
-          color: "var(--accent-ink, #0a0a0b)",
-          border: "none",
-          borderRadius: 6,
-          cursor: "pointer",
-        }}
-      >
-        Try again
-      </button>
+      <div className="row" style={{ gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+        <button type="button" className="btn btn-primary" style={{ fontSize: 13 }} onClick={reset}>
+          {t("errorPage.tryAgain")}
+        </button>
+        <a href="/" className="btn btn-ghost" style={{ fontSize: 13, textDecoration: "none" }}>
+          {t("errorPage.backHome")}
+        </a>
+      </div>
     </div>
   );
 }

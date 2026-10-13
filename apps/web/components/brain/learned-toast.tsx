@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Route } from "@/lib/brain/routes";
 import { useNewExtractions } from "@/lib/brain/use-new-extractions";
+import { useT } from "@/lib/brain/i18n";
 
 const AUTO_DISMISS_MS = 12_000;
 
@@ -16,6 +17,7 @@ const AUTO_DISMISS_MS = 12_000;
  * after 12s; user can close via [×] or jump to /#skills via the CTA.
  */
 export function LearnedToast({ go }: { go: (r: Route) => void }) {
+  const t = useT();
   const { count, latestRuleText, dismiss } = useNewExtractions();
   const [visible, setVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -105,7 +107,7 @@ export function LearnedToast({ go }: { go: (r: Route) => void }) {
             setVisible(false);
             window.setTimeout(() => dismiss(), 220);
           }}
-          aria-label="Dismiss"
+          aria-label={t("common.dismiss")}
           style={{
             background: "transparent",
             border: "none",

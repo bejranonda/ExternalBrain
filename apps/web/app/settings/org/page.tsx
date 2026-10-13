@@ -13,6 +13,9 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { useLang, useT } from "@/lib/brain/i18n";
+import { roleLabel } from "@/lib/brain/roles";
+import { caughtMessage, throwApiError } from "@/lib/brain/api-error";
 
 // ─── types ─────────────────────────────────────────────────────────────────
 
@@ -40,8 +43,8 @@ interface OrgData {
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 
-function fmt(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
+function fmt(iso: string, lang: string): string {
+  return new Date(iso).toLocaleDateString(lang, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -115,18 +118,20 @@ function OrgSelector({
   selected: string;
   onChange: (id: string) => void;
 }) {
+  const t = useT();
   if (orgs.length === 1) return null;
   return (
     <div style={{ marginBottom: 20 }}>
-      <label style={labelStyle}>Organization</label>
+      <label htmlFor="org-selector" style={labelStyle}>{t("common.organization")}</label>
       <select
+        id="org-selector"
         value={selected}
         onChange={(e) => onChange(e.target.value)}
         style={{ ...inputStyle, marginTop: 4, maxWidth: 320 }}
       >
         {orgs.map((o) => (
           <option key={o.id} value={o.id}>
-            {o.name} ({o.role})
+            {o.name} ({roleLabel(t, o.role)})
           </option>
         ))}
       </select>
@@ -143,8 +148,10 @@ function MembersSection({
 }: {
   orgId: string;
   viewerRole: string;
-  onAction: (msg: string) => void;
+  onAction: (msg: string, isError?: boolean) => void;
 }) {
+  const t = useT();
+  const lang = useLang();
   const [members, setMembers] = useState<OrgMember[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -153,12 +160,12 @@ function MembersSection({
   const load = useCallback(async () => {
     try {
       const res = await fetch(`/api/orgs/${orgId}/members`, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) await throwApiError(t, res);
       const data = (await res.json()) as { members: OrgMember[] };
       setMembers(data.members);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "load failed");
+      setError(caughtMessage(t, e));
     }
   }, [orgId]);
 
@@ -173,46 +180,40 @@ function MembersSection({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ role: newRole }),
       });
-      if (!res.ok) {
-        const d = (await res.json()) as { error?: string };
-        throw new Error(d.error ?? `HTTP ${res.status}`);
-      }
-      onAction(`Role updated to ${newRole}.`);
+      if (!res.ok) await throwApiError(t, res);
+      onAction(t("org.role_updated", { role: roleLabel(t, newRole) }));
       void load();
     } catch (e) {
-      onAction(e instanceof Error ? e.message : "role change failed");
+      onAction(caughtMessage(t, e), true);
     }
   };
 
   const remove = async (userId: string, email: string) => {
-    if (!confirm(`Remove ${email} from this org?`)) return;
+    if (!confirm(t("org.remove_confirm", { email }))) return;
     try {
       const res = await fetch(`/api/orgs/${orgId}/members/${userId}`, {
         method: "DELETE",
       });
-      if (!res.ok) {
-        const d = (await res.json()) as { error?: string };
-        throw new Error(d.error ?? `HTTP ${res.status}`);
-      }
-      onAction(`${email} removed.`);
+      if (!res.ok) await throwApiError(t, res);
+      onAction(t("org.removed", { email }));
       void load();
     } catch (e) {
-      onAction(e instanceof Error ? e.message : "remove failed");
+      onAction(caughtMessage(t, e), true);
     }
   };
 
   return (
     <section style={{ marginBottom: 36 }}>
-      <h2 style={{ fontSize: 16, fontWeight: 500, margin: "0 0 12px" }}>Members</h2>
-      {error && <div style={errorStyle}>{error}</div>}
+      <h2 style={{ fontSize: 16, fontWeight: 500, margin: "0 0 12px" }}>{t("org.members")}</h2>
+      {error && <div role="alert" style={errorStyle}>{error}</div>}
       {!members && !error && (
-        <div style={{ color: "var(--ink-3)", fontSize: 13 }}>Loading…</div>
+        <div style={{ color: "var(--ink-3)", fontSize: 13 }}>{t("common.loading")}</div>
       )}
       {members && (
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr>
-              {["Name / Email", "Role", "Joined", canManage ? "Actions" : ""].map((h) => (
+              {[t("org.col_name"), t("common.role"), t("org.col_joined"), canManage ? t("org.col_actions") : ""].map((h) => (
                 <th
                   key={h}
                   style={{
@@ -240,21 +241,22 @@ function MembersSection({
                   {canManage ? (
                     <select
                       value={m.role}
+                      aria-label={t("org.role_for", { name: m.name ?? m.email })}
                       onChange={(e) => void changeRole(m.userId, e.target.value)}
                       style={{ ...btnStyle, padding: "4px 8px" }}
                     >
-                      <option value="member">member</option>
-                      <option value="admin">admin</option>
-                      <option value="owner">owner</option>
+                      <option value="member">{roleLabel(t, "member")}</option>
+                      <option value="admin">{roleLabel(t, "admin")}</option>
+                      <option value="owner">{roleLabel(t, "owner")}</option>
                     </select>
                   ) : (
                     <span className="mono" style={{ fontSize: 11 }}>
-                      {m.role}
+                      {roleLabel(t, m.role)}
                     </span>
                   )}
                 </td>
                 <td style={{ padding: "8px 8px", color: "var(--ink-3)", fontSize: 12 }}>
-                  {fmt(m.joinedAt)}
+                  {fmt(m.joinedAt, lang)}
                 </td>
                 {canManage && (
                   <td style={{ padding: "8px 8px" }}>
@@ -262,7 +264,7 @@ function MembersSection({
                       style={dangerBtnStyle}
                       onClick={() => void remove(m.userId, m.email)}
                     >
-                      Remove
+                      {t("org.remove")}
                     </button>
                   </td>
                 )}
@@ -282,20 +284,22 @@ function InvitesSection({
   onAction,
 }: {
   orgId: string;
-  onAction: (msg: string) => void;
+  onAction: (msg: string, isError?: boolean) => void;
 }) {
+  const t = useT();
+  const lang = useLang();
   const [invites, setInvites] = useState<OrgInvite[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
       const res = await fetch(`/api/orgs/${orgId}/invites`, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) await throwApiError(t, res);
       const data = (await res.json()) as { invites: OrgInvite[] };
       setInvites(data.invites);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "load failed");
+      setError(caughtMessage(t, e));
     }
   }, [orgId]);
 
@@ -304,37 +308,34 @@ function InvitesSection({
   }, [load]);
 
   const revoke = async (inviteId: string, email: string) => {
-    if (!confirm(`Revoke invite for ${email}?`)) return;
+    if (!confirm(t("org.revoke_confirm", { email }))) return;
     try {
       const res = await fetch(`/api/orgs/${orgId}/invites/${inviteId}`, {
         method: "DELETE",
       });
-      if (!res.ok) {
-        const d = (await res.json()) as { error?: string };
-        throw new Error(d.error ?? `HTTP ${res.status}`);
-      }
-      onAction("Invite revoked.");
+      if (!res.ok) await throwApiError(t, res);
+      onAction(t("org.invite_revoked"));
       void load();
     } catch (e) {
-      onAction(e instanceof Error ? e.message : "revoke failed");
+      onAction(caughtMessage(t, e), true);
     }
   };
 
   return (
     <section style={{ marginBottom: 36 }}>
-      <h2 style={{ fontSize: 16, fontWeight: 500, margin: "0 0 12px" }}>Pending invites</h2>
-      {error && <div style={errorStyle}>{error}</div>}
+      <h2 style={{ fontSize: 16, fontWeight: 500, margin: "0 0 12px" }}>{t("org.pending")}</h2>
+      {error && <div role="alert" style={errorStyle}>{error}</div>}
       {!invites && !error && (
-        <div style={{ color: "var(--ink-3)", fontSize: 13 }}>Loading…</div>
+        <div style={{ color: "var(--ink-3)", fontSize: 13 }}>{t("common.loading")}</div>
       )}
       {invites && invites.length === 0 && (
-        <div style={{ color: "var(--ink-3)", fontSize: 13 }}>No active invites.</div>
+        <div style={{ color: "var(--ink-3)", fontSize: 13 }}>{t("org.no_invites")}</div>
       )}
       {invites && invites.length > 0 && (
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr>
-              {["Email", "Role", "Expires", "Actions"].map((h) => (
+              {[t("common.email"), t("common.role"), t("org.col_expires"), t("org.col_actions")].map((h) => (
                 <th
                   key={h}
                   style={{
@@ -355,18 +356,18 @@ function InvitesSection({
                 <td style={{ padding: "8px 8px" }}>{inv.email}</td>
                 <td style={{ padding: "8px 8px" }}>
                   <span className="mono" style={{ fontSize: 11 }}>
-                    {inv.role}
+                    {roleLabel(t, inv.role)}
                   </span>
                 </td>
                 <td style={{ padding: "8px 8px", color: "var(--ink-3)", fontSize: 12 }}>
-                  {fmt(inv.expiresAt)}
+                  {fmt(inv.expiresAt, lang)}
                 </td>
                 <td style={{ padding: "8px 8px" }}>
                   <button
                     style={dangerBtnStyle}
                     onClick={() => void revoke(inv.id, inv.email)}
                   >
-                    Revoke
+                    {t("org.revoke")}
                   </button>
                 </td>
               </tr>
@@ -387,6 +388,7 @@ function InviteForm({
   orgId: string;
   onInvited: (link: string, email: string) => void;
 }) {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"member" | "admin" | "owner">("member");
   const [creating, setCreating] = useState(false);
@@ -403,16 +405,13 @@ function InviteForm({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email: email.trim(), role }),
       });
-      if (!res.ok) {
-        const d = (await res.json()) as { error?: string };
-        throw new Error(d.error ?? `HTTP ${res.status}`);
-      }
+      if (!res.ok) await throwApiError(t, res);
       const data = (await res.json()) as { link: string; invite: { email: string } };
       setEmail("");
       setRole("member");
       onInvited(data.link, data.invite.email);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "invite failed");
+      setError(caughtMessage(t, err));
     } finally {
       setCreating(false);
     }
@@ -420,15 +419,16 @@ function InviteForm({
 
   return (
     <section style={{ marginBottom: 36 }}>
-      <h2 style={{ fontSize: 16, fontWeight: 500, margin: "0 0 12px" }}>Invite a member</h2>
-      {error && <div style={errorStyle}>{error}</div>}
+      <h2 style={{ fontSize: 16, fontWeight: 500, margin: "0 0 12px" }}>{t("org.invite_heading")}</h2>
+      {error && <div role="alert" style={errorStyle}>{error}</div>}
       <form
         onSubmit={(e) => void submit(e)}
         style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}
       >
         <div style={{ flex: "1 1 220px", minWidth: 160 }}>
-          <label style={{ ...labelStyle, display: "block", marginBottom: 4 }}>Email</label>
+          <label htmlFor="invite-email" style={{ ...labelStyle, display: "block", marginBottom: 4 }}>{t("common.email")}</label>
           <input
+            id="invite-email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -438,15 +438,16 @@ function InviteForm({
           />
         </div>
         <div style={{ flex: "0 0 140px" }}>
-          <label style={{ ...labelStyle, display: "block", marginBottom: 4 }}>Role</label>
+          <label htmlFor="invite-role" style={{ ...labelStyle, display: "block", marginBottom: 4 }}>{t("common.role")}</label>
           <select
+            id="invite-role"
             value={role}
             onChange={(e) => setRole(e.target.value as "member" | "admin" | "owner")}
             style={inputStyle}
           >
-            <option value="member">member</option>
-            <option value="admin">admin</option>
-            <option value="owner">owner</option>
+            <option value="member">{roleLabel(t, "member")}</option>
+            <option value="admin">{roleLabel(t, "admin")}</option>
+            <option value="owner">{roleLabel(t, "owner")}</option>
           </select>
         </div>
         <button
@@ -454,7 +455,7 @@ function InviteForm({
           disabled={creating || !email.trim()}
           style={{ ...btnStyle, borderColor: "var(--accent)", color: "var(--accent-text)" }}
         >
-          {creating ? "Inviting…" : "Send invite"}
+          {creating ? t("org.inviting") : t("org.send_invite")}
         </button>
       </form>
     </section>
@@ -470,6 +471,7 @@ function CreateOrgForm({
   onCreated: (org: OrgData) => void;
   onError: (msg: string) => void;
 }) {
+  const t = useT();
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
 
@@ -484,15 +486,12 @@ function CreateOrgForm({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name: trimmed }),
       });
-      if (!res.ok) {
-        const d = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-        throw new Error(d.message ?? d.error ?? `HTTP ${res.status}`);
-      }
+      if (!res.ok) await throwApiError(t, res);
       const { org } = (await res.json()) as { org: OrgData };
       setName("");
       onCreated(org);
     } catch (err) {
-      onError(err instanceof Error ? err.message : "create failed");
+      onError(caughtMessage(t, err));
     } finally {
       setCreating(false);
     }
@@ -501,13 +500,13 @@ function CreateOrgForm({
   return (
     <form onSubmit={submit} style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
       <label style={{ flex: "1 1 240px", minWidth: 0 }}>
-        <span style={labelStyle}>Organization name</span>
+        <span style={labelStyle}>{t("org.create_name")}</span>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={120}
-          placeholder="e.g. Acme Inc."
+          placeholder={t("org.create_placeholder")}
           style={{ ...inputStyle, marginTop: 4 }}
           required
         />
@@ -522,7 +521,7 @@ function CreateOrgForm({
           opacity: creating || !name.trim() ? 0.6 : 1,
         }}
       >
-        {creating ? "Creating…" : "Create organization"}
+        {creating ? t("common.creating") : t("org.create_btn")}
       </button>
     </form>
   );
@@ -531,18 +530,20 @@ function CreateOrgForm({
 // ─── Page ─────────────────────────────────────────────────────────────────
 
 export default function OrgPage() {
+  const t = useT();
   const [orgs, setOrgs] = useState<OrgData[] | null>(null);
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
-  const [flash, setFlash] = useState<{ text: string; isLink: boolean } | null>(null);
+  const [flash, setFlash] = useState<{ text: string; isLink: boolean; isError: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
   const [copyFailed, setCopyFailed] = useState(false);
 
-  const show = (text: string, isLink = false) => {
-    setFlash({ text, isLink });
+  const show = (text: string, isLink = false, isError = false) => {
+    setFlash({ text, isLink, isError });
     setCopyFailed(false);
-    if (!isLink) {
+    // An error stays until the next action; a success note fades.
+    if (!isLink && !isError) {
       window.setTimeout(() => setFlash(null), 3000);
     }
   };
@@ -572,7 +573,7 @@ export default function OrgPage() {
   const loadOrgs = useCallback(async () => {
     try {
       const res = await fetch("/api/orgs", { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) await throwApiError(t, res);
       const data = (await res.json()) as {
         orgs: Array<{ id: string; name: string; role: string }>;
       };
@@ -587,7 +588,7 @@ export default function OrgPage() {
           : manageable[0]?.id ?? "",
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "load failed");
+      setError(caughtMessage(t, e));
     }
   }, []);
 
@@ -598,7 +599,7 @@ export default function OrgPage() {
   const onOrgCreated = (org: OrgData) => {
     setShowCreate(false);
     setSelectedOrgId(org.id);
-    show(`Organization “${org.name}” created.`);
+    show(t("org.created", { name: org.name }));
     void loadOrgs();
   };
 
@@ -607,7 +608,7 @@ export default function OrgPage() {
   if (error) {
     return (
       <div style={{ maxWidth: 960 }}>
-        <div style={errorStyle}>{error}</div>
+        <div role="alert" style={errorStyle}>{error}</div>
       </div>
     );
   }
@@ -615,7 +616,7 @@ export default function OrgPage() {
   if (!orgs) {
     return (
       <div style={{ maxWidth: 960, color: "var(--ink-3)", fontSize: 13 }}>
-        Loading…
+        {t("common.loading")}
       </div>
     );
   }
@@ -628,14 +629,19 @@ export default function OrgPage() {
     return (
       <div style={{ maxWidth: 960 }}>
         <h1 style={{ fontSize: 22, fontWeight: 500, margin: "0 0 12px" }}>
-          Organization
+          {t("common.organization")}
         </h1>
         {flash && !flash.isLink && (
-          <div style={{ ...flashStyle, color: "var(--ink-2)" }}>{flash.text}</div>
+          <div
+            role={flash.isError ? "alert" : "status"}
+            style={flash.isError ? errorStyle : { ...flashStyle, color: "var(--ink-2)" }}
+          >
+            {flash.text}
+          </div>
         )}
         <div className="panel" style={{ padding: "20px 22px", maxWidth: 520 }}>
           <h2 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 500 }}>
-            Create your first organization
+            {t("org.first_title")}
           </h2>
           <p
             style={{
@@ -645,10 +651,9 @@ export default function OrgPage() {
               lineHeight: 1.55,
             }}
           >
-            Organizations group projects and let you invite teammates. You&rsquo;ll
-            be the owner of any org you create here.
+            {t("org.first_body")}
           </p>
-          <CreateOrgForm onCreated={onOrgCreated} onError={(m) => show(m)} />
+          <CreateOrgForm onCreated={onOrgCreated} onError={(m) => show(m, false, true)} />
         </div>
       </div>
     );
@@ -665,7 +670,7 @@ export default function OrgPage() {
         }}
       >
         <h1 style={{ fontSize: 22, fontWeight: 500, margin: 0 }}>
-          Organization
+          {t("common.organization")}
         </h1>
         {selectedOrg && (
           <span style={{ color: "var(--ink-3)", fontSize: 13 }}>
@@ -677,24 +682,33 @@ export default function OrgPage() {
           onClick={() => setShowCreate((v) => !v)}
           style={{ ...btnStyle, marginLeft: "auto" }}
         >
-          {showCreate ? "Cancel" : "New organization"}
+          {showCreate ? t("common.cancel") : t("org.new_org")}
         </button>
       </div>
 
       {showCreate && (
         <div className="panel" style={{ padding: "16px 18px", marginBottom: 24, maxWidth: 520 }}>
           <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 500 }}>
-            Create a new organization
+            {t("org.create_new_title")}
           </h2>
-          <CreateOrgForm onCreated={onOrgCreated} onError={(m) => show(m)} />
+          <CreateOrgForm onCreated={onOrgCreated} onError={(m) => show(m, false, true)} />
         </div>
       )}
 
       {flash && (
-        <div style={flash.isLink ? flashStyle : { ...flashStyle, color: "var(--ink-2)" }}>
+        <div
+          role={flash.isError ? "alert" : "status"}
+          style={
+            flash.isError
+              ? errorStyle
+              : flash.isLink
+                ? flashStyle
+                : { ...flashStyle, color: "var(--ink-2)" }
+          }
+        >
           {flash.isLink ? (
             <>
-              <strong>Invite link (copy now — shown once):</strong>
+              <strong>{t("org.link_heading")}</strong>
               <br />
               <span
                 style={{ cursor: "pointer", textDecoration: "underline" }}
@@ -706,16 +720,14 @@ export default function OrgPage() {
                 onClick={() => void copyInviteLink(flash.text)}
                 style={{ ...btnStyle, marginLeft: 12, fontSize: 11 }}
               >
-                Copy
+                {t("common.copy")}
               </button>
               {copyFailed && (
                 <div
                   role="alert"
                   style={{ marginTop: 8, fontSize: 12, color: "var(--warn, #d97757)" }}
                 >
-                  Couldn&apos;t reach the clipboard (this happens on a non-HTTPS
-                  origin, or if you denied the permission). The link above is
-                  still here — select it and copy manually.
+                  {t("org.clip_failed")}
                 </div>
               )}
             </>
@@ -736,12 +748,15 @@ export default function OrgPage() {
           <MembersSection
             orgId={selectedOrgId}
             viewerRole={selectedOrg.role}
-            onAction={(msg) => show(msg)}
+            onAction={(msg, isError) => show(msg, false, isError)}
           />
 
           {(selectedOrg.role === "owner" || selectedOrg.role === "admin") && (
             <>
-              <InvitesSection orgId={selectedOrgId} onAction={(msg) => show(msg)} />
+              <InvitesSection
+                orgId={selectedOrgId}
+                onAction={(msg, isError) => show(msg, false, isError)}
+              />
               <InviteForm
                 orgId={selectedOrgId}
                 onInvited={(link, _email) =>

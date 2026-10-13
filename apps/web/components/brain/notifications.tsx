@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "./icons";
 import type { ProposalView } from "@/lib/brain/views";
+import { useT } from "@/lib/brain/i18n";
 
 interface Props {
   open: boolean;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function NotificationsPanel({ open, onClose, onReview }: Props) {
+  const t = useT();
   const [items, setItems] = useState<ProposalView[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -47,7 +49,7 @@ export function NotificationsPanel({ open, onClose, onReview }: Props) {
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="Notifications"
+        aria-label={t("app.notifications")}
         className="panel"
         style={{
           width: 360,
@@ -69,16 +71,16 @@ export function NotificationsPanel({ open, onClose, onReview }: Props) {
           }}
         >
           <Icon name="notifications" size={12} />
-          <span style={{ fontSize: 13, fontWeight: 500 }}>Notifications</span>
+          <span style={{ fontSize: 13, fontWeight: 500 }}>{t("app.notifications")}</span>
           <span className="grow" />
           <span className="mono" style={{ fontSize: 12, color: "var(--ink-3)" }}>
-            {items.length} pending
+            {t("notifications.pending", { n: items.length })}
           </span>
         </div>
         <div className="scroll" style={{ flex: 1 }}>
           {loading && (
             <div style={{ padding: 14, color: "var(--ink-3)", fontSize: 13 }}>
-              Loading…
+              {t("common.loading")}
             </div>
           )}
           {!loading && items.length === 0 && (
@@ -90,9 +92,7 @@ export function NotificationsPanel({ open, onClose, onReview }: Props) {
                 lineHeight: 1.55,
               }}
             >
-              Nothing pending — you&rsquo;re caught up. Notifications appear
-              here when the Brain spots a pattern across your sessions worth
-              promoting to a skill.
+              {t("notifications.empty")}
             </div>
           )}
           {(() => {
@@ -101,13 +101,13 @@ export function NotificationsPanel({ open, onClose, onReview }: Props) {
             // Existing data — no new endpoint or schema change.
             type Group = { label: string; items: ProposalView[]; tone: string };
             const groups: Group[] = [
-              { label: "High confidence — likely ready to apply",
+              { label: t("notifications.group_high"),
                 items: items.filter((p) => p.confidence === "high"),
                 tone: "var(--accent-text)" },
-              { label: "Medium — worth a look",
+              { label: t("notifications.group_medium"),
                 items: items.filter((p) => p.confidence === "medium"),
                 tone: "var(--warn)" },
-              { label: "Low — skim or skip",
+              { label: t("notifications.group_low"),
                 items: items.filter((p) => !["high", "medium"].includes(p.confidence)),
                 tone: "var(--ink-3)" },
             ].filter((g) => g.items.length > 0);
@@ -152,7 +152,13 @@ export function NotificationsPanel({ open, onClose, onReview }: Props) {
                     letterSpacing: "0.08em",
                   }}
                 >
-                  {p.confidence}
+                  {t(
+                    p.confidence === "high"
+                      ? "notifications.conf_high"
+                      : p.confidence === "medium"
+                        ? "notifications.conf_medium"
+                        : "notifications.conf_low",
+                  )}
                 </span>
                 <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>
                   {p.type.replace("_", " ")}
@@ -181,7 +187,7 @@ export function NotificationsPanel({ open, onClose, onReview }: Props) {
             style={{ width: "100%" }}
             onClick={onReview}
           >
-            Review all proposals
+            {t("notifications.review_all")}
           </button>
         </div>
       </div>

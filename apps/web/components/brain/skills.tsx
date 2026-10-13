@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Icon } from "./icons";
 import { type KnowledgeDisplayType as KnowledgeType } from "@/lib/brain/views";
 import { useT } from "@/lib/brain/i18n";
+import { caughtMessage, type Translate } from "@/lib/brain/api-error";
 import { useKnowledge } from "@/lib/brain/use-knowledge";
 import { useRelated } from "@/lib/brain/use-related";
 import { useProjectScope } from "@/lib/brain/use-project-scope";
@@ -11,20 +12,22 @@ import { ScopePill } from "./scope-pill";
 import { EffectivenessBadge } from "./effectiveness-badge";
 import { HelpPopover } from "./help-popover";
 import { InfoDot } from "./info-dot";
+import { LoadError } from "./load-error";
 import type { KnowledgeItemView } from "@/lib/brain/views";
 
 type ScopeFilter = "all" | KnowledgeItemView["scope"];
 type VisibilityFilter = "all" | "private" | "project" | "org";
 
 /** Map visibility value to a short label + emoji indicator */
-function visibilityLabel(v: KnowledgeItemView["visibility"] | undefined): string {
-  if (v === "private") return "Private";
-  if (v === "org") return "Org";
-  return "Project";
+function visibilityLabel(t: Translate, v: KnowledgeItemView["visibility"] | undefined): string {
+  if (v === "private") return t("skills.vis_private");
+  if (v === "org") return t("skills.vis_org");
+  return t("skills.project");
 }
 
 function VisibilityPill({ visibility }: { visibility: KnowledgeItemView["visibility"] | undefined }) {
-  const label = visibilityLabel(visibility);
+  const t = useT();
+  const label = visibilityLabel(t, visibility);
   const color =
     visibility === "org"
       ? "var(--accent)"
@@ -35,7 +38,7 @@ function VisibilityPill({ visibility }: { visibility: KnowledgeItemView["visibil
   return (
     <span
       className="chip mono"
-      title={`Visibility: ${label}`}
+      title={t("skills.vis_title", { label })}
       style={{ fontSize: 11, color, background: "transparent", padding: "1px 4px" }}
     >
       {icon} {label}
@@ -47,7 +50,7 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
   const t = useT();
   const { scope, setScope } = useProjectScope();
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>("all");
-  const { items, loadState, error, remove, fork, promote, forkToProject, refresh } = useKnowledge(
+  const { items, loadState, remove, fork, promote, forkToProject, refresh } = useKnowledge(
     scope,
     visibilityFilter === "all" ? undefined : visibilityFilter,
   );
@@ -96,7 +99,7 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
             lineHeight: 1.4,
           }}
         >
-          What your Brain has learned
+          {t("skills.subtitle")}
         </p>
         {loadState === "loading" ? (
           <div
@@ -105,6 +108,12 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
           >
             {t("skills.loading")}
           </div>
+        ) : loadState === "error" ? (
+          <LoadError
+            title={t("skills.load_error_title")}
+            body={t("skills.load_error_body")}
+            onRetry={refresh}
+          />
         ) : (
           <div
             className="panel"
@@ -213,9 +222,9 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
       const child = await fork(selected.id, { ruleText: draft });
       setSelectedId(child.id);
       setEditing(false);
-      flash("Saved as new version.");
+      flash(t("skills.saved_version"));
     } catch (e) {
-      flash(e instanceof Error ? e.message : "save failed");
+      flash(caughtMessage(t, e));
     }
   };
 
@@ -224,9 +233,9 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
     try {
       const child = await fork(selected.id);
       setSelectedId(child.id);
-      flash("Forked — editing copy.");
+      flash(t("skills.forked"));
     } catch (e) {
-      flash(e instanceof Error ? e.message : "fork failed");
+      flash(caughtMessage(t, e));
     }
   };
 
@@ -234,33 +243,33 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
     if (!selected) return;
     try {
       await navigator.clipboard.writeText(selected.body);
-      flash("Copied body to clipboard.");
+      flash(t("skills.copied_body"));
     } catch {
-      flash("Clipboard unavailable.");
+      flash(t("skills.clipboard_unavailable"));
     }
   };
 
   const onDelete = async () => {
     if (!selected) return;
-    if (!window.confirm(`Delete "${selected.title}"?`)) return;
+    if (!window.confirm(t("skills.delete_confirm", { title: selected.title }))) return;
     try {
       await remove(selected.id);
       setSelectedId(null);
       setMenuOpen(false);
-      flash("Deleted.");
+      flash(t("skills.deleted"));
     } catch (e) {
-      flash(e instanceof Error ? e.message : "delete failed");
+      flash(caughtMessage(t, e));
     }
   };
 
   const onPromote = async () => {
     if (!selected) return;
-    if (!window.confirm(`Promote "${selected.title}" to org visibility? All org members will be able to see it.`)) return;
+    if (!window.confirm(t("skills.promote_confirm", { title: selected.title }))) return;
     try {
       await promote(selected.id);
-      flash("Promoted to org — all projects in this org can now see it.");
+      flash(t("skills.promoted"));
     } catch (e) {
-      flash(e instanceof Error ? e.message : "promote failed");
+      flash(caughtMessage(t, e));
     }
   };
 
@@ -269,9 +278,9 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
     try {
       const child = await forkToProject(selected.id);
       setSelectedId(child.id);
-      flash("Forked into this project — you now have a local copy.");
+      flash(t("skills.forked_here"));
     } catch (e) {
-      flash(e instanceof Error ? e.message : "fork-to-project failed");
+      flash(caughtMessage(t, e));
     }
   };
 
@@ -291,9 +300,9 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      flash("Rules bundle downloaded.");
+      flash(t("skills.bundle_downloaded"));
     } catch (e) {
-      flash(e instanceof Error ? e.message : "bundle download failed");
+      flash(caughtMessage(t, e));
     }
   };
 
@@ -302,9 +311,9 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
     const text = renderExport(target, selected);
     try {
       await navigator.clipboard.writeText(text);
-      flash(`${target} export copied.`);
+      flash(t("skills.export_copied", { target }));
     } catch {
-      flash(`Clipboard unavailable; preview in console.`);
+      flash(t("skills.clipboard_unavailable"));
        
       console.info(text);
     }
@@ -381,9 +390,9 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
         >
           {t("skills.type")}
           <InfoDot
-            term="Skill type"
+            term={t("skills.type")}
             conceptSlug="skills"
-            tip="recipe = step-by-step; rule of thumb = heuristic; principle = a value; reflex = always-do; anti-pattern = never-do."
+            tip={t("skills.type_tip")}
           />
         </div>
         {/* UX-newcomer-pass-2 (iter 13): hide buckets with zero items so
@@ -448,29 +457,26 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
             alignItems: "center",
           }}
         >
-          <span>Visibility</span>
+          <span>{t("skills.visibility")}</span>
           <HelpPopover
             content={{
-              what: "Visibility controls who can see a skill — private to you, your project, or your whole org.",
+              what: t("skills.vis_help_what"),
               whatToDo: [
-                "Private 🔒 — only you can see it. Use for personal patterns you're not ready to share.",
-                "Project 📁 — visible to everyone working on this project (the default for new skills).",
-                "Org 🌐 — visible across every project in your organization. Use for cross-project conventions.",
+                t("skills.vis_help_private"),
+                t("skills.vis_help_project"),
+                t("skills.vis_help_org"),
               ],
               docHref: "/docs/concepts/skills",
             }}
-            triggerLabel="What does visibility mean?"
+            triggerLabel={t("skills.vis_help_trigger")}
           />
         </div>
         {(
           [
-            { k: "all", label: "All", icon: "", tip: "Show every skill regardless of visibility." },
-            { k: "private", label: "Private", icon: "🔒",
-              tip: "Only you can see these. Use for personal patterns you're not ready to share." },
-            { k: "project", label: "Project", icon: "📁",
-              tip: "Visible to everyone working on this project (the default for new skills)." },
-            { k: "org", label: "Org", icon: "🌐",
-              tip: "Visible across every project in your organization. Use for cross-project conventions." },
+            { k: "all", label: t("skills.all"), icon: "", tip: t("skills.vis_all_tip") },
+            { k: "private", label: t("skills.vis_private"), icon: "🔒", tip: t("skills.vis_private_tip") },
+            { k: "project", label: t("skills.project"), icon: "📁", tip: t("skills.vis_project_tip") },
+            { k: "org", label: t("skills.vis_org"), icon: "🌐", tip: t("skills.vis_org_tip") },
           ] as const
         ).map((v) => (
           <button
@@ -509,28 +515,28 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
           <div style={{ fontSize: 13, fontWeight: 500 }}>{t("skills.knowledge")}</div>
           <HelpPopover
             content={{
-              what: "Every skill in your Brain — typed (recipe / rule of thumb / principle / reflex / anti-pattern), scoped (personal / project / team / community), and scored for effectiveness.",
+              what: t("skills.help_what"),
               whatToDo: [
-                "Filter by type chip (top of left rail) — 'principle' for design choices, 'reflex' for muscle-memory skills, 'anti-pattern' for things to avoid.",
-                "Click any row to see its trigger, rule, related skills, and edit history.",
-                "Edit fixes a wrong skill; Fork copies it to a different scope (e.g. promote personal → team).",
-                "Effectiveness badge: ✓ green ≥ 0.70 · ~ yellow 0.40–0.69 · ✗ red < 0.40 · — Untested.",
+                t("skills.help_todo_1"),
+                t("skills.help_todo_2"),
+                t("skills.help_todo_3"),
+                t("skills.help_todo_4"),
               ],
               docHref: "/docs/concepts/skills",
             }}
           />
           <span className="mono" style={{ fontSize: 12, color: "var(--ink-3)" }}>
-            {sorted.length} items
+            {t("skills.items", { n: sorted.length })}
           </span>
           <ScopePill scope={scope} onScopeChange={setScope} />
           <div className="grow" />
           {loadState === "error" && (
             <span
               className="chip"
-              title={error ?? "API unreachable"}
+              title={t("skills.load_error_title")}
               style={{ color: "var(--warn)", fontSize: 11 }}
             >
-              offline
+              {t("dash.offline")}
             </span>
           )}
           {/* Phase R.1: dropped the "Filter" toggle — it only revealed a
@@ -547,7 +553,7 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
               )
             }
           >
-            <Icon name="sort" size={10} /> {sortLabel(sort)}
+            <Icon name="sort" size={10} /> {t(`skills.sort_${sort}`)}
           </button>
           {/* Phase R.1: hero the primary action. "Teach a skill" was
               previously only reachable from the empty state — once the
@@ -681,8 +687,8 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
                   setEditing(false);
                   setMenuOpen(false);
                 }}
-                aria-label="Close detail"
-                title="Close (Esc)"
+                aria-label={t("skills.close_detail")}
+                title={t("skills.close_tip")}
                 style={{ marginRight: 4 }}
               >
                 <Icon name="x" />
@@ -692,7 +698,8 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
                 className="btn btn-ghost"
                 style={{ height: 26, fontSize: 12 }}
                 onClick={() => void onCopy()}
-                title="Copy body"
+                title={t("skills.copy_body_tip")}
+                aria-label={t("skills.copy_body_tip")}
               >
                 <Icon name="copy" size={10} />
               </button>
@@ -711,9 +718,9 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
                   className="btn btn-ghost"
                   style={{ height: 26, fontSize: 12 }}
                   onClick={() => void onPromote()}
-                  title="Share with all projects in this org"
+                  title={t("skills.promote_tip")}
                 >
-                  🌐 Promote
+                  {t("skills.promote")}
                 </button>
               )}
               {/* Phase 4: Fork into this project — only for org-visible rows */}
@@ -723,9 +730,9 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
                   className="btn btn-ghost"
                   style={{ height: 26, fontSize: 12 }}
                   onClick={() => void onForkToProject()}
-                  title="Create a project-local override of this org rule"
+                  title={t("skills.fork_here_tip")}
                 >
-                  📁 Fork here
+                  {t("skills.fork_here")}
                 </button>
               )}
               <button
@@ -740,7 +747,7 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
                   }
                 }}
               >
-                {editing ? "Save" : t("skills.edit")}
+                {editing ? t("common.save") : t("skills.edit")}
               </button>
               {editing && (
                 <button
@@ -749,7 +756,7 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
                   style={{ height: 26, fontSize: 12 }}
                   onClick={() => setEditing(false)}
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </button>
               )}
               <div style={{ position: "relative" }}>
@@ -757,7 +764,9 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
                   type="button"
                   className="icon-btn"
                   onClick={() => setMenuOpen((v) => !v)}
-                  aria-label="More"
+                  aria-label={t("skills.more_actions")}
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
                 >
                   <Icon name="more" />
                 </button>
@@ -774,26 +783,26 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
                   >
                     <MenuButton
                       icon="copy"
-                      label="Copy id"
+                      label={t("skills.copy_id")}
                       onClick={async () => {
                         setMenuOpen(false);
                         try {
                           await navigator.clipboard.writeText(selected.id);
-                          flash("Id copied.");
+                          flash(t("skills.id_copied"));
                         } catch {
-                          flash("Clipboard unavailable.");
+                          flash(t("skills.clipboard_unavailable"));
                         }
                       }}
                     />
                     <MenuButton
                       icon="sort"
-                      label="Refresh"
+                      label={t("skills.refresh")}
                       onClick={() => {
                         setMenuOpen(false);
                         void refresh();
                       }}
                     />
-                    <MenuButton icon="x" label="Delete" onClick={onDelete} danger />
+                    <MenuButton icon="x" label={t("common.delete")} onClick={onDelete} danger />
                   </div>
                 )}
               </div>
@@ -816,6 +825,7 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
                 <textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
+                  aria-label={t("skills.edit_text")}
                   style={{
                     fontSize: 13.5,
                     lineHeight: 1.6,
@@ -845,7 +855,7 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
                   marginBottom: 6,
                 }}
               >
-                Effectiveness
+                {t("skills.effectiveness")}
               </div>
               <div className="panel" style={{ padding: "10px 14px" }}>
                 <EffectivenessBadge
@@ -857,9 +867,7 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
                   className="mono"
                   style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 6, lineHeight: 1.5 }}
                 >
-                  Score = successCount / (successCount + failureCount).
-                  Requires ≥3 session outcomes to display.
-                  Usage count tracks Oracle retrievals.
+                  {t("skills.effectiveness_note")}
                 </div>
               </div>
             </div>
@@ -952,11 +960,11 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
               }}
             >
               {related.loadState === "loading" && (
-                <div style={{ fontSize: 13, color: "var(--ink-3)" }}>Loading related…</div>
+                <div style={{ fontSize: 13, color: "var(--ink-3)" }}>{t("skills.loading_related")}</div>
               )}
               {related.loadState === "ready" && related.items.length === 0 && (
                 <div style={{ fontSize: 13, color: "var(--ink-3)" }}>
-                  No graph edges yet — related items appear after the graph extractor runs.
+                  {t("skills.no_related")}
                 </div>
               )}
               {related.items.map((r) => (
@@ -1045,7 +1053,7 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
               className="btn btn-ghost"
               style={{ marginTop: 10, width: "100%", fontSize: 12 }}
               onClick={() => void onDownloadRules()}
-              title="Download all rules-tagged Knowledge as an editor-agent rules bundle"
+              title={t("skills.bundle_tip")}
             >
               <Icon name="file" size={11} /> {t("skills.download_rules_bundle")}
             </button>
@@ -1089,7 +1097,7 @@ function UsagePanel({
   t,
 }: {
   selected: KnowledgeItemView;
-  t: (k: string) => string;
+  t: Translate;
 }) {
   return (
     <div className="panel" style={{ padding: 14 }}>
@@ -1117,11 +1125,11 @@ function UsagePanel({
       </div>
       <div className="row" style={{ marginTop: 8 }}>
         <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>
-          total uses
+          {t("skills.total_uses")}
         </span>
         <div className="grow" />
         <span className="mono" style={{ fontSize: 11, color: "var(--accent-text)" }}>
-          {(selected.success * 100).toFixed(0)}% accepted
+          {t("skills.accepted_pct", { pct: (selected.success * 100).toFixed(0) })}
         </span>
       </div>
     </div>
@@ -1133,7 +1141,7 @@ function ConfidenceTrail({
   t,
 }: {
   selected: KnowledgeItemView;
-  t: (k: string) => string;
+  t: Translate;
 }) {
   return (
     <div className="panel" style={{ padding: 14 }}>
@@ -1154,32 +1162,27 @@ function ConfidenceTrail({
         style={{ fontSize: 12, lineHeight: 1.8, color: "var(--ink-2)" }}
       >
         <div className="row">
-          <span style={{ color: "var(--ink-4)", width: 90 }}>extracted</span>
-          <span title={t("tip.kea")}>
-            0.70 · auto-extracted by Brain
-          </span>
+          <span style={{ color: "var(--ink-4)", width: 90 }}>{t("skills.trail_extracted")}</span>
+          <span title={t("tip.kea")}>{t("skills.trail_extracted_value")}</span>
         </div>
         <div className="row">
-          <span style={{ color: "var(--ink-4)", width: 90 }}>+ outcomes</span>
+          <span style={{ color: "var(--ink-4)", width: 90 }}>{t("skills.trail_outcomes")}</span>
           <span>
             {selected.uses > 0
-              ? `${Math.round(selected.success * 100)}% of ${selected.uses}`
-              : "no data"}
+              ? t("skills.trail_outcomes_value", {
+                  pct: Math.round(selected.success * 100),
+                  n: selected.uses,
+                })
+              : t("skills.trail_no_data")}
           </span>
         </div>
         <div className="row">
-          <span style={{ color: "var(--ink-4)", width: 90 }}>current</span>
+          <span style={{ color: "var(--ink-4)", width: 90 }}>{t("skills.trail_current")}</span>
           <span style={{ color: "var(--accent-text)" }}>{selected.confidence.toFixed(2)}</span>
         </div>
       </div>
     </div>
   );
-}
-
-function sortLabel(s: "recency" | "confidence" | "uses"): string {
-  if (s === "confidence") return "Confidence";
-  if (s === "uses") return "Uses";
-  return "Recency";
 }
 
 function renderExport(

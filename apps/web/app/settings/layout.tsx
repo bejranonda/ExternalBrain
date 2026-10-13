@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, anySignInConfigured, devAuthAllowed } from "@/auth";
+import { getServerT } from "@/lib/brain/i18n-server";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,7 @@ export default async function SettingsLayout({
     redirect("/signin?error=auth_not_configured");
   }
   // else: dev-shim only — pass through, matching app/page.tsx.
+  const t = await getServerT();
 
   // The back-to-Brain link lives HERE, not in each page. It used to be
   // hand-rolled per page, and the predictable happened: /settings/org shipped
@@ -66,7 +68,7 @@ export default async function SettingsLayout({
             textDecoration: "none",
           }}
         >
-          ← Brain
+          {t("settings.back_to_brain")}
         </Link>
         <span
           className="mono"
@@ -77,7 +79,7 @@ export default async function SettingsLayout({
             textTransform: "uppercase",
           }}
         >
-          Settings
+          {t("app.settings")}
         </span>
       </header>
       {children}
