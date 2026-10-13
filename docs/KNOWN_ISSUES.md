@@ -2613,9 +2613,10 @@ paths). `verify-lockdown.sh` PASS, no MCP errors. Over MCP with throwaway rows:
 a self-replacement is refused (`REPLACEMENT_INVALID`); retiring an own row
 with `replacedById` records the lineage (`parentKnowledgeId` on the
 replacement, `replacedById` in the audit payload); an own row retires without
-one. The teammate refusal could not be exercised live — no other user's
-shared row is visible to the operator's account — and is covered by the
-suites. The 2026-08-30 Brain decision was superseded live (`superseded: true`).
+one. The 2026-08-30 Brain decision was superseded live (`superseded: true`).
+The teammate cases had no live data that night (no other user's shared row is
+visible to the operator's account) and were checked the next morning — see
+below.
 
 **v2.23.1, same evening — review follow-ups (CodeRabbit on #281, each verified
 against the code):** the soft-delete and its lineage write are one
@@ -2626,6 +2627,18 @@ told to "re-run with that project" — a fix it cannot make). Deployed to
 `mcp-server` after a backup; live: the not-found hint, and an own-row retire
 with `replacedById` writing lineage (`parentKnowledgeId` set) in the
 transaction.
+
+**Teammate cases verified live, 2026-10-13** (the deployed v2.23.1 retire
+tool, run inside the `mcp-server` container against the production database,
+with two throwaway users in a throwaway org — all removed afterwards, user
+count 15 before and after): a teammate retiring the owner's org decision with
+no replacement → `REPLACEMENT_REQUIRED` (409), row untouched; a teammate
+naming the owner's **private** row → 403 with or without a replacement (the
+row's existence is not confirmed); self-replacement → `REPLACEMENT_INVALID`;
+with the teammate's own successor named → retired, `parentKnowledgeId` set on
+the successor, `replacedById` in the audit payload; the owner's own row
+without a replacement → retired. The MCP Bearer layer in front of the tool was
+not part of this check — `verify-lockdown.sh` covers it.
 
 ## 0az. Pre-account takeover, Node 20 EOL, 27 high advisories (2026-10-12, v2.22.0)
 
