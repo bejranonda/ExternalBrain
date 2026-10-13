@@ -1,10 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 import path from "node:path";
 
-// E2E_BASE_URL lets CI or a dev override the target.
-// Defaults to local dev server for the legacy `./e2e` suite; the newer
-// `./tests/e2e` suite (roadmap-3) is written against the deployed dev brain
-// and is opt-in via E2E_AUTH_COOKIE + E2E_BASE_URL=https://brain-dev.example.com.
+// E2E_BASE_URL lets CI or a dev override the target (default: local dev server).
 const baseURL = process.env["E2E_BASE_URL"] || "http://localhost:3000";
 
 // Authenticated-suite gate. When E2E_ADMIN_PASSWORD is present, an auth
@@ -18,11 +15,8 @@ const AUTH_FILE = path.join(__dirname, "e2e", ".auth", "admin.json");
 const hasAuth = Boolean(process.env["E2E_ADMIN_PASSWORD"]);
 
 export default defineConfig({
-  // Two suites coexist:
-  //   - e2e/         legacy specs targeting a locally-running stack
-  //   - tests/e2e/   roadmap-3 specs targeting a deployed brain w/ auth cookie
   testDir: ".",
-  testMatch: ["e2e/**/*.spec.ts", "tests/e2e/**/*.spec.ts"],
+  testMatch: ["e2e/**/*.spec.ts"],
   // Run tests serially — avoids flakiness from shared DB state on a single-host stack.
   fullyParallel: false,
   workers: 1,
