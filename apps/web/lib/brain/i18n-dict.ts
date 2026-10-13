@@ -582,6 +582,14 @@ export const I18N = {
     org: {
       role_for: "Role for {{name}}",
     },
+    meta: {
+      description: "The knowledge you build while coding with any AI tool, made permanent and portable.",
+      homeTitle: "External Brain — shared memory for your AI coding tools",
+      signinDescription: "Sign in to your Brain, or create an account with a voucher or invite.",
+      forgotDescription: "Get a link to reset the password for your Brain account.",
+      resetDescription: "Choose a new password for your Brain account.",
+      inviteDescription: "Accept an invitation to join an organization on this Brain.",
+    },
   },
   th: {
     auth: {
@@ -1128,6 +1136,14 @@ export const I18N = {
     },
     org: {
       role_for: "บทบาทของ {{name}}",
+    },
+    meta: {
+      description: "ความรู้ที่คุณสั่งสมระหว่างเขียนโค้ดกับเครื่องมือ AI ใดก็ได้ ถูกเก็บไว้อย่างถาวรและนำไปใช้ต่อได้ทุกที่",
+      homeTitle: "External Brain — หน่วยความจำกลางสำหรับเครื่องมือเขียนโค้ด AI ของคุณ",
+      signinDescription: "เข้าสู่ระบบ Brain ของคุณ หรือสร้างบัญชีด้วยรหัสวอเชอร์หรือคำเชิญ",
+      forgotDescription: "รับลิงก์สำหรับรีเซ็ตรหัสผ่านบัญชี Brain ของคุณ",
+      resetDescription: "ตั้งรหัสผ่านใหม่สำหรับบัญชี Brain ของคุณ",
+      inviteDescription: "ตอบรับคำเชิญเข้าร่วมองค์กรบน Brain นี้",
     },
   },
   de: {
@@ -1679,6 +1695,14 @@ export const I18N = {
     },
     org: {
       role_for: "Rolle von {{name}}",
+    },
+    meta: {
+      description: "Das Wissen, das du beim Programmieren mit beliebigen KI-Tools aufbaust – dauerhaft gespeichert und überallhin mitnehmbar.",
+      homeTitle: "External Brain – gemeinsames Gedächtnis für deine KI-Coding-Tools",
+      signinDescription: "Melde dich bei deinem Brain an oder erstelle ein Konto mit einem Gutscheincode oder einer Einladung.",
+      forgotDescription: "Fordere einen Link an, um das Passwort deines Brain-Kontos zurückzusetzen.",
+      resetDescription: "Wähle ein neues Passwort für dein Brain-Konto.",
+      inviteDescription: "Nimm eine Einladung an, einer Organisation auf diesem Brain beizutreten.",
     },
   },
 } as const;

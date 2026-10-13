@@ -13,8 +13,17 @@ import { db } from "@brain/db";
 import { hashSecret } from "@brain/core/secret-hash";
 import { LocalePicker } from "@/components/brain/locale-picker";
 import { getServerT } from "@/lib/brain/i18n-server";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT();
+  return {
+    title: `${t("auth.newPasswordTitle")} — External Brain`,
+    description: t("meta.resetDescription"),
+  };
+}
 
 interface Props {
   searchParams: Promise<{ token?: string; error?: string; success?: string; revoked?: string }>;
