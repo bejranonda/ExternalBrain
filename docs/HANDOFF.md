@@ -5,7 +5,7 @@ agent. It records **current state and what is waiting on whom**; the reasoning
 lives in the documents it links. Update it at the end of a working session
 that changes either.
 
-_Last updated: 2026-10-12 · release **v2.23.1** · live on the reference instance._
+_Last updated: 2026-10-13 · release **v2.23.1** · live on the reference instance._
 
 ---
 
@@ -23,7 +23,8 @@ _Last updated: 2026-10-12 · release **v2.23.1** · live on the reference instan
 What each release fixed, and how it was verified on the live instance:
 [`KNOWN_ISSUES.md §0ay`](./KNOWN_ISSUES.md) (v2.21.x, sixteen "switch that did
 nothing" defects), [`§0az`](./KNOWN_ISSUES.md) (v2.22.0) and
-[`§0ba`](./KNOWN_ISSUES.md) (v2.23.0).
+[`§0ba`](./KNOWN_ISSUES.md) (v2.23.0/v2.23.1 — every retire case, the
+teammate ones included, verified on the live instance by 2026-10-13).
 
 ## Waiting on the operator
 
