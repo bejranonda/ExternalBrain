@@ -2802,6 +2802,21 @@ en/th/de (a key-parity test now covers all three), and `/`, `/signin`,
 and description with `metadataBase` read per request. The new Thai and German
 strings are AI-written and await a native-speaker pass (row in §1 below).
 
+**Deployed and verified on the live instance, 2026-10-13.** Before: rollback
+tags `deploy-*:rollback-v2.23.1` and a DB dump; the new web image was first
+run against a scratch database and driven in a browser (register → refused →
+link alone changes nothing → wrong password refused → confirm → sign in;
+admin env login; Thai page). The additive migration went on alone while v2.23
+kept serving; then web, mcp-server, worker one at a time.
+`verify-lockdown.sh` PASS, no restarts, no new error types in worker/MCP.
+Live, with throwaway accounts (removed after; 15 users before and after): an
+unflagged account signs in and reaches a protected page; a pending one is sent
+to `/confirm-email`, opening the link changes nothing, the password confirms
+it, then it signs in; in en/th/de, `/accept-invite` with a bad token shows no
+raw code, `/signin` has its own title, `/confirm-email` is translated. Two web
+"destination stream closed early" lines coincided with the test script
+navigating away mid-response.
+
 **Host (reference instance, no repo change).** Disk was at 82%: 11 GB of
 Docker build cache, a 3.9 GB uncapped journal, 1.4 GB of unrotated pm2 logs
 from a co-hosted app. Added a weekly `docker builder prune --filter
