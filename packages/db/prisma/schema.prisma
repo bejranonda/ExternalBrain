@@ -50,6 +50,10 @@ model User {
   emailVerifiedAt   DateTime?
   // Web sessions (JWTs) that authenticated before this instant are rejected.
   sessionsRevokedAt DateTime?
+  // Set on a self-registered account while email delivery is configured: its
+  // password sign-in is refused until `emailVerifiedAt` is set by the emailed
+  // confirmation link. False for every account that predates the gate.
+  emailConfirmRequired Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -66,6 +70,7 @@ model User {
   organizations       OrganizationMember[]
   credential          UserCredential?
   passwordResetTokens PasswordResetToken[]
+  emailConfirmTokens  EmailConfirmToken[]
 }
 
 // Per-user bcrypt password — opt-in for invite-based sign-up.
@@ -85,6 +90,21 @@ model UserCredential {
 // One-shot, 1-hour tokens for the self-service forgot-password flow.
 // Created by POST /api/auth/forgot-password; consumed by POST /api/auth/reset-password.
 // usedAt is set on consumption — the token is permanently invalidated after that.
+// Signup confirmation link (same shape as PasswordResetToken: only the
+// SHA-256 of the emailed value is stored).
+model EmailConfirmToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
+  expiresAt DateTime  // 24 hours from creation
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
 model PasswordResetToken {
   id        String    @id @default(cuid())
   userId    String
