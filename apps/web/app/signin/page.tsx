@@ -426,7 +426,15 @@ export default async function SignIn({ searchParams }: Props) {
                   redirect(`/signin?mode=register&error=${data.error ?? "registration_failed"}`);
                 }
 
-                const { redirectTo } = (await res.json()) as { redirectTo?: string };
+                const { redirectTo, confirmRequired, emailSent } = (await res.json()) as {
+                  redirectTo?: string;
+                  confirmRequired?: boolean;
+                  emailSent?: boolean;
+                };
+                // Email delivery is configured: the account signs in once the
+                // emailed link is used (§0bb). A failed send lands on the
+                // resend form instead of claiming a mail is on its way.
+                if (confirmRequired) redirect(emailSent ? "/confirm-email?sent=1" : "/confirm-email?pending=1");
 
                 // Sign in with the just-created credentials.
                 try {
@@ -590,6 +598,9 @@ export default async function SignIn({ searchParams }: Props) {
                     }
                     if ((err as { code?: string })?.code === "login_rate_limited") {
                       redirect("/signin?error=login_rate_limited");
+                    }
+                    if ((err as { code?: string })?.code === "email_unconfirmed") {
+                      redirect("/confirm-email?pending=1");
                     }
                     redirect("/signin?error=invalid_credentials");
                   }

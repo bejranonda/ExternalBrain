@@ -133,11 +133,14 @@ rule: for CI Playwright failures, download the report artifact and read
 `data/*.md` (error context + page snapshot) and the trace zip's `.network`
 entries — run-log greps drown in app log noise.
 
-**Playwright top-5 smoke (v0.14.0).** A separate deployed-brain Playwright suite
-(`apps/web/tests/e2e/`) covers the top-5 *authenticated* surfaces against a
-LIVE brain: sign-in, dashboard, oracle, sessions, skills. It needs an auth
-cookie + a target host and is run on demand (e.g. post-deploy validation). See
-`APPROACH.md §5ah` for the rationale.
+**Playwright: a spec that no workflow lists does not run (2026-10-13).** The
+deployed-brain suite once at `apps/web/tests/e2e/` (v0.14.0, `APPROACH.md
+§5ah`) was removed: it needed a hand-copied auth cookie, nobody ran it, and it
+duplicated `e2e/`. At the same time 25 of 36 specs in `e2e/` were listed in
+no workflow, so they had never run in CI. Fifteen now run in `authed-e2e.yml`.
+When you add a spec, add it to a workflow's list in the same PR, or say in
+the spec header why it can't run there (LLM key, destroys shared auth, pixel
+baselines).
 
 **Validation discipline: exercise the artifact, not just the tests (2026-05-11).** "CI is green" is a necessary precondition, not sufficient evidence that a change does what it claims. For any PR whose value depends on runtime behavior — installers, deploy scripts, observability changes, schema migrations, anything that touches the data plane — run the actual artifact against the actual system before claiming completion. An early PR (MCP observability + installer v2) shipped a bug in its own installer that all tests passed: the unit test used `JSON.parse`, the installer used a sed-regex that didn't handle JSON-escaped quotes, and the failure mode was an orphan Session — the very thing the PR was meant to detect. The bug surfaced only when the installer ran end-to-end and the DB counters were re-read. **Rule:** if your PR description says "ships a fix for X," your test plan must include exercising the deployed artifact and observing X actually fixed in the conditions it claims to fix. The audit-friendly read-only diagnostic script at `.dev/brain-learning-evidence.sh` is the canonical example of a "did X actually fix?" probe.
 

@@ -1,9 +1,10 @@
 /**
  * Transactional email templates for External Brain.
  *
- * Two templates:
+ * Three templates:
  *  - inviteEmail     — sent when an org admin creates an invite (if email is configured)
  *  - passwordResetEmail — sent when a user requests a password reset
+ *  - confirmEmailEmail  — sent after self-registration; the account signs in only once it is confirmed
  *
  * Plain string interpolation only — no templating library dependency.
  * HTML is minimal and inline-styled so it renders in every mail client.
@@ -96,6 +97,59 @@ ${acceptLink}
 The invite link expires on: ${expiry}
 
 If you did not expect this email, you can safely ignore it.`;
+
+  return { subject, html: htmlWrap(htmlBody), text };
+}
+
+// ---------------------------------------------------------------------------
+// Signup confirmation email
+// ---------------------------------------------------------------------------
+
+export interface ConfirmEmailArgs {
+  confirmLink: string;
+  expiresAt: string; // ISO
+}
+
+export function confirmEmailEmail(args: ConfirmEmailArgs): TemplateResult {
+  const { confirmLink, expiresAt } = args;
+  const expiry = new Date(expiresAt).toUTCString();
+
+  const subject = "Confirm your email for External Brain";
+
+  const htmlBody = `
+<p style="margin:0 0 8px;font-size:18px;font-weight:500;color:#ececf0;">
+  Confirm your email
+</p>
+<p style="margin:0 0 16px;font-size:13px;color:#9a9cab;line-height:1.6;">
+  Someone created an External Brain account with this address. Confirm it is
+  yours and the account can sign in.
+</p>
+<p style="margin:0 0 4px;font-size:12px;color:#6b6d7a;">
+  The link is valid until ${escHtml(expiry)} and can only be used once.
+</p>
+${CTABtn(confirmLink, "Confirm my email")}
+<p style="margin:18px 0 0;font-size:12px;color:#9a9cab;line-height:1.5;
+  padding:12px;background:rgba(217,119,87,0.07);border:1px solid rgba(217,119,87,0.25);
+  border-radius:6px;">
+  <strong>Did not sign up?</strong> Do not confirm. Without confirmation the account
+  cannot sign in, and you can claim the address any time with &ldquo;Forgot password&rdquo;.
+</p>
+<p style="margin:16px 0 0;font-size:11px;color:#6b6d7a;">
+  Or copy this URL into your browser:<br>
+  <a href="${confirmLink}" style="color:#7aa2f7;word-break:break-all;">${escHtml(confirmLink)}</a>
+</p>`;
+
+  const text = `Confirm your email — External Brain
+
+Someone created an External Brain account with this address. Confirm it is
+yours and the account can sign in:
+
+${confirmLink}
+
+Valid until: ${expiry} (one-time use)
+
+DID NOT SIGN UP? Do not confirm. Without confirmation the account cannot sign
+in, and you can claim the address any time with "Forgot password".`;
 
   return { subject, html: htmlWrap(htmlBody), text };
 }

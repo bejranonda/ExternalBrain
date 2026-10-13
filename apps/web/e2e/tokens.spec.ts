@@ -249,7 +249,7 @@ test.describe("token lifecycle", () => {
     }
   });
 
-  test("create token → wizard appears → switch to Claude Desktop → snippet has transport + Authorization + macOS path", async ({
+  test("create token → wizard appears → switch to Claude Desktop → one-line install carries the token and client", async ({
     page,
     context,
   }) => {
@@ -271,15 +271,13 @@ test.describe("token lifecycle", () => {
     // Switch client to "Claude Desktop".
     await page.getByRole("radio", { name: "Claude Desktop" }).click();
 
-    // The snippet must contain "transport" and the bearer token prefix.
+    // Every client installs through our one-line installer (operator
+    // decision 2026-08-08), which writes the client's config itself — the
+    // wizard no longer shows a JSON block or a config path.
     const pre = page.locator("pre").first();
-    await expect(pre).toContainText('"transport"');
-    await expect(pre).toContainText('"Authorization": "Bearer bp_');
-
-    // The macOS config path must be visible.
-    await expect(
-      page.getByText(/Library\/Application Support\/Claude/),
-    ).toBeVisible();
+    await expect(pre).toContainText("/api/onboard.");
+    await expect(pre).toContainText("bp_");
+    await expect(pre).toContainText("claude-desktop");
 
     // The Copy button must be present.
     await expect(page.getByRole("button", { name: /copy/i }).first()).toBeVisible();
@@ -293,11 +291,9 @@ test.describe("token lifecycle", () => {
 // runs in the ANON job and cannot host an authed assertion, hence this
 // counterpart. A test named after a page proves nothing about its siblings.
 //
-// NOTE: this file is not currently referenced by either e2e workflow, so
-// this guard does not yet gate CI. The unconditional guard for the bug
+// Runs in authed-e2e since 2026-10-13. The unconditional guard for the bug
 // class is the source-level test in lib/brain/public-urls.test.ts.
 const PUBLIC_URL_TOKEN_NAME = "e2e-public-url";
-const EXPECTED_MCP_HOST = process.env["E2E_EXPECTED_MCP_HOST"]?.trim();
 
 test.describe("token install wizard public URLs (#293, second surface)", () => {
   test.afterEach(async ({ page }) => {
@@ -319,18 +315,15 @@ test.describe("token install wizard public URLs (#293, second surface)", () => {
     await page.getByRole("button", { name: "Create" }).click();
     await expect(page.getByText("COPY NOW — THIS IS SHOWN ONCE")).toBeVisible();
 
-    const text = await page.locator("body").innerText();
-    const urls = text.match(/https?:\/\/[^\s'"]+\/mcp/g) ?? [];
-    expect(urls.length, "expected an MCP URL in the install wizard snippet").toBeGreaterThan(0);
+    // The snippet is the one-line installer; the URL it fetches is the one a
+    // user's machine must reach, so that is what has to be public.
+    const text = await page.locator("pre").first().innerText();
+    const urls = text.match(/https?:\/\/[^\s'"]+/g) ?? [];
+    expect(urls.length, "expected a URL in the install wizard snippet").toBeGreaterThan(0);
 
     for (const url of urls) {
       if (!(baseURL ?? "").includes("localhost")) {
         expect(url, "wizard snippet still contains :3100").not.toContain(":3100");
-      }
-      if (EXPECTED_MCP_HOST) {
-        expect(url, "wizard snippet host doesn't match E2E_EXPECTED_MCP_HOST").toContain(
-          EXPECTED_MCP_HOST,
-        );
       }
     }
   });

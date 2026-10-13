@@ -14,7 +14,10 @@
  *
  * On success the user gets a brand-new account + their own personal org +
  * a default project (via ensurePersonalOrg / ensureDefaultProject), and the
- * response carries `redirectTo` so the /signin client can sign them in.
+ * response carries `redirectTo` so the /signin client can sign them in —
+ * unless email delivery and AUTH_URL are configured: then the account is created with
+ * `emailConfirmRequired`, a confirmation link is emailed, and the response
+ * says `confirmRequired: true` instead (KNOWN_ISSUES §0bb).
  *
  * Flow:
  *  1. Rate-limit: 5 registrations/hour per IP.
@@ -45,6 +48,7 @@ import {
 } from "@/lib/brain/vouchers";
 import { registrationRequiresVoucher, adminCredentialsConfigured } from "@/auth";
 import { clientIpFrom } from "@/lib/brain/client-ip";
+import { confirmationEnabled, issueEmailConfirmation } from "@/lib/brain/email-confirm";
 
 const log = getLogger("register");
 
@@ -95,6 +99,7 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const requiresVoucher = registrationRequiresVoucher();
+  const confirmRequired = confirmationEnabled();
   let newUserId: string;
 
   try {
@@ -137,6 +142,7 @@ export async function POST(req: Request): Promise<Response> {
         name: null,
         image: null,
         passwordHash,
+        ...(confirmRequired ? { emailConfirmRequired: true as const } : {}),
       });
       if (!result.ok) {
         // Lost a race between validate and claim (voucher exhausted/disabled).
@@ -163,7 +169,7 @@ export async function POST(req: Request): Promise<Response> {
       const passwordHash = await bcrypt.hash(password, BCRYPT_COST);
       const created = await db.$transaction(async (tx) => {
         const user = await tx.user.create({
-          data: { email, role: "user" },
+          data: { email, role: "user", emailConfirmRequired: confirmRequired },
           select: { id: true },
         });
         await tx.userCredential.create({
@@ -196,8 +202,12 @@ export async function POST(req: Request): Promise<Response> {
     action: "user.register",
     targetType: "user",
     targetId: newUserId,
-    payload: { viaVoucher: requiresVoucher },
+    payload: { viaVoucher: requiresVoucher, confirmRequired },
   });
 
+  if (confirmRequired) {
+    const { sent } = await issueEmailConfirmation(newUserId, email);
+    return Response.json({ ok: true, confirmRequired: true, emailSent: sent });
+  }
   return Response.json({ ok: true, redirectTo: "/" });
 }
