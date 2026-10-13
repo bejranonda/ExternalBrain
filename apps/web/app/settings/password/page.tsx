@@ -9,6 +9,8 @@
  */
 
 import { useState } from "react";
+import { useT } from "@/lib/brain/i18n";
+import { apiErrorMessage } from "@/lib/brain/api-error";
 
 const labelStyle: React.CSSProperties = {
   fontSize: 12,
@@ -34,6 +36,7 @@ const inputStyle: React.CSSProperties = {
 const fieldStyle: React.CSSProperties = { marginBottom: 16 };
 
 export default function ChangePasswordPage() {
+  const t = useT();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -46,12 +49,12 @@ export default function ChangePasswordPage() {
 
     if (newPassword.length < 8) {
       setStatus("error");
-      setErrorMsg("New password must be at least 8 characters.");
+      setErrorMsg(t("apiErrors.weak_password"));
       return;
     }
     if (newPassword !== confirmPassword) {
       setStatus("error");
-      setErrorMsg("Passwords do not match.");
+      setErrorMsg(t("auth.errors.password_mismatch"));
       return;
     }
 
@@ -71,21 +74,13 @@ export default function ChangePasswordPage() {
         return;
       }
 
-      const data = (await res.json()) as { error?: string };
-      if (data.error === "NO_CREDENTIAL") {
-        setErrorMsg(
-          "Your account doesn't have a password credential. You signed in via GitHub or the admin path — password change isn't available.",
-        );
-      } else if (data.error === "WRONG_PASSWORD") {
-        setErrorMsg("Current password is incorrect.");
-      } else if (data.error === "WEAK_PASSWORD") {
-        setErrorMsg("New password must be at least 8 characters.");
-      } else {
-        setErrorMsg("Failed to change password. Try again.");
-      }
+      const data = (await res.json().catch(() => ({}))) as { error?: unknown };
+      setErrorMsg(
+        res.status >= 500 ? t("password.failed") : apiErrorMessage(t, data.error, res.status),
+      );
       setStatus("error");
     } catch {
-      setErrorMsg("Network error. Try again.");
+      setErrorMsg(t("apiErrors.network"));
       setStatus("error");
     }
   }
@@ -105,18 +100,18 @@ export default function ChangePasswordPage() {
           href="/settings/tokens"
           style={{ fontSize: 13, color: "var(--ink-3)", textDecoration: "none" }}
         >
-          ← Settings
+          {t("password.back")}
         </a>
         <h1 style={{ fontSize: 20, fontWeight: 600, margin: "16px 0 4px" }}>
-          Change password
+          {t("password.title")}
         </h1>
         <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 28 }}>
-          Only available for accounts that signed up via invite link. OAuth
-          accounts (GitHub) don&apos;t have a Brain password.
+          {t("password.intro")}
         </p>
 
         {status === "ok" && (
           <div
+            role="status"
             style={{
               padding: "10px 14px",
               borderRadius: 6,
@@ -127,7 +122,7 @@ export default function ChangePasswordPage() {
               marginBottom: 20,
             }}
           >
-            Password changed successfully.
+            {t("password.changed")}
           </div>
         )}
 
@@ -159,7 +154,7 @@ export default function ChangePasswordPage() {
         >
           <div style={fieldStyle}>
             <label>
-              <span style={labelStyle}>Current password</span>
+              <span style={labelStyle}>{t("password.current")}</span>
               <input
                 type="password"
                 value={currentPassword}
@@ -173,7 +168,7 @@ export default function ChangePasswordPage() {
 
           <div style={fieldStyle}>
             <label>
-              <span style={labelStyle}>New password</span>
+              <span style={labelStyle}>{t("auth.newPassword")}</span>
               <input
                 type="password"
                 value={newPassword}
@@ -188,7 +183,7 @@ export default function ChangePasswordPage() {
 
           <div style={{ marginBottom: 24 }}>
             <label>
-              <span style={labelStyle}>Confirm new password</span>
+              <span style={labelStyle}>{t("auth.confirmNewPassword")}</span>
               <input
                 type="password"
                 value={confirmPassword}
@@ -216,7 +211,7 @@ export default function ChangePasswordPage() {
               opacity: status === "saving" ? 0.7 : 1,
             }}
           >
-            {status === "saving" ? "Saving…" : "Change password"}
+            {status === "saving" ? t("common.saving") : t("password.submit")}
           </button>
         </form>
       </div>

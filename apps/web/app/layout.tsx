@@ -1,8 +1,11 @@
 import type { ReactNode } from "react";
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { Geist, JetBrains_Mono, Fraunces, Noto_Sans_Thai } from "next/font/google";
 import { LangProvider } from "@/components/brain/lang-provider";
 import type { Lang } from "@/lib/brain/i18n";
+import { getServerT } from "@/lib/brain/i18n-server";
+import { resolvePublicWebUrl } from "@/lib/brain/public-urls";
 import "./globals.css";
 
 const geist = Geist({
@@ -33,11 +36,24 @@ const notoThai = Noto_Sans_Thai({
   display: "swap",
 });
 
-export const metadata = {
-  title: "External Brain",
-  description:
-    "The knowledge you build while coding with any AI tool, made permanent and portable.",
-};
+// A function, not a `metadata` constant: the Docker image is built with dummy
+// env, so BRAIN_PUBLIC_HOSTNAME must be read per request (#293) — a constant
+// would freeze an empty host into every absolute og:/canonical URL.
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT();
+  const description = t("meta.description");
+  return {
+    metadataBase: new URL(resolvePublicWebUrl() ?? "http://localhost:3000"),
+    title: "External Brain",
+    description,
+    openGraph: {
+      type: "website",
+      siteName: "External Brain",
+      title: "External Brain",
+      description,
+    },
+  };
+}
 
 const preHydrateTweaks = `
 (function(){

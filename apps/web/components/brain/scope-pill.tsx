@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ProjectScopeKey } from "@/lib/brain/use-project-scope";
+import { useT } from "@/lib/brain/i18n";
 
 interface OrgProject {
   id: string;
@@ -38,6 +39,7 @@ interface ScopePillProps {
  * OrgProjectSwitcher) — solo users never see multi-project UI.
  */
 export function ScopePill({ scope, onScopeChange }: ScopePillProps) {
+  const t = useT();
   const [data, setData] = useState<OrgsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const hasFetched = useRef(false);
@@ -91,7 +93,8 @@ export function ScopePill({ scope, onScopeChange }: ScopePillProps) {
         gap: 8,
         flexWrap: "wrap",
       }}
-      aria-label="Data scope"
+      role="group"
+      aria-label={t("app.data_scope")}
     >
       <div style={{ display: "flex", gap: 4 }}>
         <button
@@ -100,7 +103,7 @@ export function ScopePill({ scope, onScopeChange }: ScopePillProps) {
           onClick={() => onScopeChange("project")}
           aria-pressed={scope === "project"}
         >
-          {scope === "project" ? "●" : "○"} this project
+          {scope === "project" ? "●" : "○"} {t("app.scope_project")}
         </button>
         <button
           type="button"
@@ -108,7 +111,7 @@ export function ScopePill({ scope, onScopeChange }: ScopePillProps) {
           onClick={() => onScopeChange("all")}
           aria-pressed={scope === "all"}
         >
-          {scope === "all" ? "●" : "○"} all my projects
+          {scope === "all" ? "●" : "○"} {t("app.scope_all")}
         </button>
       </div>
     </div>

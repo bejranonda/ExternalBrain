@@ -249,6 +249,7 @@ export function Oracle() {
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={onKey}
                 placeholder={turns.length === 0 ? t("oracle.first_placeholder") : t("oracle.placeholder")}
+                aria-label={t("oracle.input_label")}
                 style={{ flex: 1, fontSize: 14, padding: "6px 0" }}
                 disabled={(status === "asking" || status === "streaming")}
               />
@@ -311,7 +312,7 @@ export function Oracle() {
                 type="button"
                 className="btn btn-primary"
                 style={{ height: 26 }}
-                aria-label="Send"
+                aria-label={t("oracle.send")}
                 onClick={() => void submit()}
                 disabled={!q.trim() || (status === "asking" || status === "streaming")}
               >
@@ -915,7 +916,7 @@ function TurnView({ turn, t, feedback, onFeedback, onFollow, onCopy, onTeach, st
           {reasonOpen && !feedback && (
             <div
               role="group"
-              aria-label="Why was this answer not useful?"
+              aria-label={t("oracle.why_not_useful")}
               className="row"
               style={{
                 gap: 4,

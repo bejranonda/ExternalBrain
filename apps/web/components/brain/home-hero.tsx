@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Route } from "@/lib/brain/routes";
 import { useLatestInsight } from "@/lib/brain/use-latest-insight";
 import { formatRelative } from "@brain/core/format-relative";
+import { useLang, useT } from "@/lib/brain/i18n";
 
 /**
  * HomeHero — the redesigned first-viewport surface for non-technical users.
@@ -48,14 +49,16 @@ function SkillsCard({
   count: number;
   go: (r: Route) => void;
 }) {
+  const t = useT();
+  const lang = useLang();
   return (
     <Card
       accent="var(--accent-text)"
       onClick={() => go("skills")}
-      ariaLabel={`Open Skills — ${count} learned`}
+      ariaLabel={t("hero.skills_aria", { n: count })}
     >
-      <CardLabel>SKILLS</CardLabel>
-      <CardSubtitle>What your Brain has learned</CardSubtitle>
+      <CardLabel>{t("nav.skills")}</CardLabel>
+      <CardSubtitle>{t("skills.subtitle")}</CardSubtitle>
       <div
         className="tab-num"
         style={{
@@ -68,9 +71,9 @@ function SkillsCard({
           color: "var(--ink)",
         }}
       >
-        {count.toLocaleString()}
+        {count.toLocaleString(lang)}
       </div>
-      <CardLink>Open Skills →</CardLink>
+      <CardLink>{t("hero.open_skills")}</CardLink>
     </Card>
   );
 }
@@ -78,6 +81,7 @@ function SkillsCard({
 /* --------------------------------- card 2 --------------------------------- */
 
 function LatestInsightCard({ go }: { go: (r: Route) => void }) {
+  const t = useT();
   const { data, loadState } = useLatestInsight();
 
   const handleOpen = () => {
@@ -100,13 +104,13 @@ function LatestInsightCard({ go }: { go: (r: Route) => void }) {
     <Card
       accent="var(--violet)"
       onClick={handleOpen}
-      ariaLabel="Open the most recent insight in Skills"
+      ariaLabel={t("hero.insight_aria")}
     >
-      <CardLabel>JUST LEARNED</CardLabel>
-      <CardSubtitle>The most recent thing Brain saw</CardSubtitle>
+      <CardLabel>{t("hero.just_learned")}</CardLabel>
+      <CardSubtitle>{t("hero.insight_subtitle")}</CardSubtitle>
       <div style={{ flex: 1, marginTop: 12, marginBottom: 12 }}>
         {loadState === "loading" && (
-          <div style={{ fontSize: 13, color: "var(--ink-4)" }}>Loading…</div>
+          <div style={{ fontSize: 13, color: "var(--ink-4)" }}>{t("common.loading")}</div>
         )}
         {loadState !== "loading" && !data && (
           <div
@@ -116,7 +120,7 @@ function LatestInsightCard({ go }: { go: (r: Route) => void }) {
               color: "var(--ink-3)",
             }}
           >
-            Brain hasn’t extracted anything in the last 14 days.
+            {t("hero.insight_empty")}
           </div>
         )}
         {data && (
@@ -145,7 +149,7 @@ function LatestInsightCard({ go }: { go: (r: Route) => void }) {
           </>
         )}
       </div>
-      <CardLink>{data ? "Read it →" : "Open Skills →"}</CardLink>
+      <CardLink>{data ? t("hero.read_it") : t("hero.open_skills")}</CardLink>
     </Card>
   );
 }
@@ -153,14 +157,15 @@ function LatestInsightCard({ go }: { go: (r: Route) => void }) {
 /* --------------------------------- card 3 --------------------------------- */
 
 function OracleCard({ go }: { go: (r: Route) => void }) {
+  const t = useT();
   return (
     <Card
       accent="var(--cool)"
       onClick={() => go("oracle")}
-      ariaLabel="Ask Brain a question via the Oracle"
+      ariaLabel={t("hero.oracle_aria")}
     >
-      <CardLabel>ORACLE</CardLabel>
-      <CardSubtitle>Ask a question about your code</CardSubtitle>
+      <CardLabel>{t("nav.oracle")}</CardLabel>
+      <CardSubtitle>{t("hero.oracle_subtitle")}</CardSubtitle>
       <div
         style={{
           flex: 1,
@@ -171,7 +176,7 @@ function OracleCard({ go }: { go: (r: Route) => void }) {
           color: "var(--ink-2)",
         }}
       >
-        <div style={{ color: "var(--ink-3)", marginBottom: 6 }}>Try one:</div>
+        <div style={{ color: "var(--ink-3)", marginBottom: 6 }}>{t("hero.try_one")}</div>
         <ul
           style={{
             margin: 0,
@@ -181,11 +186,11 @@ function OracleCard({ go }: { go: (r: Route) => void }) {
             gap: 4,
           }}
         >
-          <li>How did we fix the deploy bug?</li>
-          <li>Why does the worker need pg-boss?</li>
+          <li>{t("hero.oracle_q1")}</li>
+          <li>{t("hero.oracle_q2")}</li>
         </ul>
       </div>
-      <CardLink>Ask Brain →</CardLink>
+      <CardLink>{t("hero.ask_brain")}</CardLink>
     </Card>
   );
 }

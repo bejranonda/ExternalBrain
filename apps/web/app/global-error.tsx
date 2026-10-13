@@ -10,6 +10,10 @@ import { useEffect } from "react";
  * Audit FE1 (#103). Pairs with `error.tsx` at the same level: per-route
  * errors are caught by the segment boundary; only catastrophic
  * layout-level failures fall through to this one.
+ *
+ * Deliberately English-only: it renders outside the root layout, so there is
+ * no LangProvider to read, and the layout it replaces may have failed while
+ * resolving the locale in the first place. Keep it free of app imports.
  */
 export default function GlobalError({
   error,

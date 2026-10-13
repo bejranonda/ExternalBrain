@@ -1,7 +1,7 @@
 /**
  * /accept-invite — Accept an org invite by token.
  *
- * Server-rendered page.
+ * Client page (reads `?token=` via useSearchParams).
  *
  * Flow:
  *  - Signed-in user: POST /api/invites/accept → redirect to /settings/projects
@@ -13,7 +13,24 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
 import { LocalePicker } from "@/components/brain/locale-picker";
-import { useT } from "@/lib/brain/i18n";
+import { I18N, useT } from "@/lib/brain/i18n";
+import { apiErrorMessage, type Translate } from "@/lib/brain/api-error";
+
+type InviteFailure = { kind: "no_token" } | { kind: "api"; code: unknown; status?: number };
+
+// Same guard as /signin's errorKeyKnown: the code comes off the wire, so only
+// an own key of the English table may be looked up. acceptOrgInvite throws
+// BrainError codes (INVITE_EXPIRED, …) and a bare NOT_FOUND for a bad token.
+function inviteFailureMessage(t: Translate, f: InviteFailure): string {
+  if (f.kind === "no_token") return t("auth.inviteNoToken");
+  if (typeof f.code === "string") {
+    const key = f.code === "NOT_FOUND" ? "invite_not_found" : f.code.toLowerCase();
+    if (key.startsWith("invite_") && Object.hasOwn(I18N.en.auth.errors, key)) {
+      return t(`auth.errors.${key}`);
+    }
+  }
+  return apiErrorMessage(t, f.code, f.status);
+}
 
 function AcceptInviteInner() {
   const t = useT();
@@ -22,16 +39,15 @@ function AcceptInviteInner() {
   const token = searchParams.get("token") ?? "";
 
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [message, setMessage] = useState("");
+  const [failure, setFailure] = useState<InviteFailure | null>(null);
 
   useEffect(() => {
     if (!token) {
       setStatus("error");
-      setMessage("No invite token found in the URL. Check the link and try again.");
+      setFailure({ kind: "no_token" });
       return;
     }
 
-    // Attempt to accept
     setStatus("loading");
 
     void (async () => {
@@ -50,20 +66,20 @@ function AcceptInviteInner() {
         }
 
         if (!res.ok) {
-          const data = (await res.json()) as { error?: string };
-          throw new Error(data.error ?? `HTTP ${res.status}`);
+          const data = (await res.json().catch(() => ({}))) as { error?: unknown };
+          setFailure({ kind: "api", code: data.error, status: res.status });
+          setStatus("error");
+          return;
         }
 
         setStatus("success");
-        setMessage("You have been added to the organization. Redirecting…");
 
-        // Redirect to projects page after a brief moment
         window.setTimeout(() => {
           router.replace("/settings/projects");
         }, 1500);
-      } catch (err) {
+      } catch {
+        setFailure({ kind: "api", code: undefined });
         setStatus("error");
-        setMessage(err instanceof Error ? err.message : "Failed to accept invite.");
       }
     })();
   }, [token, router]);
@@ -103,19 +119,22 @@ function AcceptInviteInner() {
         )}
 
         {status === "success" && (
-          <p style={{ color: "var(--accent-text)", fontSize: 14 }}>{message}</p>
+          <p role="status" style={{ color: "var(--accent-text)", fontSize: 14 }}>
+            {t("auth.inviteAccepted")}
+          </p>
         )}
 
-        {status === "error" && (
+        {status === "error" && failure && (
           <>
             <p
+              role="alert"
               style={{
                 color: "#e05252",
                 fontSize: 14,
                 marginBottom: 16,
               }}
             >
-              {message}
+              {inviteFailureMessage(t, failure)}
             </p>
             <a
               href="/"

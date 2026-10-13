@@ -20,14 +20,21 @@
  * caller to `/signin?error=auth_not_configured` even though /signin
  * itself rendered a usable form.
  */
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth, anySignInConfigured, devAuthAllowed } from "@/auth";
 import { getCurrentUserId } from "@/lib/brain/auth";
 import { getActiveProject } from "@/lib/brain/active-project";
 import { Landing } from "@/components/brain/landing";
 import { LocalePicker } from "@/components/brain/locale-picker";
+import { getServerT } from "@/lib/brain/i18n-server";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT();
+  return { title: t("meta.homeTitle"), description: t("meta.description") };
+}
 
 export default async function Page() {
   if (anySignInConfigured()) {
