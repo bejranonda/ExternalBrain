@@ -1,5 +1,5 @@
 import { hashSecret } from "@brain/core/secret-hash";
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { db } from "@brain/db";
 import { z } from "zod";
 import { authErrorResponse, getCurrentUserId } from "@/lib/brain/auth";

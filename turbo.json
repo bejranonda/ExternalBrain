@@ -25,7 +25,7 @@
       "persistent": true
     },
     "lint": { "dependsOn": ["^build"] },
-    "test": { "dependsOn": ["^build"] },
+    "test": { "dependsOn": ["^build"], "env": ["REQUIRE_TEST_DB"] },
     "typecheck": { "dependsOn": ["^build"] },
     "clean": { "cache": false }
   }

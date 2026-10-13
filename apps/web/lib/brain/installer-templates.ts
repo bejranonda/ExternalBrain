@@ -432,7 +432,7 @@ install_copilot_cli() {
     echo "ERROR: 'copilot mcp add' failed:" >&2
     echo "$ADD_OUTPUT" >&2
     echo "  Fallback: run 'copilot' then '/mcp add', or re-run this installer with" >&2
-    echo "  --config-path \\"\$HOME/.copilot/mcp-config.json\\" to write the file directly." >&2
+    echo "  --config-path \\"$HOME/.copilot/mcp-config.json\\" to write the file directly." >&2
     exit 1
   fi
   echo "$ADD_OUTPUT"
@@ -484,11 +484,11 @@ install_via_config_file() {
 }
 
 # ----------------------------------------------------------------------
-# Reconcile legacy \$HOME/.claude/mcp.json (#222, 2026-05-15)
+# Reconcile legacy $HOME/.claude/mcp.json (#222, 2026-05-15)
 #
 # Some prior Claude Code versions wrote MCP server config to a separate
-# file at \$HOME/.claude/mcp.json. Modern \`claude mcp add\` writes to
-# \$HOME/.claude.json (top-level \`mcpServers\` key) but does NOT touch
+# file at $HOME/.claude/mcp.json. Modern \`claude mcp add\` writes to
+# $HOME/.claude.json (top-level \`mcpServers\` key) but does NOT touch
 # the legacy file. The CLI still READS both, with the legacy file
 # shadowing the modern one on some versions — which means a freshly-
 # installed token in .claude.json gets silently overridden by stale

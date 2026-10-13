@@ -194,12 +194,16 @@ jobs:
           # Curated stable subset (no LLM key in CI → oracle/streaming excluded;
           # signout excluded — it would destroy the shared auth state;
           # visual/responsive excluded — flake-prone baselines).
+          # 2026-10-13: 15 more specs joined — they needed nothing CI lacks
+          # but had never been listed (25 of 36 specs ran nowhere, §0bb).
+          # The run is serial (workers: 1), so autoskill's mutation of the
+          # seeded proposals cannot race another spec.
           # --project=chromium pulls in the auth `setup` project via its
           # declared dependency (playwright.config.ts).
           # Patterns are regexes matched against the ABSOLUTE file path (so
           # "^e2e/" matches nothing — caught on the first run). "web/e2e/<spec>"
-          # selects apps/web/e2e/* while excluding the deployed-brain suite at
-          # apps/web/tests/e2e/*, which can't run in CI (#52).
+          # selects apps/web/e2e/* (the deployed-brain suite that used to sit
+          # at apps/web/tests/e2e/ was removed 2026-10-13).
           # --retries=1 absorbs one-off flake; a real failure fails twice.
           # skills.spec is back in the gate (#52 root cause): every skills
           # failure in the rollout was ONE race — the first /api/knowledge on
@@ -221,7 +225,22 @@ jobs:
             "web/e2e/nav.spec.ts" \
             "web/e2e/security.spec.ts" \
             "web/e2e/page-scroll.spec.ts" \
-            "web/e2e/meetings.spec.ts"
+            "web/e2e/meetings.spec.ts" \
+            "web/e2e/a11y.spec.ts" \
+            "web/e2e/graph.spec.ts" \
+            "web/e2e/i18n.spec.ts" \
+            "web/e2e/palette.spec.ts" \
+            "web/e2e/tweaks.spec.ts" \
+            "web/e2e/projects.spec.ts" \
+            "web/e2e/tokens.spec.ts" \
+            "web/e2e/settings-org.spec.ts" \
+            "web/e2e/org-invites.spec.ts" \
+            "web/e2e/empty-dashboard.spec.ts" \
+            "web/e2e/onboarding.spec.ts" \
+            "web/e2e/onboarding-orientation.spec.ts" \
+            "web/e2e/credentials-signup.spec.ts" \
+            "web/e2e/password-reset.spec.ts" \
+            "web/e2e/autoskill.spec.ts"
           RC=$?
           # The two live-MCP vitest suites (auth-gate, session-lifecycle) need
           # a RUNNING server and describe.skip without one. ci.yml's verify job

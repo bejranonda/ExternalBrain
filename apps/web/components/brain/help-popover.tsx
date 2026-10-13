@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Icon } from "./icons";
 
 export interface HelpContent {
   /** "What this surface is" — one short sentence. */

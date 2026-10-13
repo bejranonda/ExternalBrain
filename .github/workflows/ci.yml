@@ -194,11 +194,20 @@ jobs:
       - name: Typecheck
         run: pnpm turbo run typecheck
 
+      # Until 2026-10-13 no workflow ran lint, and web had drifted to 9 errors.
+      - name: Lint (web)
+        run: pnpm --filter @brain/web lint
+
       # Broadened from `--filter @brain/core test` to `turbo run test` so any
       # new package that adds a `test` script is automatically covered (#37).
       # #233: DB-gated tests now execute (no more silent skip).
       - name: Test
         run: pnpm turbo run test
+        # ~20 suites `describe.skip` when the DB is unreachable. If the service
+        # container broke they would all skip green; this makes the canary in
+        # core (ci-db-required.test.ts) fail instead.
+        env:
+          REQUIRE_TEST_DB: "1"
 
       # Broadened from per-package `--filter` invocations to `turbo run build`,
       # which builds all six packages (was only web/mcp-server/worker before).

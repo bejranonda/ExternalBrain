@@ -53,7 +53,7 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | KnowledgeType | "decision">("all");
-  const [scopeFilter, setScopeFilter] = useState<ScopeFilter>("all");
+  const [scopeFilter] = useState<ScopeFilter>("all");
   const [sort, setSort] = useState<"recency" | "confidence" | "uses">("recency");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");

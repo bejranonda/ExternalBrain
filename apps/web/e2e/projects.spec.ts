@@ -201,10 +201,10 @@ test.describe("Phase 2b: project-scoped knowledge filtering", () => {
     const scopedRes = await request.get("/api/knowledge?limit=500");
     expect(scopedRes.ok()).toBeTruthy();
     const scopedData = (await scopedRes.json()) as {
-      items: Array<{ ruleText: string }>;
+      items: Array<{ body: string }>;
     };
     const hasItemA = scopedData.items.some((i) =>
-      i.ruleText.includes("e2e phase2b test rule"),
+      i.body.includes("e2e phase2b test rule"),
     );
     expect(hasItemA).toBe(false);
 
@@ -212,10 +212,10 @@ test.describe("Phase 2b: project-scoped knowledge filtering", () => {
     const allRes = await request.get("/api/knowledge?limit=500&scope=all");
     expect(allRes.ok()).toBeTruthy();
     const allData = (await allRes.json()) as {
-      items: Array<{ ruleText: string }>;
+      items: Array<{ body: string }>;
     };
     const hasItemAAll = allData.items.some((i) =>
-      i.ruleText.includes("e2e phase2b test rule"),
+      i.body.includes("e2e phase2b test rule"),
     );
     expect(hasItemAAll).toBe(true);
 
@@ -298,8 +298,8 @@ test.describe("Phase 4: knowledge visibility + promote/fork", () => {
       await request.post(`/api/projects/${projB.id}/activate`);
       const fromB = await request.get("/api/knowledge?limit=500");
       expect(fromB.ok()).toBeTruthy();
-      const fromBData = (await fromB.json()) as { items: Array<{ ruleText: string }> };
-      const seenFromB = fromBData.items.some((i) => i.ruleText.includes("e2e phase4 promote rule"));
+      const fromBData = (await fromB.json()) as { items: Array<{ body: string }> };
+      const seenFromB = fromBData.items.some((i) => i.body.includes("e2e phase4 promote rule"));
       expect(seenFromB).toBe(false);
 
       // Switch back to project A and promote to org
@@ -314,8 +314,8 @@ test.describe("Phase 4: knowledge visibility + promote/fork", () => {
       await request.post(`/api/projects/${projB.id}/activate`);
       const fromB2 = await request.get("/api/knowledge?limit=500");
       expect(fromB2.ok()).toBeTruthy();
-      const fromB2Data = (await fromB2.json()) as { items: Array<{ ruleText: string; visibility: string }> };
-      const orgRow = fromB2Data.items.find((i) => i.ruleText.includes("e2e phase4 promote rule"));
+      const fromB2Data = (await fromB2.json()) as { items: Array<{ body: string; visibility: string }> };
+      const orgRow = fromB2Data.items.find((i) => i.body.includes("e2e phase4 promote rule"));
       expect(orgRow).toBeDefined();
       expect(orgRow?.visibility).toBe("org");
 

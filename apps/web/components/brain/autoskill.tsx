@@ -131,8 +131,8 @@ export function Autoskill() {
               gap: 8,
             }}
             onClick={toggleAutoApply}
-            aria-pressed={autoApply}
             role="switch"
+            aria-checked={autoApply}
             title={t("autoskill.auto_apply_tip")}
           >
             {/* Phase R.3: previous render was ambiguous — in the OFF state
@@ -140,7 +140,7 @@ export function Autoskill() {
                 status badge, not a clickable toggle. A mini switch
                 affordance (track + thumb) in front of the label makes the
                 toggle nature obvious in both ON and OFF states; the
-                role="switch" + aria-pressed pair keeps the semantics
+                role="switch" + aria-checked pair keeps the semantics
                 explicit for assistive tech. Label copy + behavior
                 unchanged. */}
             <span

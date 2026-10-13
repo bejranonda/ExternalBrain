@@ -62,17 +62,17 @@ test.describe("autoskill surface", () => {
   });
 
   test("auto-apply HIGH toggle persists after reload", async ({ page }) => {
-    // The toggle button has aria-pressed attribute and sets bp_autoapply in localStorage.
-    const toggleBtn = page.locator('button[aria-pressed]').filter({ hasText: /auto.apply/i }).first();
+    // A role="switch" (state in aria-checked) that stores bp_autoapply in localStorage.
+    const toggleBtn = page.getByRole("switch").first();
     await expect(toggleBtn).toBeVisible({ timeout: 10_000 });
 
     // Read current state
-    const initialPressed = await toggleBtn.getAttribute("aria-pressed");
+    const initialPressed = await toggleBtn.getAttribute("aria-checked");
 
     // Toggle it to the ON state
     if (initialPressed !== "true") {
       await toggleBtn.click();
-      await expect(toggleBtn).toHaveAttribute("aria-pressed", "true", { timeout: 5_000 });
+      await expect(toggleBtn).toHaveAttribute("aria-checked", "true", { timeout: 5_000 });
     }
 
     // Verify localStorage was updated
@@ -82,13 +82,13 @@ test.describe("autoskill surface", () => {
     // Reload and verify toggle is still ON
     await page.reload();
     await expect(page.locator('[data-screen-label="autoskill"]')).toBeVisible({ timeout: 15_000 });
-    const toggleAfterReload = page.locator('button[aria-pressed]').filter({ hasText: /auto.apply/i }).first();
+    const toggleAfterReload = page.getByRole("switch").first();
     await expect(toggleAfterReload).toBeVisible({ timeout: 10_000 });
-    await expect(toggleAfterReload).toHaveAttribute("aria-pressed", "true", { timeout: 5_000 });
+    await expect(toggleAfterReload).toHaveAttribute("aria-checked", "true", { timeout: 5_000 });
 
     // Restore to original state to avoid affecting other tests
     await toggleAfterReload.click();
-    await expect(toggleAfterReload).toHaveAttribute("aria-pressed", "false", { timeout: 5_000 });
+    await expect(toggleAfterReload).toHaveAttribute("aria-checked", "false", { timeout: 5_000 });
   });
 
   test("'View diff' opens the diff modal with diff content; Escape closes it", async ({ page }) => {
