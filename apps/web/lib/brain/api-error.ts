@@ -50,7 +50,19 @@ export async function throwApiError(t: Translate, res: Response): Promise<never>
   throw new ApiError(await apiErrorFromResponse(t, res));
 }
 
-/** The message to show for anything a `try { fetch… }` block caught. */
+/**
+ * The message to show for anything a `try { fetch… }` block caught.
+ *
+ * Besides ApiError it understands the `new Error(body.error ?? "HTTP n")`
+ * convention the data hooks (use-knowledge, …) throw with, so their callers
+ * get a translated sentence without each hook being rewritten.
+ */
 export function caughtMessage(t: Translate, err: unknown): string {
-  return err instanceof ApiError ? err.message : t("apiErrors.network");
+  if (err instanceof ApiError) return err.message;
+  if (err instanceof Error) {
+    const http = /^HTTP (\d{3})$/.exec(err.message);
+    if (http) return apiErrorMessage(t, undefined, Number(http[1]));
+    if (knownKey(err.message)) return apiErrorMessage(t, err.message);
+  }
+  return t("apiErrors.network");
 }

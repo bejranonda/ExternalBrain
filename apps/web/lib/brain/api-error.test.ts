@@ -50,4 +50,11 @@ describe("caughtMessage", () => {
     expect(caughtMessage(en, new ApiError("translated"))).toBe("translated");
     expect(caughtMessage(en, new TypeError("Failed to fetch"))).toBe(translate("en", "apiErrors.network"));
   });
+
+  it("understands the hooks' Error(body.error ?? \"HTTP n\") convention", () => {
+    expect(caughtMessage(en, new Error("forbidden"))).toBe(translate("en", "apiErrors.forbidden"));
+    const msg = caughtMessage(en, new Error("HTTP 502"));
+    expect(msg).toContain("502");
+    expect(msg).not.toBe("HTTP 502");
+  });
 });

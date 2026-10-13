@@ -202,18 +202,18 @@ function LiveExtraction() {
           // here ("active" / "no session yet") and keep the short id on
           // hover for power users.
           title={payload?.sessionShort && payload.sessionShort !== "—"
-            ? `Session id: ${payload.sessionShort}`
+            ? t("dash.session_id", { id: payload.sessionShort })
             : undefined}
         >
           {payload?.sessionShort && payload.sessionShort !== "—"
-            ? "Session in progress"
-            : "No session in progress"}
+            ? t("dash.session_in_progress")
+            : t("dash.no_session")}
         </span>
         <div className="grow" />
         {payload?.client && payload.sessionShort !== "—" && (
           <span
             className="chip"
-            title={`Connected from ${clientLabel(payload.client)}`}
+            title={t("dash.connected_from", { client: clientLabel(payload.client) })}
           >
             <Icon name={payload.client as IconName} size={9} />
             {clientLabel(payload.client)}
@@ -222,17 +222,16 @@ function LiveExtraction() {
       </div>
       <div style={{ padding: "4px 0 6px", fontFamily: "var(--font-mono)", fontSize: 12 }}>
         {loadState === "loading" && (
-          <div style={{ padding: "10px 14px", color: "var(--ink-3)" }}>Loading events…</div>
+          <div style={{ padding: "10px 14px", color: "var(--ink-3)" }}>{t("dash.loading_events")}</div>
         )}
         {loadState !== "loading" && (!payload || payload.events.length === 0) && (
           <div style={{ padding: "10px 14px", color: "var(--ink-3)", lineHeight: 1.55 }}>
-            No live activity yet. Connect Claude Code, Cursor, or Windsurf — then
-            anything those tools do shows up here in real time.{" "}
+            {t("dash.no_live")}{" "}
             <a
               href="/settings/tokens"
               style={{ color: "var(--accent-text)", textDecoration: "none" }}
             >
-              Get a token →
+              {t("dash.get_token")}
             </a>
           </div>
         )}
@@ -290,9 +289,9 @@ function LiveExtraction() {
               <span
                 className="chip"
                 style={{ marginLeft: "auto" }}
-                title="Confidence the Brain has in this extraction (0–1)"
+                title={t("dash.conf_tip")}
               >
-                confidence {e.conf.toFixed(2)}
+                {t("dash.conf", { n: e.conf.toFixed(2) })}
               </span>
             )}
           </div>
@@ -375,7 +374,7 @@ function RecentSessions({
             {/* UX-newcomer-pass-2 (iter 20): "No sessions yet." is the
                 kind of dead-end message that leaves a newcomer wondering
                 "what do I do now?". Pair the state with the next step. */}
-            No sessions yet — start one from Claude Code, Cursor, or any MCP client.
+            {t("dash.no_sessions")}
           </div>
         )}
         {rows.map((row) => (
@@ -403,7 +402,7 @@ function RecentSessions({
               background:
                 expandedSessionId === row.id ? "var(--bg-elev-1)" : undefined,
             }}
-            title="Click to see what the Brain shared and learned in this session"
+            title={t("dash.session_row_tip")}
           >
             <span
               style={{
@@ -522,7 +521,7 @@ function PendingProposals({
         )}
         {!loading && rows.length === 0 && (
           <div style={{ padding: 16, color: "var(--ink-3)", fontSize: 13 }}>
-            No pending proposals.
+            {t("dash.no_proposals")}
           </div>
         )}
         {rows.map((pr) => (
@@ -582,16 +581,16 @@ function KnowledgeHealth({
   // (NDCG@5, etc.) lives in the hover tooltip for anyone who wants it.
   const metrics = [
     {
-      label: "Answer relevance",
+      label: t("dash.m_relevance"),
       tooltip: t("tip.ndcg"),
       value: knowledgeHealth.toFixed(2),
       bar: knowledgeHealth,
       target: "> 0.50",
     },
-    { label: "Overall health", value: knowledgeHealth.toFixed(2), bar: knowledgeHealth, target: "> 0.70" },
-    { label: "Useful-bundle rate", value: bundleHitRate.toFixed(2), bar: bundleHitRate, target: "> 0.60" },
+    { label: t("dash.m_health"), value: knowledgeHealth.toFixed(2), bar: knowledgeHealth, target: "> 0.70" },
+    { label: t("dash.m_bundle"), value: bundleHitRate.toFixed(2), bar: bundleHitRate, target: "> 0.60" },
     {
-      label: "Conflicting skills",
+      label: t("dash.m_conflicts"),
       value: String(contradictions),
       bar: contradictions > 5 ? 1 : contradictions / 5,
       inv: true,
@@ -719,23 +718,24 @@ function MostUsefulRules({
 }: {
   onViewSkill: () => void;
 }) {
+  const t = useT();
   const { scope } = useProjectScope();
   const { rules, loadState } = useTopRules(scope, 5);
 
   return (
     <div className="panel">
       <div className="panel-h">
-        <h3>Most Useful Skills</h3>
-        <span className="sub">≥5 session outcomes</span>
+        <h3>{t("dash.useful_title")}</h3>
+        <span className="sub">{t("dash.useful_sub")}</span>
         <div className="grow" />
         <button
           type="button"
           className="btn btn-ghost"
           style={{ height: 24, fontSize: 12 }}
           onClick={onViewSkill}
-          title="View all skills in the Skills tab"
+          title={t("dash.useful_all_tip")}
         >
-          All skills <Icon name="arrowR" size={10} />
+          {t("dash.useful_all")} <Icon name="arrowR" size={10} />
         </button>
       </div>
       <div>
@@ -744,8 +744,7 @@ function MostUsefulRules({
         )}
         {loadState !== "loading" && rules.length === 0 && (
           <div style={{ padding: "12px 14px", color: "var(--ink-3)", fontSize: 13, lineHeight: 1.5 }}>
-            No skills with ≥5 recorded outcomes yet. Run sessions and report
-            their outcomes to see effectiveness data here.
+            {t("dash.useful_empty")}
           </div>
         )}
         {rules.map((rule: TopRuleRow) => {
@@ -769,7 +768,7 @@ function MostUsefulRules({
               </span>
               <span
                 className="mono tab-num"
-                title={`${pct}% success rate across ${rule.outcomes} session outcomes`}
+                title={t("dash.useful_pct_tip", { pct, n: rule.outcomes })}
                 style={{
                   fontSize: 13,
                   fontWeight: 500,
@@ -782,9 +781,9 @@ function MostUsefulRules({
               <span
                 className="mono"
                 style={{ fontSize: 11, color: "var(--ink-4)", flexShrink: 0 }}
-                title={`${rule.outcomes} sessions reported outcome for this rule`}
+                title={t("dash.useful_sess_tip", { n: rule.outcomes })}
               >
-                {rule.outcomes} sess.
+                {t("dash.useful_sess", { n: rule.outcomes })}
               </span>
             </div>
           );
@@ -917,17 +916,13 @@ export function Dashboard({
               ProjectsList component returns null when there are no
               projects, so the SectionLabel still anchors the header
               once any project exists. */}
-          <SectionLabel hint="Click a project to see what the Brain has done for it and learned from it.">
-            Your projects
-          </SectionLabel>
+          <SectionLabel hint={t("dash.projects_hint")}>{t("dash.projects_label")}</SectionLabel>
           <ProjectsList />
 
           {/* SECTION 2 — Your work. Recent sessions list. Click a row
               to expand inline (same drill-down available on /sessions
               from PR #263) without leaving the dashboard. */}
-          <SectionLabel hint="Your most recent coding sessions — click a row to see what the Brain shared and learned.">
-            Your recent work
-          </SectionLabel>
+          <SectionLabel hint={t("dash.work_hint")}>{t("dash.work_label")}</SectionLabel>
           <RecentSessions
             onViewAll={() => go("sessions")}
             sessions={sessionsH.sessions}
@@ -971,7 +966,7 @@ export function Dashboard({
               aria-expanded={showAdvanced}
               style={{ fontSize: 13 }}
             >
-              {showAdvanced ? "▾" : "▸"} Advanced metrics &amp; connection status
+              {showAdvanced ? "▾" : "▸"} {t("dash.advanced")}
             </button>
           </div>
           {showAdvanced && (
@@ -1031,12 +1026,12 @@ export function Dashboard({
                 </button>
                 <HelpPopover
                   content={{
-                    what: "Your dashboard — Brain health at a glance: how many skills you have, how recent sessions performed, what's pending review, and whether your tokens are talking to the server.",
+                    what: t("dash.help_what"),
                     whatToDo: [
-                      "Watch the Connection status card — green = your AI tools are talking to Brain right now.",
-                      "Click any stat label to learn what it means (hover for tooltips).",
-                      "Hit Teach (top-right) to add a skill. Use Export to download your knowledge as JSON.",
-                      "Switch the scope chip (project/all) to filter what these numbers count.",
+                      t("dash.help_todo_1"),
+                      t("dash.help_todo_2"),
+                      t("dash.help_todo_3"),
+                      t("dash.help_todo_4"),
                     ],
                     related: [],
                     docHref: "/docs/concepts/connection-status",
@@ -1064,6 +1059,7 @@ function ShowEverythingFold({ children }: { children: React.ReactNode }) {
   // Start closed (matches SSR), then restore the persisted state AFTER mount.
   // Reading localStorage during render diverges from the server's output and
   // triggers a hydration mismatch (React #418) once the value is "1".
+  const t = useT();
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (window.localStorage.getItem("brain-home-expanded") === "1") setOpen(true);
@@ -1088,7 +1084,7 @@ function ShowEverythingFold({ children }: { children: React.ReactNode }) {
         }}
         aria-expanded={open}
       >
-        {open ? "▾" : "▸"} Show everything (projects, sessions, live activity, advanced)
+        {open ? "▾" : "▸"} {t("dash.show_everything")}
       </button>
       {open && <div style={{ marginTop: 16 }}>{children}</div>}
     </div>

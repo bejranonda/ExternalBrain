@@ -500,7 +500,7 @@ export default async function SignIn({ searchParams }: Props) {
                   <input
                     type="text"
                     name="voucher"
-                    placeholder="e.g. PILOT-2026-A1B2"
+                    placeholder={t("auth.voucherPlaceholder")}
                     autoComplete="off"
                     spellCheck={false}
                     required
@@ -686,7 +686,7 @@ export default async function SignIn({ searchParams }: Props) {
                   <input
                     type="text"
                     name="voucher"
-                    placeholder="e.g. PILOT-2026-A1B2"
+                    placeholder={t("auth.voucherPlaceholder")}
                     autoComplete="off"
                     spellCheck={false}
                     // Same prefill as the credentials form above — a voucher
