@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "./icons";
 import { useT } from "@/lib/brain/i18n";
+import { roleLabel } from "@/lib/brain/roles";
 
 interface Props {
   open: boolean;
@@ -83,10 +84,10 @@ export function UserMenu({ open, onClose, onTweaks }: Props) {
             </div>
             <div>
               <div style={{ fontSize: 13, fontWeight: 500 }}>
-                {loading ? "…" : me?.name ?? me?.email ?? "Signed out"}
+                {loading ? "…" : me?.name ?? me?.email ?? t("userMenu.signed_out")}
               </div>
               <div className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>
-                {me?.email ?? "no email"}
+                {me?.email ?? t("userMenu.no_email")}
               </div>
             </div>
           </div>
@@ -103,7 +104,7 @@ export function UserMenu({ open, onClose, onTweaks }: Props) {
                 marginBottom: 6,
               }}
             >
-              Teams
+              {t("userMenu.teams")}
             </div>
             {me.teams.map((tm) => (
               <div
@@ -114,38 +115,38 @@ export function UserMenu({ open, onClose, onTweaks }: Props) {
                 <span>{tm.name}</span>
                 <span className="grow" />
                 <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>
-                  {tm.role}
+                  {roleLabel(t, tm.role)}
                 </span>
               </div>
             ))}
           </div>
         )}
         <div style={{ padding: 6 }}>
-          <MenuItem icon="settings" label="Preferences" onClick={onTweaks} />
+          <MenuItem icon="settings" label={t("userMenu.preferences")} onClick={onTweaks} />
           <MenuItem
             icon="link"
-            label="MCP tokens"
+            label={t("userMenu.tokens")}
             onClick={() => {
               window.location.href = "/settings/tokens";
             }}
           />
           <MenuItem
             icon="link"
-            label="Organization"
+            label={t("userMenu.organization")}
             onClick={() => {
               window.location.href = "/settings/org";
             }}
           />
           <MenuItem
             icon="link"
-            label="Projects"
+            label={t("userMenu.projects")}
             onClick={() => {
               window.location.href = "/settings/projects";
             }}
           />
           <MenuItem
             icon="x"
-            label="Reset knowledge"
+            label={t("userMenu.reset_knowledge")}
             onClick={() => {
               window.location.href = "/settings/reset-knowledge";
             }}
@@ -153,7 +154,7 @@ export function UserMenu({ open, onClose, onTweaks }: Props) {
           {me?.hasCredential && (
             <MenuItem
               icon="settings"
-              label="Change password"
+              label={t("userMenu.change_password")}
               onClick={() => {
                 window.location.href = "/settings/password";
               }}
@@ -161,7 +162,7 @@ export function UserMenu({ open, onClose, onTweaks }: Props) {
           )}
           <MenuItem
             icon="settings"
-            label="Show onboarding tour"
+            label={t("userMenu.tour")}
             onClick={() => {
               window.localStorage.removeItem("bp_onboarded");
               window.location.reload();
@@ -169,7 +170,7 @@ export function UserMenu({ open, onClose, onTweaks }: Props) {
           />
           <MenuItem
             icon="file"
-            label="Documentation"
+            label={t("userMenu.docs")}
             onClick={() => {
               // In-app docs route (was a stale anthropics.com URL).
               window.location.href = "/docs";
@@ -177,7 +178,7 @@ export function UserMenu({ open, onClose, onTweaks }: Props) {
           />
           <MenuItem
             icon="x"
-            label="Sign out"
+            label={t("userMenu.sign_out")}
             onClick={() => {
               window.location.href = "/signout";
             }}

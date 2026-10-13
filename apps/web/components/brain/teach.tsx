@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./icons";
+import { useT } from "@/lib/brain/i18n";
+import { apiErrorFromResponse } from "@/lib/brain/api-error";
 
 interface Props {
   open: boolean;
@@ -13,42 +15,13 @@ interface Props {
 
 type KnowledgeType = "recipe" | "heuristic" | "principle" | "reflex" | "anti_principle";
 
-interface TypeMeta {
-  value: KnowledgeType;
-  label: string;
-  tooltip: string;
-}
+// Labels and tooltips live in teach.type_<value> / teach.type_<value>_tip.
+const TYPES: KnowledgeType[] = ["recipe", "heuristic", "principle", "reflex", "anti_principle"];
 
-const TYPES: TypeMeta[] = [
-  {
-    value: "recipe",
-    label: "Recipe — a how-to",
-    tooltip: 'A repeatable procedure. Example: "When deploying, run the migration before the worker."',
-  },
-  {
-    value: "heuristic",
-    label: "Rule of thumb",
-    tooltip: 'A useful default that can bend. Example: "Prefer feature flags over long-lived branches."',
-  },
-  {
-    value: "principle",
-    label: "Principle",
-    tooltip: 'A firm decision the team holds to. Example: "All user data lives in the EU region."',
-  },
-  {
-    value: "reflex",
-    label: "Always-do reflex",
-    tooltip: 'Do this every time, no thinking. Example: "Always run typecheck before pushing."',
-  },
-  {
-    value: "anti_principle",
-    label: "Never-do (anti-pattern)",
-    tooltip: 'A trap to avoid. Example: "Never parse JSON before verifying a webhook signature."',
-  },
-];
-
+// The filled-in content stays English on purpose: it is saved as a rule and
+// injected into agent sessions, which read English. Only the chip label is UI.
 interface Example {
-  label: string;
+  labelKey: string;
   type: KnowledgeType;
   trigger: string;
   rule: string;
@@ -58,7 +31,7 @@ interface Example {
 
 const EXAMPLES: Example[] = [
   {
-    label: "Bug fix",
+    labelKey: "teach.ex_bug_fix",
     type: "recipe",
     trigger: "When a Stripe webhook returns 400 with signature failure",
     rule: "Verify the signature against the raw request body, not parsed JSON",
@@ -66,7 +39,7 @@ const EXAMPLES: Example[] = [
     tags: "stripe, webhook, security",
   },
   {
-    label: "Style preference",
+    labelKey: "teach.ex_style",
     type: "heuristic",
     trigger: "When writing React state",
     rule: "Prefer useReducer over multiple useState when fields update together",
@@ -74,7 +47,7 @@ const EXAMPLES: Example[] = [
     tags: "react, state",
   },
   {
-    label: "Anti-pattern",
+    labelKey: "teach.ex_anti",
     type: "anti_principle",
     trigger: "When tempted to disable a flaky test",
     rule: "Don't skip — quarantine it and file a ticket the same day",
@@ -82,7 +55,7 @@ const EXAMPLES: Example[] = [
     tags: "testing",
   },
   {
-    label: "Decision",
+    labelKey: "teach.ex_decision",
     type: "principle",
     trigger: "When choosing a queue for background jobs",
     rule: "We use pg-boss on the existing Postgres",
@@ -90,7 +63,7 @@ const EXAMPLES: Example[] = [
     tags: "architecture, decisions",
   },
   {
-    label: "Reflex",
+    labelKey: "teach.ex_reflex",
     type: "reflex",
     trigger: "When a deploy script changes",
     rule: "Run it once on the dev host before merging",
@@ -104,6 +77,7 @@ const EXAMPLES: Example[] = [
  * Lets the user hand-author a Knowledge item without going through KEA.
  */
 export function TeachModal({ open, onClose, onTaught, prefillTrigger }: Props) {
+  const t = useT();
   const [type, setType] = useState<KnowledgeType>("heuristic");
   const [trigger, setTrigger] = useState(prefillTrigger ?? "");
   const [rule, setRule] = useState("");
@@ -142,13 +116,13 @@ export function TeachModal({ open, onClose, onTaught, prefillTrigger }: Props) {
   // Focus first field on open + ESC closes.
   useEffect(() => {
     if (!open) return;
-    const t = window.setTimeout(() => triggerInputRef.current?.focus(), 30);
+    const timer = window.setTimeout(() => triggerInputRef.current?.focus(), 30);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => {
-      window.clearTimeout(t);
+      window.clearTimeout(timer);
       window.removeEventListener("keydown", onKey);
     };
   }, [open, onClose]);
@@ -180,7 +154,7 @@ export function TeachModal({ open, onClose, onTaught, prefillTrigger }: Props) {
 
   const submit = async () => {
     if (!rule.trim() || !trigger.trim()) {
-      setError("Please fill in when this applies and the rule itself.");
+      setError(t("teach.required"));
       return;
     }
     setSubmitting(true);
@@ -201,13 +175,13 @@ export function TeachModal({ open, onClose, onTaught, prefillTrigger }: Props) {
         }),
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? `HTTP ${res.status}`);
+        setError(await apiErrorFromResponse(t, res));
+        return;
       }
       reset();
       onTaught();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "save failed");
+    } catch {
+      setError(t("apiErrors.network"));
     } finally {
       setSubmitting(false);
     }
@@ -234,7 +208,7 @@ export function TeachModal({ open, onClose, onTaught, prefillTrigger }: Props) {
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="Teach your Brain"
+        aria-label={t("teach.title")}
         style={{ maxWidth: 560 }}
       >
         <div
@@ -247,29 +221,29 @@ export function TeachModal({ open, onClose, onTaught, prefillTrigger }: Props) {
           }}
         >
           <Icon name="sparkle" size={12} />
-          <span style={{ fontSize: 14, fontWeight: 500 }}>Teach your Brain</span>
+          <span style={{ fontSize: 14, fontWeight: 500 }}>{t("teach.title")}</span>
           <span className="grow" />
           <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>
-            ⎋ close
+            {t("teach.close_hint")}
           </span>
         </div>
 
         <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 14 }}>
           {/* Type chooser — plain English with tooltips */}
           <div>
-            <span style={labelStyle}>What kind of knowledge is this?</span>
+            <span style={labelStyle}>{t("teach.kind")}</span>
             <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
-              {TYPES.map((t) => (
+              {TYPES.map((ty) => (
                 <button
-                  key={t.value}
+                  key={ty}
                   type="button"
-                  className={type === t.value ? "btn" : "btn btn-ghost"}
+                  className={type === ty ? "btn" : "btn btn-ghost"}
                   style={{ height: 28, fontSize: 13, padding: "0 10px" }}
-                  onClick={() => setType(t.value)}
-                  title={t.tooltip}
-                  aria-pressed={type === t.value}
+                  onClick={() => setType(ty)}
+                  title={t(`teach.type_${ty}_tip`)}
+                  aria-pressed={type === ty}
                 >
-                  {t.label}
+                  {t(`teach.type_${ty}`)}
                 </button>
               ))}
             </div>
@@ -278,29 +252,29 @@ export function TeachModal({ open, onClose, onTaught, prefillTrigger }: Props) {
           {/* Required field 1 */}
           <div>
             <label htmlFor="teach-trigger" style={labelStyle}>
-              When does this apply?
+              {t("teach.when")}
             </label>
             <input
               id="teach-trigger"
               ref={triggerInputRef}
               value={trigger}
               onChange={(e) => setTrigger(e.target.value)}
-              placeholder="When writing a Stripe webhook handler — or: when writing a React form"
+              placeholder={t("teach.when_placeholder")}
               style={inputStyle}
             />
-            <div style={helpStyle}>The situation that should bring this rule to mind.</div>
+            <div style={helpStyle}>{t("teach.when_help")}</div>
           </div>
 
           {/* Required field 2 */}
           <div>
             <label htmlFor="teach-rule" style={labelStyle}>
-              What&rsquo;s the rule?
+              {t("teach.rule")}
             </label>
             <textarea
               id="teach-rule"
               value={rule}
               onChange={(e) => setRule(e.target.value)}
-              placeholder="Verify the signature with the raw request body, not parsed JSON — or: prefer react-hook-form + zod over raw useState"
+              placeholder={t("teach.rule_placeholder")}
               rows={3}
               style={{ ...inputStyle, resize: "vertical" }}
             />
@@ -320,7 +294,7 @@ export function TeachModal({ open, onClose, onTaught, prefillTrigger }: Props) {
               }}
               aria-expanded={moreOpen}
             >
-              {moreOpen ? "▾ Hide details" : "▸ Add more details"}
+              {moreOpen ? t("teach.more_hide") : t("teach.more_show")}
             </button>
           </div>
 
@@ -328,20 +302,22 @@ export function TeachModal({ open, onClose, onTaught, prefillTrigger }: Props) {
             <>
               <div>
                 <label htmlFor="teach-rationale" style={labelStyle}>
-                  Why? <span style={{ color: "var(--ink-4)", fontWeight: 400 }}>(optional)</span>
+                  {t("teach.why")}{" "}
+                  <span style={{ color: "var(--ink-4)", fontWeight: 400 }}>{t("teach.optional")}</span>
                 </label>
                 <input
                   id="teach-rationale"
                   value={rationale}
                   onChange={(e) => setRationale(e.target.value)}
-                  placeholder="Because Stripe HMAC fails on re-serialized JSON"
+                  placeholder={t("teach.why_placeholder")}
                   style={inputStyle}
                 />
-                <div style={helpStyle}>The reason behind it — helps your future self remember.</div>
+                <div style={helpStyle}>{t("teach.why_help")}</div>
               </div>
               <div>
                 <label htmlFor="teach-tags" style={labelStyle}>
-                  Topics <span style={{ color: "var(--ink-4)", fontWeight: 400 }}>(optional)</span>
+                  {t("teach.topics")}{" "}
+                  <span style={{ color: "var(--ink-4)", fontWeight: 400 }}>{t("teach.optional")}</span>
                 </label>
                 <input
                   id="teach-tags"
@@ -350,7 +326,7 @@ export function TeachModal({ open, onClose, onTaught, prefillTrigger }: Props) {
                   placeholder="stripe, webhook, security"
                   style={inputStyle}
                 />
-                <div style={helpStyle}>Comma-separated. Helps the Brain group related knowledge.</div>
+                <div style={helpStyle}>{t("teach.topics_help")}</div>
               </div>
             </>
           )}
@@ -378,7 +354,7 @@ export function TeachModal({ open, onClose, onTaught, prefillTrigger }: Props) {
                 }
               }}
             >
-              {examplesOpen ? "▾ Hide examples" : "▸ Need a starting point? See examples"}
+              {examplesOpen ? t("teach.examples_hide") : t("teach.examples_show")}
             </button>
             {examplesOpen && (
               <div
@@ -394,19 +370,19 @@ export function TeachModal({ open, onClose, onTaught, prefillTrigger }: Props) {
                 }}
               >
                 <div style={{ fontSize: 13, color: "var(--ink-4)" }}>
-                  Click one to fill in the form — you can edit before saving.
+                  {t("teach.examples_intro")}
                 </div>
                 <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
                   {EXAMPLES.map((ex) => (
                     <button
-                      key={ex.label}
+                      key={ex.labelKey}
                       type="button"
                       className="btn btn-ghost"
                       style={{ height: 26, fontSize: 13, padding: "0 10px" }}
                       onClick={() => applyExample(ex)}
                       title={ex.rule}
                     >
-                      {ex.label}
+                      {t(ex.labelKey)}
                     </button>
                   ))}
                 </div>
@@ -432,7 +408,7 @@ export function TeachModal({ open, onClose, onTaught, prefillTrigger }: Props) {
 
           <div className="row" style={{ gap: 6, justifyContent: "flex-end", marginTop: 4 }}>
             <button type="button" className="btn btn-ghost" onClick={onClose} disabled={submitting}>
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               type="button"
@@ -441,7 +417,7 @@ export function TeachModal({ open, onClose, onTaught, prefillTrigger }: Props) {
               disabled={!canSubmit}
               aria-disabled={!canSubmit}
             >
-              {submitting ? "Saving…" : "Teach"}
+              {submitting ? t("common.saving") : t("teach.submit")}
             </button>
           </div>
         </div>
