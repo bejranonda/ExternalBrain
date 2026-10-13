@@ -543,6 +543,18 @@ export const I18N = {
       retry: "Retry",
       retrying: "Retrying…",
     },
+    errorPage: {
+      title: "Something went wrong on this page",
+      body: "The Brain hit an unexpected error showing this view. Try again, or pick another page from the menu.",
+      settingsTitle: "This settings page couldn't load",
+      settingsBody: "Something went wrong while showing this page. Try again, or head back to your Brain.",
+      reference: "Error reference: {{digest}}",
+      tryAgain: "Try again",
+      backHome: "← Back to your Brain",
+      notFoundEyebrow: "404 · not found",
+      notFoundTitle: "We can’t find that page",
+      notFoundBody: "The link may be stale, the org or project may have been renamed, or you may not have access. Head back to your Brain and pick up from there.",
+    },
   },
   th: {
     auth: {
@@ -1050,6 +1062,18 @@ export const I18N = {
     common: {
       retry: "ลองใหม่",
       retrying: "กำลังลองใหม่…",
+    },
+    errorPage: {
+      title: "หน้านี้เกิดข้อผิดพลาด",
+      body: "Brain พบข้อผิดพลาดที่ไม่คาดคิดระหว่างแสดงหน้านี้ ลองใหม่อีกครั้ง หรือเลือกหน้าอื่นจากเมนู",
+      settingsTitle: "โหลดหน้าการตั้งค่านี้ไม่สำเร็จ",
+      settingsBody: "เกิดข้อผิดพลาดระหว่างแสดงหน้านี้ ลองใหม่อีกครั้ง หรือกลับไปที่ Brain ของคุณ",
+      reference: "รหัสอ้างอิงข้อผิดพลาด: {{digest}}",
+      tryAgain: "ลองใหม่อีกครั้ง",
+      backHome: "← กลับไปที่ Brain ของคุณ",
+      notFoundEyebrow: "404 · ไม่พบหน้า",
+      notFoundTitle: "ไม่พบหน้าที่คุณต้องการ",
+      notFoundBody: "ลิงก์อาจเก่าแล้ว องค์กรหรือโปรเจกต์อาจถูกเปลี่ยนชื่อ หรือคุณอาจไม่มีสิทธิ์เข้าถึง กลับไปที่ Brain ของคุณแล้วเริ่มต่อจากตรงนั้น",
     },
   },
   de: {
@@ -1562,6 +1586,18 @@ export const I18N = {
     common: {
       retry: "Erneut versuchen",
       retrying: "Neuer Versuch…",
+    },
+    errorPage: {
+      title: "Auf dieser Seite ist etwas schiefgelaufen",
+      body: "Beim Anzeigen dieser Ansicht ist im Brain ein unerwarteter Fehler aufgetreten. Versuch es erneut oder wähle im Menü eine andere Seite.",
+      settingsTitle: "Diese Einstellungsseite konnte nicht geladen werden",
+      settingsBody: "Beim Anzeigen dieser Seite ist etwas schiefgelaufen. Versuch es erneut oder geh zurück zu deinem Brain.",
+      reference: "Fehlerreferenz: {{digest}}",
+      tryAgain: "Erneut versuchen",
+      backHome: "← Zurück zu deinem Brain",
+      notFoundEyebrow: "404 · nicht gefunden",
+      notFoundTitle: "Diese Seite finden wir nicht",
+      notFoundBody: "Vielleicht ist der Link veraltet, die Organisation oder das Projekt wurde umbenannt, oder du hast keinen Zugriff. Geh zurück zu deinem Brain und mach dort weiter.",
     },
   },
 } as const;

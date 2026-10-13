@@ -1,9 +1,12 @@
+import { getServerT } from "@/lib/brain/i18n-server";
+
 /**
  * Custom 404 — replaces Next.js's bare default so newcomers who land on
  * a bad org/project URL get a path back to their Brain instead of a
  * dead end. (UX-newcomer-pass-6)
  */
-export default function NotFound() {
+export default async function NotFound() {
+  const t = await getServerT();
   return (
     <main
       style={{
@@ -36,7 +39,7 @@ export default function NotFound() {
             marginBottom: 14,
           }}
         >
-          404 · not found
+          {t("errorPage.notFoundEyebrow")}
         </div>
         <h1
           style={{
@@ -46,7 +49,7 @@ export default function NotFound() {
             letterSpacing: "-0.02em",
           }}
         >
-          We can&rsquo;t find that page
+          {t("errorPage.notFoundTitle")}
         </h1>
         <p
           style={{
@@ -56,9 +59,7 @@ export default function NotFound() {
             lineHeight: 1.55,
           }}
         >
-          The link may be stale, the org or project may have been renamed,
-          or you may not have access. Head back to your Brain and pick up
-          from there.
+          {t("errorPage.notFoundBody")}
         </p>
         <div
           className="row"
@@ -69,14 +70,14 @@ export default function NotFound() {
             className="btn btn-primary"
             style={{ fontSize: 13, textDecoration: "none" }}
           >
-            ← Back to your Brain
+            {t("errorPage.backHome")}
           </a>
           <a
             href="/settings"
             className="btn btn-ghost"
             style={{ fontSize: 13, textDecoration: "none" }}
           >
-            Settings
+            {t("app.settings")}
           </a>
         </div>
       </div>
