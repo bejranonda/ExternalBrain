@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { HelpPopover } from "@/components/brain/help-popover";
+import { useT } from "@/lib/brain/i18n";
+import { apiErrorMessage, caughtMessage, throwApiError } from "@/lib/brain/api-error";
 
 interface OrgProject {
   id: string;
@@ -35,6 +37,7 @@ function fmt(iso: string): string {
 }
 
 export default function ProjectsPage() {
+  const t = useT();
   const [data, setData] = useState<OrgsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +57,7 @@ export default function ProjectsPage() {
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/orgs", { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) await throwApiError(t, res);
       const d = (await res.json()) as OrgsResponse;
       setData(d);
       if (d.orgs[0] && !createOrgId) {
@@ -62,7 +65,7 @@ export default function ProjectsPage() {
       }
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "load failed");
+      setError(caughtMessage(t, e));
     } finally {
       setLoading(false);
     }
@@ -82,14 +85,11 @@ export default function ProjectsPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ orgId: createOrgId, name: createName.trim() }),
       });
-      if (!res.ok) {
-        const body = (await res.json()) as { error?: string };
-        throw new Error(body.error ?? `HTTP ${res.status}`);
-      }
+      if (!res.ok) await throwApiError(t, res);
       setCreateName("");
       await load();
     } catch (e) {
-      setCreateError(e instanceof Error ? e.message : "create failed");
+      setCreateError(caughtMessage(t, e));
     } finally {
       setCreating(false);
     }
@@ -111,14 +111,11 @@ export default function ProjectsPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name: renameName.trim() }),
       });
-      if (!res.ok) {
-        const body = (await res.json()) as { error?: string; message?: string };
-        throw new Error(body.message ?? body.error ?? `HTTP ${res.status}`);
-      }
+      if (!res.ok) await throwApiError(t, res);
       setRenameTarget(null);
       await load();
     } catch (e) {
-      setRenameError(e instanceof Error ? e.message : "rename failed");
+      setRenameError(caughtMessage(t, e));
     } finally {
       setRenaming(false);
     }
@@ -148,13 +145,13 @@ export default function ProjectsPage() {
       }
       if (!res.ok) {
         const body =
-          errorBody ?? ((await res.json()) as { error?: string; message?: string });
-        setError(body.message ?? body.error ?? `HTTP ${res.status}`);
+          errorBody ?? ((await res.json().catch(() => ({}))) as { error?: string });
+        setError(apiErrorMessage(t, body.error, res.status));
         return;
       }
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "delete failed");
+      setError(caughtMessage(t, e));
     }
   };
 
@@ -243,7 +240,7 @@ export default function ProjectsPage() {
           </button>
         </div>
         {createError && (
-          <div style={{ fontSize: 13, color: "var(--bad, #ff6b6b)", marginTop: 8 }}>
+          <div role="alert" style={{ fontSize: 13, color: "var(--bad, #ff6b6b)", marginTop: 8 }}>
             {createError}
           </div>
         )}
@@ -253,6 +250,7 @@ export default function ProjectsPage() {
       {loading && <div style={{ fontSize: 13, color: "var(--ink-3)" }}>Loading…</div>}
       {error && (
         <div
+          role="alert"
           className="panel"
           style={{ padding: "10px 12px", fontSize: 13, borderLeft: "3px solid var(--bad, #ff6b6b)", marginBottom: 12 }}
         >
@@ -377,7 +375,7 @@ export default function ProjectsPage() {
               }}
             />
             {renameError && (
-              <div style={{ fontSize: 13, color: "var(--bad, #ff6b6b)", marginBottom: 12 }}>
+              <div role="alert" style={{ fontSize: 13, color: "var(--bad, #ff6b6b)", marginBottom: 12 }}>
                 {renameError}
               </div>
             )}

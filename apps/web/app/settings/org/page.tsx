@@ -13,6 +13,8 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { useT } from "@/lib/brain/i18n";
+import { caughtMessage, throwApiError } from "@/lib/brain/api-error";
 
 // ─── types ─────────────────────────────────────────────────────────────────
 
@@ -143,8 +145,9 @@ function MembersSection({
 }: {
   orgId: string;
   viewerRole: string;
-  onAction: (msg: string) => void;
+  onAction: (msg: string, isError?: boolean) => void;
 }) {
+  const t = useT();
   const [members, setMembers] = useState<OrgMember[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -153,12 +156,12 @@ function MembersSection({
   const load = useCallback(async () => {
     try {
       const res = await fetch(`/api/orgs/${orgId}/members`, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) await throwApiError(t, res);
       const data = (await res.json()) as { members: OrgMember[] };
       setMembers(data.members);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "load failed");
+      setError(caughtMessage(t, e));
     }
   }, [orgId]);
 
@@ -173,14 +176,11 @@ function MembersSection({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ role: newRole }),
       });
-      if (!res.ok) {
-        const d = (await res.json()) as { error?: string };
-        throw new Error(d.error ?? `HTTP ${res.status}`);
-      }
+      if (!res.ok) await throwApiError(t, res);
       onAction(`Role updated to ${newRole}.`);
       void load();
     } catch (e) {
-      onAction(e instanceof Error ? e.message : "role change failed");
+      onAction(caughtMessage(t, e), true);
     }
   };
 
@@ -190,21 +190,18 @@ function MembersSection({
       const res = await fetch(`/api/orgs/${orgId}/members/${userId}`, {
         method: "DELETE",
       });
-      if (!res.ok) {
-        const d = (await res.json()) as { error?: string };
-        throw new Error(d.error ?? `HTTP ${res.status}`);
-      }
+      if (!res.ok) await throwApiError(t, res);
       onAction(`${email} removed.`);
       void load();
     } catch (e) {
-      onAction(e instanceof Error ? e.message : "remove failed");
+      onAction(caughtMessage(t, e), true);
     }
   };
 
   return (
     <section style={{ marginBottom: 36 }}>
       <h2 style={{ fontSize: 16, fontWeight: 500, margin: "0 0 12px" }}>Members</h2>
-      {error && <div style={errorStyle}>{error}</div>}
+      {error && <div role="alert" style={errorStyle}>{error}</div>}
       {!members && !error && (
         <div style={{ color: "var(--ink-3)", fontSize: 13 }}>Loading…</div>
       )}
@@ -282,20 +279,21 @@ function InvitesSection({
   onAction,
 }: {
   orgId: string;
-  onAction: (msg: string) => void;
+  onAction: (msg: string, isError?: boolean) => void;
 }) {
+  const t = useT();
   const [invites, setInvites] = useState<OrgInvite[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
       const res = await fetch(`/api/orgs/${orgId}/invites`, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) await throwApiError(t, res);
       const data = (await res.json()) as { invites: OrgInvite[] };
       setInvites(data.invites);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "load failed");
+      setError(caughtMessage(t, e));
     }
   }, [orgId]);
 
@@ -309,21 +307,18 @@ function InvitesSection({
       const res = await fetch(`/api/orgs/${orgId}/invites/${inviteId}`, {
         method: "DELETE",
       });
-      if (!res.ok) {
-        const d = (await res.json()) as { error?: string };
-        throw new Error(d.error ?? `HTTP ${res.status}`);
-      }
+      if (!res.ok) await throwApiError(t, res);
       onAction("Invite revoked.");
       void load();
     } catch (e) {
-      onAction(e instanceof Error ? e.message : "revoke failed");
+      onAction(caughtMessage(t, e), true);
     }
   };
 
   return (
     <section style={{ marginBottom: 36 }}>
       <h2 style={{ fontSize: 16, fontWeight: 500, margin: "0 0 12px" }}>Pending invites</h2>
-      {error && <div style={errorStyle}>{error}</div>}
+      {error && <div role="alert" style={errorStyle}>{error}</div>}
       {!invites && !error && (
         <div style={{ color: "var(--ink-3)", fontSize: 13 }}>Loading…</div>
       )}
@@ -387,6 +382,7 @@ function InviteForm({
   orgId: string;
   onInvited: (link: string, email: string) => void;
 }) {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"member" | "admin" | "owner">("member");
   const [creating, setCreating] = useState(false);
@@ -403,16 +399,13 @@ function InviteForm({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email: email.trim(), role }),
       });
-      if (!res.ok) {
-        const d = (await res.json()) as { error?: string };
-        throw new Error(d.error ?? `HTTP ${res.status}`);
-      }
+      if (!res.ok) await throwApiError(t, res);
       const data = (await res.json()) as { link: string; invite: { email: string } };
       setEmail("");
       setRole("member");
       onInvited(data.link, data.invite.email);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "invite failed");
+      setError(caughtMessage(t, err));
     } finally {
       setCreating(false);
     }
@@ -421,7 +414,7 @@ function InviteForm({
   return (
     <section style={{ marginBottom: 36 }}>
       <h2 style={{ fontSize: 16, fontWeight: 500, margin: "0 0 12px" }}>Invite a member</h2>
-      {error && <div style={errorStyle}>{error}</div>}
+      {error && <div role="alert" style={errorStyle}>{error}</div>}
       <form
         onSubmit={(e) => void submit(e)}
         style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}
@@ -470,6 +463,7 @@ function CreateOrgForm({
   onCreated: (org: OrgData) => void;
   onError: (msg: string) => void;
 }) {
+  const t = useT();
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
 
@@ -484,15 +478,12 @@ function CreateOrgForm({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name: trimmed }),
       });
-      if (!res.ok) {
-        const d = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-        throw new Error(d.message ?? d.error ?? `HTTP ${res.status}`);
-      }
+      if (!res.ok) await throwApiError(t, res);
       const { org } = (await res.json()) as { org: OrgData };
       setName("");
       onCreated(org);
     } catch (err) {
-      onError(err instanceof Error ? err.message : "create failed");
+      onError(caughtMessage(t, err));
     } finally {
       setCreating(false);
     }
@@ -531,18 +522,20 @@ function CreateOrgForm({
 // ─── Page ─────────────────────────────────────────────────────────────────
 
 export default function OrgPage() {
+  const t = useT();
   const [orgs, setOrgs] = useState<OrgData[] | null>(null);
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
-  const [flash, setFlash] = useState<{ text: string; isLink: boolean } | null>(null);
+  const [flash, setFlash] = useState<{ text: string; isLink: boolean; isError: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
   const [copyFailed, setCopyFailed] = useState(false);
 
-  const show = (text: string, isLink = false) => {
-    setFlash({ text, isLink });
+  const show = (text: string, isLink = false, isError = false) => {
+    setFlash({ text, isLink, isError });
     setCopyFailed(false);
-    if (!isLink) {
+    // An error stays until the next action; a success note fades.
+    if (!isLink && !isError) {
       window.setTimeout(() => setFlash(null), 3000);
     }
   };
@@ -572,7 +565,7 @@ export default function OrgPage() {
   const loadOrgs = useCallback(async () => {
     try {
       const res = await fetch("/api/orgs", { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) await throwApiError(t, res);
       const data = (await res.json()) as {
         orgs: Array<{ id: string; name: string; role: string }>;
       };
@@ -587,7 +580,7 @@ export default function OrgPage() {
           : manageable[0]?.id ?? "",
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "load failed");
+      setError(caughtMessage(t, e));
     }
   }, []);
 
@@ -607,7 +600,7 @@ export default function OrgPage() {
   if (error) {
     return (
       <div style={{ maxWidth: 960 }}>
-        <div style={errorStyle}>{error}</div>
+        <div role="alert" style={errorStyle}>{error}</div>
       </div>
     );
   }
@@ -631,7 +624,12 @@ export default function OrgPage() {
           Organization
         </h1>
         {flash && !flash.isLink && (
-          <div style={{ ...flashStyle, color: "var(--ink-2)" }}>{flash.text}</div>
+          <div
+            role={flash.isError ? "alert" : "status"}
+            style={flash.isError ? errorStyle : { ...flashStyle, color: "var(--ink-2)" }}
+          >
+            {flash.text}
+          </div>
         )}
         <div className="panel" style={{ padding: "20px 22px", maxWidth: 520 }}>
           <h2 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 500 }}>
@@ -648,7 +646,7 @@ export default function OrgPage() {
             Organizations group projects and let you invite teammates. You&rsquo;ll
             be the owner of any org you create here.
           </p>
-          <CreateOrgForm onCreated={onOrgCreated} onError={(m) => show(m)} />
+          <CreateOrgForm onCreated={onOrgCreated} onError={(m) => show(m, false, true)} />
         </div>
       </div>
     );
@@ -686,12 +684,21 @@ export default function OrgPage() {
           <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 500 }}>
             Create a new organization
           </h2>
-          <CreateOrgForm onCreated={onOrgCreated} onError={(m) => show(m)} />
+          <CreateOrgForm onCreated={onOrgCreated} onError={(m) => show(m, false, true)} />
         </div>
       )}
 
       {flash && (
-        <div style={flash.isLink ? flashStyle : { ...flashStyle, color: "var(--ink-2)" }}>
+        <div
+          role={flash.isError ? "alert" : "status"}
+          style={
+            flash.isError
+              ? errorStyle
+              : flash.isLink
+                ? flashStyle
+                : { ...flashStyle, color: "var(--ink-2)" }
+          }
+        >
           {flash.isLink ? (
             <>
               <strong>Invite link (copy now — shown once):</strong>
@@ -736,12 +743,15 @@ export default function OrgPage() {
           <MembersSection
             orgId={selectedOrgId}
             viewerRole={selectedOrg.role}
-            onAction={(msg) => show(msg)}
+            onAction={(msg, isError) => show(msg, false, isError)}
           />
 
           {(selectedOrg.role === "owner" || selectedOrg.role === "admin") && (
             <>
-              <InvitesSection orgId={selectedOrgId} onAction={(msg) => show(msg)} />
+              <InvitesSection
+                orgId={selectedOrgId}
+                onAction={(msg, isError) => show(msg, false, isError)}
+              />
               <InviteForm
                 orgId={selectedOrgId}
                 onInvited={(link, _email) =>

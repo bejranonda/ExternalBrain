@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/lib/brain/i18n";
+import { apiErrorFromResponse } from "@/lib/brain/api-error";
 
 interface OrgProject {
   id: string;
@@ -39,6 +41,7 @@ interface OrgsResponse {
  *  - Other orgs if the user belongs to more than one
  */
 export function OrgProjectSwitcher() {
+  const t = useT();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<OrgsResponse | null>(null);
@@ -167,8 +170,7 @@ export function OrgProjectSwitcher() {
         body: JSON.stringify({ orgId: newOrgId, name: newName.trim() }),
       });
       if (!res.ok) {
-        const body = (await res.json()) as { error?: string };
-        setError(body.error ?? `HTTP ${res.status}`);
+        setError(await apiErrorFromResponse(t, res));
         return;
       }
       const body = (await res.json()) as { project: OrgProject };
@@ -179,7 +181,7 @@ export function OrgProjectSwitcher() {
       // activateProject will navigate to the canonical URL.
       await activateProject(body.project.id);
     } catch {
-      setError("create failed");
+      setError(t("apiErrors.network"));
     } finally {
       setCreating(false);
     }
@@ -384,7 +386,7 @@ export function OrgProjectSwitcher() {
                     </div>
                   )}
                   {error && (
-                    <div style={{ fontSize: 12, color: "var(--bad, #ff6b6b)", marginBottom: 4 }}>
+                    <div role="alert" style={{ fontSize: 12, color: "var(--bad, #ff6b6b)", marginBottom: 4 }}>
                       {error}
                     </div>
                   )}

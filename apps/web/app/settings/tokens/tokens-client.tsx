@@ -11,6 +11,8 @@ import { CAPABILITIES, CAPABILITY_LABELS, type Capability } from "@brain/core/ca
 import { useCallback, useEffect, useState } from "react";
 import { TokenInstallWizard } from "@/components/brain/token-install-wizard";
 import { HelpPopover } from "@/components/brain/help-popover";
+import { useT } from "@/lib/brain/i18n";
+import { caughtMessage, throwApiError } from "@/lib/brain/api-error";
 
 interface TokenRow {
   id: string;
@@ -53,6 +55,7 @@ interface TokensClientProps {
 }
 
 export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
+  const t = useT();
   const [tokens, setTokens] = useState<TokenRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -148,12 +151,12 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
   const refresh = useCallback(async () => {
     try {
       const res = await fetch("/api/tokens", { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) await throwApiError(t, res);
       const data = (await res.json()) as { tokens: TokenRow[] };
       setTokens(data.tokens);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "load failed");
+      setError(caughtMessage(t, e));
     } finally {
       setLoading(false);
     }
@@ -205,14 +208,14 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
           capabilities: selectedCaps,
         }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) await throwApiError(t, res);
       const data = (await res.json()) as { raw: string; token: { id: string } };
       setFreshRaw(data.raw);
       setFreshTokenId(data.token.id);
       setName("");
       await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "create failed");
+      setError(caughtMessage(t, e));
     } finally {
       setCreating(false);
     }
@@ -222,10 +225,10 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
     if (!window.confirm("Revoke this token? Any client using it will stop working.")) return;
     try {
       const res = await fetch(`/api/tokens/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) await throwApiError(t, res);
       await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "revoke failed");
+      setError(caughtMessage(t, e));
     }
   };
 
@@ -271,16 +274,11 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
           projectId: scopeProjectId,
         }),
       });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-        setScopeError(body.message ?? body.error ?? `HTTP ${res.status}`);
-        setSavingScope(false);
-        return;
-      }
+      if (!res.ok) await throwApiError(t, res);
       closeScopeModal();
       await refresh();
     } catch (e) {
-      setScopeError(e instanceof Error ? e.message : "save failed");
+      setScopeError(caughtMessage(t, e));
       setSavingScope(false);
     }
   };
@@ -295,20 +293,14 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({}),
       });
-      if (!res.ok) {
-        const body = (await res.json()) as { error?: string; message?: string };
-        const msg = body.message ?? body.error ?? `HTTP ${res.status}`;
-        setChangeError(msg);
-        setChanging(false);
-        return;
-      }
+      if (!res.ok) await throwApiError(t, res);
       const data = (await res.json()) as { raw: string; token: { id: string } };
       setFreshRaw(data.raw);
       setFreshTokenId(data.token.id);
       closeChangeModal();
       await refresh();
     } catch (e) {
-      setChangeError(e instanceof Error ? e.message : "change failed");
+      setChangeError(caughtMessage(t, e));
       setChanging(false);
     }
   };
@@ -495,12 +487,13 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
 
       <section>
         <div className="mono" style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 10, letterSpacing: "0.06em" }}>
-          EXISTING TOKENS ({tokens.filter((t) => !t.revokedAt).length} active)
+          EXISTING TOKENS ({tokens.filter((tok) => !tok.revokedAt).length} active)
         </div>
 
         {loading && <div style={{ fontSize: 13, color: "var(--ink-3)" }}>Loading…</div>}
         {error && (
           <div
+            role="alert"
             className="panel"
             style={{ padding: "10px 12px", fontSize: 13, borderLeft: "3px solid var(--bad, #ff6b6b)" }}
           >
@@ -513,9 +506,9 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
           </div>
         )}
 
-        {tokens.map((t) => {
-          const revoked = !!t.revokedAt;
-          const expired = t.expiresAt ? new Date(t.expiresAt) < new Date() : false;
+        {tokens.map((tok) => {
+          const revoked = !!tok.revokedAt;
+          const expired = tok.expiresAt ? new Date(tok.expiresAt) < new Date() : false;
           const active = !revoked && !expired;
           // scheduledRevokeAt may still be set on rows from old rotations;
           // the auth gate already handles enforcement — we keep the column but no longer
@@ -523,16 +516,16 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
           const canChange = active;
 
           // Resolve org + project names from the loaded list.
-          const orgName = t.organizationId
-            ? (orgs.find((o) => o.id === t.organizationId)?.name ?? t.organizationId.slice(0, 10))
+          const orgName = tok.organizationId
+            ? (orgs.find((o) => o.id === tok.organizationId)?.name ?? tok.organizationId.slice(0, 10))
             : null;
-          const projectName = t.projectId
-            ? (projects.find((p) => p.id === t.projectId)?.name ?? t.projectId.slice(0, 10))
+          const projectName = tok.projectId
+            ? (projects.find((p) => p.id === tok.projectId)?.name ?? tok.projectId.slice(0, 10))
             : null;
 
           return (
             <div
-              key={t.id}
+              key={tok.id}
               className="panel"
               style={{
                 padding: "12px 14px",
@@ -543,11 +536,11 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
             >
               <div className="row">
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{t.name}</div>
+                  <div style={{ fontSize: 13, fontWeight: 500 }}>{tok.name}</div>
                   <div className="mono" style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 3 }}>
-                    {t.scope} · created {fmt(t.createdAt)}
-                    {t.lastUsedAt ? ` · last used ${fmt(t.lastUsedAt)}` : " · never used"}
-                    {t.expiresAt ? ` · expires ${fmt(t.expiresAt)}` : ""}
+                    {tok.scope} · created {fmt(tok.createdAt)}
+                    {tok.lastUsedAt ? ` · last used ${fmt(tok.lastUsedAt)}` : " · never used"}
+                    {tok.expiresAt ? ` · expires ${fmt(tok.expiresAt)}` : ""}
                     {revoked ? " · revoked" : expired ? " · expired" : ""}
                   </div>
                   {/* Scope chips — org + project. Org chip only renders
@@ -568,13 +561,13 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                         restricted — an "unrestricted" chip on every row would
                         be noise, and the read that matters is "which of these
                         is limited?", not "which is normal?". */}
-                    {(t.capabilities?.length ?? 0) > 0 && (
+                    {(tok.capabilities?.length ?? 0) > 0 && (
                       <span
                         className="mono"
                         style={{ ...chipStyle, borderColor: "var(--warn, #F5C451)", color: "var(--warn, #F5C451)" }}
-                        title={`Restricted to: ${t.capabilities!.join(", ")}`}
+                        title={`Restricted to: ${tok.capabilities!.join(", ")}`}
                       >
-                        Limited: {t.capabilities!.join(", ")}
+                        Limited: {tok.capabilities!.join(", ")}
                       </span>
                     )}
                   </div>
@@ -586,11 +579,11 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                       type="button"
                       className="btn btn-ghost"
                       style={{ fontSize: 11 }}
-                      onClick={() => void onVerify(t.id)}
-                      disabled={verify[t.id]?.loading === true}
+                      onClick={() => void onVerify(tok.id)}
+                      disabled={verify[tok.id]?.loading === true}
                       title="Check that this token is still active on the server"
                     >
-                      {verify[t.id]?.loading === true ? "Verifying…" : "Verify"}
+                      {verify[tok.id]?.loading === true ? "Verifying…" : "Verify"}
                     </button>
                   )}
                   {active && (
@@ -598,7 +591,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                       type="button"
                       className="btn btn-ghost"
                       style={{ fontSize: 11 }}
-                      onClick={() => openScopeModal(t)}
+                      onClick={() => openScopeModal(tok)}
                       title="Change which org/project this token can access"
                     >
                       Scope
@@ -609,7 +602,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                       type="button"
                       className="btn btn-ghost"
                       style={{ fontSize: 11 }}
-                      onClick={() => openChangeModal(t)}
+                      onClick={() => openChangeModal(tok)}
                       title="Change the token's secret in place (same row, new bp_ value)"
                     >
                       Change
@@ -620,7 +613,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                       type="button"
                       className="btn btn-ghost"
                       style={{ fontSize: 11 }}
-                      onClick={() => void onRevoke(t.id)}
+                      onClick={() => void onRevoke(tok.id)}
                     >
                       Revoke
                     </button>
@@ -628,7 +621,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                 </div>
               </div>
               {(() => {
-                const v = verify[t.id];
+                const v = verify[tok.id];
                 if (!v || v.loading) return null;
                 return (
                   <div
@@ -731,6 +724,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
 
             {scopeError && (
               <div
+                role="alert"
                 style={{
                   fontSize: 13,
                   color: "var(--bad, #ff6b6b)",
@@ -791,6 +785,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
 
             {changeError && (
               <div
+                role="alert"
                 style={{
                   fontSize: 13,
                   color: "var(--bad, #ff6b6b)",
