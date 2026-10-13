@@ -9,10 +9,18 @@
  * the emailed link is used. The link is the same proof a password reset is, so
  * it goes through `proveEmailOwnership`.
  *
- * Without an email provider the gate is off: a self-hosted instance with no
- * mail would otherwise strand every new account. The check is made at sign-in
- * as well as at registration, so an operator who removes the provider later
- * does not lock out accounts that were still pending.
+ * Confirming takes the inbox AND the account's password. The inbox alone is
+ * not enough: someone who registered another person's address would get the
+ * confirmation mail sent to that person, and if they clicked it the
+ * registrant's password would then sign in to a verified account.
+ *
+ * The gate needs an email provider and a configured public URL (`AUTH_URL`).
+ * The link is never built from request headers — a forged Host would mail the
+ * real owner a link to someone else's server, carrying the token. Without
+ * either, the gate is off: a self-hosted instance with no mail would otherwise
+ * strand every new account. The check is made at sign-in as well as at
+ * registration, so removing the provider later does not lock out accounts that
+ * were still pending.
  */
 import crypto from "crypto";
 import { db } from "@brain/db";
@@ -24,14 +32,19 @@ import {
 } from "@brain/core";
 import { hashSecret } from "@brain/core/secret-hash";
 import { proveEmailOwnership } from "./email-ownership";
+import { verifyUserCredential } from "./user-credentials";
 
 const log = getLogger("email-confirm");
 
 export const CONFIRM_TTL_MS = 24 * 60 * 60 * 1000;
 
-/** Public base URL for links in emails; `fallbackOrigin` when AUTH_URL is unset. */
-export function publicWebUrl(fallbackOrigin: string): string {
-  return process.env.AUTH_URL?.replace(/\/$/, "") || fallbackOrigin;
+function confirmLinkBase(): string | null {
+  return process.env.AUTH_URL?.trim().replace(/\/$/, "") || null;
+}
+
+/** Whether new self-registrations must confirm their email. */
+export function confirmationEnabled(): boolean {
+  return isEmailConfigured() && confirmLinkBase() !== null;
 }
 
 /** Whether this account's password sign-in must wait for confirmation. */
@@ -39,7 +52,7 @@ export function emailConfirmPending(user: {
   emailConfirmRequired: boolean;
   emailVerifiedAt: Date | null;
 }): boolean {
-  return user.emailConfirmRequired && user.emailVerifiedAt === null && isEmailConfigured();
+  return user.emailConfirmRequired && user.emailVerifiedAt === null && confirmationEnabled();
 }
 
 /**
@@ -50,9 +63,10 @@ export function emailConfirmPending(user: {
 export async function issueEmailConfirmation(
   userId: string,
   email: string,
-  webUrl: string,
   now: Date = new Date(),
 ): Promise<{ sent: boolean }> {
+  const webUrl = confirmLinkBase();
+  if (!webUrl) return { sent: false };
   const rawToken = crypto.randomBytes(32).toString("base64url");
   const expiresAt = new Date(now.getTime() + CONFIRM_TTL_MS);
   await db.emailConfirmToken.create({
@@ -74,11 +88,15 @@ export async function issueEmailConfirmation(
 
 export type ConfirmOutcome =
   | { ok: true; userId: string }
-  | { ok: false; error: "invalid_token" | "expired_token" };
+  | { ok: false; error: "invalid_token" | "expired_token" | "invalid_credentials" };
 
-/** Use a confirmation link: single use, then the address counts as proven. */
+/**
+ * Use a confirmation link: single use, and only with the account's password.
+ * A wrong password leaves the link usable.
+ */
 export async function confirmEmailToken(
   rawToken: string,
+  password: string,
   now: Date = new Date(),
 ): Promise<ConfirmOutcome> {
   const row = await db.emailConfirmToken.findUnique({
@@ -87,6 +105,9 @@ export async function confirmEmailToken(
   });
   if (!row || row.usedAt) return { ok: false, error: "invalid_token" };
   if (row.expiresAt < now) return { ok: false, error: "expired_token" };
+  if (!(await verifyUserCredential(db, row.userId, password))) {
+    return { ok: false, error: "invalid_credentials" };
+  }
 
   return db.$transaction(async (tx) => {
     // Conditional on usedAt still null, so two concurrent clicks cannot both

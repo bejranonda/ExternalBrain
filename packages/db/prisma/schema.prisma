@@ -87,9 +87,6 @@ model UserCredential {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// One-shot, 1-hour tokens for the self-service forgot-password flow.
-// Created by POST /api/auth/forgot-password; consumed by POST /api/auth/reset-password.
-// usedAt is set on consumption — the token is permanently invalidated after that.
 // Signup confirmation link (same shape as PasswordResetToken: only the
 // SHA-256 of the emailed value is stored).
 model EmailConfirmToken {
@@ -105,6 +102,9 @@ model EmailConfirmToken {
   @@index([userId])
 }
 
+// One-shot, 1-hour tokens for the self-service forgot-password flow.
+// Created by POST /api/auth/forgot-password; consumed by POST /api/auth/reset-password.
+// usedAt is set on consumption — the token is permanently invalidated after that.
 model PasswordResetToken {
   id        String    @id @default(cuid())
   userId    String

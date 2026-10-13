@@ -15,7 +15,7 @@
  * On success the user gets a brand-new account + their own personal org +
  * a default project (via ensurePersonalOrg / ensureDefaultProject), and the
  * response carries `redirectTo` so the /signin client can sign them in —
- * unless email delivery is configured: then the account is created with
+ * unless email delivery and AUTH_URL are configured: then the account is created with
  * `emailConfirmRequired`, a confirmation link is emailed, and the response
  * says `confirmRequired: true` instead (KNOWN_ISSUES §0bb).
  *
@@ -39,7 +39,6 @@ import {
   validatePasswordPolicy,
   BCRYPT_COST,
   getLogger,
-  isEmailConfigured,
 } from "@brain/core";
 import { getRateLimitStore } from "@/lib/brain/rate-limit-store";
 import {
@@ -49,7 +48,7 @@ import {
 } from "@/lib/brain/vouchers";
 import { registrationRequiresVoucher, adminCredentialsConfigured } from "@/auth";
 import { clientIpFrom } from "@/lib/brain/client-ip";
-import { issueEmailConfirmation, publicWebUrl } from "@/lib/brain/email-confirm";
+import { confirmationEnabled, issueEmailConfirmation } from "@/lib/brain/email-confirm";
 
 const log = getLogger("register");
 
@@ -100,7 +99,7 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const requiresVoucher = registrationRequiresVoucher();
-  const confirmRequired = isEmailConfigured();
+  const confirmRequired = confirmationEnabled();
   let newUserId: string;
 
   try {
@@ -207,7 +206,7 @@ export async function POST(req: Request): Promise<Response> {
   });
 
   if (confirmRequired) {
-    const { sent } = await issueEmailConfirmation(newUserId, email, publicWebUrl(new URL(req.url).origin));
+    const { sent } = await issueEmailConfirmation(newUserId, email);
     return Response.json({ ok: true, confirmRequired: true, emailSent: sent });
   }
   return Response.json({ ok: true, redirectTo: "/" });

@@ -417,13 +417,15 @@ export default async function SignIn({ searchParams }: Props) {
                   redirect(`/signin?mode=register&error=${data.error ?? "registration_failed"}`);
                 }
 
-                const { redirectTo, confirmRequired } = (await res.json()) as {
+                const { redirectTo, confirmRequired, emailSent } = (await res.json()) as {
                   redirectTo?: string;
                   confirmRequired?: boolean;
+                  emailSent?: boolean;
                 };
                 // Email delivery is configured: the account signs in once the
-                // emailed link is used (§0bb).
-                if (confirmRequired) redirect("/confirm-email?sent=1");
+                // emailed link is used (§0bb). A failed send lands on the
+                // resend form instead of claiming a mail is on its way.
+                if (confirmRequired) redirect(emailSent ? "/confirm-email?sent=1" : "/confirm-email?pending=1");
 
                 // Sign in with the just-created credentials.
                 try {

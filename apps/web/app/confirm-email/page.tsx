@@ -4,12 +4,14 @@
  * Opening the link does NOT confirm: mail scanners and link previewers fetch
  * URLs on their own, and an auto-confirming GET would let someone who
  * registered another person's address get it confirmed by that person's spam
- * filter. Confirmation is the button's POST.
+ * filter. Confirmation is a POST that also takes the account's password, so
+ * the real owner clicking an unsolicited mail cannot confirm it either.
  *
  * States, by query: `token` (confirm button), `done`, `sent` (just
  * registered), `pending` (sign-in refused), `resent`, `error`.
  */
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { db } from "@brain/db";
 import { rateLimitCheck, writeAudit } from "@brain/core";
@@ -21,7 +23,6 @@ import {
   confirmEmailToken,
   emailConfirmPending,
   issueEmailConfirmation,
-  publicWebUrl,
 } from "@/lib/brain/email-confirm";
 
 export const dynamic = "force-dynamic";
@@ -37,15 +38,30 @@ interface Props {
   }>;
 }
 
-const ERROR_KEYS = new Set(["invalid_token", "expired_token"]);
+const ERROR_KEYS = new Set(["invalid_token", "expired_token", "invalid_credentials", "login_rate_limited"]);
 const RESEND_LIMIT = { name: "confirm_resend", max: 3, windowMs: 60 * 60 * 1000 };
+const CONFIRM_LIMIT = { name: "confirm_attempt", max: 10, windowMs: 60 * 60 * 1000 };
 
 async function confirmAction(formData: FormData) {
   "use server";
   const token = String(formData.get("token") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
   if (!token) redirect("/confirm-email?error=invalid_token");
-  const outcome = await confirmEmailToken(token);
-  if (!outcome.ok) redirect(`/confirm-email?error=${outcome.error}`);
+  const retry = (error: string) =>
+    redirect(`/confirm-email?token=${encodeURIComponent(token)}&error=${error}`);
+  const store = await getRateLimitStore();
+  const gate = await rateLimitCheck(
+    store,
+    `confirm_attempt:${clientIpFrom(await headers())}`,
+    CONFIRM_LIMIT,
+    Date.now(),
+  );
+  if (!gate.ok) retry("login_rate_limited");
+  const outcome = await confirmEmailToken(token, password);
+  if (!outcome.ok) {
+    if (outcome.error === "invalid_credentials") retry("invalid_credentials");
+    redirect(`/confirm-email?error=${outcome.error}`);
+  }
   await writeAudit({
     actorUserId: outcome.userId,
     action: "user.email_confirm",
@@ -73,11 +89,8 @@ async function resendAction(formData: FormData) {
       where: { email },
       select: { id: true, email: true, emailConfirmRequired: true, emailVerifiedAt: true },
     });
-    if (user && emailConfirmPending(user)) {
-      const proto = hdrs.get("x-forwarded-proto") ?? "https";
-      const host = hdrs.get("host") ?? "localhost";
-      await issueEmailConfirmation(user.id, user.email, publicWebUrl(`${proto}://${host}`));
-    }
+    // After the response, so its timing doesn't tell a pending account apart.
+    if (user && emailConfirmPending(user)) after(() => issueEmailConfirmation(user.id, user.email));
   }
   redirect("/confirm-email?resent=1");
 }
@@ -87,6 +100,8 @@ export default async function ConfirmEmailPage({ searchParams }: Props) {
   const params = await searchParams;
   const token = params.token ?? "";
   const errorKey = ERROR_KEYS.has(params.error ?? "") ? (params.error as string) : "";
+  // A wrong password or a throttle keeps the link usable: stay on its form.
+  const linkStillUsable = errorKey === "invalid_credentials" || errorKey === "login_rate_limited";
 
   const box: React.CSSProperties = {
     fontSize: 13,
@@ -155,14 +170,21 @@ export default async function ConfirmEmailPage({ searchParams }: Props) {
         <a href="/signin" style={primaryBtn}>{t("auth.goToSignIn")}</a>
       </>
     );
-  } else if (token && !errorKey) {
+  } else if (token && (!errorKey || linkStillUsable)) {
     body = (
       <>
         <div style={{ fontSize: 13, color: "var(--ink-3, #9a9cab)", marginBottom: 16, lineHeight: 1.6 }}>
           {t("auth.confirmIntro")}
         </div>
+        {errorKey && <div role="alert" style={warnBox}>{t(`auth.errors.${errorKey}`)}</div>}
         <form action={confirmAction}>
           <input type="hidden" name="token" value={token} />
+          <label style={{ display: "block" }}>
+            <span style={{ display: "block", fontSize: 12, color: "var(--ink-4, #6b6d7a)", marginBottom: 6 }}>
+              {t("auth.password")}
+            </span>
+            <input type="password" name="password" required autoComplete="current-password" style={inputStyle} />
+          </label>
           <button type="submit" style={primaryBtn}>{t("auth.confirmButton")}</button>
         </form>
       </>

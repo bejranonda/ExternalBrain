@@ -143,13 +143,23 @@ const providers: NextAuthConfig["providers"] = [
               if (existing) {
                 // Ensure role is admin — promote if a previously-non-admin row
                 // has a matching email.
-                if (existing.role !== "admin" || existing.emailVerifiedAt === null) {
+                if (existing.emailVerifiedAt === null) {
+                  // A row with the operator's address that nobody proved was
+                  // registered by someone else (§0bb): evict them — their
+                  // password, tokens and sessions — before promoting it.
+                  const { proveEmailOwnership } = await import("./lib/brain/email-ownership");
+                  await db.$transaction(async (tx) => {
+                    await proveEmailOwnership(tx, existing.id);
+                    await tx.userCredential.deleteMany({ where: { userId: existing.id } });
+                    await tx.user.update({
+                      where: { id: existing.id },
+                      data: { role: "admin", emailConfirmRequired: false },
+                    });
+                  });
+                } else if (existing.role !== "admin") {
                   await db.user.update({
                     where: { id: existing.id },
-                    data: {
-                      role: "admin",
-                      emailVerifiedAt: existing.emailVerifiedAt ?? new Date(),
-                    },
+                    data: { role: "admin" },
                   });
                 }
                 // Eagerly bootstrap personal org + default project (idempotent).

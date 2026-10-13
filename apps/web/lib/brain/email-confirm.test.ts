@@ -31,10 +31,12 @@ const { POST: register } = await import("@/app/api/auth/register/route");
 const withEmail = () => {
   process.env.EMAIL_PROVIDER = "resend";
   process.env.EMAIL_API_KEY = "test-key";
+  process.env.AUTH_URL = "https://brain.example.test";
 };
 const withoutEmail = () => {
   process.env.EMAIL_PROVIDER = "disabled";
   delete process.env.EMAIL_API_KEY;
+  delete process.env.AUTH_URL;
 };
 
 describe("emailConfirmPending", () => {
@@ -49,6 +51,11 @@ describe("emailConfirmPending", () => {
     withoutEmail();
     expect(emailConfirmPending({ emailConfirmRequired: true, emailVerifiedAt: null })).toBe(false);
   });
+  it("is off without AUTH_URL — a link is never built from request headers", () => {
+    withEmail();
+    delete process.env.AUTH_URL;
+    expect(emailConfirmPending({ emailConfirmRequired: true, emailVerifiedAt: null })).toBe(false);
+  });
 });
 
 describe("credentials sign-in checks the gate after the password", () => {
@@ -58,6 +65,12 @@ describe("credentials sign-in checks the gate after the password", () => {
     const gate = src.indexOf("if (emailConfirmPending(user)) throw new EmailUnconfirmed()");
     expect(verify).toBeGreaterThan(0);
     expect(gate).toBeGreaterThan(verify);
+  });
+  it("the operator's env login evicts whoever registered the admin address unproven", () => {
+    const src = readFileSync(join(__dirname, "../../auth.ts"), "utf8");
+    const block = src.slice(src.indexOf("if (existing.emailVerifiedAt === null) {"), src.indexOf("} else if (existing.role !== \"admin\")"));
+    expect(block).toContain("proveEmailOwnership(tx, existing.id)");
+    expect(block).toContain("tx.userCredential.deleteMany");
   });
 });
 
@@ -105,6 +118,7 @@ guard("register → confirm, end to end", () => {
     expect(body).toMatchObject({ ok: true, confirmRequired: true, emailSent: true });
     expect(body.redirectTo).toBeUndefined();
     expect(sent.links).toHaveLength(1);
+    expect(sent.links[0]).toMatch(/^https:\/\/brain\.example\.test\/confirm-email\?token=/);
     const user = await db.user.findUniqueOrThrow({ where: { email } });
     expect(user.emailConfirmRequired).toBe(true);
     expect(emailConfirmPending(user)).toBe(true);
@@ -114,18 +128,28 @@ guard("register → confirm, end to end", () => {
     expect(await db.emailConfirmToken.count({ where: { tokenHash: hashSecret(raw) } })).toBe(1);
   });
 
-  it("the link confirms once: the address is proven and the gate lifts", async () => {
+  it("the inbox alone cannot confirm: a wrong password is refused and the link stays usable", async () => {
+    withEmail();
+    const email = `confirm-${tag}@test.local`;
+    const raw = tokenOf(sent.links[0]!);
+    expect(await confirmEmailToken(raw, "not-the-password")).toEqual({ ok: false, error: "invalid_credentials" });
+    const user = await db.user.findUniqueOrThrow({ where: { email } });
+    expect(user.emailVerifiedAt).toBeNull();
+    expect(emailConfirmPending(user)).toBe(true);
+  });
+
+  it("the link confirms once with the password: the address is proven and the gate lifts", async () => {
     withEmail();
     const email = `confirm-${tag}@test.local`;
     const raw = tokenOf(sent.links[0]!);
     // Two clicks racing: exactly one wins.
-    const [a, b] = await Promise.all([confirmEmailToken(raw), confirmEmailToken(raw)]);
+    const [a, b] = await Promise.all([confirmEmailToken(raw, password), confirmEmailToken(raw, password)]);
     expect([a.ok, b.ok].filter(Boolean)).toHaveLength(1);
     const user = await db.user.findUniqueOrThrow({ where: { email } });
     expect(user.emailVerifiedAt).not.toBeNull();
     expect(user.emailConfirmRequired).toBe(false);
     expect(emailConfirmPending(user)).toBe(false);
-    expect(await confirmEmailToken(raw)).toEqual({ ok: false, error: "invalid_token" });
+    expect(await confirmEmailToken(raw, password)).toEqual({ ok: false, error: "invalid_token" });
   });
 
   it("an expired or unknown link is refused and proves nothing", async () => {
@@ -138,8 +162,8 @@ guard("register → confirm, end to end", () => {
       where: { tokenHash: hashSecret(raw) },
       data: { expiresAt: new Date(Date.now() - 1000) },
     });
-    expect(await confirmEmailToken(raw)).toEqual({ ok: false, error: "expired_token" });
-    expect(await confirmEmailToken("not-a-real-token")).toEqual({ ok: false, error: "invalid_token" });
+    expect(await confirmEmailToken(raw, password)).toEqual({ ok: false, error: "expired_token" });
+    expect(await confirmEmailToken("not-a-real-token", password)).toEqual({ ok: false, error: "invalid_token" });
     const user = await db.user.findUniqueOrThrow({ where: { email } });
     expect(user.emailVerifiedAt).toBeNull();
     expect(emailConfirmPending(user)).toBe(true);
