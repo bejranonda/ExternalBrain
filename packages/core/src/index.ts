@@ -132,7 +132,7 @@ export type {
 } from "./knowledge-reset.js";
 export { sendEmail, isEmailConfigured } from "./email.js";
 export type { EmailProvider, SendEmailArgs, SendResult } from "./email.js";
-export { inviteEmail, passwordResetEmail } from "./email-templates.js";
+export { inviteEmail, passwordResetEmail, confirmEmailEmail } from "./email-templates.js";
 export type {
   InviteEmailArgs,
   PasswordResetEmailArgs,

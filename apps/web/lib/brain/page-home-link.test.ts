@@ -33,6 +33,7 @@ const EXEMPT = new Set([
   "forgot-password",
   "reset-password",
   "accept-invite", // reached from an emailed link, pre-membership
+  "confirm-email", // pre-auth, reached from an emailed link; links back to /signin
   "settings", // redirect-only shim (redirect("/settings/tokens")), renders nothing
   // Renders <BrainApp>, the full SPA shell with the navigation rail — this is
   // the application itself scoped to a project, not a subpage you escape from.
