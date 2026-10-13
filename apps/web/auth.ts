@@ -102,6 +102,10 @@ class LoginRateLimited extends CredentialsSignin {
   override code = LOGIN_RATE_LIMITED;
 }
 
+class EmailUnconfirmed extends CredentialsSignin {
+  override code = "email_unconfirmed";
+}
+
 const providers: NextAuthConfig["providers"] = [
   // Credentials provider — primary sign-in path for the phase-1 pilot.
   // `authorize` does the bcrypt verify AND the lookup-or-create of the
@@ -197,7 +201,13 @@ const providers: NextAuthConfig["providers"] = [
             const email = username.toLowerCase();
             const user = await db.user.findUnique({
               where: { email },
-              select: { id: true, email: true, name: true },
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                emailConfirmRequired: true,
+                emailVerifiedAt: true,
+              },
             });
             const { verifyUserCredential } = await import("./lib/brain/user-credentials");
             if (!user) {
@@ -209,6 +219,10 @@ const providers: NextAuthConfig["providers"] = [
 
             const ok = await verifyUserCredential(db, user.id, password);
             if (!ok) return null;
+            // Only after the password matched, so this says nothing about an
+            // address to someone who doesn't hold the account's password.
+            const { emailConfirmPending } = await import("./lib/brain/email-confirm");
+            if (emailConfirmPending(user)) throw new EmailUnconfirmed();
 
             return {
               id: user.id,
