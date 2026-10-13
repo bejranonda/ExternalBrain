@@ -8,6 +8,9 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { useT } from "@/lib/brain/i18n";
+import { caughtMessage, throwApiError } from "@/lib/brain/api-error";
+import { rich } from "@/lib/brain/rich-text";
 
 interface AuditRow {
   id: string;
@@ -28,6 +31,8 @@ interface OrgData {
 }
 
 export default function SettingsAuditPage() {
+  const t = useT();
+  const [notAdmin, setNotAdmin] = useState(false);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgName, setOrgName] = useState<string>("");
   const [rows, setRows] = useState<AuditRow[] | null>(null);
@@ -39,7 +44,7 @@ export default function SettingsAuditPage() {
     void (async () => {
       try {
         const res = await fetch("/api/orgs", { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) await throwApiError(t, res);
         const data = (await res.json()) as {
           orgs: OrgData[];
         };
@@ -50,10 +55,10 @@ export default function SettingsAuditPage() {
           setOrgId(manageable.id);
           setOrgName(manageable.name);
         } else {
-          setError("You are not an owner or admin of any organization.");
+          setNotAdmin(true);
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : "load failed");
+        setError(caughtMessage(t, e));
       }
     })();
   }, []);
@@ -66,11 +71,11 @@ export default function SettingsAuditPage() {
       const res = await fetch(`/api/orgs/${orgId}/audit-log?${params.toString()}`, {
         cache: "no-store",
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) await throwApiError(t, res);
       const data = (await res.json()) as { entries: AuditRow[] };
       setRows(data.entries);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "load failed");
+      setError(caughtMessage(t, e));
     }
   }, [orgId, filterAction]);
 
@@ -90,17 +95,16 @@ export default function SettingsAuditPage() {
     >
       <div style={{ marginTop: 18, marginBottom: 6 }}>
         <h1 style={{ fontSize: 22, fontWeight: 500, margin: 0, letterSpacing: "-0.02em" }}>
-          Audit log
+          {t("audit.title")}
         </h1>
         {orgName && (
           <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "4px 0 0" }}>
-            Showing entries for <strong>{orgName}</strong> — most recent 100.
+            {rich(t("audit.showing"), { org: <strong>{orgName}</strong> })}
           </p>
         )}
       </div>
 
-      {error && (
-        error.includes("not an owner or admin") ? (
+      {notAdmin ? (
           <div
             role="alert"
             className="panel"
@@ -113,29 +117,27 @@ export default function SettingsAuditPage() {
             }}
           >
             <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 500 }}>
-              Admins only
+              {t("audit.admins_only")}
             </h2>
             <p style={{ margin: 0, fontSize: 13, color: "var(--ink-3)", lineHeight: 1.55 }}>
-              The audit log shows org-level activity (member changes, token
-              actions, knowledge resets) and is restricted to org owners and
-              admins. Ask your org owner if you need access.
+              {t("audit.admins_only_body")}
             </p>
           </div>
-        ) : (
-          <div role="alert" style={{ color: "var(--warn)", fontSize: 13, margin: "12px 0" }}>
-            {error}
-          </div>
-        )
-      )}
+      ) : error ? (
+        <div role="alert" style={{ color: "var(--warn)", fontSize: 13, margin: "12px 0" }}>
+          {error}
+        </div>
+      ) : null}
 
-      {!error && (
+      {!error && !notAdmin && (
         <>
           {/* Filter bar */}
           <div className="row" style={{ gap: 8, marginBottom: 16, marginTop: 18, flexWrap: "wrap" }}>
             <input
               value={filterAction}
               onChange={(e) => setFilterAction(e.target.value)}
-              placeholder="Filter by action…"
+              placeholder={t("audit.filter_placeholder")}
+              aria-label={t("audit.filter_placeholder")}
               style={filterInputStyle}
             />
             {filterAction && (
@@ -145,7 +147,7 @@ export default function SettingsAuditPage() {
                 style={{ fontSize: 11 }}
                 onClick={() => setFilterAction("")}
               >
-                Clear
+                {t("audit.clear")}
               </button>
             )}
           </div>
@@ -154,12 +156,12 @@ export default function SettingsAuditPage() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead>
                 <tr style={{ background: "var(--bg-elev-1)", color: "var(--ink-3)" }}>
-                  <Th>When</Th>
-                  <Th>Actor</Th>
-                  <Th>Action</Th>
-                  <Th>Target</Th>
-                  <Th>Project</Th>
-                  <Th>IP</Th>
+                  <Th>{t("audit.col_when")}</Th>
+                  <Th>{t("audit.col_actor")}</Th>
+                  <Th>{t("audit.col_action")}</Th>
+                  <Th>{t("audit.col_target")}</Th>
+                  <Th>{t("common.project")}</Th>
+                  <Th>{t("audit.col_ip")}</Th>
                 </tr>
               </thead>
               <tbody>
@@ -168,7 +170,7 @@ export default function SettingsAuditPage() {
                     <Td mono>
                       {new Date(r.createdAt).toISOString().replace("T", " ").slice(0, 19)}
                     </Td>
-                    <Td mono>{r.actorUserId ? r.actorUserId.slice(0, 10) : "system"}</Td>
+                    <Td mono>{r.actorUserId ? r.actorUserId.slice(0, 10) : t("audit.system")}</Td>
                     <Td>
                       <code style={{ color: "var(--ink)", fontSize: 11 }}>{r.action}</code>
                     </Td>
@@ -195,11 +197,11 @@ export default function SettingsAuditPage() {
             </table>
           </div>
           {!rows && !error && (
-            <div style={{ color: "var(--ink-3)", fontSize: 13, marginTop: 12 }}>Loading…</div>
+            <div style={{ color: "var(--ink-3)", fontSize: 13, marginTop: 12 }}>{t("common.loading")}</div>
           )}
           {rows && rows.length === 0 && (
             <div style={{ color: "var(--ink-3)", fontSize: 13, marginTop: 12 }}>
-              No audit entries for this org yet.
+              {t("audit.empty")}
             </div>
           )}
         </>
