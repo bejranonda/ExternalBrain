@@ -43,11 +43,8 @@ These cannot be done from the repo:
    the database. Pick a remote (e.g. an S3-compatible bucket or a storage
    box), put its rclone config in `deploy/rclone.conf` and `BACKUP_REMOTE` in
    `.env`, and the agent can enable the `backup-replicate` profile.
-4. **Mark the GitGuardian incident on PR #278 a false positive** ("Test
-   credential"). The test now generates random passwords.
-5. **Not this repo:** the co-hosted `app.autobahn.bot` has answered 503 since
-   at least 2026-09-29; its health cron restarts it every minute and alerts
-   nobody.
+Deferred by the operator (2026-10-13): items 1 and 3, and the native-speaker
+review below. The GitGuardian incident is dismissed.
 
 ## Open engineering work, in suggested order
 
