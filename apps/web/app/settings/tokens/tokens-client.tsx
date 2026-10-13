@@ -6,13 +6,14 @@
 // 'worker_threads'"). `capabilities.ts` has no imports at all, so it is safe
 // to ship to the client. Same reason `token-install-wizard.tsx` imports from
 // "@brain/core/install-snippets".
-import { CAPABILITIES, CAPABILITY_LABELS, type Capability } from "@brain/core/capabilities";
+import { CAPABILITIES, isCapability } from "@brain/core/capabilities";
 
 import { useCallback, useEffect, useState } from "react";
 import { TokenInstallWizard } from "@/components/brain/token-install-wizard";
 import { HelpPopover } from "@/components/brain/help-popover";
-import { useT } from "@/lib/brain/i18n";
-import { caughtMessage, throwApiError } from "@/lib/brain/api-error";
+import { useLang, useT } from "@/lib/brain/i18n";
+import { caughtMessage, throwApiError, type Translate } from "@/lib/brain/api-error";
+import { runTokenTest, tokenTestMessage, type TokenTestResult } from "@/lib/brain/token-test";
 
 interface TokenRow {
   id: string;
@@ -56,6 +57,8 @@ interface TokensClientProps {
 
 export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
   const t = useT();
+  const lang = useLang();
+  const fmt = (iso: string) => fmtDate(iso, lang);
   const [tokens, setTokens] = useState<TokenRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -89,63 +92,13 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
 
   // Per-token Verify state. Keyed by tokenId so multiple verifications can run
   // independently without UI bleed.
-  type VerifyState =
-    | { loading: true }
-    | { loading: false; ok: true; at: number }
-    | { loading: false; ok: false; reason: string; detail?: string; at: number };
+  type VerifyState = { loading: true } | { loading: false; result: TokenTestResult };
   const [verify, setVerify] = useState<Record<string, VerifyState>>({});
 
   const onVerify = async (id: string) => {
     setVerify((m) => ({ ...m, [id]: { loading: true } }));
-    try {
-      const res = await fetch("/api/tokens/test", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ tokenId: id }),
-      });
-      const data = (await res.json()) as {
-        ok: boolean;
-        reason?: string;
-        expiresAt?: string;
-        scheduledRevokeAt?: string;
-      };
-      const at = Date.now();
-      if (!res.ok) {
-        setVerify((m) => ({
-          ...m,
-          [id]: { loading: false, ok: false, reason: data.reason ?? `HTTP ${res.status}`, at },
-        }));
-        return;
-      }
-      if (data.ok) {
-        setVerify((m) => ({ ...m, [id]: { loading: false, ok: true, at } }));
-      } else {
-        let detail: string | undefined;
-        if (data.reason === "expired" && data.expiresAt) {
-          detail = `expired at ${new Date(data.expiresAt).toLocaleString()}`;
-        } else if (data.reason === "scheduled-revoke" && data.scheduledRevokeAt) {
-          detail = `scheduled revoke at ${new Date(data.scheduledRevokeAt).toLocaleString()}`;
-        }
-        const fail: VerifyState = {
-          loading: false,
-          ok: false,
-          reason: data.reason ?? "unknown",
-          at,
-        };
-        if (detail !== undefined) fail.detail = detail;
-        setVerify((m) => ({ ...m, [id]: fail }));
-      }
-    } catch (e) {
-      setVerify((m) => ({
-        ...m,
-        [id]: {
-          loading: false,
-          ok: false,
-          reason: e instanceof Error ? e.message : "request failed",
-          at: Date.now(),
-        },
-      }));
-    }
+    const result = await runTokenTest(id);
+    setVerify((m) => ({ ...m, [id]: { loading: false, result } }));
   };
 
   const refresh = useCallback(async () => {
@@ -222,7 +175,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
   };
 
   const onRevoke = async (id: string) => {
-    if (!window.confirm("Revoke this token? Any client using it will stop working.")) return;
+    if (!window.confirm(t("tokens.revoke_confirm"))) return;
     try {
       const res = await fetch(`/api/tokens/${id}`, { method: "DELETE" });
       if (!res.ok) await throwApiError(t, res);
@@ -317,16 +270,16 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "18px 0 6px" }}>
         <h1 style={{ fontSize: 22, fontWeight: 500, margin: 0, letterSpacing: "-0.02em" }}>
-          Access tokens
+          {t("tokens.title")}
         </h1>
         <HelpPopover
           content={{
-            what: "Access tokens let your AI tools (Claude Code, Cursor, …) connect to this Brain. One token per machine × tool keeps things easy to revoke if a laptop is lost.",
+            what: t("tokens.help_what"),
             whatToDo: [
-              "Click Create to mint a new token — copy it now, you can't retrieve it later.",
-              "Verify checks the token is still active.",
-              "Scope restricts a token to one org or project (defaults to all your access).",
-              "Change replaces the secret in place; Revoke disables the token entirely.",
+              t("tokens.help_todo_1"),
+              t("tokens.help_todo_2"),
+              t("tokens.help_todo_3"),
+              t("tokens.help_todo_4"),
             ],
             docHref: "/docs/concepts/tokens",
           }}
@@ -338,9 +291,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
           docs/concepts/tokens link, and the install wizard below shows
           the literal "Bearer" header for clients that need it. */}
       <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "0 0 28px", lineHeight: 1.55 }}>
-        Each AI tool (Claude Code, Cursor, Windsurf, Autobahn) needs a token to talk to this
-        Brain. Treat tokens like passwords — they show only once when created. Lost a token?
-        Revoke it and create a new one.
+        {t("tokens.intro")}
       </p>
 
       {freshRaw && freshTokenId && (
@@ -358,13 +309,13 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
 
       <section className="panel" style={{ padding: "16px 18px", marginBottom: 28 }}>
         <div className="mono" style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 10 }}>
-          CREATE NEW TOKEN
+          {t("tokens.create_heading")}
         </div>
         <div className="row" style={{ gap: 8 }}>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. laptop · claude-code"
+            placeholder={t("tokens.name_placeholder")}
             aria-label={t("tokens.name_label")}
             style={{
               flex: 1,
@@ -386,7 +337,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
             onClick={() => void onCreate()}
             disabled={!name.trim() || creating}
           >
-            {creating ? "Creating…" : "Create"}
+            {creating ? t("common.creating") : t("common.create")}
           </button>
         </div>
         {/* Org + project pickers. Org picker shown when the user is in
@@ -399,7 +350,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
               htmlFor="token-org-picker"
               style={{ fontSize: 12, color: "var(--ink-3)", display: "block", marginBottom: 4 }}
             >
-              Organization scope
+              {t("tokens.org_scope")}
             </label>
             <select
               id="token-org-picker"
@@ -410,7 +361,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
               }}
               style={pickerStyle}
             >
-              <option value="">Any org — broadest scope (default)</option>
+              <option value="">{t("tokens.any_org")}</option>
               {orgs.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.name}
@@ -430,7 +381,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                 htmlFor="token-project-picker"
                 style={{ fontSize: 12, color: "var(--ink-3)", display: "block", marginBottom: 4 }}
               >
-                Project scope
+                {t("tokens.project_scope")}
               </label>
               <select
                 id="token-project-picker"
@@ -438,7 +389,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                 onChange={(e) => setSelectedProjectId(e.target.value || null)}
                 style={pickerStyle}
               >
-                <option value="">Any project in this org</option>
+                <option value="">{t("tokens.any_project_in_org")}</option>
                 {projectsInScope.map((p) => (
                   <option key={p.id} value={p.id}>
                     {selectedOrgId ? p.name : `${p.orgName} / ${p.name}`}
@@ -456,7 +407,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
             of partitioning skills by project (KNOWN_ISSUES §0q). */}
         <div style={{ marginTop: 10 }}>
           <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 4 }}>
-            Capabilities
+            {t("tokens.capabilities")}
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
             {CAPABILITIES.map((cap) => (
@@ -474,24 +425,24 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                   }
                   style={{ width: 14, height: 14, accentColor: "var(--accent)" }}
                 />
-                {CAPABILITY_LABELS[cap]}
+                {t(`tokens.caps.${cap}`)}
               </label>
             ))}
           </div>
           <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 4 }}>
             {selectedCaps.length === 0
-              ? "Nothing checked — the token can do everything (the default)."
-              : `Restricted: this token may only ${selectedCaps.map((c) => CAPABILITY_LABELS[c as Capability].toLowerCase()).join(", ")}.`}
+              ? t("tokens.caps_none")
+              : t("tokens.caps_some", { list: capList(t, selectedCaps) })}
           </div>
         </div>
       </section>
 
       <section>
         <div className="mono" style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 10, letterSpacing: "0.06em" }}>
-          EXISTING TOKENS ({tokens.filter((tok) => !tok.revokedAt).length} active)
+          {t("tokens.existing_heading", { n: tokens.filter((tok) => !tok.revokedAt).length })}
         </div>
 
-        {loading && <div style={{ fontSize: 13, color: "var(--ink-3)" }}>Loading…</div>}
+        {loading && <div style={{ fontSize: 13, color: "var(--ink-3)" }}>{t("common.loading")}</div>}
         {error && (
           <div
             role="alert"
@@ -503,7 +454,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
         )}
         {!loading && tokens.length === 0 && (
           <div style={{ fontSize: 13, color: "var(--ink-3)", padding: "8px 0" }}>
-            No tokens yet. Create one to wire up your first MCP client.
+            {t("tokens.none_yet")}
           </div>
         )}
 
@@ -539,10 +490,17 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 500 }}>{tok.name}</div>
                   <div className="mono" style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 3 }}>
-                    {tok.scope} · created {fmt(tok.createdAt)}
-                    {tok.lastUsedAt ? ` · last used ${fmt(tok.lastUsedAt)}` : " · never used"}
-                    {tok.expiresAt ? ` · expires ${fmt(tok.expiresAt)}` : ""}
-                    {revoked ? " · revoked" : expired ? " · expired" : ""}
+                    {[
+                      t(tok.scope === "team" ? "tokens.scope_team" : "tokens.scope_personal"),
+                      t("tokens.meta_created", { date: fmt(tok.createdAt) }),
+                      tok.lastUsedAt
+                        ? t("tokens.meta_last_used", { date: fmt(tok.lastUsedAt) })
+                        : t("tokens.meta_never_used"),
+                      tok.expiresAt ? t("tokens.meta_expires", { date: fmt(tok.expiresAt) }) : null,
+                      revoked ? t("tokens.meta_revoked") : expired ? t("tokens.meta_expired") : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </div>
                   {/* Scope chips — org + project. Org chip only renders
                       when the user is in multiple orgs (otherwise it's
@@ -552,11 +510,11 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                   <div style={{ marginTop: 4, display: "flex", gap: 4, flexWrap: "wrap" }}>
                     {orgs.length >= 2 && (
                       <span className="mono" style={chipStyle}>
-                        {orgName ? `Org: ${orgName}` : "Org: personal"}
+                        {orgName ? t("tokens.chip_org", { name: orgName }) : t("tokens.chip_org_personal")}
                       </span>
                     )}
                     <span className="mono" style={chipStyle}>
-                      {projectName ? `Project: ${projectName}` : "Any project"}
+                      {projectName ? t("tokens.chip_project", { name: projectName }) : t("tokens.chip_any_project")}
                     </span>
                     {/* Capability chip. Only rendered when the token IS
                         restricted — an "unrestricted" chip on every row would
@@ -566,9 +524,9 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                       <span
                         className="mono"
                         style={{ ...chipStyle, borderColor: "var(--warn, #F5C451)", color: "var(--warn, #F5C451)" }}
-                        title={`Restricted to: ${tok.capabilities!.join(", ")}`}
+                        title={t("tokens.caps_some", { list: capList(t, tok.capabilities!) })}
                       >
-                        Limited: {tok.capabilities!.join(", ")}
+                        {t("tokens.chip_limited", { list: capList(t, tok.capabilities!) })}
                       </span>
                     )}
                   </div>
@@ -582,9 +540,9 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                       style={{ fontSize: 11 }}
                       onClick={() => void onVerify(tok.id)}
                       disabled={verify[tok.id]?.loading === true}
-                      title="Check that this token is still active on the server"
+                      title={t("tokens.verify_title")}
                     >
-                      {verify[tok.id]?.loading === true ? "Verifying…" : "Verify"}
+                      {verify[tok.id]?.loading === true ? t("tokens.verifying") : t("tokens.verify")}
                     </button>
                   )}
                   {active && (
@@ -593,9 +551,9 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                       className="btn btn-ghost"
                       style={{ fontSize: 11 }}
                       onClick={() => openScopeModal(tok)}
-                      title="Change which org/project this token can access"
+                      title={t("tokens.scope_title")}
                     >
-                      Scope
+                      {t("tokens.scope_btn")}
                     </button>
                   )}
                   {canChange && (
@@ -604,9 +562,9 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                       className="btn btn-ghost"
                       style={{ fontSize: 11 }}
                       onClick={() => openChangeModal(tok)}
-                      title="Change the token's secret in place (same row, new bp_ value)"
+                      title={t("tokens.change_title")}
                     >
-                      Change
+                      {t("tokens.change_btn")}
                     </button>
                   )}
                   {active && (
@@ -616,7 +574,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                       style={{ fontSize: 11 }}
                       onClick={() => void onRevoke(tok.id)}
                     >
-                      Revoke
+                      {t("tokens.revoke_btn")}
                     </button>
                   )}
                 </div>
@@ -631,17 +589,12 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                     style={{
                       marginTop: 8,
                       fontSize: 13,
-                      color: v.ok ? "var(--good, #22c55e)" : "var(--bad, #ff6b6b)",
+                      color: v.result.ok ? "var(--good, #22c55e)" : "var(--bad, #ff6b6b)",
                     }}
                   >
-                    {v.ok ? (
-                      <>&#10003; Token is active — checked just now</>
-                    ) : (
-                      <>
-                        &#10007; {v.reason}
-                        {v.detail ? ` — ${v.detail}` : ""}
-                      </>
-                    )}
+                    {v.result.ok
+                      ? `\u2713 ${t("tokens.test_ok_now")}`
+                      : `\u2717 ${tokenTestMessage(t, lang, v.result)}`}
                   </div>
                 );
               })()}
@@ -674,17 +627,15 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 style={{ fontSize: 16, fontWeight: 500, margin: "0 0 4px", letterSpacing: "-0.01em" }}>
-              Change scope: {scopeTarget.name}
+              {t("tokens.scope_modal_title", { name: scopeTarget.name })}
             </h2>
             <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "0 0 18px", lineHeight: 1.55 }}>
-              Restrict this token to a specific organization or project. The token&apos;s
-              secret stays the same — clients keep working without re-pasting. The new
-              scope takes effect on the next request the token makes.
+              {t("tokens.scope_modal_body")}
             </p>
 
             <div style={{ marginBottom: 12 }}>
               <label htmlFor="scope-org-picker" style={{ fontSize: 12, color: "var(--ink-3)", display: "block", marginBottom: 4 }}>
-                Organization
+                {t("common.organization")}
               </label>
               <select
                 id="scope-org-picker"
@@ -696,7 +647,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                 style={{ ...pickerStyle, width: "100%" }}
                 disabled={savingScope}
               >
-                <option value="">Any org — broadest scope (default)</option>
+                <option value="">{t("tokens.any_org")}</option>
                 {orgs.map((o) => (
                   <option key={o.id} value={o.id}>{o.name}</option>
                 ))}
@@ -705,7 +656,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
 
             <div style={{ marginBottom: 16 }}>
               <label htmlFor="scope-project-picker" style={{ fontSize: 12, color: "var(--ink-3)", display: "block", marginBottom: 4 }}>
-                Project
+                {t("common.project")}
               </label>
               <select
                 id="scope-project-picker"
@@ -714,7 +665,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                 style={{ ...pickerStyle, width: "100%" }}
                 disabled={savingScope}
               >
-                <option value="">Any project (within the chosen org)</option>
+                <option value="">{t("tokens.any_project_within")}</option>
                 {(scopeOrgId ? projects.filter((p) => p.orgId === scopeOrgId) : projects).map((p) => (
                   <option key={p.id} value={p.id}>
                     {scopeOrgId ? p.name : `${p.orgName} / ${p.name}`}
@@ -742,10 +693,10 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
 
             <div className="row" style={{ gap: 8, justifyContent: "flex-end" }}>
               <button type="button" className="btn btn-ghost" style={{ fontSize: 12 }} onClick={closeScopeModal} disabled={savingScope}>
-                Cancel
+                {t("common.cancel")}
               </button>
               <button type="button" className="btn btn-primary" style={{ fontSize: 12 }} onClick={() => void onSaveScope()} disabled={savingScope}>
-                {savingScope ? "Saving…" : "Save scope"}
+                {savingScope ? t("common.saving") : t("tokens.save_scope")}
               </button>
             </div>
           </div>
@@ -776,12 +727,10 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 style={{ fontSize: 16, fontWeight: 500, margin: "0 0 4px", letterSpacing: "-0.01em" }}>
-              Change token secret: {changeTarget.name}
+              {t("tokens.change_modal_title", { name: changeTarget.name })}
             </h2>
             <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "0 0 18px", lineHeight: 1.55 }}>
-              Change the token&apos;s secret immediately. The current secret stops working as soon as
-              you confirm. Use this for routine refresh or after a suspected leak. For a
-              no-disruption swap: create a new token, update clients, then revoke this one.
+              {t("tokens.change_modal_body")}
             </p>
 
             {changeError && (
@@ -809,7 +758,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                 onClick={closeChangeModal}
                 disabled={changing}
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -818,7 +767,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
                 onClick={() => void onChange()}
                 disabled={changing}
               >
-                {changing ? "Changing…" : "Change token"}
+                {changing ? t("tokens.changing") : t("tokens.change_confirm")}
               </button>
             </div>
           </div>
@@ -850,8 +799,14 @@ const chipStyle = {
   display: "inline-block",
 } as const;
 
-function fmt(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
+// Unknown slugs (a capability added server-side before this UI learns it)
+// render as the slug rather than a missing-key path.
+function capList(t: Translate, caps: string[]): string {
+  return caps.map((c) => (isCapability(c) ? t(`tokens.caps.${c}`) : c)).join(", ");
+}
+
+function fmtDate(iso: string, lang: string): string {
+  return new Date(iso).toLocaleString(lang, {
     year: "numeric",
     month: "short",
     day: "numeric",
