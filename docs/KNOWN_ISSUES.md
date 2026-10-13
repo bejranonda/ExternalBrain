@@ -2824,7 +2824,12 @@ until=168h`, `SystemMaxUse=500M` for journald, logrotate for the pm2 logs, and
 `chmod 600` on `.env`, its backups and the DB dumps — 71% after. Found, not
 fixed (not this repo, or needs the operator's accounts): nothing alerts when
 the site is down; the nightly backup never leaves the host; the co-hosted
-`app.autobahn.bot` has answered 503 for two weeks with nobody notified.
+`app.autobahn.bot` has answered 503 for two weeks with nobody notified. The
+operator retired that app the same evening; removing it surfaced that its
+nginx file owned port 80 for every `*.autobahn.bot` name and sent
+`http://brain.autobahn.bot` to the apex domain instead of Brain. The host now
+has its own Brain http→https block (keeping the ACME webroot the MCP
+certificate renews through) and closes connections for unknown host names.
 
 ## 1. Scaffolding-level issues (v0.1+)
 
