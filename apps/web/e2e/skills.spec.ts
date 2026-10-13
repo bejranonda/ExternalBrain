@@ -203,9 +203,9 @@ test.describe("skills surface", () => {
     const countBefore = await items.count();
 
     // Open the "More" menu and click Delete.
-    // The More button (aria-label="More") is inside a position:relative wrapper div
+    // The More button (aria-label="More actions") is inside a position:relative wrapper div
     // that also holds the dropdown .panel. Scope the Delete button search to detailPane.
-    const moreBtn = detailPane.locator('button[aria-label="More"]');
+    const moreBtn = detailPane.locator('button[aria-label="More actions"]');
     await expect(moreBtn).toBeVisible({ timeout: 5_000 });
     page.once("dialog", (dialog) => void dialog.accept());
     await moreBtn.click();
