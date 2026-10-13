@@ -352,6 +352,7 @@ export function OrgProjectSwitcher() {
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     placeholder="Project name"
+                    aria-label={t("projects.name_label")}
                     style={{
                       width: "100%",
                       padding: "5px 8px",

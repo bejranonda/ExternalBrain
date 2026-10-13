@@ -688,7 +688,7 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
                   setEditing(false);
                   setMenuOpen(false);
                 }}
-                aria-label="Close detail"
+                aria-label={t("skills.close_detail")}
                 title="Close (Esc)"
                 style={{ marginRight: 4 }}
               >
@@ -764,7 +764,9 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
                   type="button"
                   className="icon-btn"
                   onClick={() => setMenuOpen((v) => !v)}
-                  aria-label="More"
+                  aria-label={t("skills.more_actions")}
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
                 >
                   <Icon name="more" />
                 </button>
@@ -823,6 +825,7 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
                 <textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
+                  aria-label={t("skills.edit_text")}
                   style={{
                     fontSize: 13.5,
                     lineHeight: 1.6,

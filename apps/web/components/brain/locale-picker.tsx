@@ -1,7 +1,7 @@
 "use client";
 
 import { ThemeToggle } from "@/components/brain/theme-toggle";
-import { useLang, useSetLang, type Lang } from "@/lib/brain/i18n";
+import { useLang, useSetLang, useT, type Lang } from "@/lib/brain/i18n";
 
 const OPTIONS: ReadonlyArray<{ code: Lang; label: string; aria: string }> = [
   { code: "en", label: "EN", aria: "English" },
@@ -17,6 +17,7 @@ const OPTIONS: ReadonlyArray<{ code: Lang; label: string; aria: string }> = [
 export function LocalePicker() {
   const lang = useLang();
   const setLang = useSetLang();
+  const t = useT();
   return (
     <div
       // Hosts BOTH unauth controls (theme + language). One fixed pill rather
@@ -24,7 +25,7 @@ export function LocalePicker() {
       // this one's width into its `right` offset, which silently overlaps the
       // moment either control changes size. The outer element is therefore no
       // longer a "Language" group — the language buttons keep their own.
-      aria-label="Display settings"
+      aria-label={t("tweaks.display_settings")}
       role="group"
       style={{
         position: "fixed",
@@ -52,7 +53,7 @@ export function LocalePicker() {
       />
       <span
         role="group"
-        aria-label="Language"
+        aria-label={t("tweaks.language")}
         style={{ display: "flex", gap: 2 }}
       >
         {OPTIONS.map((o) => {

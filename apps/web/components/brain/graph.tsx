@@ -340,7 +340,7 @@ export function Graph() {
             className="icon-btn"
             style={{ width: 32, height: 32 }}
             onClick={() => setZoom((z) => Math.min(3, z * 1.25))}
-            aria-label="Zoom in"
+            aria-label={t("graph.zoom_in")}
           >
             <Icon name="plus" size={12} />
           </button>
@@ -349,7 +349,7 @@ export function Graph() {
             className="icon-btn"
             style={{ width: 32, height: 32 }}
             onClick={() => setZoom((z) => Math.max(0.3, z / 1.25))}
-            aria-label="Zoom out"
+            aria-label={t("graph.zoom_out")}
           >
             <span style={{ fontSize: 14, lineHeight: 1 }}>−</span>
           </button>
@@ -358,7 +358,7 @@ export function Graph() {
             className="icon-btn"
             style={{ width: 32, height: 32, fontSize: 11, fontFamily: "var(--font-mono)" }}
             onClick={() => setZoom(1)}
-            aria-label="Reset zoom"
+            aria-label={t("graph.zoom_reset")}
           >
             1:1
           </button>
@@ -501,7 +501,7 @@ export function Graph() {
                 type="button"
                 className="icon-btn"
                 onClick={() => setSelected(null)}
-                aria-label="Close inspector"
+                aria-label={t("graph.close_inspector")}
                 title="Close (Esc)"
                 style={{ marginLeft: 6 }}
               >

@@ -509,7 +509,7 @@ export function Topbar({
       */}
       <button
         className="icon-btn mobile-only"
-        aria-label="Account menu"
+        aria-label={t("app.account_menu")}
         onClick={onUser ?? onTweaks}
       >
         <Icon name="settings" />

@@ -98,6 +98,8 @@ export const I18N = {
       tenant_personal: "personal",
       ingest_ok: "{{n}} session{{plural}} to analyze",
       ingest_ok_zero: "Up to date",
+      account_menu: "Account menu",
+      user_menu: "User menu",
     },
     nav: {
       workspace: "Workspace",
@@ -249,7 +251,10 @@ export const I18N = {
       popover_step2: "Click any [^K1]/[^S1] citation to see the source row.",
       popover_step3: "Hit thumbs up/down — feedback shapes future retrieval.",
       popover_step4: "Use the Scope pill to switch between this project and all your projects.",
-      popover_step5: "If you see 'no Brain context' it means your Brain is empty for this topic — teach a skill and re-ask."
+      popover_step5: "If you see 'no Brain context' it means your Brain is empty for this topic — teach a skill and re-ask.",
+      input_label: "Ask your Brain a question",
+      send: "Send",
+      why_not_useful: "Why was this answer not useful?",
     },
     skills: {
       type: "Type",
@@ -296,6 +301,9 @@ export const I18N = {
       connect_tool: "Connect an AI tool",
       load_error_title: "Couldn't load your skills",
       load_error_body: "We couldn't reach your Brain just now. Your skills are still there — try again in a moment.",
+      close_detail: "Close detail",
+      more_actions: "More actions",
+      edit_text: "Skill text",
     },
     graph: {
       search: "Search the graph",
@@ -316,6 +324,10 @@ export const I18N = {
       empty_body:
         "The graph shows how your rules relate to each other — each dot is a rule, and lines connect rules that build on, depend on, or contradict another. Once you have a few rules, the picture starts filling in.",
       connect_tool: "Connect an AI tool",
+      zoom_in: "Zoom in",
+      zoom_out: "Zoom out",
+      zoom_reset: "Reset zoom",
+      close_inspector: "Close inspector",
     },
     autoskill: {
       // "Skill proposals" — Autoskill is the route/feature name; what
@@ -508,6 +520,7 @@ export const I18N = {
       balanced: "Balanced",
       dense: "Dense",
       language: "Language",
+      display_settings: "Display settings",
     },
     apiErrors: {
       generic: "Something went wrong (HTTP {{status}}). Try again in a moment.",
@@ -542,6 +555,10 @@ export const I18N = {
     common: {
       retry: "Retry",
       retrying: "Retrying…",
+      organization: "Organization",
+      role: "Role",
+      email: "Email",
+      dismiss: "Dismiss",
     },
     errorPage: {
       title: "Something went wrong on this page",
@@ -554,6 +571,16 @@ export const I18N = {
       notFoundEyebrow: "404 · not found",
       notFoundTitle: "We can’t find that page",
       notFoundBody: "The link may be stale, the org or project may have been renamed, or you may not have access. Head back to your Brain and pick up from there.",
+    },
+    tokens: {
+      name_label: "Token name",
+    },
+    projects: {
+      name_label: "Project name",
+      rename_label: "New project name",
+    },
+    org: {
+      role_for: "Role for {{name}}",
     },
   },
   th: {
@@ -639,6 +666,8 @@ export const I18N = {
       tenant_personal: "ส่วนบุคคล",
       ingest_ok: "คิววิเคราะห์ข้อมูล · {{n}} เซสชัน",
       ingest_ok_zero: "อัปเดตล่าสุดแล้ว",
+      account_menu: "เมนูบัญชี",
+      user_menu: "เมนูผู้ใช้",
     },
     nav: {
       workspace: "พื้นที่ทำงาน",
@@ -780,7 +809,10 @@ export const I18N = {
       popover_step2: "คลิกเครื่องหมายอ้างอิง [^K1]/[^S1] เพื่อเปิดดูแหล่งข้อมูลต้นทาง",
       popover_step3: "กดถูกใจ/ไม่ถูกใจ เพื่อช่วยปรับปรุงความแม่นยำของการค้นคืนในอนาคต",
       popover_step4: "ใช้ตัวเลือก Scope เพื่อสลับการค้นหาเฉพาะโปรเจกต์นี้หรือทุกโปรเจกต์",
-      popover_step5: "หากระบบขึ้นว่า 'ไม่มีบริบท' แปลว่าเรื่องนั้นยังไม่มีใน Brain — สามารถสอนสกิลใหม่แล้วถามอีกครั้ง"
+      popover_step5: "หากระบบขึ้นว่า 'ไม่มีบริบท' แปลว่าเรื่องนั้นยังไม่มีใน Brain — สามารถสอนสกิลใหม่แล้วถามอีกครั้ง",
+      input_label: "ถามคำถามกับ Brain ของคุณ",
+      send: "ส่ง",
+      why_not_useful: "ทำไมคำตอบนี้จึงไม่มีประโยชน์?",
     },
     skills: {
       type: "ประเภท",
@@ -821,6 +853,9 @@ export const I18N = {
       connect_tool: "เชื่อมต่อเครื่องมือ AI",
       load_error_title: "โหลดสกิลไม่สำเร็จ",
       load_error_body: "ขณะนี้ติดต่อ Brain ของคุณไม่ได้ สกิลของคุณยังอยู่ครบ โปรดลองอีกครั้งในอีกสักครู่",
+      close_detail: "ปิดรายละเอียด",
+      more_actions: "การดำเนินการเพิ่มเติม",
+      edit_text: "เนื้อหาสกิล",
     },
     graph: {
       search: "ค้นหาในกราฟความรู้",
@@ -841,6 +876,10 @@ export const I18N = {
       empty_body:
         "กราฟจะแสดงโครงข่ายความสัมพันธ์ระหว่างสกิลต่างๆ แต่ละจุดคือกฎหรือบทเรียน และเส้นเชื่อมแสดงถึงการเกื้อหนุน การพึ่งพา หรือการทดแทนกัน เมื่อมีสกิลมากขึ้น กราฟจะแสดงภาพรวมระบบที่ชัดเจน",
       connect_tool: "เชื่อมต่อเครื่องมือ AI",
+      zoom_in: "ซูมเข้า",
+      zoom_out: "ซูมออก",
+      zoom_reset: "รีเซ็ตการซูม",
+      close_inspector: "ปิดแผงรายละเอียด",
     },
     autoskill: {
       title: "ข้อเสนอสกิลใหม่ (Autoskill Proposals)",
@@ -1028,6 +1067,7 @@ export const I18N = {
       balanced: "สมดุล",
       dense: "กะทัดรัด",
       language: "ภาษา",
+      display_settings: "การตั้งค่าการแสดงผล",
     },
     apiErrors: {
       generic: "เกิดข้อผิดพลาด (HTTP {{status}}) โปรดลองอีกครั้งในอีกสักครู่",
@@ -1062,6 +1102,10 @@ export const I18N = {
     common: {
       retry: "ลองใหม่",
       retrying: "กำลังลองใหม่…",
+      organization: "องค์กร",
+      role: "บทบาท",
+      email: "อีเมล",
+      dismiss: "ปิด",
     },
     errorPage: {
       title: "หน้านี้เกิดข้อผิดพลาด",
@@ -1074,6 +1118,16 @@ export const I18N = {
       notFoundEyebrow: "404 · ไม่พบหน้า",
       notFoundTitle: "ไม่พบหน้าที่คุณต้องการ",
       notFoundBody: "ลิงก์อาจเก่าแล้ว องค์กรหรือโปรเจกต์อาจถูกเปลี่ยนชื่อ หรือคุณอาจไม่มีสิทธิ์เข้าถึง กลับไปที่ Brain ของคุณแล้วเริ่มต่อจากตรงนั้น",
+    },
+    tokens: {
+      name_label: "ชื่อโทเค็น",
+    },
+    projects: {
+      name_label: "ชื่อโปรเจกต์",
+      rename_label: "ชื่อโปรเจกต์ใหม่",
+    },
+    org: {
+      role_for: "บทบาทของ {{name}}",
     },
   },
   de: {
@@ -1159,6 +1213,8 @@ export const I18N = {
       tenant_personal: "persönlich",
       ingest_ok: "Warteschlange · {{n}} offen",
       ingest_ok_zero: "Aktuell",
+      account_menu: "Kontomenü",
+      user_menu: "Benutzermenü",
     },
     nav: {
       workspace: "Arbeitsbereich",
@@ -1301,7 +1357,10 @@ export const I18N = {
       popover_step2: "Klicke auf [^K1]/[^S1] Zitate, um die Quelle zu sehen.",
       popover_step3: "Daumen hoch/runter — Feedback verbessert zukünftige Suchen.",
       popover_step4: "Nutze den Bereich (Scope), um zwischen diesem und allen Projekten zu wechseln.",
-      popover_step5: "Wenn 'kein Kontext' erscheint, ist dein Gehirn zu diesem Thema leer — lehre einen Skill und frage erneut."
+      popover_step5: "Wenn 'kein Kontext' erscheint, ist dein Gehirn zu diesem Thema leer — lehre einen Skill und frage erneut.",
+      input_label: "Stell deinem Brain eine Frage",
+      send: "Senden",
+      why_not_useful: "Warum war diese Antwort nicht hilfreich?",
     },
     skills: {
       type: "Typ",
@@ -1342,6 +1401,9 @@ export const I18N = {
       connect_tool: "KI-Tool verbinden",
       load_error_title: "Skills konnten nicht geladen werden",
       load_error_body: "Dein Brain ist gerade nicht erreichbar. Deine Skills sind weiterhin da – versuch es gleich noch einmal.",
+      close_detail: "Details schließen",
+      more_actions: "Weitere Aktionen",
+      edit_text: "Skill-Text",
     },
     graph: {
       search: "Im Graph suchen",
@@ -1362,6 +1424,10 @@ export const I18N = {
       empty_body:
         "Der Graph zeigt, wie deine Regeln zueinander stehen — jeder Punkt ist eine Regel, und Linien verbinden Regeln, die aufeinander aufbauen, voneinander abhängen oder einander widersprechen. Sobald du ein paar Regeln hast, beginnt sich das Bild zu füllen.",
       connect_tool: "KI-Tool verbinden",
+      zoom_in: "Vergrößern",
+      zoom_out: "Verkleinern",
+      zoom_reset: "Zoom zurücksetzen",
+      close_inspector: "Detailansicht schließen",
     },
     autoskill: {
       title: "Autoskill-Vorschläge",
@@ -1552,6 +1618,7 @@ export const I18N = {
       balanced: "Ausgewogen",
       dense: "Dicht",
       language: "Sprache",
+      display_settings: "Anzeigeeinstellungen",
     },
     apiErrors: {
       generic: "Etwas ist schiefgelaufen (HTTP {{status}}). Versuch es gleich noch einmal.",
@@ -1586,6 +1653,10 @@ export const I18N = {
     common: {
       retry: "Erneut versuchen",
       retrying: "Neuer Versuch…",
+      organization: "Organisation",
+      role: "Rolle",
+      email: "E-Mail",
+      dismiss: "Schließen",
     },
     errorPage: {
       title: "Auf dieser Seite ist etwas schiefgelaufen",
@@ -1598,6 +1669,16 @@ export const I18N = {
       notFoundEyebrow: "404 · nicht gefunden",
       notFoundTitle: "Diese Seite finden wir nicht",
       notFoundBody: "Vielleicht ist der Link veraltet, die Organisation oder das Projekt wurde umbenannt, oder du hast keinen Zugriff. Geh zurück zu deinem Brain und mach dort weiter.",
+    },
+    tokens: {
+      name_label: "Token-Name",
+    },
+    projects: {
+      name_label: "Projektname",
+      rename_label: "Neuer Projektname",
+    },
+    org: {
+      role_for: "Rolle von {{name}}",
     },
   },
 } as const;

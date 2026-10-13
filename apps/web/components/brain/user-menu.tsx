@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Icon } from "./icons";
+import { useT } from "@/lib/brain/i18n";
 
 interface Props {
   open: boolean;
@@ -18,6 +19,7 @@ interface MeView {
 }
 
 export function UserMenu({ open, onClose, onTweaks }: Props) {
+  const t = useT();
   const [me, setMe] = useState<MeView | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -54,7 +56,7 @@ export function UserMenu({ open, onClose, onTweaks }: Props) {
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="User menu"
+        aria-label={t("app.user_menu")}
         className="panel"
         style={{
           width: 260,

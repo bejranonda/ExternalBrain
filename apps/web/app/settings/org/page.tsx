@@ -120,8 +120,9 @@ function OrgSelector({
   if (orgs.length === 1) return null;
   return (
     <div style={{ marginBottom: 20 }}>
-      <label style={labelStyle}>Organization</label>
+      <label htmlFor="org-selector" style={labelStyle}>Organization</label>
       <select
+        id="org-selector"
         value={selected}
         onChange={(e) => onChange(e.target.value)}
         style={{ ...inputStyle, marginTop: 4, maxWidth: 320 }}
@@ -237,6 +238,7 @@ function MembersSection({
                   {canManage ? (
                     <select
                       value={m.role}
+                      aria-label={t("org.role_for", { name: m.name ?? m.email })}
                       onChange={(e) => void changeRole(m.userId, e.target.value)}
                       style={{ ...btnStyle, padding: "4px 8px" }}
                     >
@@ -420,8 +422,9 @@ function InviteForm({
         style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}
       >
         <div style={{ flex: "1 1 220px", minWidth: 160 }}>
-          <label style={{ ...labelStyle, display: "block", marginBottom: 4 }}>Email</label>
+          <label htmlFor="invite-email" style={{ ...labelStyle, display: "block", marginBottom: 4 }}>Email</label>
           <input
+            id="invite-email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -431,8 +434,9 @@ function InviteForm({
           />
         </div>
         <div style={{ flex: "0 0 140px" }}>
-          <label style={{ ...labelStyle, display: "block", marginBottom: 4 }}>Role</label>
+          <label htmlFor="invite-role" style={{ ...labelStyle, display: "block", marginBottom: 4 }}>Role</label>
           <select
+            id="invite-role"
             value={role}
             onChange={(e) => setRole(e.target.value as "member" | "admin" | "owner")}
             style={inputStyle}

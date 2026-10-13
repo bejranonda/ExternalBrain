@@ -365,6 +365,7 @@ export function TokensClient({ mcpUrl, webUrl }: TokensClientProps) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. laptop · claude-code"
+            aria-label={t("tokens.name_label")}
             style={{
               flex: 1,
               padding: "8px 10px",

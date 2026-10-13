@@ -194,6 +194,7 @@ export default function ProjectsPage() {
             <select
               value={createOrgId}
               onChange={(e) => setCreateOrgId(e.target.value)}
+              aria-label={t("common.organization")}
               style={{
                 padding: "7px 10px",
                 fontSize: 13,
@@ -215,6 +216,7 @@ export default function ProjectsPage() {
             value={createName}
             onChange={(e) => setCreateName(e.target.value)}
             placeholder="Project name"
+            aria-label={t("projects.name_label")}
             style={{
               flex: 1,
               padding: "8px 10px",
@@ -357,6 +359,7 @@ export default function ProjectsPage() {
               value={renameName}
               onChange={(e) => setRenameName(e.target.value)}
               placeholder="New name"
+              aria-label={t("projects.rename_label")}
               style={{
                 width: "100%",
                 padding: "8px 10px",
