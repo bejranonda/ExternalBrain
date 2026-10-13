@@ -23,6 +23,7 @@ import { ValueChip } from "./value-chip";
 import { formatRelative } from "@brain/core/format-relative";
 import { PulseLine } from "./pulse-line";
 import { HomeHero } from "./home-hero";
+import { LoadError } from "./load-error";
 
 /**
  * Section label that visually chunks the dashboard. Each section gets a
@@ -803,7 +804,7 @@ export function Dashboard({
 }) {
   const t = useT();
   const { scope, setScope } = useProjectScope();
-  const { stats: s, typeCounts, loadState } = useDashboardStats(scope);
+  const { stats: s, typeCounts, loadState, refresh } = useDashboardStats(scope);
   const sessionsH = useSessions(50, scope);
   const proposalsH = useAutoskillProposals(scope);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -821,7 +822,10 @@ export function Dashboard({
   // every "0 / 0 / 0" tile reads as "this app is broken". Replace the
   // dashboard body with the EmptyBrainCallout hero and keep only the
   // Connection card so they can see whether their token is wired up.
-  const isEmpty = mounted && s.activeKnowledge === 0 && loadState !== "loading";
+  // Only a successful load can prove emptiness: a failed one also reports
+  // zero skills, and used to show a long-time user the new-user callout.
+  const isEmpty = mounted && loadState === "ready" && s.activeKnowledge === 0;
+  const failed = mounted && (loadState === "error" || loadState === "unauthorized");
 
   return (
     <div className="scroll" style={{ height: "100%", padding: "20px 24px 40px" }}>
@@ -837,17 +841,12 @@ export function Dashboard({
               state signals, not filler. */}
           {(isEmpty || loadState === "loading" || loadState === "error") && (
             <div style={{ fontSize: 14, color: "var(--ink-3)", marginTop: 4 }}>
-              {isEmpty &&
-                "Your Brain is just getting started. Wire up a tool or teach a rule below."}
+              {isEmpty && t("dash.getting_started")}
               {loadState === "loading" && (
-                <span style={{ color: "var(--ink-4)", marginLeft: isEmpty ? 8 : 0 }}>
-                  {isEmpty ? "· " : ""}loading…
-                </span>
+                <span style={{ color: "var(--ink-4)" }}>{t("dash.loading")}</span>
               )}
               {loadState === "error" && (
-                <span style={{ color: "var(--warn)", marginLeft: isEmpty ? 8 : 0 }}>
-                  {isEmpty ? "· " : ""}offline
-                </span>
+                <span style={{ color: "var(--warn)" }}>{t("dash.offline")}</span>
               )}
             </div>
           )}
@@ -856,7 +855,27 @@ export function Dashboard({
         {!isEmpty && <ScopePill scope={scope} onScopeChange={setScope} />}
       </div>
 
-      {isEmpty ? (
+      {failed ? (
+        loadState === "unauthorized" ? (
+          <div role="alert" className="panel" style={{ padding: "28px 24px", maxWidth: 520, margin: "0 auto", textAlign: "center" }}>
+            <h2 style={{ margin: "0 0 8px", fontSize: 17, fontWeight: 500 }}>
+              {t("dash.signed_out_title")}
+            </h2>
+            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--ink-3)", lineHeight: 1.55 }}>
+              {t("apiErrors.not_signed_in")}
+            </p>
+            <a href="/signin" className="btn btn-primary" style={{ fontSize: 13, textDecoration: "none" }}>
+              {t("auth.signIn")}
+            </a>
+          </div>
+        ) : (
+          <LoadError
+            title={t("dash.load_error_title")}
+            body={t("dash.load_error_body")}
+            onRetry={refresh}
+          />
+        )
+      ) : isEmpty ? (
         <>
           <EmptyBrainCallout onTeach={() => onTeach?.()} />
           <AgentPromptsCard sessionsAllTime={s.sessionsAllTime} />

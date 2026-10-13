@@ -195,6 +195,12 @@ export const I18N = {
         // <used in this session> / <newly extracted from this session>.
         kio: "Used / Learned",
       },
+      getting_started: "Your Brain is just getting started. Wire up a tool or teach a rule below.",
+      loading: "loading…",
+      offline: "offline",
+      load_error_title: "Couldn't load your dashboard",
+      load_error_body: "We couldn't reach your Brain just now, so we can't show what it knows. Nothing is lost — this is usually a brief connection problem.",
+      signed_out_title: "You're signed out",
     },
     oracle: {
       title: "Oracle",
@@ -288,6 +294,8 @@ export const I18N = {
         "Skills are short, reusable patterns — recipes, heuristics, things to avoid. They show up here two ways: automatically, after Brain watches your coding sessions, or directly, when you teach one yourself.",
       empty_teach: "Teach a skill",
       connect_tool: "Connect an AI tool",
+      load_error_title: "Couldn't load your skills",
+      load_error_body: "We couldn't reach your Brain just now. Your skills are still there — try again in a moment.",
     },
     graph: {
       search: "Search the graph",
@@ -531,6 +539,10 @@ export const I18N = {
       weak_password: "New password must be at least 8 characters.",
       no_credential: "Your account doesn't have a password. You sign in with GitHub or the operator account, so there's no password to change here.",
     },
+    common: {
+      retry: "Retry",
+      retrying: "Retrying…",
+    },
   },
   th: {
     auth: {
@@ -701,6 +713,12 @@ export const I18N = {
         sqs: "คุณภาพ (SQS)",
         kio: "นำไปใช้ / เรียนรู้ใหม่",
       },
+      getting_started: "Brain ของคุณเพิ่งเริ่มต้น เชื่อมต่อเครื่องมือหรือสอนกฎข้อแรกได้ด้านล่าง",
+      loading: "กำลังโหลด…",
+      offline: "ออฟไลน์",
+      load_error_title: "โหลดแดชบอร์ดไม่สำเร็จ",
+      load_error_body: "ขณะนี้ติดต่อ Brain ของคุณไม่ได้ จึงยังแสดงสิ่งที่ Brain รู้ไม่ได้ ข้อมูลของคุณไม่ได้หายไป ส่วนใหญ่เป็นปัญหาการเชื่อมต่อชั่วคราว",
+      signed_out_title: "คุณออกจากระบบแล้ว",
     },
     oracle: {
       empty_hint: "ถามอะไรก็ได้กับ Brain — เช่น วิธีที่คุณเคยแก้บั๊กเมื่อเดือนก่อน หรือแนวทางมาตรฐานของทีม ทุกคำตอบจะอ้างอิงสกิลหรือเซสชันที่เป็นต้นทางเพื่อให้คุณตรวจสอบได้เสมอ",
@@ -789,6 +807,8 @@ export const I18N = {
         "สกิลคือบทเรียนหรือแนวทางที่นำกลับมาใช้ซ้ำได้ สกิลจะถูกเพิ่มเข้ามา 2 วิธี: เพิ่มให้อัตโนมัติเมื่อวิเคราะห์เซสชันเขียนโค้ด หรือเมื่อคุณเพิ่มสกิลเองโดยตรง",
       empty_teach: "สอนสกิลใหม่",
       connect_tool: "เชื่อมต่อเครื่องมือ AI",
+      load_error_title: "โหลดสกิลไม่สำเร็จ",
+      load_error_body: "ขณะนี้ติดต่อ Brain ของคุณไม่ได้ สกิลของคุณยังอยู่ครบ โปรดลองอีกครั้งในอีกสักครู่",
     },
     graph: {
       search: "ค้นหาในกราฟความรู้",
@@ -1027,6 +1047,10 @@ export const I18N = {
       weak_password: "รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร",
       no_credential: "บัญชีของคุณไม่มีรหัสผ่าน เนื่องจากคุณเข้าสู่ระบบด้วย GitHub หรือบัญชีผู้ดูแลระบบ จึงไม่มีรหัสผ่านให้เปลี่ยนที่นี่",
     },
+    common: {
+      retry: "ลองใหม่",
+      retrying: "กำลังลองใหม่…",
+    },
   },
   de: {
     auth: {
@@ -1198,6 +1222,12 @@ export const I18N = {
         sqs: "SQS",
         kio: "Genutzt / Gelernt",
       },
+      getting_started: "Dein Brain fängt gerade erst an. Verbinde unten ein Tool oder bring ihm eine erste Regel bei.",
+      loading: "lädt…",
+      offline: "offline",
+      load_error_title: "Dashboard konnte nicht geladen werden",
+      load_error_body: "Dein Brain ist gerade nicht erreichbar, deshalb können wir nicht zeigen, was es weiß. Es ist nichts verloren – meist ist das nur ein kurzes Verbindungsproblem.",
+      signed_out_title: "Du bist abgemeldet",
     },
     oracle: {
       empty_hint: "Frag dein Brain alles — was du normalerweise machst, wie du den Bug letzten Monat gefixt hast, eure Team-Konventionen. Jede Antwort zitiert die Regel oder Sitzung als Quelle, damit du den Ursprung sehen kannst.",
@@ -1286,6 +1316,8 @@ export const I18N = {
         "Skills sind kurze, wiederverwendbare Muster — Rezepte, Faustregeln, zu vermeidende Dinge. Sie erscheinen hier auf zwei Wegen: automatisch, wenn dein Gehirn deine Coding-Sitzungen beobachtet, oder direkt, wenn du selbst einen lehrst.",
       empty_teach: "Skill lehren",
       connect_tool: "KI-Tool verbinden",
+      load_error_title: "Skills konnten nicht geladen werden",
+      load_error_body: "Dein Brain ist gerade nicht erreichbar. Deine Skills sind weiterhin da – versuch es gleich noch einmal.",
     },
     graph: {
       search: "Im Graph suchen",
@@ -1526,6 +1558,10 @@ export const I18N = {
       wrong_password: "Das aktuelle Passwort ist falsch.",
       weak_password: "Das neue Passwort muss mindestens 8 Zeichen lang sein.",
       no_credential: "Dein Konto hat kein Passwort. Du meldest dich über GitHub oder das Betreiberkonto an, daher gibt es hier kein Passwort zu ändern.",
+    },
+    common: {
+      retry: "Erneut versuchen",
+      retrying: "Neuer Versuch…",
     },
   },
 } as const;

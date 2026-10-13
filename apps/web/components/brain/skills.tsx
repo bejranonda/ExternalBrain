@@ -11,6 +11,7 @@ import { ScopePill } from "./scope-pill";
 import { EffectivenessBadge } from "./effectiveness-badge";
 import { HelpPopover } from "./help-popover";
 import { InfoDot } from "./info-dot";
+import { LoadError } from "./load-error";
 import type { KnowledgeItemView } from "@/lib/brain/views";
 
 type ScopeFilter = "all" | KnowledgeItemView["scope"];
@@ -47,7 +48,7 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
   const t = useT();
   const { scope, setScope } = useProjectScope();
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>("all");
-  const { items, loadState, error, remove, fork, promote, forkToProject, refresh } = useKnowledge(
+  const { items, loadState, remove, fork, promote, forkToProject, refresh } = useKnowledge(
     scope,
     visibilityFilter === "all" ? undefined : visibilityFilter,
   );
@@ -105,6 +106,12 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
           >
             {t("skills.loading")}
           </div>
+        ) : loadState === "error" ? (
+          <LoadError
+            title={t("skills.load_error_title")}
+            body={t("skills.load_error_body")}
+            onRetry={refresh}
+          />
         ) : (
           <div
             className="panel"
@@ -527,10 +534,10 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
           {loadState === "error" && (
             <span
               className="chip"
-              title={error ?? "API unreachable"}
+              title={t("skills.load_error_title")}
               style={{ color: "var(--warn)", fontSize: 11 }}
             >
-              offline
+              {t("dash.offline")}
             </span>
           )}
           {/* Phase R.1: dropped the "Filter" toggle — it only revealed a
