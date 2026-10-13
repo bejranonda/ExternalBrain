@@ -87,6 +87,8 @@ export const I18N = {
         account_email_unverified: "An account with this email already exists, but its address hasn't been confirmed yet. Use “Forgot password?” below to confirm it — after that, GitHub sign-in works for this account.",
         invite_account_unverified: "An account with this email already exists, but its address hasn't been confirmed yet. Use “Forgot password?” on the sign-in page to confirm it, then open this invite again.",
       },
+      inviteNoToken: "This invite link is missing its token. Open the full link from your invitation and try again.",
+      inviteAccepted: "You've joined the organization. Taking you to your projects…",
     },
     app: {
       teach: "Add a skill",
@@ -602,6 +604,8 @@ export const I18N = {
         account_email_unverified: "มีบัญชีที่ใช้อีเมลนี้อยู่แล้ว แต่ยังไม่ได้ยืนยันที่อยู่อีเมล ใช้ “ลืมรหัสผ่าน?” ด้านล่างเพื่อยืนยัน — หลังจากนั้นจะเข้าสู่ระบบด้วย GitHub สำหรับบัญชีนี้ได้",
         invite_account_unverified: "มีบัญชีที่ใช้อีเมลนี้อยู่แล้ว แต่ยังไม่ได้ยืนยันที่อยู่อีเมล ใช้ “ลืมรหัสผ่าน?” ในหน้าเข้าสู่ระบบเพื่อยืนยัน แล้วเปิดคำเชิญนี้อีกครั้ง",
       },
+      inviteNoToken: "ลิงก์คำเชิญนี้ไม่มีโทเค็น โปรดเปิดลิงก์ฉบับเต็มจากคำเชิญของคุณแล้วลองอีกครั้ง",
+      inviteAccepted: "คุณเข้าร่วมองค์กรเรียบร้อยแล้ว กำลังพาไปยังโปรเจกต์ของคุณ…",
     },
     app: {
       teach: "เพิ่มสกิล",
@@ -1096,6 +1100,8 @@ export const I18N = {
         account_email_unverified: "Mit dieser E-Mail gibt es bereits ein Konto, aber die Adresse ist noch nicht bestätigt. Bestätige sie unten über „Passwort vergessen?“ — danach funktioniert die GitHub-Anmeldung für dieses Konto.",
         invite_account_unverified: "Mit dieser E-Mail gibt es bereits ein Konto, aber die Adresse ist noch nicht bestätigt. Bestätige sie über „Passwort vergessen?“ auf der Anmeldeseite und öffne diese Einladung dann erneut.",
       },
+      inviteNoToken: "In diesem Einladungslink fehlt das Token. Öffne den vollständigen Link aus deiner Einladung und versuch es erneut.",
+      inviteAccepted: "Du bist der Organisation beigetreten. Wir bringen dich zu deinen Projekten…",
     },
     app: {
       teach: "Skill anlegen",
