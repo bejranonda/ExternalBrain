@@ -12,6 +12,8 @@ import { useEffect, useState } from "react";
 // the generator makes the modal structurally unable to drift again.
 import { claudeCodeCli } from "@brain/core/install-snippets";
 import { Icon } from "./icons";
+import { useT } from "@/lib/brain/i18n";
+import { rich } from "@/lib/brain/rich-text";
 
 const STORAGE_KEY = "bp_onboarded";
 
@@ -53,6 +55,7 @@ export function Onboarding({
   onOracle,
   onAutoskill: _onAutoskill,
 }: Props) {
+  const t = useT();
   const [visible, setVisible] = useState(false);
   const [step, setStep] = useState(0);
 
@@ -75,59 +78,52 @@ export function Onboarding({
     setVisible(false);
   };
 
+  const code = (s: string) => <code>{s}</code>;
+
   const steps: Array<{ title: string; body: React.ReactNode; cta?: { label: string; action: () => void } }> = [
     {
-      title: "Welcome to your Brain",
+      title: t("onboarding.welcome_title"),
       body: (
         <div>
-          <p style={{ margin: "0 0 10px", lineHeight: 1.55 }}>
-            Every coding session with your AI tools produces knowledge — patterns, preferences,
-            decisions. Most of it evaporates.
-          </p>
+          <p style={{ margin: "0 0 10px", lineHeight: 1.55 }}>{t("onboarding.welcome_p1")}</p>
           <p style={{ margin: 0, lineHeight: 1.55, color: "var(--ink-2)" }}>
-            External Brain captures it from any MCP-compatible client, organizes it as typed skills
-            and rules, and lets you query it back in natural language via the Oracle. We'll spend
-            about a minute getting you wired up.
+            {t("onboarding.welcome_p2")}
           </p>
         </div>
       ),
     },
     {
-      title: "Create a token for your AI tool",
+      title: t("onboarding.token_title"),
       body: (
         <div>
           <p style={{ margin: "0 0 10px", lineHeight: 1.55 }}>
-            Your AI tool (Claude Code, Cursor, Windsurf…) talks to the Brain
-            over <strong>MCP</strong> — an open standard for letting AI tools
-            connect to services. A token is the password it uses.
+            {rich(t("onboarding.token_p1"), { mcp: <strong>MCP</strong> })}
           </p>
           <p style={{ margin: 0, lineHeight: 1.55, color: "var(--ink-2)" }}>
-            Open the <strong>Access tokens</strong> page in a new tab, name
-            your token (e.g. <code>laptop</code>), click Create, and copy
-            the value — you&rsquo;ll only see it once.
+            {rich(t("onboarding.token_p2"), {
+              page: <strong>{t("onboarding.token_page")}</strong>,
+              example: code("laptop"),
+            })}
           </p>
         </div>
       ),
       cta: {
-        label: "Open access tokens",
+        label: t("onboarding.token_cta"),
         action: () => {
           window.open("/settings/tokens", "_blank", "noopener");
         },
       },
     },
     {
-      title: "Wire Claude Code",
+      title: t("onboarding.wire_title"),
       body: (
         <div>
           <p style={{ margin: "0 0 10px", lineHeight: 1.55 }}>
-            Run this in your terminal, then restart Claude Code. Replace{" "}
-            <code>&lt;TOKEN&gt;</code> with the token you copied.
+            {rich(t("onboarding.wire_p1"), { token: code("<TOKEN>") })}
             {!mcpUrl && (
               <>
                 {" "}
-                Replace <code>localhost:3100</code> with your Brain&rsquo;s URL if
-                you&rsquo;re on a hosted instance (the tokens page shows the exact
-                value to use).
+                {rich(t("onboarding.wire_hosted"), { host: code("localhost:3100") })}
               </>
             )}
           </p>
@@ -152,62 +148,58 @@ export function Onboarding({
             ).lines.join("\n")}
           </pre>
           <p style={{ margin: "10px 0 0", lineHeight: 1.5, color: "var(--ink-3)", fontSize: 12 }}>
-            From now on, every Claude Code session can read your Brain (<code>brain_retrieve_knowledge</code>)
-            and report events back (<code>brain_log_event</code>). Other clients differ — Windsurf
-            uses <code>serverUrl</code>, Gemini CLI uses <code>httpUrl</code>, and Claude Desktop
-            needs the <code>mcp-remote</code> bridge; the tokens page generates the exact snippet
-            per client. After your first session, the <strong>Connection status</strong> card on
-            the dashboard will show your token with a green dot — that's the proof your machine is
-            talking to Brain.
+            {rich(t("onboarding.wire_p2"), {
+              retrieve: code("brain_retrieve_knowledge"),
+              log: code("brain_log_event"),
+              serverUrl: code("serverUrl"),
+              httpUrl: code("httpUrl"),
+              bridge: code("mcp-remote"),
+              card: <strong>{t("onboarding.connection_status")}</strong>,
+            })}
           </p>
         </div>
       ),
     },
     {
-      title: "Teach your first skill",
+      title: t("onboarding.teach_title"),
       body: (
         <div>
           <p style={{ margin: "0 0 10px", lineHeight: 1.55 }}>
-            The fastest way to feel the loop is to hand-teach a skill you already follow.
-            Example: "In React, always prefer <code>react-hook-form + zod</code> over raw form
-            state."
+            {rich(t("onboarding.teach_p1"), { lib: code("react-hook-form + zod") })}
           </p>
           <p style={{ margin: 0, lineHeight: 1.55, color: "var(--ink-2)" }}>
-            Click <strong>Add a skill</strong> below and type it in. The next time
-            you ask the Oracle "what do I use for forms?", it'll cite this skill. Add two more
-            to feel the shape.
+            {rich(t("onboarding.teach_p2"), { button: <strong>{t("app.teach")}</strong> })}
           </p>
         </div>
       ),
       cta: {
-        label: "Add a skill",
+        label: t("app.teach"),
         action: () => {
           onTeach();
         },
       },
     },
     {
-      title: "Ask the Oracle",
+      title: t("onboarding.oracle_title"),
       body: (
         <div>
-          <p style={{ margin: "0 0 10px", lineHeight: 1.55 }}>
-            Ask anything about your own coding patterns. Every answer is grounded — claims are
-            cited to the skill or session that supports them.
-          </p>
+          <p style={{ margin: "0 0 10px", lineHeight: 1.55 }}>{t("onboarding.oracle_p1")}</p>
           <p style={{ margin: "0 0 10px", lineHeight: 1.55, color: "var(--ink-2)" }}>
-            Try: <em>"What patterns do I follow for React forms?"</em> or{" "}
-            <em>"How did I solve the last build error?"</em>
+            {rich(t("onboarding.oracle_try"), {
+              q1: <em>{t("onboarding.oracle_q1")}</em>,
+              q2: <em>{t("onboarding.oracle_q2")}</em>,
+            })}
           </p>
           <p style={{ margin: 0, lineHeight: 1.5, color: "var(--ink-3)", fontSize: 12 }}>
-            New to driving Brain from your agent?{" "}
+            {t("onboarding.oracle_agent")}{" "}
             <a href="/docs/concepts/using-from-your-agent" style={{ color: "var(--accent-text)" }}>
-              See the prompts to type →
+              {t("onboarding.oracle_agent_link")}
             </a>
           </p>
         </div>
       ),
       cta: {
-        label: "Open Oracle",
+        label: t("onboarding.oracle_cta"),
         action: () => {
           onOracle();
           dismiss(true);
@@ -224,7 +216,7 @@ export function Onboarding({
       className="cmdk-scrim"
       role="dialog"
       aria-modal="true"
-      aria-label="Onboarding"
+      aria-label={t("onboarding.dialog_label")}
       style={{ alignItems: "center", justifyContent: "center" }}
     >
       <div
@@ -245,7 +237,7 @@ export function Onboarding({
           }}
         >
           <div className="mono" style={{ fontSize: 10, color: "var(--ink-4)", letterSpacing: "0.06em" }}>
-            STEP {step + 1} OF {steps.length}
+            {t("onboarding.step_of", { n: step + 1, total: steps.length })}
           </div>
           <div className="grow" />
           <button
@@ -253,9 +245,9 @@ export function Onboarding({
             className="btn btn-ghost"
             style={{ fontSize: 11, height: 22 }}
             onClick={() => dismiss(true)}
-            aria-label="Skip onboarding"
+            aria-label={t("onboarding.skip_label")}
           >
-            Skip
+            {t("onboarding.skip")}
           </button>
         </div>
 
@@ -299,7 +291,7 @@ export function Onboarding({
               style={{ fontSize: 12 }}
               onClick={() => setStep((s) => s - 1)}
             >
-              <Icon name="arrowR" size={10} /> Back
+              <Icon name="arrowR" size={10} /> {t("common.back")}
             </button>
           )}
           {cur.cta && (
@@ -321,7 +313,7 @@ export function Onboarding({
               else setStep((s) => s + 1);
             }}
           >
-            {last ? "Done" : "Next"}
+            {last ? t("common.done") : t("common.next")}
           </button>
         </div>
       </div>

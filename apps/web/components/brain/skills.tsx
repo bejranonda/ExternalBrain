@@ -97,7 +97,7 @@ export function Skills({ onTeach }: { onTeach?: () => void } = {}) {
             lineHeight: 1.4,
           }}
         >
-          What your Brain has learned
+          {t("skills.subtitle")}
         </p>
         {loadState === "loading" ? (
           <div
