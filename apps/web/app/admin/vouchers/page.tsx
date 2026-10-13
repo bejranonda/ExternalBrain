@@ -84,7 +84,7 @@ export default function VouchersPage() {
 }
 
 function CreateForm({ onCreated }: { onCreated: () => void }) {
-  const [kind, setKind] = useState<"personal" | "organization">("personal");
+  const [kind] = useState<"personal" | "organization">("personal");
   const [label, setLabel] = useState("");
   const [maxUses, setMaxUses] = useState(1);
   const [expiresDays, setExpiresDays] = useState(30);
