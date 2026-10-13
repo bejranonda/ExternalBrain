@@ -2719,7 +2719,7 @@ only the operator can create. Set `SENTRY_DSN` in `.env` and
 | `signIn`/`jwt` callbacks untestable (whole `@/auth` mocked) | `vitest.setup.ts` | fixed (v2.22.0) — moved to `lib/brain/auth-callbacks.ts` |
 | Node 20 EOL | Docker, CI | fixed (v2.22.0) |
 | 27 high prod advisories | deps | fixed (v2.22.0) |
-| No confirm-on-signup email: a stranger can still *occupy* an address until its owner proves it | signup paths | open — the owner can always reclaim via forgot-password, which now evicts the occupant |
+| No confirm-on-signup email: a stranger can still *occupy* an address until its owner proves it | signup paths | fixed (v2.24.0, `§0bb`) — a self-registered account signs in only after confirming |
 | Production has no `SENTRY_DSN` | `.env` | open — operator action |
 | Per-device sign-out / admin "revoke sessions" button | — | open |
 
@@ -2740,6 +2740,76 @@ mcp-server → worker, one at a time. All three report Node 24.21;
 - Agent over MCP (new SDK 1.32): `whoami`, Oracle answer (`truncated:false`),
   teach; closing a session ran `kea.extract` and `autoskill.run` to `ok` on the
   Node 24 worker.
+
+## 0bb. Signup confirmation, a CI that ran less than it said, and host housekeeping (2026-10-13, v2.24.0)
+
+Asked "anything else to improve?", three read-only surveys (tests/CI, what a
+visitor sees, the live host) were run and every claim below was checked
+against the code or the host before acting.
+
+**Signup confirmation — the last gap of `§0az`.** Since v2.22.0 an unproven
+address could no longer be *adopted*, but whoever registered someone else's
+address could still sign in with the password and use it until the owner
+reclaimed it. Now, while an email provider **and** `AUTH_URL` are configured,
+register (open and voucher paths) creates the account with
+`User.emailConfirmRequired` and mails a 24h single-use link
+(`EmailConfirmToken`, hash only). Credentials sign-in refuses it with
+`email_unconfirmed` — checked only after the password matched — and
+`/confirm-email` offers a resend (rate-limited per IP and per address, sent
+after the response so timing reveals nothing).
+
+A self-review of the first version found what the tests had not:
+
+- **The inbox alone confirmed.** The registrant's confirmation mail goes to
+  the real owner; one click by them and the registrant's password signed in
+  to a *verified* account. Confirming now also takes the account's password.
+- **The link was built from the request `Host` when `AUTH_URL` was unset** —
+  a forged Host on resend would mail the owner a link to another server,
+  token included. The gate now requires `AUTH_URL`; `forgot-password` and
+  invite emails still fall back to the request host (open row below).
+- **The operator's env login adopted an unproven row with the admin
+  address** and promoted it, leaving the registrant's password working
+  (pre-existing). It now evicts them first: `proveEmailOwnership` plus
+  dropping their credential.
+
+Opening the link does not confirm; the form's POST does, so mail scanners
+cannot. No provider or no `AUTH_URL` → no gate, checked at sign-in too, so a
+mail-less self-host is never stranded.
+
+**CI said more than it ran.**
+
+| Item | Where | Status |
+|---|---|---|
+| No workflow ran lint; web had drifted to 9 errors | `ci.yml` | fixed — lint step in the verify job |
+| 25 of 36 Playwright specs listed in no workflow | `authed-e2e.yml` | fixed for 15; the rest need an LLM key, would destroy the shared session (signout), or are pixel baselines (visual) |
+| The 5 that failed on first run were stale, not flaky: `/api/knowledge` returns `body`, the token wizard shows the one-line installer, the auto-apply control is "Auto-accept" | `e2e/*.spec.ts` | fixed — and the control was a `role="switch"` carrying `aria-pressed`; now `aria-checked` |
+| Dead deployed-brain suite (`apps/web/tests/e2e/`) made a bare `pnpm e2e` fail | `playwright.config.ts` | removed |
+| ~20 DB-gated suites would skip green if the CI database broke | `ci.yml`, `turbo.json` | fixed — `REQUIRE_TEST_DB=1` canary. The first version was inert: turbo's strict env mode stripped the undeclared variable (CodeRabbit). Now declared on the `test` task and verified failing through turbo |
+| No automated dependency updates | `.github/dependabot.yml` | fixed — weekly, grouped, ≤5 open PRs |
+| `forgot-password` / invite links fall back to the request host when `AUTH_URL` is unset | `api/auth/forgot-password`, `api/orgs/[orgId]/invites` | open — production sets `AUTH_URL`; make it required for every emailed link |
+| Worker has no test runner; no coverage collected | `apps/worker` | open |
+
+**What a visitor saw (v2.24.0).** An invitee whose link had expired read
+`INVITE_EXPIRED`; settings pages showed `forbidden` or `HTTP 500`; a dashboard
+whose fetch failed showed the new-user "your Brain is empty" callout to an
+existing user; the onboarding modal, home cards, token wizard and settings
+were English in every locale; several inputs were labelled only by a
+placeholder; public pages had no own title. All fixed: one shared
+`apiErrorMessage` helper maps codes to sentences (`role="alert"`), load
+failures show an error panel with Retry, the first signed-in experience is in
+en/th/de (a key-parity test now covers all three), and `/`, `/signin`,
+`/forgot-password`, `/reset-password`, `/accept-invite` carry their own title
+and description with `metadataBase` read per request. The new Thai and German
+strings are AI-written and await a native-speaker pass (row in §1 below).
+
+**Host (reference instance, no repo change).** Disk was at 82%: 11 GB of
+Docker build cache, a 3.9 GB uncapped journal, 1.4 GB of unrotated pm2 logs
+from a co-hosted app. Added a weekly `docker builder prune --filter
+until=168h`, `SystemMaxUse=500M` for journald, logrotate for the pm2 logs, and
+`chmod 600` on `.env`, its backups and the DB dumps — 71% after. Found, not
+fixed (not this repo, or needs the operator's accounts): nothing alerts when
+the site is down; the nightly backup never leaves the host; the co-hosted
+`app.autobahn.bot` has answered 503 for two weeks with nobody notified.
 
 ## 1. Scaffolding-level issues (v0.1+)
 
@@ -2773,9 +2843,9 @@ The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-
 | ~~**Thai + German i18n scaffolded but not reviewed by a native speaker.**~~ **Native-speaker sweep completed (2026-08-09).** All Thai UI strings across dictionary and docs pages swept and polished for native flow and proper terminology. | `apps/web/lib/brain/i18n-dict.ts` | done |
 | ~~**AI-translated TH / DE `welcome.*` onboarding strings unreviewed.**~~ **Native-speaker sweep completed (2026-08-09).** Swept and polished welcome/start onboarding copy across TH/DE. | `apps/web/lib/brain/i18n-dict.ts` | done |
 | ~~**AI-translated TH / DE `/docs` body content unreviewed (#59).**~~ **Native-speaker sweep completed (2026-08-09).** Full native Thai sweep completed across all concept pages in `DOCS_TH` (`docs-content.ts`), including `using-from-your-agent`, `graph`, and `decisions`. | `apps/web/lib/brain/docs-content.ts` | done |
-| **Pre-login auth pages (`/signin`, `/forgot-password`, `/reset-password`, `/accept-invite`) are still hard-coded English** while rendering the EN/ไทย/DE switcher. `/welcome` was lifted into i18n; these remain. A TH/DE first-timer sees an English pre-login flow. Next i18n slice. | `apps/web/app/signin/`, `apps/web/app/forgot-password/`, `apps/web/app/reset-password/`, `apps/web/app/accept-invite/` | Phase 2 |
-| ~~**Dashboard section labels are hard-coded English.**~~ **Fixed (`feature/visitor-ux-i18n`).** Lifted into `dash.projects_label` / `dash.work_label` with the rest of the dashboard copy. | `apps/web/components/brain/dashboard.tsx` | done |
-| **AI-translated TH / DE strings for the first signed-in experience, not yet native-reviewed.** `feature/visitor-ux-i18n` added the namespaces `apiErrors`, `common`, `errorPage`, `meta`, `onboarding`, `hero`, `tokens`, `wizard`, `settings`, `password`, `projects`, `org`, `roles`, `audit`, `userMenu`, `notifications`, `teach`, plus new keys in `auth`, `dash`, `skills`, `oracle`, `graph`, `app`, `tweaks`. Product terms follow the existing entries (Brain, Skills/สกิล, Token/โทเค็น, Oracle, MCP); voucher is รหัสวอเชอร์ / Gutscheincode as on `/start`. Needs the same native sweep the 2026-08-09 pass gave the older keys. **Still English by design:** `global-error.tsx` (renders outside `LangProvider`), the Teach modal's example rule *content* (saved as a rule and injected into agents), install snippets / `command.note` / `snippet.note` from `@brain/core/install-snippets`, and `formatRelative()` output from core. **Still English, not yet lifted:** `/settings/reset-knowledge` and the `/admin/*` pages. | `apps/web/lib/brain/i18n-dict.ts` | open |
+| ~~**Pre-login auth pages (`/signin`, `/forgot-password`, `/reset-password`, `/accept-invite`) are still hard-coded English.**~~ **Fixed:** signin/forgot/reset moved to `auth.*` in v2.21.x; accept-invite and `/confirm-email` in v2.24.0. | `apps/web/app/signin/`, `apps/web/app/forgot-password/`, `apps/web/app/reset-password/`, `apps/web/app/accept-invite/` | done |
+| ~~**Dashboard section labels are hard-coded English.**~~ **Fixed (v2.24.0).** Lifted into `dash.projects_label` / `dash.work_label` with the rest of the dashboard copy. | `apps/web/components/brain/dashboard.tsx` | done |
+| **AI-translated TH / DE strings for the first signed-in experience, not yet native-reviewed.** v2.24.0 added the namespaces `apiErrors`, `common`, `errorPage`, `meta`, `onboarding`, `hero`, `tokens`, `wizard`, `settings`, `password`, `projects`, `org`, `roles`, `audit`, `userMenu`, `notifications`, `teach`, plus new keys in `auth`, `dash`, `skills`, `oracle`, `graph`, `app`, `tweaks`. Product terms follow the existing entries (Brain, Skills/สกิล, Token/โทเค็น, Oracle, MCP); voucher is รหัสวอเชอร์ / Gutscheincode as on `/start`. Needs the same native sweep the 2026-08-09 pass gave the older keys. **Still English by design:** `global-error.tsx` (renders outside `LangProvider`), the Teach modal's example rule *content* (saved as a rule and injected into agents), install snippets / `command.note` / `snippet.note` from `@brain/core/install-snippets`, and `formatRelative()` output from core. **Still English, not yet lifted:** `/settings/reset-knowledge` and the `/admin/*` pages. | `apps/web/lib/brain/i18n-dict.ts` | open |
 | ~~**Oracle answer renders as plain text.**~~ Answer now goes through `react-markdown` + `remark-gfm` with custom `p`/`li`/`strong`/`em` renderers that re-split text nodes around `[^K1]`/`[^S1]` markers and emit an `<a>` citation chip that smooth-scrolls to the matching citation card (stable IDs via `cite-<stamp>-<kind><n>-<sourceId>`). | `apps/web/components/brain/oracle.tsx`, `apps/web/app/globals.css` | done |
 | ~~**Oracle stream doesn't forward AbortSignal.**~~ `askStream()` accepts `{ signal?: AbortSignal }`; `/api/oracle/stream` forwards `req.signal`. Both Anthropic (`messages.stream(…, { signal })`) and OpenAI (`chat.completions.create(…, { signal })`) branches honor it, and the generator short-circuits on `AbortError`. | `packages/core/src/oracle.ts`, `apps/web/app/api/oracle/stream/route.ts` | done |
 | ~~**Rate-limit proxy is in-memory.**~~ Resolved in Wave 2 (2026-04-22). `packages/core/src/rate-limit.ts` gained an async `Store` interface; `apps/web/lib/brain/rate-limit-store.ts` provides Redis + memory adapters and swaps transparently when `REDIS_URL` is set. | — | done |

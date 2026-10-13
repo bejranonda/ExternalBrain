@@ -21,6 +21,32 @@ The adversaries we defend against:
 
 Out of scope (for now): nation-state APT, physical VM compromise, side-channel attacks on embedding inference.
 
+## v2.24.0 — a self-registered account confirms its email before it signs in
+
+**Closes the last gap of the pre-account takeover class** (`KNOWN_ISSUES.md
+§0bb`): whoever registered someone else's address could sign in with the
+password until the owner reclaimed it.
+
+- With an email provider **and** `AUTH_URL` configured, register (open and
+  voucher) sets `User.emailConfirmRequired` and mails a 24h single-use link
+  (`EmailConfirmToken`, SHA-256 only). Credentials sign-in refuses the account
+  with `email_unconfirmed`, checked only after the password matched.
+- **Confirming takes the link and the account's password.** The confirmation
+  mail reaches the real owner, so the link alone would let the owner's click
+  confirm the registrant's account. Opening the link changes nothing; the
+  form's POST does, so mail scanners cannot confirm either.
+- The link is built only from `AUTH_URL`, never from request headers.
+- Resend is rate-limited per IP and per address, answers the same either way,
+  and sends after the response.
+- The operator's env login on a row with the admin address that nobody
+  proved now evicts its registrant (tokens, sessions, password) before
+  promoting it.
+- No provider or no `AUTH_URL`: no gate, so a self-host without mail behaves
+  as before. Invite signup is unchanged (an admin addressed it).
+
+**Operator note:** additive migration `20261013190000_email_confirm`; run it
+before the web container starts, since sign-in selects the new column.
+
 ## v2.22.0 — an account is only handed over once someone proves its email
 
 **Pre-account takeover is closed** (`KNOWN_ISSUES.md §0az`). Every signup path
@@ -746,7 +772,7 @@ VM deployment (use `scripts/setup-backup-replicate.sh`).
 - **No self-service admin role UI.** Admin promotion is via `ADMIN_EMAILS` env; demotion is SQL. Tracked in KNOWN_ISSUES.
 - **Vouchers are not scoped to emails.** A voucher can be redeemed by any email that knows the code. An email-pinned voucher (`emailAllowlist String[]`) is a natural next step; current model supports it with a schema addition.
 - **`/api/auth/*` is still exempt from the proxy limiter** (an OAuth callback must not 429 on a cold deploy). Password guessing through it is covered since v2.21.0 — the limit lives inside the credentials `authorize()`, which both the sign-in action and the direct callback run.
-- **Signup still does not send a verification email.** Since v2.22.0 an unproven address can no longer be *adopted* by GitHub sign-in or an invite (see above), but a stranger can still occupy an address until its owner proves it via forgot-password. A confirm-on-signup email is the larger follow-up (`KNOWN_ISSUES.md §0az`).
+- **Emailed links other than signup confirmation fall back to the request host when `AUTH_URL` is unset** (forgot-password, invites). Production sets `AUTH_URL`; the confirmation gate refuses to run without it (`KNOWN_ISSUES.md §0bb`).
 - **No CAPTCHA on voucher entry.** A brute-forcer that enumerates short codes is plausible. Mitigated by the 8-char alphanumeric space (≥ 10^10 possibilities per prefix) but a rate-limit on voucher-validate attempts is cheap defense.
 - **Session revocation is per user, not per session.** Since v2.22.0 `User.sessionsRevokedAt` signs out every web session that authenticated before it (set by a password reset); there is no "sign out this one device" and no admin button for it yet.
 

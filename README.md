@@ -162,7 +162,9 @@ New users can self-register from **`/signin` → "Create one"** (email + passwor
 and get their own personal workspace immediately. Registration is
 secure-by-default: it requires a voucher code (minted by the operator at
 `/admin`) unless you set `REGISTRATION_REQUIRES_VOUCHER=false` to open signup
-fully. Any signed-in user can also create additional organizations from
+fully. When email is configured (`EMAIL_PROVIDER` + `AUTH_URL`), a new account
+first confirms its address through an emailed link before it can sign in.
+Any signed-in user can also create additional organizations from
 **Settings → Organization → New organization**. See
 [docs/SECURITY.md](./docs/SECURITY.md) for the full posture.
 
