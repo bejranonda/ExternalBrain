@@ -49,7 +49,7 @@ to (`packages/core/src/llm.ts`):
 | `gemini-*` | Google | Google AI |
 | `qwen*`, `glm-*` | **Alibaba (DashScope)** | `dashscope-intl.aliyuncs.com` |
 
-Two things follow that you should decide about deliberately:
+Three things follow that you should decide about deliberately:
 
 1. **`qwen`/`glm` models route to Alibaba.** The meeting-extract path defaults
    to `qwen3-coder` for cost reasons (`deploy/docker-compose.yml`). If that
@@ -57,6 +57,10 @@ Two things follow that you should decide about deliberately:
    a provider you have chosen on purpose.
 2. **Embeddings** are also computed by a provider (`EMBEDDING_BASE_URL`), so
    knowledge text is sent there too.
+
+3. **Transactional email**, only when `EMAIL_PROVIDER` is set: the recipient's
+   address and the message (an invite, a password-reset link, or — since
+   v2.24.0 — a signup confirmation link) go to the email provider (Resend).
 
 Nothing else leaves the instance. There is no telemetry, no analytics, no
 crash reporting unless *you* set `SENTRY_DSN`, and no outbound call to any

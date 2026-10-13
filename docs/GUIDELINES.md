@@ -689,6 +689,11 @@ Reviewer checklist:
 - **Anything on the sign-in path gets a browser check against the built image
   before deploy** — sign in, reload a protected page, sign out. Unit tests
   share the author's assumptions (`APPROACH §5ch`).
+- **An emailed proof proves the inbox's owner, not the account's.** When a
+  link confirms or recovers an account, ask who gains when it succeeds; if
+  that can be someone other than the inbox owner, require a second factor
+  (signup confirmation also takes the password). Build emailed links only
+  from `AUTH_URL`, never from request headers (`KNOWN_ISSUES §0bb`).
 - **A denied destructive-write command is a fact about the gate, not something a follow-up message unlocks.** Raw destructive SQL against a live database (a `docker exec … psql … DELETE`, not a Prisma migration) goes through the harness's auto-mode classifier, independent of `AGENTS.md §3`'s Prisma-level consent flag. It is deterministic: retrying the identical command, even after the user explicitly says "run it," is denied identically, because the classifier evaluates the call itself, not the surrounding chat. The only unlock is the user exiting auto mode (a distinct harness state). Before any such request: survey and state the exact blast radius (tables, row counts, FK-order — `Project.organizationId`'s `RESTRICT` is a real example of order mattering) so whichever approval path is used is informed. Full incident: `KNOWLEDGE.md §12.36`, `KNOWN_ISSUES.md §0am`, `APPROACH.md §5bx`.
 - **Every MCP tool handler authenticates first.** The `AuthContext` parameter is not optional.
 - **Every REST handler authenticates first.** NextAuth session or API token; unauthenticated requests return 401.

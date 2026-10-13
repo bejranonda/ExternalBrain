@@ -3521,3 +3521,33 @@ its job on its own codebase.
 
 Full instance: `KNOWN_ISSUES.md §0ba`.
 
+## 5cj. Ask what the fix proves, not only what it blocks (2026-10-13, v2.24.0)
+
+The first version of signup confirmation passed eight tests and a typecheck,
+and had a hole any reviewer of the threat would see: the confirmation mail
+goes to the address's real owner, so the person a confirmation proves is the
+*owner* — while the account, and its password, belong to whoever registered.
+A link click therefore proved nothing about the registrant. The tests were
+correct about what they checked (single use, expiry, the race, the gate's
+order); they never asked *who* the proof was about. A second reviewer, given
+only "enumerate every door and say which ones are gated", found it, plus a
+Host-header path to steal the link and an older admin-login adoption of the
+same kind.
+
+Two rules from it:
+
+- **For an ownership proof, write down whose ownership it proves and who
+  benefits when it succeeds.** If those differ, the proof needs a second
+  factor tying them together — here, the account's password on the confirm
+  form.
+- **Exercise a guard through the runner CI uses.** The DB-skip canary failed
+  correctly under `vitest` and was inert in CI, because `turbo`'s strict env
+  mode dropped the undeclared variable. It is the `§5ch` rule again one level
+  down: test at the layer where the thing actually runs.
+
+Also, fifteen Playwright specs went into CI in one batch and five failed — all
+stale (renamed API fields, a redesigned wizard, a relabelled control), none
+flaky. A spec that runs nowhere does not stay correct; it rots silently and
+reads as coverage.
+
+Full instance: `KNOWN_ISSUES.md §0bb`.
