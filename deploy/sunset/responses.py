@@ -147,17 +147,22 @@ def main() -> int:
         tag = " [admin]" if r["role"] == "admin" else ""
         print(f"  {addr(r):<{width}}  {last_status(r):<{swidth}}  {dl:<18}  {(r['mcp_last'] + (' ✓' if r['mcp_since'] else '')) if r['mcp_last'] else 'never'}{tag}")
 
-    bounced = [r for r in notified if any(s in ("bounced", "complained", "suppressed") for s in r["status"].values())]
-    quiet = [r for r in notified if r not in bounced and not r["exports"] and not r["mcp_since"]]
+    # Resend's terminal non-deliveries; "delivery_delayed" is still retrying.
+    undelivered = ("bounced", "complained", "suppressed", "failed")
+    bounced = [r for r in notified if any(s in undelivered for s in r["status"].values())]
+    delayed = [r for r in notified if r not in bounced and "delivery_delayed" in r["status"].values()]
+    quiet = [r for r in notified if r not in bounced and r not in delayed and not r["exports"] and not r["mcp_since"]]
     print("\nNeeds attention")
     if bounced:
-        print(f"  {len(bounced)} address(es) bounced, complained or are suppressed — later reminders will not reach them:")
+        print(f"  {len(bounced)} address(es) bounced, complained, failed or are suppressed — later reminders will not reach them:")
         for r in bounced:
             print(f"    {addr(r)}")
     if quiet:
         print(f"  {len(quiet)} account(s) were sent the email but have neither downloaded nor used MCP since;")
         print("    the T-7d and T-1d reminders go to them automatically.")
-    if not bounced and not quiet:
+    if delayed:
+        print(f"  {len(delayed)} notice(s) still delayed at the provider; run again later.")
+    if not bounced and not quiet and not delayed:
         print("  nothing")
     print(f"\nReplies go to {contact}; this report cannot see that mailbox.")
     print("Opens and clicks are not tracked (PRIVACY.md); a download is the response that counts.")

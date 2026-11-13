@@ -168,8 +168,16 @@ where u.email not like '%@deleted.local'
 order by u."createdAt";
 SQL
 )" || die "database query failed"
+  # The same key order and auto-detect as resolveProvider() in
+  # packages/core/src/email.ts: a key with no EMAIL_PROVIDER means Resend.
+  local key provider
+  key="$(env_get EMAIL_API_KEY)"
+  [[ -n "$key" ]] || key="$(env_get RESEND_API)"
+  [[ -n "$key" ]] || key="$(env_get RESEND_API_KEY)"
+  provider="$(env_get EMAIL_PROVIDER)"
+  [[ -n "$provider" || -z "$key" ]] || provider=resend
   SUNSET_AT="$SUNSET_AT" SUNSET_CONTACT="$CONTACT" SUNSET_SHOW_EMAILS="$show" \
-    SUNSET_EMAIL_PROVIDER="$(env_get EMAIL_PROVIDER)" SUNSET_EMAIL_API_KEY="$(env_get EMAIL_API_KEY)" \
+    SUNSET_EMAIL_PROVIDER="$provider" SUNSET_EMAIL_API_KEY="$key" \
     python3 -I "$SUNSET_DIR/responses.py" <<<"$rows"
 }
 

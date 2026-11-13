@@ -19,6 +19,7 @@ const ROWS = [
   ["u2", "bob@example.org", "user", "announce:m-bnc", "2026-11-13 07:38", "", "0", "2026-08-15 19:05"],
   ["u3", "cyd@example.net", "user", "announce:m-429", "2026-11-13 07:39", "", "0", ""],
   ["u4", "dee@nomx.invalid", "user", "", "", "", "0", ""],
+  ["u5", "eve@example.com", "user", "announce:m-fail", "2026-11-13 07:40", "", "0", ""],
 ].map((r) => r.join("\t")).join("\n");
 
 const seen: { url: string; headers: IncomingHttpHeaders }[] = [];
@@ -35,7 +36,7 @@ beforeAll(async () => {
       throttled = true;
       return res.writeHead(429).end();
     }
-    const last_event = { "m-del": "delivered", "m-bnc": "bounced", "m-429": "delivered" }[id ?? ""];
+    const last_event = { "m-del": "delivered", "m-bnc": "bounced", "m-429": "delivered", "m-fail": "failed" }[id ?? ""];
     res.writeHead(last_event ? 200 : 404, { "content-type": "application/json" }).end(JSON.stringify({ last_event }));
   });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
@@ -63,18 +64,18 @@ describe("sunset responses report", () => {
       SUNSET_RESEND_API: base,
       SUNSET_CONTACT: "hello@example.com",
     });
-    expect(seen.length).toBe(4); // three notices, one retried after a 429
+    expect(seen.length).toBe(5); // four notices, one retried after a 429
     for (const s of seen) {
       expect(s.headers.authorization).toBe("Bearer test-key");
       expect(s.headers["user-agent"]).not.toMatch(/^Python-urllib/);
     }
-    expect(out).toContain("4  (3 notified, 1 never notified)");
-    expect(out).toMatch(/announce\s+3 sent\s+2 delivered\s+1 bounced/);
-    expect(out).toMatch(/downloaded their data\s+1 of 3/);
-    expect(out).toMatch(/used MCP \(their AI was told\)\s+1 of 3/);
+    expect(out).toContain("5  (4 notified, 1 never notified)");
+    expect(out).toMatch(/announce\s+4 sent\s+2 delivered\s+1 bounced\s+1 failed/);
+    expect(out).toMatch(/downloaded their data\s+1 of 4/);
+    expect(out).toMatch(/used MCP \(their AI was told\)\s+1 of 4/);
     expect(out).toContain("2026-11-14 10:00 (×2)");
     expect(out).toContain("2026-11-15 09:00 ✓");
-    expect(out).toMatch(/bounced.*\n\s+bob…@example\.org/);
+    expect(out).toMatch(/bounced, complained, failed.*\n\s+bob…@example\.org\n\s+eve…@example\.com/);
     expect(out).toContain("1 account(s) were sent the email but have neither downloaded nor used MCP");
     expect(out).toContain("Replies go to hello@example.com");
     expect(out).not.toContain("ada@example.com");
@@ -85,7 +86,7 @@ describe("sunset responses report", () => {
     const out = await run({ SUNSET_EMAIL_PROVIDER: "disabled", SUNSET_SHOW_EMAILS: "1" });
     expect(seen.length).toBe(before);
     expect(out).toContain("no delivery lookup");
-    expect(out).toMatch(/announce\s+3 sent\s+3 sent/);
+    expect(out).toMatch(/announce\s+4 sent\s+4 sent/);
     expect(out).toContain("ada@example.com");
   });
 });

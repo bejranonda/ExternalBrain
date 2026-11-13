@@ -73,7 +73,7 @@ ignore it. Forks without a `BRAIN_DEPLOY_URL` secret skip it green.
 > unless `/api/healthz` says `environment: production`; the 2026-11-12 run
 > logged `Verified target: environment=production`.
 
-The same workflow's second job, **certificates and MCP** (v2.25.1), reads the
+The same workflow's second job, **certificates and MCP** (2026-11-13), reads the
 TLS expiry of the web host and — when the `BRAIN_MCP_URL` secret is set — the
 MCP host, and calls the MCP `/health`. It keeps one `prod-health` issue open
 while a certificate has under 21 days left (certbot renews at 30) or MCP does

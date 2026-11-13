@@ -5,7 +5,7 @@ agent. It records **current state and what is waiting on whom**; the reasoning
 lives in the documents it links. Update it at the end of a working session
 that changes either.
 
-_Last updated: 2026-11-13 · release **v2.25.1** · the hosted trial is ending._
+_Last updated: 2026-11-13 · release **v2.25.0** · the hosted trial is ending._
 
 ---
 
@@ -24,7 +24,7 @@ Runbook: [`SUNSET.md`](./SUNSET.md).
 | **now** | **MCP certificate expired 2026-11-03 — run `/root/fix-cert-renewal.sh`** (MCP users get neither service nor the notice until then; the three accounts that used MCP since mid-October are exactly the ones the MCP notice is for) | **operator** |
 | **now** | `gh secret set BRAIN_MCP_URL` (the MCP URL, e.g. `https://<mcp host>/mcp`) so the daily endpoint check watches MCP too, not only the web certificate | operator |
 | **now** | **Install the close timer: `./scripts/sunset.sh schedule`** (renders the closure page as a check, then a one-shot systemd timer). Without it, run `sunset.sh close` by hand at 12:00 UTC on 14 Dec. The harness refused it to an agent as unattended persistence. | **operator** |
-| **now** | Publish the draft GitHub releases v2.25.0 and v2.25.1 (the tags are pushed) | operator |
+| **now** | Publish the draft GitHub release v2.25.0 (the tag is pushed) | operator |
 | after each email stage | `./scripts/sunset.sh responses` — delivery per notice, downloads, MCP use; replies are in the `EMAIL_REPLY_TO` mailbox, which the script cannot read | operator |
 | 2026-12-07 12:05 UTC | 7-day reminder email (the two bounced addresses show `suppressed`) | worker, automatic |
 | 2026-12-13 12:05 UTC | 1-day reminder email | worker, automatic |
@@ -67,7 +67,7 @@ These cannot be done from the repo:
    `web.sentry_init {enabled:true}` appear; compose delivers it to all three
    services), but no Sentry project exists yet. Create one, put the DSN in
    `.env`, then `./scripts/reload.sh web mcp-server worker`.
-2. **An uptime monitor.** Partly covered since v2.25.1: the daily
+2. **An uptime monitor.** Partly covered once #304 is merged: the daily
    `prod-drift` workflow now also checks both certificates and MCP `/health`
    from outside and opens a `prod-health` issue (`CICD.md`) — once
    `BRAIN_MCP_URL` is set. Daily is slow for an outage; an external monitor
