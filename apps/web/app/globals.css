@@ -1172,3 +1172,36 @@ span[data-tip-open="true"]::after {
     row-gap: 4px;
   }
 }
+
+/* Service-sunset notice (components/brain/sunset-banner.tsx, docs/SUNSET.md).
+   Warn-toned, full width, above everything. On desktop it is one fixed-height
+   line and the pinned shell gives up exactly that height — the shell is
+   `height: 100vh` with the document's overflow hidden, so a banner in normal
+   flow would push the shell's bottom edge off-screen with no way to scroll to
+   it. Below 881px the shell scrolls with the document and the banner wraps. */
+:root { --sunset-h: 40px; }
+.sunset-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--warn, #d97757) 14%, var(--bg));
+  border-bottom: 1px solid color-mix(in srgb, var(--warn, #d97757) 45%, var(--bg));
+}
+.sunset-banner-text { flex: 1 1 auto; min-width: 0; }
+.sunset-banner-links { flex: none; display: flex; gap: 14px; white-space: nowrap; }
+.sunset-banner-links a { color: var(--accent-text); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+@media (min-width: 881px) {
+  .sunset-banner { height: var(--sunset-h); box-sizing: border-box; padding-top: 0; padding-bottom: 0; }
+  .sunset-banner-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body:has(.sunset-banner) .app {
+    height: calc(100vh - var(--sunset-h));
+    grid-template-rows: calc(100vh - var(--sunset-h));
+  }
+}
+@media (max-width: 880px) {
+  .sunset-banner { flex-wrap: wrap; row-gap: 6px; }
+}
