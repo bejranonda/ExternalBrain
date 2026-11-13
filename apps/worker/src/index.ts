@@ -7,7 +7,10 @@
 import { createServer } from "node:http";
 import { PgBoss } from "pg-boss";
 import { z } from "zod";
-import { kea, autoskill, evolution, envForWorker, getLogger, withRequest, shortId, captureError } from "@brain/core";
+import {
+  kea, autoskill, evolution, envForWorker, getLogger, withRequest, shortId, captureError,
+  runSunsetNotices, sunsetEmailMode,
+} from "@brain/core";
 import { db } from "@brain/db";
 import { backfillEmbeddings, staleEmbeddingCount } from "./backfill-embeddings.js";
 
@@ -150,6 +153,10 @@ async function main(): Promise<void> {
     // 10-minute cron — if a run fails, the next tick will pick up the
     // remaining work; no need to retry hard.
     { name: "embeddings.backfill",            retryLimit: 1, retryBackoff: false, expireInSeconds: 600 },
+    // Hourly while a sunset is configured (docs/SUNSET.md). No retry: the
+    // next tick resumes from the AuditLog send record, and a retry within the
+    // hour could re-send to whoever the failed run had already reached.
+    { name: "service.sunset_notices",         retryLimit: 0, retryBackoff: false, expireInSeconds: 1800 },
   ];
   // Terminal inbox for jobs that exhausted their retries. NOTHING works this
   // queue — it is read by the admin surface and by a human during an incident.
@@ -461,6 +468,7 @@ async function main(): Promise<void> {
   // outcome=abandoned which doesn't trigger KEA, so order matters.
   await boss.schedule("session.sweep_abandoned",        "0 7 * * *",   {}, { singletonKey: "session.sweep_abandoned" });
   await boss.schedule("embeddings.backfill",            "*/10 * * * *",{}, { singletonKey: "embeddings.backfill" });
+  await boss.schedule("service.sunset_notices",         "5 * * * *",   {}, { singletonKey: "service.sunset_notices" });
 
   /**
    * Wrap a maintenance handler so a failure is *visible*.
@@ -539,6 +547,15 @@ async function main(): Promise<void> {
       };
     }),
   );
+  await boss.work(
+    "service.sunset_notices",
+    observed("service.sunset_notices", async () => ({ ...(await runSunsetNotices()) })),
+  );
+  // Run once at boot as well, so switching SERVICE_SUNSET_EMAILS to `send`
+  // and restarting the worker delivers the announcement now, not at :05.
+  if (process.env.SERVICE_SUNSET_AT?.trim() && sunsetEmailMode() !== "off") {
+    await boss.send("service.sunset_notices", {}, { singletonKey: "service.sunset_notices" });
+  }
 
   // Cross-session KEA (PR #219). Daily fan-out via kea.runCrossExtractDaily.
   // The function itself emits per-user `op="kea.cross.skip"` /

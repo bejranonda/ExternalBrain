@@ -188,6 +188,11 @@ services:
       RESEND_API: ${RESEND_API:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
       EMAIL_REPLY_TO: ${EMAIL_REPLY_TO:-}
+      # Service sunset (docs/SUNSET.md): banner + closed signups (web), the
+      # `serviceNotice` on every MCP response (mcp-server), notice emails (worker).
+      SERVICE_SUNSET_AT: ${SERVICE_SUNSET_AT:-}
+      SERVICE_SUNSET_DELETE_AT: ${SERVICE_SUNSET_DELETE_AT:-}
+      SERVICE_SUNSET_KIND: ${SERVICE_SUNSET_KIND:-}
       RATE_LIMIT_MEETING_EXTRACT_PER_DAY: ${RATE_LIMIT_MEETING_EXTRACT_PER_DAY:-20}
       # Same routing/allowlist trap as worker's KEA_MODEL below: the route
       # defaults to qwen3-coder (DashScope) for cost reasons, and without
@@ -282,6 +287,11 @@ services:
       # so a developer pasting the MCP hostname in a browser has somewhere
       # to go. Empty default → those fields render as null (graceful).
       BRAIN_PUBLIC_HOSTNAME: ${BRAIN_PUBLIC_HOSTNAME:-}
+      # Service sunset (docs/SUNSET.md): banner + closed signups (web), the
+      # `serviceNotice` on every MCP response (mcp-server), notice emails (worker).
+      SERVICE_SUNSET_AT: ${SERVICE_SUNSET_AT:-}
+      SERVICE_SUNSET_DELETE_AT: ${SERVICE_SUNSET_DELETE_AT:-}
+      SERVICE_SUNSET_KIND: ${SERVICE_SUNSET_KIND:-}
       # Lets `GET /health` answer "which tier am I?" — the question a
       # destructive automated check must ask of the TARGET rather than of its
       # own shell (KNOWN_ISSUES §0ax). Without this line the endpoint reports
@@ -408,6 +418,23 @@ services:
       BRAIN_DEPLOY_ENV: ${BRAIN_DEPLOY_ENV:-}  # Sentry environment tag (dev | prod)
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+      # Service sunset (docs/SUNSET.md): banner + closed signups (web), the
+      # `serviceNotice` on every MCP response (mcp-server), notice emails (worker).
+      SERVICE_SUNSET_AT: ${SERVICE_SUNSET_AT:-}
+      SERVICE_SUNSET_DELETE_AT: ${SERVICE_SUNSET_DELETE_AT:-}
+      SERVICE_SUNSET_KIND: ${SERVICE_SUNSET_KIND:-}
+      # `off` | `dry_run` | `send` — dry-run logs who would get which stage.
+      SERVICE_SUNSET_EMAILS: ${SERVICE_SUNSET_EMAILS:-off}
+      # The notice emails are the worker's first outbound mail: it needs the
+      # same delivery settings as web, and the public URL for their links.
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_API_KEY: ${EMAIL_API_KEY:-}
+      RESEND_API: ${RESEND_API:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      EMAIL_REPLY_TO: ${EMAIL_REPLY_TO:-}
+      BRAIN_PUBLIC_HOSTNAME: ${BRAIN_PUBLIC_HOSTNAME:-}
+      AUTH_URL: ${AUTH_URL:-}
     logging:
       driver: json-file
       options:
