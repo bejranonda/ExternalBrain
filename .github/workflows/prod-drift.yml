@@ -37,7 +37,7 @@ jobs:
       EXPECT_ENV: ${{ vars.BRAIN_EXPECT_DEPLOY_ENV || 'production' }}
     steps:
       - name: Checkout (full history for git describe)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
