@@ -331,6 +331,9 @@ cmd_schedule() {
   require_sunset
   if [[ "${1:-}" == "--print" ]]; then unit_files; return 0; fi
   (( $(date -u +%s) < AT_EPOCH )) || die "SERVICE_SUNSET_AT ($SUNSET_AT) is already past; run close by hand"
+  # Render now, so a setting the closure page cannot use fails today, in
+  # front of the operator, not unattended at the sunset instant.
+  cmd_render >/dev/null || die "render failed; fix the SERVICE_SUNSET_* settings before scheduling"
   local out
   out="$(unit_files)"
   awk '/^# ---- .*brain-sunset.service$/{f=1;next} /^# ---- /{f=0} f' <<<"$out" >"$UNIT_DIR/brain-sunset.service"

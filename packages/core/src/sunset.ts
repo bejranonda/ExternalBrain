@@ -38,23 +38,27 @@ export const SELF_HOST_GUIDE_URL = `${SELF_HOST_REPO_URL}/blob/main/docs/QUICKST
 
 type Env = Record<string, string | undefined>;
 
+// A full instant with an explicit zone. A bare date ("2026-12-14") is
+// refused: Date.parse would read it as UTC midnight, but the closure renderer
+// (deploy/sunset/render.py) rejects it — and a date that half the feature
+// accepts lets the notices run for a month and the scheduled close fail.
+const ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
+
 function instant(raw: string | undefined): Date | null | "invalid" {
   const v = raw?.trim();
   if (!v) return null;
-  // Date.parse accepts "2026-12-14" and reads it as UTC midnight, which is a
-  // reasonable reading of a bare date; anything it cannot read is rejected.
-  const ms = Date.parse(v);
+  const ms = ISO_INSTANT.test(v) ? Date.parse(v) : NaN;
   return Number.isNaN(ms) ? "invalid" : new Date(ms);
 }
 
 export function parseServiceSunset(env: Env = process.env): SunsetParse {
   const at = instant(env.SERVICE_SUNSET_AT);
   if (at === null) return { ok: true, sunset: null };
-  if (at === "invalid") return { ok: false, error: "SERVICE_SUNSET_AT is not a date" };
+  if (at === "invalid") return { ok: false, error: "SERVICE_SUNSET_AT is not an ISO instant with a zone, e.g. 2026-12-14T12:00:00Z" };
   const del = instant(env.SERVICE_SUNSET_DELETE_AT);
-  if (del === "invalid") return { ok: false, error: "SERVICE_SUNSET_DELETE_AT is not a date" };
-  if (del !== null && del < at) {
-    return { ok: false, error: "SERVICE_SUNSET_DELETE_AT is before SERVICE_SUNSET_AT" };
+  if (del === "invalid") return { ok: false, error: "SERVICE_SUNSET_DELETE_AT is not an ISO instant with a zone" };
+  if (del !== null && del <= at) {
+    return { ok: false, error: "SERVICE_SUNSET_DELETE_AT is not after SERVICE_SUNSET_AT" };
   }
   // Strict, like scripts/sunset.sh's renderer: a typo is reported, not
   // quietly worded as the other kind.

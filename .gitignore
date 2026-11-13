@@ -59,3 +59,5 @@ docs/internal/
 *-after.png
 *-before.png
 .playwright-mcp/
+# Python bytecode (deploy/sunset/render.py)
+__pycache__/

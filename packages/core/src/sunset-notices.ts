@@ -114,14 +114,15 @@ export async function runSunsetNotices(deps: SunsetNoticeDeps = {}): Promise<Sun
     select: { id: true, email: true },
     orderBy: { createdAt: "asc" },
   });
-  const done = new Set(
-    (
-      await db.auditLog.findMany({
-        where: { action: SUNSET_NOTICE_ACTION(stage), targetType: "user" },
-        select: { targetId: true },
-      })
-    ).map((r) => r.targetId),
-  );
+  // Keyed by the sunset instant as well as the stage: a postponed date, or a
+  // later second sunset, is news and is announced again.
+  const sentWhere = (userId?: string) => ({
+    action: SUNSET_NOTICE_ACTION(stage),
+    targetType: "user",
+    ...(userId ? { targetId: userId } : {}),
+    payload: { path: ["sunsetAt"], equals: sunset.at.toISOString() },
+  });
+  const done = new Set((await db.auditLog.findMany({ where: sentWhere(), select: { targetId: true } })).map((r) => r.targetId));
 
   const result = { stage, mode, due: 0, sent: 0, alreadySent: 0, noMailHost: 0, failed: 0 };
   const mailHostOf = new Map<string, boolean | "unknown">();
@@ -145,6 +146,13 @@ export async function runSunsetNotices(deps: SunsetNoticeDeps = {}): Promise<Sun
     result.due++;
     if (mode === "dry_run") {
       log.info({ op: "service.sunset_notices", stage, userId: user.id, to: mask(user.email), outcome: "dry_run" }, "sunset notice (dry run)");
+      continue;
+    }
+    // Re-read just before sending: a run that outlived its expiry can overlap
+    // the next hourly one, and the set read at the start would be stale.
+    if ((await db.auditLog.count({ where: sentWhere(user.id) })) > 0) {
+      result.alreadySent++;
+      result.due--;
       continue;
     }
     const res = await send({ to: user.email, subject: tpl.subject, html: tpl.html, text: tpl.text });

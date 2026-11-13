@@ -35,9 +35,15 @@ describe("parseServiceSunset", () => {
   });
   it("reports a malformed setting instead of silently ignoring or throwing", () => {
     expect(parseServiceSunset({ SERVICE_SUNSET_AT: "14.12.2026" }).ok).toBe(false);
+    // A bare date passes Date.parse but not the closure renderer; refused here
+    // so the two halves of the feature agree.
+    expect(parseServiceSunset({ SERVICE_SUNSET_AT: "2026-12-14" }).ok).toBe(false);
+    expect(parseServiceSunset({ SERVICE_SUNSET_AT: "2026-12-14T12:00:00" }).ok).toBe(false);
+    expect(parseServiceSunset({ SERVICE_SUNSET_AT: "2026-12-14T13:00:00+01:00" }).ok).toBe(true);
+    expect(parseServiceSunset({ SERVICE_SUNSET_AT: AT, SERVICE_SUNSET_DELETE_AT: AT }).ok).toBe(false);
     expect(parseServiceSunset({ SERVICE_SUNSET_AT: AT, SERVICE_SUNSET_DELETE_AT: "soon" }).ok).toBe(false);
     expect(parseServiceSunset({ SERVICE_SUNSET_AT: AT, SERVICE_SUNSET_DELETE_AT: "2026-12-01T00:00:00Z" }))
-      .toEqual({ ok: false, error: "SERVICE_SUNSET_DELETE_AT is before SERVICE_SUNSET_AT" });
+      .toEqual({ ok: false, error: "SERVICE_SUNSET_DELETE_AT is not after SERVICE_SUNSET_AT" });
     expect(serviceSunset({ SERVICE_SUNSET_AT: "not a date" })).toBeNull();
     expect(parseServiceSunset({ SERVICE_SUNSET_AT: AT, SERVICE_SUNSET_KIND: "trail" }).ok).toBe(false);
   });

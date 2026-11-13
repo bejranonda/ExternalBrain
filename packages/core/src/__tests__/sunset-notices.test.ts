@@ -98,6 +98,16 @@ guard("runSunsetNotices", () => {
     expect(await records("week", ids.reachable!)).toBe(1);
   });
 
+  it("a postponed date is news: the announcement goes out again", async () => {
+    setEnv();
+    const later = new Date(at.getTime() + 14 * DAY);
+    process.env.SERVICE_SUNSET_AT = later.toISOString();
+    const send = vi.fn(async (_m: { to: string }) => ({ ok: true }));
+    await runSunsetNotices({ mode: "send", send, mailHost, pauseMs: 0 });
+    expect(sentTo(send)).toContain(`ann-${tag}@${good}`);
+    expect(await records("announce", ids.reachable!)).toBe(2);
+  });
+
   it("stops at the sunset instant, and refuses a malformed setting loudly", async () => {
     setEnv();
     expect(await runSunsetNotices({ now: at, mode: "send", send: vi.fn(), mailHost })).toEqual({ skipped: "after_sunset" });
