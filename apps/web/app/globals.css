@@ -1214,6 +1214,11 @@ span[data-tip-open="true"]::after {
   }
   body:has(.sunset-banner) .locale-picker { top: calc(var(--sunset-h) + 14px) !important; }
 }
+/* Narrow desktops: stack the two links so the text keeps enough width for
+   German's ~150 characters in two lines. */
+@media (min-width: 881px) and (max-width: 1199px) {
+  .sunset-banner-links { flex-direction: column; gap: 2px; align-items: flex-end; }
+}
 @media (max-width: 880px) {
   .sunset-banner { flex-wrap: wrap; row-gap: 6px; }
   body:has(.locale-picker) .sunset-banner { padding-top: 64px; }
