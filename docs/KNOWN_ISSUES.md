@@ -2966,6 +2966,23 @@ label-and-count in all three languages.
 | Two notice addresses bounce permanently | Resend | accepted; reach them another way if they matter |
 | Dependency PRs held until after the closure | #295, #296, #298, #302 | **held** — change freeze on an instance whose remaining work is two emails and a close; #297 (TypeScript 7) fails typecheck and needs a migration of its own |
 
+**Deployed and verified, 2026-11-13 11:27 UTC (v2.25.1, web only — the
+worker and MCP server are unchanged).** Before: a verified dump
+(`pre-v2.25.1-202611131108`, 35 tables) and `deploy-web:rollback-v2.25.0`
+tagged off the running image. The built image was checked before the swap:
+the new wording in its bundle, none of the old, version `v2.25.1` (and
+again inside the running container — `reload.sh` rebuilds from cache and
+the image id changes). After: `/api/healthz` 200 `v2.25.1` on loopback and
+public; MCP loopback `/health` 200; `verify-lockdown.sh` PASS; no restarts.
+Live, with a throwaway account (15 users before and after): sign-in, then
+one rule imported three times — "Imported: 1 · Already here: 0 · …" in
+English, then "นำเข้าแล้ว: 0 · มีอยู่แล้ว: 1 · …" and "Importiert: 0 ·
+Schon vorhanden: 1 · …", banner present, no page errors (7/7). Log lines
+since the deploy: worker 0, MCP 0; web three, all accounted for — the
+lockdown probe's own `not_signed_in` and `MissingCSRF` (it posts wrong
+credentials without a token on purpose) and the documented best-effort
+`bp_active_project` cookie warning that Next 16 raises on every project page.
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:
