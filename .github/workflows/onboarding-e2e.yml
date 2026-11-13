@@ -51,11 +51,11 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Detect onboarding-surface changes
         id: changes
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             onboarding:
@@ -81,13 +81,13 @@ jobs:
 
       - name: Setup pnpm
         if: steps.changes.outputs.onboarding == 'true'
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 9.15.0
 
       - name: Setup Node
         if: steps.changes.outputs.onboarding == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -162,7 +162,7 @@ jobs:
 
       - name: Upload Playwright report on failure
         if: ${{ failure() && steps.changes.outputs.onboarding == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: apps/web/playwright-report/
