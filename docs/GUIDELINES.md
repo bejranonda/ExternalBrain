@@ -813,6 +813,8 @@ Everything the agent needs to continue — stable `code`, actionable `remediatio
 
 8. **A scheduled mechanism is verified by its schedule and its last result, not by a dry run.** `certbot renew --dry-run` proved a renewal *could* succeed while no job would ever run one; the MCP certificate expired twice in 2026 (`KNOWN_ISSUES §0r`, `§0bc`). Check what invokes it (`systemctl list-timers`, `systemctl cat <unit>`, `crontab -l`), that unit's last exit status, and the artifact itself — the expiry read off the wire for *every* hostname. Before deleting a directory on a host, grep systemd units, timers and crontabs for its path.
 
+9. **An outcome that happens somewhere else is checked where it happens.** A sender's log says what the provider *accepted*: the sunset announcement logged "14 sent, 0 failed" and Resend later reported two hard bounces (`KNOWN_ISSUES §0bc`) — read delivery from the provider (`scripts/sunset.sh responses`). A certificate is read at the hostname the clients use, taken from a client's configuration, not from memory: the same session checked `mcp.autobahn.bot`, found it valid (the wildcard covers it) and nearly reported the expired `mcp.brain.autobahn.bot` as renewed. And a health check that reads one endpoint vouches for that endpoint only: the daily `prod-drift` job stayed green through ten days of MCP outage because it only ever read the web `/api/healthz`.
+
 ---
 
 ## 8. Performance budgets

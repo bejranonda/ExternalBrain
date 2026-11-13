@@ -68,13 +68,21 @@ GitHub serves those from the repo, so nothing merged is missing from
 production, and a watchdog that cries over documentation trains you to
 ignore it. Forks without a `BRAIN_DEPLOY_URL` secret skip it green.
 >
-> ⚠️ **Known misconfiguration (2026-08-14):** on this repo `BRAIN_DEPLOY_URL`
-> resolves to the **dev** host, so the watchdog has been reporting dev's
-> version under a "production is behind main" title — see
-> [`KNOWN_ISSUES §0al`](./KNOWN_ISSUES.md). The stale-deploy gap it exists to
-> close is therefore still open. Repoint the secret at the production origin,
-> then `workflow_dispatch` once and confirm the reported version matches
-> production's `/api/healthz` before trusting it again.
+> **Resolved:** `BRAIN_DEPLOY_URL` once pointed at the dev host
+> ([`KNOWN_ISSUES §0al`](./KNOWN_ISSUES.md)). The job now refuses to report
+> unless `/api/healthz` says `environment: production`; the 2026-11-12 run
+> logged `Verified target: environment=production`.
+
+The same workflow's second job, **certificates and MCP** (2026-11-13), reads the
+TLS expiry of the web host and — when the `BRAIN_MCP_URL` secret is set — the
+MCP host, and calls the MCP `/health`. It keeps one `prod-health` issue open
+while a certificate has under 21 days left (certbot renews at 30) or MCP does
+not answer, and fails the run. The drift job alone stayed green through ten
+days in November when the MCP certificate had expired and every MCP client
+failed TLS (`KNOWN_ISSUES §0bc`): it only ever read the web `/api/healthz`.
+Hostnames come from secrets and are masked in the public logs; issues name
+only "web" and "mcp". After `scripts/sunset.sh close`, both jobs treat
+**410 Gone** as closed on purpose and stay green (`SUNSET.md`).
 
 > **Why the e2e gate is path-scoped:** three user-visible bugs once shipped past
 > CI because the suite only covered signed-in behaviour. The gate closes that

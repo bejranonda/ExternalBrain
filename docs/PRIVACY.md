@@ -62,6 +62,13 @@ Three things follow that you should decide about deliberately:
    address and the message (an invite, a password-reset link, since v2.24.0 a
    signup confirmation link, and since v2.25.0 the service-sunset notices when
    an operator closes the instance) go to the email provider (Resend).
+   Messages carry no tracking pixel and no rewritten links, so opens and
+   clicks are never recorded (Resend sets this per sending domain: open and
+   click tracking are off on the reference instance's, read from its API
+   2026-11-13 — a fork should check its own). `scripts/sunset.sh responses` asks Resend only
+   for each sunset notice's delivery status (`delivered`, `bounced`, …), by
+   the message id the worker stored, and prints it in the operator's
+   terminal; nothing is stored or sent onward.
 
 Nothing else leaves the instance. There is no telemetry, no analytics, no
 crash reporting unless *you* set `SENTRY_DSN`, and no outbound call to any

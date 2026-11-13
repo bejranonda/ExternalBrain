@@ -3586,3 +3586,29 @@ Two smaller method points:
   one feature cannot disagree about the same setting.
 
 Full instance: `KNOWN_ISSUES.md §0bc`.
+
+## 5cl. Measure the response where it happens (2026-11-13, v2.25.1)
+
+"Can we follow the response from users?" had three honest answers, and only
+one of them was in the database. **Delivery** lives at the email provider:
+the worker had logged 14 sent and the provider said 12 delivered, 2 hard
+bounces. **Action** — the response that matters during a sunset — was
+already in the audit log, because the export route writes a row: a
+download after the notice means the message landed and was acted on, so no
+open-tracking pixel was added for a number that would be noise anyway.
+**Replies** go to a mailbox the instance cannot read, and the report says
+so instead of implying silence. `sunset.sh responses` puts the first two
+side by side per account and names the third.
+
+The per-account view also answered a question nobody had asked: the last
+MCP use by anyone was the day the certificate expired. The users the MCP
+notice exists for were exactly the ones it could not reach — which turned a
+deferred operator task into the first item on the list, and made the
+watchdog that should have caught it (`prod-drift`, green throughout) grow a
+second job.
+
+Method: for any "did it work?" question, list *where each part of the
+outcome is recorded* before writing a query. The parts that are recorded
+nowhere you can read are part of the answer.
+
+Full instance: `KNOWN_ISSUES.md §0bc` (follow-up).
