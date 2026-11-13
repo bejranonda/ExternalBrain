@@ -82,6 +82,26 @@ guard("user data export → import", () => {
     expect(await importUserData(to, file)).toMatchObject({ ok: true, imported: 0, duplicates: 2 });
   });
 
+  it("a Thai project name is matched on re-import, not duplicated", async () => {
+    const file = {
+      format: EXPORT_FORMAT,
+      projects: [{ id: "p1", name: `โปรเจกต์ ${tag}` }],
+      knowledge: [{ type: "heuristic", ownerProjectId: "p1", triggerText: `th ${tag}`, ruleText: "ทดสอบ" }],
+    };
+    expect(await importUserData(to, file)).toMatchObject({ ok: true, imported: 1 });
+    expect(await importUserData(to, file)).toMatchObject({ ok: true, imported: 0, duplicates: 1 });
+    const orgs = await db.organizationMember.findMany({ where: { userId: to }, select: { orgId: true } });
+    expect(await db.project.count({ where: { organizationId: { in: orgs.map((o) => o.orgId) }, name: `โปรเจกต์ ${tag}` } })).toBe(1);
+  });
+
+  it("refuses a file spread over more than 50 projects, before writing anything", async () => {
+    const projects = Array.from({ length: 51 }, (_, i) => ({ id: `p${i}`, name: `many ${tag} ${i}` }));
+    const knowledge = projects.map((p) => ({ type: "reflex", ownerProjectId: p.id, triggerText: `t ${p.id} ${tag}`, ruleText: "r" }));
+    const before = await db.knowledge.count({ where: { ownerUserId: to } });
+    expect(await importUserData(to, { format: EXPORT_FORMAT, projects, knowledge })).toEqual({ ok: false, error: "import_too_many_projects" });
+    expect(await db.knowledge.count({ where: { ownerUserId: to } })).toBe(before);
+  });
+
   it("refuses anything that is not an export", async () => {
     expect(await importUserData(to, { hello: "world" })).toEqual({ ok: false, error: "invalid_export" });
     expect(await importUserData(to, { format: "something-else", knowledge: [] })).toEqual({ ok: false, error: "invalid_export" });

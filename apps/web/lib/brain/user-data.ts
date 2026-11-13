@@ -14,7 +14,7 @@
  */
 import { z } from "zod";
 import { db, type Prisma } from "@brain/db";
-import { ensureDefaultProject, ensureNamedProject } from "@brain/core";
+import { ensureDefaultProject, ensureNamedProject, ensurePersonalOrg, normalizeProjectName } from "@brain/core";
 
 export const EXPORT_FORMAT = "external-brain-export";
 export const EXPORT_VERSION = 1;
@@ -132,6 +132,8 @@ export function renderKnowledgeMarkdown(bundle: UserDataBundle): string {
 
 const IMPORTABLE_TYPES = new Set(["reflex", "recipe", "heuristic", "principle", "anti_principle"]);
 export const MAX_IMPORT_ROWS = 10_000;
+export const MAX_IMPORT_PROJECTS = 50;
+const MAX_COUNT = 1_000_000;
 const MAX_TEXT = 20_000;
 
 const text = (max: number) => z.string().trim().min(1).max(max);
@@ -154,8 +156,8 @@ const importSchema = z.object({
         language: z.string().max(80).nullish(),
         tags: z.array(z.string().max(120)).max(50).default([]),
         confidence: z.number().finite().optional(),
-        successCount: z.number().int().nonnegative().optional(),
-        failureCount: z.number().int().nonnegative().optional(),
+        successCount: z.number().int().nonnegative().max(MAX_COUNT).optional(),
+        failureCount: z.number().int().nonnegative().max(MAX_COUNT).optional(),
         deletedAt: z.union([z.string(), z.null()]).optional(),
       }).passthrough(),
     )
@@ -164,7 +166,12 @@ const importSchema = z.object({
 
 export type ImportOutcome =
   | { ok: true; imported: number; duplicates: number; skipped: number; projects: string[] }
-  | { ok: false; error: "invalid_export" };
+  | { ok: false; error: "invalid_export" | "import_too_many_projects" };
+
+// A project's identity for matching. normalizeProjectName is "" for an
+// all-punctuation name; fall back to the trimmed lowercase name rather than
+// letting every such name collide.
+const projectKey = (name: string) => normalizeProjectName(name) || name.trim().toLowerCase();
 
 export async function importUserData(userId: string, input: unknown): Promise<ImportOutcome> {
   const parsed = importSchema.safeParse(input);
@@ -172,23 +179,45 @@ export async function importUserData(userId: string, input: unknown): Promise<Im
   const { projects, knowledge } = parsed.data;
   const nameOf = new Map(projects.map((p) => [p.id, p.name]));
 
-  const projectIdFor = new Map<string, string>();
+  // Bounded before anything is written: each new project is a create plus a
+  // slug probe, and a crafted file could otherwise name ten thousand.
+  const wanted = new Set<string>();
+  for (const k of knowledge) {
+    const n = k.ownerProjectId ? nameOf.get(k.ownerProjectId) : undefined;
+    if (n && !k.deletedAt && IMPORTABLE_TYPES.has(k.type)) wanted.add(projectKey(n));
+  }
+  if (wanted.size > MAX_IMPORT_PROJECTS) return { ok: false, error: "import_too_many_projects" };
+
+  // The personal org's projects, read once and matched by key.
+  const { orgId } = await ensurePersonalOrg(db, userId);
+  const own = await db.project.findMany({ where: { organizationId: orgId }, select: { id: true, name: true } });
+  const byKey = new Map(own.map((p) => [projectKey(p.name), p.id]));
+  const usedNames = new Map<string, string>();
+  const display = new Set<string>();
   const resolveProject = async (name: string | undefined): Promise<string> => {
-    const key = name ?? "";
-    const hit = projectIdFor.get(key);
-    if (hit) return hit;
+    display.add(name ?? "Default");
+    const key = name ? projectKey(name) : "";
+    const hit = byKey.get(key) ?? usedNames.get(key);
+    if (hit) {
+      usedNames.set(key, hit);
+      return hit;
+    }
     const id = name
       ? (await ensureNamedProject(db, userId, name)).projectId
       : (await ensureDefaultProject(db, userId)).projectId;
-    projectIdFor.set(key, id);
+    byKey.set(key, id);
+    usedNames.set(key, id);
     return id;
   };
 
+  // A rule the account already holds is a duplicate wherever it is filed — so
+  // re-importing a file adds nothing even when a project name does not match
+  // (an org project's rule re-imported into the personal org, say).
   const existing = await db.knowledge.findMany({
     where: { ownerUserId: userId, deletedAt: null },
-    select: { ownerProjectId: true, triggerText: true, ruleText: true },
+    select: { triggerText: true, ruleText: true },
   });
-  const seen = new Set(existing.map((k) => `${k.ownerProjectId}\u0000${k.triggerText.trim()}\u0000${k.ruleText.trim()}`));
+  const seen = new Set(existing.map((k) => `${k.triggerText.trim()}\u0000${k.ruleText.trim()}`));
 
   let duplicates = 0;
   let skipped = 0;
@@ -199,7 +228,7 @@ export async function importUserData(userId: string, input: unknown): Promise<Im
       continue;
     }
     const projectId = await resolveProject((k.ownerProjectId && nameOf.get(k.ownerProjectId)) || undefined);
-    const key = `${projectId}\u0000${k.triggerText}\u0000${k.ruleText}`;
+    const key = `${k.triggerText}\u0000${k.ruleText}`;
     if (seen.has(key)) {
       duplicates++;
       continue;
@@ -229,14 +258,17 @@ export async function importUserData(userId: string, input: unknown): Promise<Im
     });
   }
 
-  for (let i = 0; i < rows.length; i += 500) {
-    await db.knowledge.createMany({ data: rows.slice(i, i + 500) });
-  }
+  // All or nothing: a failure part-way must not leave half a file imported.
+  await db.$transaction(
+    Array.from({ length: Math.ceil(rows.length / 500) }, (_, i) =>
+      db.knowledge.createMany({ data: rows.slice(i * 500, i * 500 + 500) }),
+    ),
+  );
   return {
     ok: true,
     imported: rows.length,
     duplicates,
     skipped,
-    projects: [...projectIdFor.keys()].map((n) => n || "Default"),
+    projects: [...display],
   };
 }
