@@ -25,11 +25,15 @@ Out of scope (for now): nation-state APT, physical VM compromise, side-channel a
 
 `KNOWN_ISSUES.md §0bc`, runbook `docs/SUNSET.md`.
 
-- **No new accounts while `SERVICE_SUNSET_AT` is set**, on all four paths —
-  `POST /api/auth/register`, `POST /api/invites/signup`, voucher sign-up and a
-  first GitHub sign-in (`signInCallback`) — each answers `service_closing`.
-  The operator listed in `ADMIN_EMAILS` still bootstraps. Asserted per path in
-  `sunset-signups.test.ts`.
+- **No new accounts while `SERVICE_SUNSET_AT` is set**, on every path —
+  `POST /api/auth/register`, `POST /api/invites/signup`,
+  `POST /api/onboard/claim` (agentic onboarding), voucher sign-up and a first
+  GitHub sign-in (`signInCallback`) — each answers `service_closing`. The
+  operator listed in `ADMIN_EMAILS` still bootstraps. The first version gated
+  four paths and called them all; an independent review found the fifth,
+  live on the reference instance. `sunset-signups.test.ts` now **sweeps**
+  every `.user.create(` / `claimVoucher({` call site for the gate instead of
+  listing paths (mutation-tested: removing a gate fails it).
 - **`GET /api/me/export`** returns only the caller's own data, the same bundle
   the operator's GDPR export produces (shared `lib/brain/user-data.ts`): no
   `tokenHash`, no embeddings. 20/hour per user; audited `user.data_export`.
@@ -37,7 +41,8 @@ Out of scope (for now): nation-state APT, physical VM compromise, side-channel a
   personal org, with the same power as `brain_teach_knowledge`: knowledge rows
   only, `visibility: "project"` regardless of the file (a `decision` tag in a
   file never makes a row org-visible), 10 MB / 10 000 rows / 20 000 chars per
-  field, 5/hour per user, audited `user.data_import`.
+  field / 50 projects per file (each new project costs a create and a slug
+  probe), one transaction, 5/hour per user, audited `user.data_import`.
 - **The notice emails** go only to accounts' own addresses, at most once per
   stage, and only with `SERVICE_SUNSET_EMAILS=send` after a dry run.
 - **`scripts/sunset.sh purge`** refuses unless given an explicit flag, after

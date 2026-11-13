@@ -133,5 +133,5 @@ docker compose -f deploy/docker-compose.yml --env-file .env up -d --no-build --f
 - [`AGENTS.md`](../AGENTS.md) — house rules and the Brain memory loop
 - [`SUNSET.md`](./SUNSET.md) — closing an instance: the runbook this trial follows
 - [`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md) — every tracked risk, newest at `§0bc`
-- [`APPROACH.md`](./APPROACH.md) — why the methods are what they are (`§5cg`, `§5ch` are this week's)
+- [`APPROACH.md`](./APPROACH.md) — why the methods are what they are (`§5ck` is the latest: tell people where they are; check what you relied on)
 - [`GUIDELINES.md`](./GUIDELINES.md) — the rules those lessons became

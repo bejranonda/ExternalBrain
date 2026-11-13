@@ -33,9 +33,9 @@ All in `.env`; `deploy/docker-compose.yml` forwards them to web, MCP server and 
 
 | Variable | Values | Effect |
 |---|---|---|
-| `SERVICE_SUNSET_AT` | ISO instant, e.g. `2026-12-14T12:00:00Z` | Turns the whole feature on. Unset = no change anywhere. |
+| `SERVICE_SUNSET_AT` | ISO instant **with time and zone**, e.g. `2026-12-14T12:00:00Z` | Turns the whole feature on. Unset = no change anywhere. A bare date is refused by every part (it would read as UTC midnight in one and fail in another). |
 | `SERVICE_SUNSET_KIND` | `trial` \| `closure` (default `closure`) | Wording only: "the trial ends" vs "the service closes". |
-| `SERVICE_SUNSET_DELETE_AT` | ISO instant | When all data is deleted. Default: `SERVICE_SUNSET_AT` + 30 days. |
+| `SERVICE_SUNSET_DELETE_AT` | ISO instant with zone, after `SERVICE_SUNSET_AT` | When all data is deleted. Default: `SERVICE_SUNSET_AT` + 30 days. |
 | `SERVICE_SUNSET_EMAILS` | `off` (default) \| `dry_run` \| `send` | Worker notice emails. `dry_run` logs each recipient without sending — always run it first. |
 
 `EMAIL_REPLY_TO` (or `EMAIL_FROM`) becomes the contact address on the closure
@@ -65,9 +65,12 @@ once at boot. Each account gets at most one email per stage:
 | `week` | inside the last 7 days | reminder |
 | `final` | inside the last 24 hours | last call |
 
-A send is recorded in the audit log as `service.sunset_notice.<stage>`, only
-after the provider accepted it — so a crash can repeat an email, never skip
-one. Addresses whose domain has no mail host (test domains, erased accounts)
+A send is recorded in the audit log as `service.sunset_notice.<stage>` with
+the sunset instant in its payload, only after the provider accepted it — so a
+crash can repeat an email, never skip one, and **a postponed date is
+announced again** (the record is per stage *and* date). The record is re-read
+just before each send, so an overrunning job and the next hourly one cannot
+both mail the same account. Addresses whose domain has no mail host (test domains, erased accounts)
 are skipped. A stage that was missed (e.g. sending switched on late) is not
 sent retroactively; the next stage covers it.
 
@@ -101,7 +104,9 @@ sent retroactively; the next stage covers it.
 
 1. Final `pg_dump -Fc` to `/root/brain-backups/final-<UTC yyyymmddHHMM>.dump`,
    mode 600, checked with `pg_restore --list`. **If the dump fails, nothing is
-   stopped.**
+   stopped.** It is taken while the stack still runs, so a write in the
+   seconds before step 3 is in the volume but not in the dump — at the sunset
+   instant, after a month's notice, that window is accepted.
 2. Renders `deploy/sunset/rendered/` (gitignored) from
    `deploy/sunset/*.tmpl` via `deploy/sunset/render.py`.
 3. Records and stops every running container of the `deploy` compose project
@@ -128,7 +133,9 @@ with the same HTTP-verified restart.
 > bring the site back it recreates those services with
 > `docker compose up -d --no-build --force-recreate <services>`.
 
-**`schedule`** — writes `brain-sunset.service` + `brain-sunset.timer` to
+**`schedule`** — renders the closure page first (so a setting it cannot use
+fails now, not unattended at the sunset instant), then writes
+`brain-sunset.service` + `brain-sunset.timer` to
 `/etc/systemd/system` and enables the timer for `SERVICE_SUNSET_AT` (UTC).
 `Persistent=false` on purpose: if the host is down at that moment, the close
 does not fire on the next boot at a time nobody announced; run `close` by

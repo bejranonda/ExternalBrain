@@ -2860,6 +2860,11 @@ Found while building it:
 | The worker had never been given `EMAIL_*` or the public URL — harmless until it had mail to send | `deploy/docker-compose.yml` | fixed — and `CORE_CONSUMERS` now lists `worker` for every `email.ts` variable, so the guard asserts it |
 | The GDPR export omitted `ownerProjectId` and `instead` from knowledge rows, so no export could be re-imported into the right project or keep an anti-principle's alternative | `api/admin/gdpr/export` | fixed — both export routes share `lib/brain/user-data.ts` |
 | `/signin`'s "you'll need a voucher code" hint was English in every locale | `app/signin/page.tsx` | fixed |
+| CodeRabbit was rate-limited and reviewed nothing; an independent review pass found: `/api/onboard/claim` (agentic onboarding, **on** in production) still created accounts — the first version gated four paths and called them "all" | `api/onboard/claim` | fixed — and `sunset-signups.test.ts` now sweeps every User-creating call site (mutation-tested) |
+| Import: unbounded distinct projects (quadratic project reads, sequential slug probes); unbounded outcome counts could fail a batch part-way | `lib/brain/user-data.ts` | fixed — ≤ 50 projects per file, org projects read once, counts ≤ 1 000 000, one transaction |
+| **Thai project names normalized to ""**, so they never matched: every `brain_start_session` with a Thai `projectName`, and every re-import, created another project | `packages/core/src/org.ts` | fixed — `normalizeProjectName` keeps letters, marks and digits of every script; import dedupe is account-wide |
+| The notice send log ignored the date, so a postponed sunset would never be re-announced; an overrunning job could re-send | `sunset-notices.ts` | fixed — record keyed by stage and instant, re-read before each send |
+| A bare-date `SERVICE_SUNSET_AT` was accepted by the app but rejected by the closure renderer, so the scheduled close would fail at the instant | `sunset.ts`, `sunset.sh` | fixed — instants need time and zone everywhere; `schedule` renders first |
 | How each MCP client displays the closure server's 410 JSON-RPC error | — | unverified |
 | The email, banner and closure page add AI-written Thai and German | — | awaits the native-speaker pass (§1) |
 

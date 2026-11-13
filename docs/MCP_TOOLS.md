@@ -51,7 +51,9 @@ message, and the server's `instructions` lead with it. It names the closing
 date, the data page (`/settings/data`), self-hosting, how to remove the server
 (`claude mcp remove brain`) and the deletion date, and asks the agent to tell
 its user **once**, in their language. Absent on an instance that is not
-closing. After the close, the MCP host answers every request with HTTP 410
+closing. Object results gain the key; the one tool that returns a list
+(`brain_find_skill`) comes back as `{ serviceNotice, result: [...] }` while
+the notice is on. After the close, the MCP host answers every request with HTTP 410
 and a JSON-RPC error (`code -32000`) carrying the same message.
 
 ## Tools

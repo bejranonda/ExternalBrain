@@ -760,11 +760,14 @@ POST   /api/me/import
   auth   required (session)
   resp   200 { ok: true, imported, duplicates, skipped, projects }
          Knowledge only: live rows of type reflex|recipe|heuristic|principle|anti_principle,
-         into projects of the same name (created on demand), extractedBy "imported",
-         tagged `imported`, visibility "project", outcome counts carried. A rule already
-         present (same project, trigger and rule text) is a duplicate — importing a file
-         twice adds nothing. Embeddings are filled by the worker's backfill.
-  errs   400 invalid_export · 413 import_too_large · 429 rate_limited (5/hour per user)
+         into projects of the same name in the personal org (matched by normalized name,
+         any script; created on demand, ≤ 50 per file), extractedBy "imported", tagged
+         `imported`, visibility "project", outcome counts carried (≤ 1 000 000). A rule the
+         account already holds — same trigger and rule text, in any project — is a
+         duplicate, so importing a file twice adds nothing. One transaction: all or nothing.
+         Embeddings are filled by the worker's backfill.
+  errs   400 invalid_export · 400 import_too_many_projects · 413 import_too_large ·
+         429 rate_limited (5/hour per user)
   audit  user.data_import { imported, duplicates, skipped }
 
 POST   /api/me/password
