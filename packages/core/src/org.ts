@@ -229,9 +229,15 @@ export function slugify(text: string): string {
  * "brain-platform" are one identity. Deliberately conservative beyond that —
  * no fuzzy matching (flywheel-repair spec §3.1). An all-punctuation name
  * normalizes to "" and must NOT be matched on (empty ≠ empty).
+ *
+ * Letters, combining marks and digits of every script count (v2.25.0). The
+ * ASCII-only version reduced every Thai name to "", so a Thai project was
+ * never matched and each call created another — `brain_start_session` with a
+ * Thai `projectName`, and every re-import of an export (KNOWN_ISSUES §0bc).
+ * Marks are kept because Thai vowels and tone marks are marks.
  */
 export function normalizeProjectName(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return name.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{M}\p{N}]/gu, "");
 }
 
 export interface DuplicateProjectGroup {
