@@ -1,0 +1,68 @@
+# Closure server for a sunset External Brain instance (docs/SUNSET.md).
+#
+# Rendered by deploy/sunset/render.py into deploy/sunset/rendered/nginx.conf
+# and run by deploy/sunset/docker-compose.sunset.yml on the SAME loopback
+# ports the web and MCP containers used, so the host's nginx/TLS config keeps
+# proxying to it unchanged. Every request on either port answers 410 Gone:
+# the web port with the trilingual page, the MCP port with a JSON-RPC error
+# an agent can read out to its user, instead of a connection refused that
+# clients report as a generic "failed to connect".
+
+worker_processes 1;
+pid /tmp/nginx.pid;
+error_log /dev/stderr warn;
+
+events {
+    worker_connections 256;
+}
+
+http {
+    server_tokens off;
+    access_log /dev/stdout;
+    charset utf-8;
+
+    # The container runs read-only; every temp path lives on the /tmp tmpfs.
+    client_body_temp_path /tmp/client_body;
+    proxy_temp_path       /tmp/proxy;
+    fastcgi_temp_path     /tmp/fastcgi;
+    uwsgi_temp_path       /tmp/uwsgi;
+    scgi_temp_path        /tmp/scgi;
+
+    types {
+        text/html html;
+    }
+
+    # Web: brain host -> 127.0.0.1:WEB_HOST_PORT -> here.
+    server {
+        listen 8080 default_server;
+        root /etc/sunset/html;
+
+        add_header Cache-Control "no-store" always;
+        add_header X-Robots-Tag "noindex" always;
+        add_header X-Content-Type-Options "nosniff" always;
+
+        # `return 410` for every path, then serve the page as the 410 body.
+        # error_page switches any method to GET for the internal redirect, so
+        # a POST gets the page too rather than the static module's 405.
+        error_page 410 /index.html;
+        location = /index.html {
+            internal;
+        }
+        location / {
+            return 410;
+        }
+    }
+
+    # MCP: mcp host -> 127.0.0.1:MCP_HOST_PORT -> here. /mcp and /health alike.
+    server {
+        listen 8081 default_server;
+        default_type application/json;
+
+        add_header Cache-Control "no-store" always;
+        add_header X-Robots-Tag "noindex" always;
+
+        location / {
+            return 410 '{{MCP_JSON}}';
+        }
+    }
+}

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<!--tmpl
+  Closure page served with HTTP 410 once `scripts/sunset.sh close` has run
+  (docs/SUNSET.md). Rendered by deploy/sunset/render.py: double-brace
+  placeholders are filled with escaped values, and the kind:/phase: marker
+  blocks that do not match SERVICE_SUNSET_KIND / the retention phase are
+  removed, so the served page carries one variant only (this note is stripped
+  too). All copy lives here — edit wording in this file, not in the renderer.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title><!--kind:trial-->The External Brain trial has ended<!--/kind:trial--><!--kind:closure-->External Brain has closed<!--/kind:closure--></title>
+<style>
+  :root {
+    --bg: #f6f6f8;
+    --bg-elev: #ffffff;
+    --line: #e2e3ea;
+    --ink: #16171d;
+    --ink-2: #3f414c;
+    --ink-3: #5f6170;
+    --accent: #1f5c99;
+    --code-bg: #eef0f5;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d0e11;
+      --bg-elev: #171820;
+      --line: #23242c;
+      --ink: #ececf0;
+      --ink-2: #c3c5d0;
+      --ink-3: #9a9cab;
+      --accent: #7aa2f7;
+      --code-bg: #0d0e11;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.6 system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", "Noto Sans", sans-serif;
+  }
+  main { max-width: 640px; margin: 0 auto; padding: 40px 16px 56px; }
+  .brand {
+    font-size: 13px; font-weight: 600; letter-spacing: 0.04em;
+    color: var(--accent); margin: 0 0 20px;
+  }
+  nav { font-size: 13px; color: var(--ink-3); margin: 0 0 24px; }
+  nav a { color: var(--accent); text-decoration: none; }
+  nav a:hover, nav a:focus-visible { text-decoration: underline; }
+  section {
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 24px;
+    margin: 0 0 20px;
+  }
+  h1 { font-size: 20px; font-weight: 600; line-height: 1.35; margin: 0 0 10px; }
+  h2 { font-size: 14px; font-weight: 600; margin: 22px 0 6px; }
+  p { margin: 0 0 10px; color: var(--ink-2); }
+  p.lead { color: var(--ink); }
+  strong { color: var(--ink); font-weight: 600; }
+  a { color: var(--accent); overflow-wrap: anywhere; }
+  code {
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 5px;
+    overflow-wrap: anywhere;
+  }
+  footer { font-size: 12px; color: var(--ink-3); text-align: center; }
+  @media (max-width: 480px) {
+    main { padding-top: 24px; }
+    section { padding: 18px 16px; }
+    h1 { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <p class="brand">External Brain</p>
+  <nav aria-label="Language">
+    <a href="#en" hreflang="en">English</a> ·
+    <a href="#th" hreflang="th" lang="th">ไทย</a> ·
+    <a href="#de" hreflang="de" lang="de">Deutsch</a>
+  </nav>
+
+  <section id="en" lang="en">
+    <!--kind:trial-->
+    <h1>The External Brain trial has ended</h1>
+    <p class="lead">The hosted External Brain trial at <strong>{{HOST}}</strong> ended on <time datetime="{{SUNSET_ISO}}">{{SUNSET_EN}}</time>. Thank you for trying it.</p>
+    <!--/kind:trial-->
+    <!--kind:closure-->
+    <h1>External Brain has closed</h1>
+    <p class="lead">External Brain at <strong>{{HOST}}</strong> closed on <time datetime="{{SUNSET_ISO}}">{{SUNSET_EN}}</time>. Thank you for using it.</p>
+    <!--/kind:closure-->
+
+    <h2>Connected an AI tool?</h2>
+    <p>This server no longer answers MCP requests. Remove it from your client so it stops retrying: <code>claude mcp remove brain</code> in Claude Code. In other clients, delete the “brain” entry from the MCP settings.</p>
+
+    <h2>Your data</h2>
+    <!--phase:retention-->
+    <p>All accounts and data, including backups, will be deleted on <time datetime="{{DELETE_ISO}}">{{DELETE_EN}}</time>. If you did not download your data in time, write to <a href="{{CONTACT_HREF}}">{{CONTACT}}</a> before then from the address you signed up with, and we will send you an export.</p>
+    <!--/phase:retention-->
+    <!--phase:purged-->
+    <p>All accounts and data, including backups, were deleted on <time datetime="{{DELETE_ISO}}">{{DELETE_EN}}</time>.</p>
+    <!--/phase:purged-->
+
+    <h2>Run your own Brain</h2>
+    <p>External Brain is open source. You can run your own instance on any machine with Docker: <a href="{{REPO_URL}}">{{REPO_URL}}</a>. Start with the <a href="{{QUICKSTART_URL}}">quick-start guide</a>. If you downloaded your data, import the JSON file in your new Brain under Settings → Your data → Import.</p>
+  </section>
+
+  <section id="th" lang="th">
+    <!--kind:trial-->
+    <h1>ช่วงทดลองใช้ External Brain สิ้นสุดแล้ว</h1>
+    <p class="lead">ช่วงทดลองใช้ External Brain บน <strong>{{HOST}}</strong> สิ้นสุดลงเมื่อ<time datetime="{{SUNSET_ISO}}">{{SUNSET_TH}}</time> ขอบคุณที่ร่วมทดลองใช้งาน</p>
+    <!--/kind:trial-->
+    <!--kind:closure-->
+    <h1>External Brain ปิดให้บริการแล้ว</h1>
+    <p class="lead">External Brain บน <strong>{{HOST}}</strong> ปิดให้บริการเมื่อ<time datetime="{{SUNSET_ISO}}">{{SUNSET_TH}}</time> ขอบคุณที่ใช้งาน</p>
+    <!--/kind:closure-->
+
+    <h2>เชื่อมต่อเครื่องมือ AI ไว้หรือไม่</h2>
+    <p>เซิร์ฟเวอร์นี้ไม่ตอบรับคำขอ MCP อีกต่อไป โปรดลบออกจากไคลเอนต์ของคุณเพื่อไม่ให้พยายามเชื่อมต่อซ้ำ โดยใช้คำสั่ง <code>claude mcp remove brain</code> ใน Claude Code สำหรับไคลเอนต์อื่น ให้ลบรายการ “brain” ออกจากการตั้งค่า MCP</p>
+
+    <h2>ข้อมูลของคุณ</h2>
+    <!--phase:retention-->
+    <p>บัญชีและข้อมูลทั้งหมด รวมถึงข้อมูลสำรอง จะถูกลบใน<time datetime="{{DELETE_ISO}}">{{DELETE_TH}}</time> หากคุณยังไม่ได้ดาวน์โหลดข้อมูล โปรดส่งอีเมลถึง <a href="{{CONTACT_HREF}}">{{CONTACT}}</a> จากอีเมลที่ใช้สมัครก่อนวันดังกล่าว แล้วเราจะส่งข้อมูลของคุณให้</p>
+    <!--/phase:retention-->
+    <!--phase:purged-->
+    <p>บัญชีและข้อมูลทั้งหมด รวมถึงข้อมูลสำรอง ถูกลบแล้วเมื่อ<time datetime="{{DELETE_ISO}}">{{DELETE_TH}}</time></p>
+    <!--/phase:purged-->
+
+    <h2>ใช้งาน Brain ของคุณเอง</h2>
+    <p>External Brain เป็นซอฟต์แวร์โอเพนซอร์ส คุณสามารถติดตั้งใช้งานเองบนเครื่องใดก็ได้ที่มี Docker: <a href="{{REPO_URL}}">{{REPO_URL}}</a> เริ่มต้นได้จาก<a href="{{QUICKSTART_URL}}">คู่มือเริ่มต้นใช้งาน</a> หากคุณดาวน์โหลดข้อมูลไว้แล้ว สามารถนำเข้าไฟล์ JSON ใน Brain ใหม่ได้ที่ ตั้งค่า → ข้อมูลของคุณ → นำเข้า</p>
+  </section>
+
+  <section id="de" lang="de">
+    <!--kind:trial-->
+    <h1>Die Testphase von External Brain ist beendet</h1>
+    <p class="lead">Die gehostete Testphase von External Brain auf <strong>{{HOST}}</strong> endete am <time datetime="{{SUNSET_ISO}}">{{SUNSET_DE}}</time>. Danke, dass du es ausprobiert hast.</p>
+    <!--/kind:trial-->
+    <!--kind:closure-->
+    <h1>External Brain wurde eingestellt</h1>
+    <p class="lead">External Brain auf <strong>{{HOST}}</strong> wurde am <time datetime="{{SUNSET_ISO}}">{{SUNSET_DE}}</time> eingestellt. Danke, dass du es genutzt hast.</p>
+    <!--/kind:closure-->
+
+    <h2>Hast du ein KI-Werkzeug verbunden?</h2>
+    <p>Dieser Server beantwortet keine MCP-Anfragen mehr. Entferne ihn aus deinem Client, damit dieser keine weiteren Verbindungsversuche unternimmt: <code>claude mcp remove brain</code> in Claude Code. In anderen Clients löschst du den Eintrag „brain“ in den MCP-Einstellungen.</p>
+
+    <h2>Deine Daten</h2>
+    <!--phase:retention-->
+    <p>Alle Konten und Daten, einschließlich der Backups, werden am <time datetime="{{DELETE_ISO}}">{{DELETE_DE}}</time> gelöscht. Falls du deine Daten nicht rechtzeitig heruntergeladen hast, schreib bis dahin von deiner registrierten Adresse an <a href="{{CONTACT_HREF}}">{{CONTACT}}</a> – wir schicken dir dann einen Export.</p>
+    <!--/phase:retention-->
+    <!--phase:purged-->
+    <p>Alle Konten und Daten, einschließlich der Backups, wurden am <time datetime="{{DELETE_ISO}}">{{DELETE_DE}}</time> gelöscht.</p>
+    <!--/phase:purged-->
+
+    <h2>Dein eigenes Brain betreiben</h2>
+    <p>External Brain ist Open Source. Du kannst eine eigene Instanz auf jedem Rechner mit Docker betreiben: <a href="{{REPO_URL}}">{{REPO_URL}}</a>. Am einfachsten startest du mit der <a href="{{QUICKSTART_URL}}">Kurzanleitung</a>. Wenn du deine Daten heruntergeladen hast, importiere die JSON-Datei in deinem neuen Brain unter Einstellungen → Deine Daten → Importieren.</p>
+  </section>
+
+  <footer>HTTP 410 Gone · {{HOST}}</footer>
+</main>
+</body>
+</html>

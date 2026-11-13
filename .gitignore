@@ -20,6 +20,9 @@ coverage/
 # scripts/setup-backup-replicate.sh; store securely offline (1Password etc.).
 deploy/rclone.conf
 deploy/rclone.conf.bak.*
+# Sunset closure server output — rendered from deploy/sunset/*.tmpl by
+# scripts/sunset.sh, carries the operator's contact address (docs/SUNSET.md).
+deploy/sunset/rendered/
 *.log
 .DS_Store
 .vscode/

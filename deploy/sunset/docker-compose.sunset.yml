@@ -1,0 +1,40 @@
+# Closure server for a sunset instance (docs/SUNSET.md). Started by
+# `scripts/sunset.sh close` after the main stack is stopped; binds the same
+# loopback ports the web and MCP containers used, so the host's reverse proxy
+# and TLS certificates need no change. Serves files rendered by
+# deploy/sunset/render.py into ./rendered (gitignored).
+#
+#   docker compose -p brain-sunset -f deploy/sunset/docker-compose.sunset.yml --env-file .env up -d
+name: brain-sunset
+
+services:
+  sunset:
+    image: nginx:1.27.5-alpine
+    # Skip the image's entrypoint scripts: they try to edit default.conf,
+    # which a read-only filesystem refuses, and this config needs none of them.
+    entrypoint: ["nginx", "-c", "/etc/sunset/nginx.conf", "-g", "daemon off;"]
+    ports:
+      - "127.0.0.1:${WEB_HOST_PORT:-3000}:8080"
+      - "127.0.0.1:${MCP_HOST_PORT:-3100}:8081"
+    volumes:
+      # A directory mount, not per-file: a re-render that replaces a file
+      # would otherwise leave the container serving the old inode.
+      - ./rendered:/etc/sunset:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /run
+    mem_limit: 32m
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      # Healthy means "answering 410", which is this container's whole job.
+      test: ["CMD-SHELL", "wget -S -q -O /dev/null http://127.0.0.1:8080/ 2>&1 | grep -q ' 410 '"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
