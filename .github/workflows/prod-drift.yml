@@ -49,7 +49,17 @@ jobs:
             echo "state=skip" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          HEALTHZ=$(curl -fsS --max-time 10 "$DEPLOY_URL/api/healthz")
+          CODE=$(curl -sS -o healthz.json -w '%{http_code}' --max-time 10 "$DEPLOY_URL/api/healthz" || true)
+          if [ "$CODE" = "410" ]; then
+            # Closed on purpose (scripts/sunset.sh close): the closure server
+            # answers 410 Gone on every path, so there is no build to compare.
+            # The endpoints job keeps watching the certificates it serves on.
+            echo "The deployment has closed (410 Gone, docs/SUNSET.md); no version to compare."
+            echo "state=closed" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          [ "$CODE" = "200" ] || { echo "::error::/api/healthz answered HTTP $CODE"; exit 1; }
+          HEALTHZ=$(cat healthz.json)
           DEPLOYED=$(printf '%s' "$HEALTHZ" | jq -r '.version // empty')
           # Which tier the deployment says it is. Guards the failure this
           # workflow could not previously detect: BRAIN_DEPLOY_URL pointed at
@@ -92,7 +102,7 @@ jobs:
             echo "state=in_sync" >> "$GITHUB_OUTPUT"
             echo "In sync: deployed=$DEPLOYED main=$MAIN"
           elif git rev-parse -q --verify "$DEPLOYED^{commit}" >/dev/null 2>&1 \
-            && [ -z "$(git diff --name-only "$DEPLOYED"..origin/main -- . | grep -vE '^(docs/|REBUILD/|\.github/|scripts/|packages/core/generation-uplift/|[^/]+\.md$|\.env\.example$)')" ]; then
+            && [ -z "$(git diff --name-only "$DEPLOYED"..origin/main -- . | grep -vE '^(docs/|REBUILD/|\.github/|scripts/|deploy/sunset/|packages/core/generation-uplift/|[^/]+\.md$|\.env\.example$)')" ]; then
             # Not-app-served drift (#140 false-positive class): every file between
             # the deployed build and main is something production never runs, so
             # nothing merged is missing from prod. Treated as in-sync so the issue
@@ -113,6 +123,10 @@ jobs:
             #       there is no deploy that would make them "live". Note
             #       deploy/docker-compose.yml and deploy/Dockerfile are NOT under
             #       this path and still trip drift, correctly.
+            #   deploy/sunset/              — the closure server and its renderer
+            #       (docs/SUNSET.md), run from the checkout by scripts/sunset.sh.
+            #       The Dockerfile COPYs only packages/, apps/, scripts/ and
+            #       docs/tutorials/ (checked 2026-11-13), so no image holds it.
             # Added 2026-07-31 after #176: v2.4.0 was a docs + benchmark release
             # that correctly wasn't deployed, but .env.example and the
             # generation-uplift/ artifacts survived the old filter and opened a
@@ -167,3 +181,90 @@ jobs:
                 --comment "Back in sync: production and \`main\` are both at \`$DEPLOYED\`."
             fi
           fi
+
+  endpoints:
+    # TLS and MCP, seen from outside the host. The check job above reads only
+    # the web /api/healthz, so it stayed green for the ten days from
+    # 2026-11-03 that the MCP certificate was expired and every MCP client
+    # failed TLS: that certificate had no automatic renewal at all
+    # (KNOWN_ISSUES §0bc). This job watches what users' AI tools connect to.
+    # BRAIN_MCP_URL is a secret for the same reason BRAIN_DEPLOY_URL is; when
+    # it is unset only the web certificate is checked.
+    name: certificates and MCP
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      DEPLOY_URL: ${{ secrets.BRAIN_DEPLOY_URL }}
+      MCP_URL: ${{ secrets.BRAIN_MCP_URL }}
+      # certbot renews at 30 days left, so under 21 means renewal has been
+      # failing for more than a week.
+      MIN_DAYS: "21"
+    steps:
+      - name: Probe certificates and MCP health
+        id: probe
+        run: |
+          problems=""
+          note() { problems="${problems}- $1"$'\n'; echo "::error::$1"; }
+          for pair in "web|$DEPLOY_URL" "mcp|$MCP_URL"; do
+            name="${pair%%|*}"; url="${pair#*|}"
+            if [ -z "$url" ]; then echo "$name: no URL secret set; skipped"; continue; fi
+            host=$(printf '%s' "$url" | sed -E 's#^[a-z]+://##; s#[/:].*$##')
+            # Logs and issues are public: mask the derived hostname (only the
+            # exact secret value is masked automatically) and never name it.
+            echo "::add-mask::$host"
+            end=$(echo | timeout 15 openssl s_client -servername "$host" -connect "$host:443" 2>/dev/null \
+              | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
+            if [ -z "$end" ]; then note "$name: no certificate could be read (TLS handshake failed)"; continue; fi
+            days=$(( ( $(date -u -d "$end" +%s) - $(date -u +%s) ) / 86400 ))
+            echo "$name: certificate valid for $days more days"
+            if [ "$days" -lt 0 ]; then note "$name: the certificate has expired"
+            elif [ "$days" -lt "$MIN_DAYS" ]; then note "$name: the certificate expires in $days days; automatic renewal is not working"
+            fi
+          done
+          if [ -n "$MCP_URL" ]; then
+            base=$(printf '%s' "$MCP_URL" | sed -E 's#^(https?://[^/]+).*#\1#')
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$base/health" || true)
+            echo "mcp: /health answered HTTP $code"
+            # 410 is the closure server (scripts/sunset.sh close): closed on purpose.
+            case "$code" in
+              200|410) ;;
+              000) note "mcp: /health unreachable (TLS or network failure)" ;;
+              *) note "mcp: /health answered HTTP $code" ;;
+            esac
+          fi
+          {
+            echo "problems<<EOF_PROBLEMS"
+            printf '%s' "$problems"
+            echo "EOF_PROBLEMS"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Open/update or close the endpoint issue
+        if: env.DEPLOY_URL != '' || env.MCP_URL != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROBLEMS: ${{ steps.probe.outputs.problems }}
+        run: |
+          EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --label prod-health --state open --json number --jq '.[0].number // empty')
+          if [ -n "$PROBLEMS" ]; then
+            gh label create prod-health --repo "$GITHUB_REPOSITORY" --color B60205 \
+              --description "A production certificate or MCP endpoint needs attention (managed by prod-drift)" 2>/dev/null || true
+            BODY=$(printf '%s\n' \
+              "The daily endpoint check found:" \
+              "" \
+              "$PROBLEMS" \
+              "On the host: \`certbot certificates\` shows what will expire, and \`systemctl status certbot.timer certbot.service\` whether renewal runs at all (KNOWN_ISSUES §0bc)." \
+              "" \
+              "_Managed by the \`prod-drift\` workflow: it comments daily while a problem persists and closes itself when every check passes._")
+            if [ -n "$EXISTING" ]; then
+              gh issue comment "$EXISTING" --repo "$GITHUB_REPOSITORY" --body "Still failing: $PROBLEMS"
+            else
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "prod-health: a certificate or the MCP endpoint needs attention" \
+                --label prod-health --body "$BODY"
+            fi
+          elif [ -n "$EXISTING" ]; then
+            gh issue close "$EXISTING" --repo "$GITHUB_REPOSITORY" --comment "Every certificate and the MCP endpoint check out again."
+          fi
+
+      - name: Fail the run on a problem
+        if: steps.probe.outputs.problems != ''
+        run: exit 1
