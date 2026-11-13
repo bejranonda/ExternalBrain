@@ -1,12 +1,14 @@
 /**
- * A closing instance takes no new accounts (docs/SUNSET.md) — by any of the
- * four paths that create one. Asserted across all of them, since a gate on
- * three of four is a gate that does not hold.
+ * A closing instance takes no new accounts (docs/SUNSET.md) — by any path
+ * that creates one. The first version gated four and called that "all";
+ * review found a fifth (`/api/onboard/claim`, live on the reference
+ * instance). So the list is no longer written down: the sweep below finds
+ * every call site that can create a User and requires the gate in it.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
 import { db } from "@brain/db";
 import * as authModule from "@/auth";
 
@@ -19,6 +21,33 @@ const github = vi.hoisted(() => ({ email: "" }));
 const close = () => vi.stubEnv("SERVICE_SUNSET_AT", "2026-12-14T12:00:00Z");
 afterEach(() => vi.unstubAllEnvs());
 
+const WEB = join(__dirname, "..", "..");
+function sources(dir: string, out: string[] = []): string[] {
+  for (const e of readdirSync(dir)) {
+    if (["node_modules", ".next", "e2e", "generated"].includes(e)) continue;
+    const p = join(dir, e);
+    if (statSync(p).isDirectory()) sources(p, out);
+    else if (/\.tsx?$/.test(e) && !/\.test\.tsx?$/.test(e)) out.push(p);
+  }
+  return out;
+}
+// Where a User row is born, and why each exemption is not a signup.
+const EXEMPT: Record<string, string> = {
+  "lib/brain/vouchers.ts": "defines claimVoucher; every caller is swept instead",
+  "auth.ts": "the operator's own ADMIN_USERNAME login — not a signup",
+};
+
+describe("every account-creating call site checks signupsClosed()", () => {
+  it("sweep", () => {
+    const sites = sources(WEB)
+      .map((f) => ({ f: relative(WEB, f), src: readFileSync(f, "utf8") }))
+      .filter(({ src }) => /\.user\.create\(|claimVoucher\(\{/.test(src));
+    expect(sites.length).toBeGreaterThanOrEqual(5);
+    const ungated = sites.filter(({ f, src }) => !(f in EXEMPT) && !src.includes("signupsClosed()")).map(({ f }) => f);
+    expect(ungated, "creates a User without the sunset gate").toEqual([]);
+  });
+});
+
 describe("registration routes refuse while a sunset is configured", () => {
   it("POST /api/auth/register → 403 service_closing", async () => {
     close();
@@ -29,6 +58,20 @@ describe("registration routes refuse while a sunset is configured", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email: "new@test.local", password: "long-enough-pw", voucher: "X" }),
+      }),
+    );
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: "service_closing" });
+  });
+  it("POST /api/onboard/claim → 403 service_closing (agentic onboarding on)", async () => {
+    close();
+    vi.stubEnv("AGENTIC_ONBOARDING", "true");
+    const { POST } = await import("@/app/api/onboard/claim/route");
+    const res = await POST(
+      new Request("http://localhost/api/onboard/claim", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ voucher: "ANY", email: "agent@test.local" }),
       }),
     );
     expect(res.status).toBe(403);

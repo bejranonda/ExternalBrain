@@ -41,6 +41,7 @@ import {
   BOOTSTRAP_TOKEN_TTL_DAYS,
 } from "@/lib/brain/agentic-onboarding";
 import { clientIpFrom } from "@/lib/brain/client-ip";
+import { signupsClosed } from "@/lib/brain/sunset";
 
 const log = getLogger("onboard-claim");
 
@@ -71,6 +72,9 @@ export async function POST(req: Request): Promise<Response> {
       },
       { status: 403 },
     );
+  }
+  if (signupsClosed()) {
+    return Response.json({ error: "service_closing" }, { status: 403 });
   }
 
   const hdrs = await headers();
