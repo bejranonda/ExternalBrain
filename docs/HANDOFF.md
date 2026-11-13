@@ -18,9 +18,11 @@ Runbook: [`SUNSET.md`](./SUNSET.md).
 
 | When | What | Who |
 |---|---|---|
-| 2026-11-13 | v2.25.0 live with `SERVICE_SUNSET_AT=2026-12-14T12:00:00Z`, `SERVICE_SUNSET_KIND=trial`, `SERVICE_SUNSET_DELETE_AT=2027-01-13T12:00:00Z`: banner, no new accounts, `serviceNotice` on MCP, Settings → Your data | agent |
-| 2026-11-13 | Announcement email (`SERVICE_SUNSET_EMAILS` dry run read first, then `send`) | agent, after the live checks |
+| 2026-11-13 ✅ | v2.25.0 live with `SERVICE_SUNSET_AT=2026-12-14T12:00:00Z`, `SERVICE_SUNSET_KIND=trial`, `SERVICE_SUNSET_DELETE_AT=2027-01-13T12:00:00Z`: banner, no new accounts, `serviceNotice` on MCP, Settings → Your data | agent |
+| 2026-11-13 07:38 UTC ✅ | Announcement email: dry run read first (14 due, 2 without a mail host), then `send` — **14 sent, 0 failed** | agent |
 | **now** | **MCP certificate expired 2026-11-03 — run `/root/fix-cert-renewal.sh`** (MCP users get neither service nor the notice until then) | **operator** |
+| **now** | **Install the close timer: `./scripts/sunset.sh schedule`** (renders the closure page as a check, then a one-shot systemd timer). Without it, run `sunset.sh close` by hand at 12:00 UTC on 14 Dec. The harness refused it to an agent as unattended persistence. | **operator** |
+| **now** | Publish the draft GitHub release v2.25.0 (the tag is pushed) | operator |
 | 2026-12-07 12:05 UTC | 7-day reminder email | worker, automatic |
 | 2026-12-13 12:05 UTC | 1-day reminder email | worker, automatic |
 | 2026-12-14 12:00 UTC | `scripts/sunset.sh close` — final dump, stack stopped, closure page (410) on both hostnames | systemd timer `brain-sunset.timer` (`sunset.sh schedule`); check `sunset.sh status` afterwards |
@@ -36,7 +38,7 @@ cancels the timer.
 |---|---|
 | Released | **v2.25.0** (2026-11-13): service sunset — banner, closed signups, `serviceNotice` on every MCP response, notice emails, Settings → Your data (export + import), `scripts/sunset.sh` closure tooling (`§0bc`). v2.24.0 (2026-10-13): signup confirmation, CI coverage (`§0bb`). |
 | Runtime | Node 24 (`node:24-bookworm-slim`) in every image and in CI |
-| Deployed | `web`, `mcp-server`, `worker` at v2.25.0 (see the live-check record in `§0bc`). Rollback tags `deploy-*:rollback-v2.24.0`; dump `pre-v2.25.0-*` in the operator's backup directory |
+| Deployed | `web`, `mcp-server`, `worker` at v2.25.0 on 2026-11-13 (live-check record in `§0bc`). Rollback tags `deploy-*:rollback-v2.24.0`; dump `pre-v2.25.0-202611130708` in the operator's backup directory; `.env.bak.pre-v2.25.0` |
 | Schema | latest migration `20261013190000_email_confirm` — v2.25.0 adds none |
 | Dependencies | `pnpm audit --prod`: 0 critical, 0 high. Dependabot opens grouped weekly PRs from 2026-10-19 |
 | CI | 8 checks, all required ones green on `main`. CodeRabbit is advisory (`AGENTS.md`). |

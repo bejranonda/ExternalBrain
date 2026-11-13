@@ -2865,6 +2865,7 @@ Found while building it:
 | **Thai project names normalized to ""**, so they never matched: every `brain_start_session` with a Thai `projectName`, and every re-import, created another project | `packages/core/src/org.ts` | fixed — `normalizeProjectName` keeps letters, marks and digits of every script; import dedupe is account-wide |
 | The notice send log ignored the date, so a postponed sunset would never be re-announced; an overrunning job could re-send | `sunset-notices.ts` | fixed — record keyed by stage and instant, re-read before each send |
 | A bare-date `SERVICE_SUNSET_AT` was accepted by the app but rejected by the closure renderer, so the scheduled close would fail at the instant | `sunset.ts`, `sunset.sh` | fixed — instants need time and zone everywhere; `schedule` renders first |
+| The import result reads "1 were already here" for a single rule (no plural forms in the dictionary) | `data.imported` | open, cosmetic |
 | How each MCP client displays the closure server's 410 JSON-RPC error | — | unverified |
 | The email, banner and closure page add AI-written Thai and German | — | awaits the native-speaker pass (§1) |
 
@@ -2894,6 +2895,39 @@ result, and the expiry read off the wire for *every* hostname.
 |---|---|---|
 | MCP certificate expired; every MCP client fails TLS | host | **open — operator runs `/root/fix-cert-renewal.sh`** (renews now; points the systemd job at `certbot -q renew`, which covers both certificates and both authenticators; the existing deploy hook reloads nginx). Certificate changes are blocked for the agent by the harness classifier, correctly. |
 | No external monitor — a nine-day outage of the primary interface went unseen, as the co-hosted app's two-week outage did in October | — | open (operator). Any uptime monitor that also alerts on certificate expiry closes both gaps. |
+
+**Shipped alongside: a month of drift (#301).** With no change in the repo,
+`pnpm audit --prod` had gone from 0 critical / 0 high to three critical (two
+unauthenticated-RCE advisories in the running Next.js 16.3.8, one DOMPurify
+bypass via mermaid) and two high (zod, body-parser), and both required e2e
+checks failed before running because `ubuntu-latest` became 26.04, which
+this Playwright refuses. Next.js 16.4.6, overrides for DOMPurify and
+body-parser, a zod floor, e2e pinned to `ubuntu-24.04`; shipped as its own PR
+ahead of the sunset so it reverts alone.
+
+**Deployed and verified on the live instance, 2026-11-13.** Before: rollback
+tags `deploy-*:rollback-v2.24.0`, a verified dump, `.env` backed up, and the
+merged image (Next 16.4.6 + sunset) driven in a browser against a scratch
+database — 31/31, including the banner at 375 / 881 / 900 / 1024 / 1280px in
+three languages, the shell geometry, export and import. web, mcp-server,
+worker redeployed one at a time; `verify-lockdown.sh` PASS, no restarts, no
+error lines but the two the MCP check provoked on purpose. Live, with a
+throwaway account (removed after; 15 users before and after):
+
+- web (16/16): banner on `/`, `/signin`, `/start`, `/docs`; register form
+  gone; `POST /api/auth/register` and `/api/onboard/claim` → 403
+  `service_closing`; sign-in, the shell exactly fills the viewport under the
+  banner; Markdown/JSON export; re-import adds nothing; th/de; phone.
+- MCP over loopback (5/5 — the public hostname still had the expired
+  certificate): `instructions` lead with the notice; `serviceNotice` is the
+  first field of results and appears on errors; a rule taught over MCP came
+  out in the web Markdown export.
+- Email: the worker's dry run listed 14 due and 2 without a mail host (a
+  `.not` test address and the throwaway); switched to `send` at 07:38 UTC —
+  14 sent, 0 failed, 14 send records keyed to this sunset instant.
+- Not done by the agent, refused by the harness and left to the operator:
+  renewing the MCP certificate, installing the close timer, publishing the
+  GitHub release (the tag is pushed; the release is a draft).
 
 ## 1. Scaffolding-level issues (v0.1+)
 
