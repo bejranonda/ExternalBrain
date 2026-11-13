@@ -28,6 +28,7 @@ import { tools, callTool } from "./tools/index.js";
 import { resources, readResource } from "./resources.js";
 import { authenticate } from "./auth.js";
 import { extractBearer } from "./http-helpers.js";
+import { currentServiceNotice, withServiceNotice } from "./service-notice.js";
 
 const env = envForMcp();
 // MCP stdio owns stdout for JSON-RPC framing; logs must go to stderr.
@@ -56,6 +57,7 @@ function currentToken(): string | undefined {
 type CallCounter = { n: number; lists: number };
 
 function buildServer(counter: CallCounter = { n: 0, lists: 0 }): Server {
+  const notice = currentServiceNotice();
   const server = new Server(
     { name: "brain-platform", version: "0.1.0" },
     {
@@ -65,6 +67,7 @@ function buildServer(counter: CallCounter = { n: 0, lists: 0 }): Server {
       // tool call right after connect — so we can distinguish working
       // clients from probes that only call `initialize` + `tools/list`.
       instructions:
+        (notice ? `IMPORTANT — ${notice}\n\n` : "") +
         "External Brain is connected. Run `brain_get_user_style` first to " +
         "verify end-to-end connectivity and bootstrap your peer card. " +
         "Start each coding task with `brain_start_session(prompt: <task " +
@@ -128,7 +131,8 @@ function buildServer(counter: CallCounter = { n: 0, lists: 0 }): Server {
         },
         "mcp.tool",
       );
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      const body = withServiceNotice(result, currentServiceNotice());
+      return { content: [{ type: "text", text: JSON.stringify(body, null, 2) }] };
     } catch (err) {
       log.error(
         {
@@ -141,8 +145,9 @@ function buildServer(counter: CallCounter = { n: 0, lists: 0 }): Server {
         "mcp.tool failed",
       );
       const msg = err instanceof Error ? err.message : String(err);
+      const errNotice = currentServiceNotice();
       return {
-        content: [{ type: "text", text: `Error: ${msg}` }],
+        content: [{ type: "text", text: `Error: ${msg}${errNotice ? `\n\nserviceNotice: ${errNotice}` : ""}` }],
         isError: true,
       };
     }
