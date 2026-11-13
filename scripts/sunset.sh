@@ -14,6 +14,7 @@
 #
 # Usage:
 #   ./scripts/sunset.sh status
+#   ./scripts/sunset.sh responses [--emails]
 #   ./scripts/sunset.sh render
 #   ./scripts/sunset.sh close [--dry-run] [--early]
 #   ./scripts/sunset.sh reopen
@@ -118,15 +119,58 @@ cmd_status() {
   echo "ports           web 127.0.0.1:$WEB_PORT  mcp 127.0.0.1:$MCP_PORT"
   echo
   echo "== $DEPLOY_PROJECT stack (running)"
-  docker ps --filter "label=com.docker.compose.project=$DEPLOY_PROJECT" --format '  {{.Names}}\t{{.Status}}'
+  docker ps --filter "label=com.docker.compose.project=$DEPLOY_PROJECT" --format '  {{.Names}}\t{{.Status}}' | grep . || echo "  none"
   echo "== $SUNSET_PROJECT closure server (running)"
-  docker ps --filter "label=com.docker.compose.project=$SUNSET_PROJECT" --format '  {{.Names}}\t{{.Status}}'
+  docker ps --filter "label=com.docker.compose.project=$SUNSET_PROJECT" --format '  {{.Names}}\t{{.Status}}' | grep . || echo "  none"
   echo "== latest final dump"
   local latest
   latest="$(find "$BACKUP_DIR" -maxdepth 1 -type f -name 'final-*.dump' -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n1 | cut -d' ' -f2- || true)"
   if [[ -n "$latest" ]]; then stat -c '  %n (%s bytes, %y)' "$latest"; else echo "  none"; fi
   echo "== close timer"
   systemctl list-timers --all brain-sunset.timer --no-pager 2>/dev/null | sed 's/^/  /' || echo "  not installed"
+}
+
+cmd_responses() {
+  load_env
+  require_sunset
+  local show=0 arg
+  for arg in "$@"; do
+    case "$arg" in
+      --emails) show=1 ;;
+      *) die "unknown responses option: $arg" ;;
+    esac
+  done
+  docker ps -q --filter "name=^${DB_CONTAINER}$" | grep -q . \
+    || die "$DB_CONTAINER is not running; after close the answers are in the final dump"
+  # Read-only. One row per account: the notices it was sent for this sunset,
+  # then what it did after the first one (downloads are audited by
+  # /api/me/export) and when any of its MCP tokens was last used.
+  local rows
+  rows="$(docker exec -i "$DB_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" -v ON_ERROR_STOP=1 -v sunset="$SUNSET_AT" -AtqF $'\t' <<'SQL'
+with notice as (
+  select "targetId" as uid, replace(action, 'service.sunset_notice.', '') as stage,
+         coalesce(payload->>'messageId', '') as mid, "createdAt" as at
+  from "AuditLog"
+  where action like 'service.sunset_notice.%'
+    and (payload->>'sunsetAt')::timestamptz = :'sunset'::timestamptz
+), first_notice as (select uid, min(at) as at from notice group by uid)
+select u.id, u.email, u.role,
+  coalesce((select string_agg(n.stage || ':' || n.mid, ',' order by n.at) from notice n where n.uid = u.id), ''),
+  coalesce(to_char(f.at, 'YYYY-MM-DD HH24:MI'), ''),
+  coalesce((select to_char(min(a."createdAt"), 'YYYY-MM-DD HH24:MI') from "AuditLog" a
+            where a.action = 'user.data_export' and a."actorUserId" = u.id and a."createdAt" >= f.at), ''),
+  (select count(*) from "AuditLog" a
+   where a.action = 'user.data_export' and a."actorUserId" = u.id and a."createdAt" >= f.at),
+  coalesce((select to_char(max(t."lastUsedAt"), 'YYYY-MM-DD HH24:MI') from "MCPToken" t
+            where t."userId" = u.id), '')
+from "User" u left join first_notice f on f.uid = u.id
+where u.email not like '%@deleted.local'
+order by u."createdAt";
+SQL
+)" || die "database query failed"
+  SUNSET_AT="$SUNSET_AT" SUNSET_CONTACT="$CONTACT" SUNSET_SHOW_EMAILS="$show" \
+    SUNSET_EMAIL_PROVIDER="$(env_get EMAIL_PROVIDER)" SUNSET_EMAIL_API_KEY="$(env_get EMAIL_API_KEY)" \
+    python3 -I "$SUNSET_DIR/responses.py" <<<"$rows"
 }
 
 cmd_render() {
@@ -422,6 +466,7 @@ main() {
   [[ $# -gt 0 ]] && shift
   case "$sub" in
     status) cmd_status ;;
+    responses) cmd_responses "$@" ;;
     render) cmd_render ;;
     close) cmd_close "$@" ;;
     reopen) cmd_reopen ;;
