@@ -3551,3 +3551,38 @@ flaky. A spec that runs nowhere does not stay correct; it rots silently and
 reads as coverage.
 
 Full instance: `KNOWN_ISSUES.md §0bb`.
+
+## 5ck. Tell people where they are, and check the thing you relied on (2026-11-13, v2.25.0)
+
+Closing the hosted trial came down to one question asked of every user:
+*through what do they actually meet this product?* The answers differ — some
+open the web app, some only ever talk to it through an agent over MCP, most
+of the twelve had done neither in months. So the notice went to all three
+places, each in its own form: a banner for the visitor, a `serviceNotice`
+field the agent reads (and is asked to pass on once), an email for the
+absent. Each alone misses a group. The same question shaped the rest: telling
+people "run your own" is hollow unless their rules can follow them, so an
+import shipped with the export; and the closure itself answers 410 with an
+explanation, because a refused connection reads as an outage.
+
+The session also found that the instance's MCP endpoint had been dead for
+nine days — the certificate, again. The agent had removed a host folder a
+month earlier, "verified" renewal with a dry run, and never looked at what
+was supposed to *schedule* renewal. `§0r` had written the rule down in July
+("verify the artifact, not the process"); it was relearned anyway, which is
+the stronger lesson: **a rule in a document does not run itself.** It became
+a `GUIDELINES §7b` checklist item and a step that names commands, not a
+principle.
+
+Two smaller method points:
+
+- **The browser at 375px found what eight test files could not:** the fixed
+  language pill covering the banner's date. Layout defects live where layers
+  meet; drive the built image at the narrowest width before shipping a new
+  top-of-page element.
+- **Strict on configuration that a person types.** `SERVICE_SUNSET_KIND=trail`
+  is reported (worker throws hourly, MCP logs once) instead of being read as
+  the other wording — and the closure renderer agrees, so the two halves of
+  one feature cannot disagree about the same setting.
+
+Full instance: `KNOWN_ISSUES.md §0bc`.

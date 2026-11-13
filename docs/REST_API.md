@@ -744,6 +744,29 @@ GET    /api/me
   note   hasCredential: true when the user signed up via invite and has a UserCredential row.
          Used by the user menu to decide whether to show "Change password".
 
+GET    /api/me/export?format=json|md
+  auth   required (session)
+  resp   200 attachment `external-brain-<date>.json` — the full GDPR bundle, identical to
+         GET /api/admin/gdpr/export/[userId]: { format: "external-brain-export", version: 1,
+         exportedAt, source, user, projects, knowledge, sessions, sessionEvents, skills,
+         peerCards, autoskillProposals, feedback, mcpTokens, costLedger, … }.
+         No embeddings, no tokenHash.
+         `format=md` → `external-brain-<date>.md`, the live rules grouped by project.
+  errs   429 rate_limited (20/hour per user)
+  audit  user.data_export { format }
+
+POST   /api/me/import
+  body   the JSON produced by /api/me/export (this or another instance), ≤ 10 MB
+  auth   required (session)
+  resp   200 { ok: true, imported, duplicates, skipped, projects }
+         Knowledge only: live rows of type reflex|recipe|heuristic|principle|anti_principle,
+         into projects of the same name (created on demand), extractedBy "imported",
+         tagged `imported`, visibility "project", outcome counts carried. A rule already
+         present (same project, trigger and rule text) is a duplicate — importing a file
+         twice adds nothing. Embeddings are filled by the worker's backfill.
+  errs   400 invalid_export · 413 import_too_large · 429 rate_limited (5/hour per user)
+  audit  user.data_import { imported, duplicates, skipped }
+
 POST   /api/me/password
   body   { currentPassword: string; newPassword: string }
   auth   required

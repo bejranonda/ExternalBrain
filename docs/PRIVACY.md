@@ -59,8 +59,9 @@ Three things follow that you should decide about deliberately:
    knowledge text is sent there too.
 
 3. **Transactional email**, only when `EMAIL_PROVIDER` is set: the recipient's
-   address and the message (an invite, a password-reset link, or — since
-   v2.24.0 — a signup confirmation link) go to the email provider (Resend).
+   address and the message (an invite, a password-reset link, since v2.24.0 a
+   signup confirmation link, and since v2.25.0 the service-sunset notices when
+   an operator closes the instance) go to the email provider (Resend).
 
 Nothing else leaves the instance. There is no telemetry, no analytics, no
 crash reporting unless *you* set `SENTRY_DSN`, and no outbound call to any
@@ -131,7 +132,13 @@ team, your team is trusting you personally.
 ## 5. Your controls
 
 - **See everything held about you** — `/settings` surfaces knowledge, sessions
-  and tokens; `GET /api/admin/gdpr/export/[userId]` produces a full export.
+  and tokens. **Settings → Your data** (v2.25.0) downloads it yourself: JSON
+  (the full bundle — the same document the operator's
+  `GET /api/admin/gdpr/export/[userId]` produces) or Markdown (your live
+  rules). No operator involvement, no secrets in the file.
+- **Take it elsewhere** — the same page imports a JSON export into another
+  External Brain (knowledge only), so leaving an instance does not mean
+  leaving your rules behind.
 - **Delete knowledge** — individually in Skills, or in bulk at
   `/settings/reset-knowledge`.
 - **Revoke a token** — `/settings/tokens`; takes effect immediately.
@@ -176,6 +183,9 @@ If real people use your instance:
    a hope, not a backup — the drill is in `docs/DEPLOY_CHECKLIST.md`.
 4. Keep `verify-lockdown.sh` green; it is a post-deploy gate, not a one-off.
 5. Remember §3: you can read everything. Say so plainly to your users.
+6. If you close the instance, give notice on every channel your users use,
+   let them export, state a deletion date and keep it — backups included.
+   `docs/SUNSET.md` is the runbook; `SERVICE_SUNSET_*` drives the notices.
 
 ---
 

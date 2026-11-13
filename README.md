@@ -37,6 +37,11 @@ Provider-agnostic (Google Gemini, GLM, OpenAI, Anthropic Claude), runs on a
 single VM with Docker Compose, and **MIT-licensed** — fork it and build your
 own.
 
+> **The hosted trial at `brain.autobahn.bot` ends on 14 December 2026.** Trial
+> users: download your data under Settings → Your data, run your own Brain
+> ([QUICKSTART](./docs/QUICKSTART.md)) and import it there. Operators closing
+> an instance of their own: [docs/SUNSET.md](./docs/SUNSET.md).
+
 ![Architecture diagram showing how External Brain connects AI coding tools like Claude Code and Cursor via MCP to a Postgres + pgvector knowledge store](./docs/assets/illustrations/ai_application.png)
 
 ---
@@ -461,6 +466,7 @@ substitutes for reading the vendor's current docs.
 | [SECURITY](./docs/SECURITY.md) | Auth modes, MCP gating, threat model |
 | [DEPLOY_CHECKLIST](./docs/DEPLOY_CHECKLIST.md) | Production deploy on a public VM |
 | [CICD](./docs/CICD.md) | CI checks + the two deploy scripts, for forkers |
+| [SUNSET](./docs/SUNSET.md) | Closing an instance: notice on every channel, export/import, closure page, deletion |
 | [CONTRIBUTING](./docs/CONTRIBUTING.md) · [GUIDELINES](./docs/GUIDELINES.md) | How to contribute, code style |
 | [DESIGN_PRINCIPLES](./docs/DESIGN_PRINCIPLES.md) | UI philosophy (progressive disclosure) + the accessibility constraint |
 | [UI_UX_MASTER_AUDIT](./UI_UX_MASTER_AUDIT.md) | **UI/UX + WCAG 2.1 AA audit (2026-08-05)** — the aesthetic half found nothing; the finding that mattered was three surfaces shipping one bug because its regression test was named after a page. Includes measured contrast and Thai typography tables, and the audit's own corrections |

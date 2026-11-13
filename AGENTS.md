@@ -300,6 +300,7 @@ third elicitation fix is needed.
 | [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md) | Opening a PR, code conventions |
 | [`docs/CICD.md`](./docs/CICD.md) | CI checks + the two deploy scripts (forker-facing) |
 | [`docs/HANDOFF.md`](./docs/HANDOFF.md) | Picking the repo up — current release, what waits on whom, ship & rollback path |
+| [`docs/SUNSET.md`](./docs/SUNSET.md) | Closing an instance — `SERVICE_SUNSET_*`, notice emails, `scripts/sunset.sh` |
 | [`docs/KNOWN_ISSUES.md`](./docs/KNOWN_ISSUES.md) | Before filing a bug — check tracked risks |
 | [`REBUILD/00-START-HERE.md`](./REBUILD/00-START-HERE.md) | Rebuilding from scratch on a new machine (vibe-coding guide) |
 

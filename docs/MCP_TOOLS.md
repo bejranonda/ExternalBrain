@@ -43,6 +43,17 @@ It exists so that a destructive automated check can ask **the box** what it is
 rather than trusting its own shell — the property a test guard needs when the
 process doing the writing may be running anywhere (`KNOWN_ISSUES §0ax`).
 
+### `serviceNotice` — the instance is closing (v2.25.0)
+
+While the operator has set `SERVICE_SUNSET_AT` (`docs/SUNSET.md`), **every tool
+result** starts with a `serviceNotice` string, error results carry it after the
+message, and the server's `instructions` lead with it. It names the closing
+date, the data page (`/settings/data`), self-hosting, how to remove the server
+(`claude mcp remove brain`) and the deletion date, and asks the agent to tell
+its user **once**, in their language. Absent on an instance that is not
+closing. After the close, the MCP host answers every request with HTTP 410
+and a JSON-RPC error (`code -32000`) carrying the same message.
+
 ## Tools
 
 ### `brain_whoami` — which Brain am I talking to?

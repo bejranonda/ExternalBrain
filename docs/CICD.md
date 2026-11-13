@@ -174,6 +174,15 @@ if either fails** — so a broken build never goes live. Re-run after a
 > would rebuild those containers and seed demo data into the live database. One
 > host, one purpose.
 
+### Closing an instance — `./scripts/sunset.sh`
+
+Not a deploy script, but the other end of one: when an instance is closing,
+`close` takes a final dump, stops the stack and serves a 410 closure page on
+the same loopback ports (no proxy or TLS change); `purge` deletes the data
+later, operator-only. The notice period before it (banner, MCP
+`serviceNotice`, emails) is driven by `SERVICE_SUNSET_*` in `.env`. Full
+runbook: [`SUNSET.md`](./SUNSET.md).
+
 ### Releases — `./scripts/release.sh vX.Y.Z`
 
 Tags `main` and drafts (or `--publish`es) a GitHub release with auto-generated
