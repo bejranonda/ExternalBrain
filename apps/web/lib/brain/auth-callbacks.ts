@@ -96,6 +96,11 @@ export const signInCallback: Callbacks["signIn"] = async ({ user, account }) => 
     return true;
   }
 
+  // A closing instance takes no new accounts, by any provider (docs/SUNSET.md).
+  // The operator still bootstraps in, as below.
+  const { signupsClosed } = await import("./sunset");
+  if (signupsClosed() && !shouldBeAdmin) return "/signin?error=service_closing";
+
   // New user — enforce voucher gate unless the first admin is signing in.
   // First admin is special: an operator listed in ADMIN_EMAILS can always
   // bootstrap themselves in without a voucher (otherwise chicken-and-egg).

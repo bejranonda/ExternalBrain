@@ -947,6 +947,14 @@ describe("normalizeProjectName", () => {
   it("returns empty string for all-punctuation input", () => {
     expect(normalizeProjectName("--- !!!")).toBe("");
   });
+
+  it("keeps non-Latin names, so they can be matched at all", () => {
+    expect(normalizeProjectName("โปรเจกต์ ทดลอง")).toBe("โปรเจกต์ทดลอง");
+    expect(normalizeProjectName("โปรเจกต์ทดลอง!")).toBe(normalizeProjectName("โปรเจกต์ ทดลอง"));
+    // Tone and vowel marks distinguish words; they are not punctuation.
+    expect(normalizeProjectName("ไก่")).not.toBe(normalizeProjectName("ไก"));
+    expect(normalizeProjectName("Größe Ü")).toBe("größeü");
+  });
 });
 
 describe("ensureNamedProject normalized matching", () => {

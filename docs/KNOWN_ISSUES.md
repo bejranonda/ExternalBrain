@@ -2831,6 +2831,70 @@ nginx file owned port 80 for every `*.autobahn.bot` name and sent
 has its own Brain http→https block (keeping the ACME webroot the MCP
 certificate renews through) and closes connections for unknown host names.
 
+## 0bc. The hosted trial ends; the MCP certificate expired a second time (2026-11-13, v2.25.0)
+
+**Decision (operator, 2026-11-13).** The hosted trial at `brain.autobahn.bot`
+ends **Mon 14 Dec 2026, 12:00 UTC**; all accounts and data, backups included,
+are deleted **13 Jan 2027**. Users are told on every channel and pointed at
+self-hosting. At the decision: 15 accounts — the operator, two test
+addresses, twelve people (most created on 2026-08-15); one active account in
+the last 30 days, two other tokens used in October/November; four verified
+addresses. No paying users (`BILLING_MODE` is LLM cost accounting).
+
+**What shipped (`docs/SUNSET.md`).** One setting, `SERVICE_SUNSET_AT`
+(+ `_DELETE_AT`, `_KIND=trial|closure`):
+
+| Surface | Behaviour |
+|---|---|
+| Web | Banner on every page; on desktop the pinned shell gives up exactly its height (a banner in normal flow would push the shell's bottom off-screen with no way to scroll). |
+| Signups | Refused on all four paths — register, voucher, invite, first GitHub sign-in (`service_closing`); the operator in `ADMIN_EMAILS` still bootstraps. |
+| MCP | `serviceNotice` is the first field of every tool result (errors too); `instructions` lead with it. An MCP-only user never sees the banner. |
+| Email | Worker job `service.sunset_notices`, hourly + at boot: announce, T-7d, T-1d, en/th/de in one mail. Once per account and stage (AuditLog row written after the provider accepts), domains with no mail host skipped, `SERVICE_SUNSET_EMAILS=off\|dry_run\|send`. |
+| Your data | `/settings/data`: JSON export (the operator's GDPR bundle, now shared code) or Markdown rules; **import** of a JSON export. "Run your own Brain" was hollow without it — nothing could load an export anywhere. |
+| Closure | `scripts/sunset.sh close`: final dump first (nothing stops if it fails), stack stopped, a 32 MB nginx container answers 410 on the same loopback ports — page + JSON-RPC error — so nginx/TLS stay untouched. `reopen`, `schedule`, operator-only `purge`. |
+
+Found while building it:
+
+| Item | Where | Status |
+|---|---|---|
+| The worker had never been given `EMAIL_*` or the public URL — harmless until it had mail to send | `deploy/docker-compose.yml` | fixed — and `CORE_CONSUMERS` now lists `worker` for every `email.ts` variable, so the guard asserts it |
+| The GDPR export omitted `ownerProjectId` and `instead` from knowledge rows, so no export could be re-imported into the right project or keep an anti-principle's alternative | `api/admin/gdpr/export` | fixed — both export routes share `lib/brain/user-data.ts` |
+| `/signin`'s "you'll need a voucher code" hint was English in every locale | `app/signin/page.tsx` | fixed |
+| CodeRabbit was rate-limited and reviewed nothing; an independent review pass found: `/api/onboard/claim` (agentic onboarding, **on** in production) still created accounts — the first version gated four paths and called them "all" | `api/onboard/claim` | fixed — and `sunset-signups.test.ts` now sweeps every User-creating call site (mutation-tested) |
+| Import: unbounded distinct projects (quadratic project reads, sequential slug probes); unbounded outcome counts could fail a batch part-way | `lib/brain/user-data.ts` | fixed — ≤ 50 projects per file, org projects read once, counts ≤ 1 000 000, one transaction |
+| **Thai project names normalized to ""**, so they never matched: every `brain_start_session` with a Thai `projectName`, and every re-import, created another project | `packages/core/src/org.ts` | fixed — `normalizeProjectName` keeps letters, marks and digits of every script; import dedupe is account-wide |
+| The notice send log ignored the date, so a postponed sunset would never be re-announced; an overrunning job could re-send | `sunset-notices.ts` | fixed — record keyed by stage and instant, re-read before each send |
+| A bare-date `SERVICE_SUNSET_AT` was accepted by the app but rejected by the closure renderer, so the scheduled close would fail at the instant | `sunset.ts`, `sunset.sh` | fixed — instants need time and zone everywhere; `schedule` renders first |
+| How each MCP client displays the closure server's 410 JSON-RPC error | — | unverified |
+| The email, banner and closure page add AI-written Thai and German | — | awaits the native-speaker pass (§1) |
+
+**The MCP certificate expired on 2026-11-03 — the second time this year — and
+nobody noticed for nine days.** Found only because this session's own
+`brain_start_session` failed with `certificate has expired`; the last MCP
+session on the instance was 16:49 that day, the certificate lapsed at 19:20.
+Two layers:
+
+1. Since April, `/etc/systemd/system/certbot.service` overrode the package
+   unit with a script that renewed **only** the `autobahn.bot` wildcard
+   (`--cert-name autobahn.bot`). The MCP host needs its own certificate (a
+   wildcard covers one label, §0r), so it had **no automatic renewal at
+   all** — the August renewal was by hand.
+2. On 2026-10-13 an agent (this one) removed the retired co-hosted app's
+   folder, which held that script. It moved the cron copy but missed the
+   systemd unit, which has failed `203/EXEC` twice a day since.
+
+The agent had "verified" renewal with `certbot renew --dry-run` — which
+proves a renewal *would* succeed, not that anything *schedules* one. That is
+precisely the lesson recorded at the end of §0r ("a 'renewals succeeded'
+banner proved nothing"), relearned. **The check that would have caught it:**
+`systemctl list-timers` + `systemctl cat certbot.service` + the unit's last
+result, and the expiry read off the wire for *every* hostname.
+
+| Item | Where | Status |
+|---|---|---|
+| MCP certificate expired; every MCP client fails TLS | host | **open — operator runs `/root/fix-cert-renewal.sh`** (renews now; points the systemd job at `certbot -q renew`, which covers both certificates and both authenticators; the existing deploy hook reloads nginx). Certificate changes are blocked for the agent by the harness classifier, correctly. |
+| No external monitor — a nine-day outage of the primary interface went unseen, as the co-hosted app's two-week outage did in October | — | open (operator). Any uptime monitor that also alerts on certificate expiry closes both gaps. |
+
 ## 1. Scaffolding-level issues (v0.1+)
 
 The scaffolding has been substantially wired in the GUI↔backend pass (2026-04-21). Known remaining gaps:

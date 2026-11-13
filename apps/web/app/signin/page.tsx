@@ -13,6 +13,7 @@ import { redirect } from "next/navigation";
 import { checkVoucherRateLimit } from "@/lib/brain/vouchers";
 import { clientIpFrom, forwardClientIp } from "@/lib/brain/client-ip";
 import { selfOrigin } from "@/lib/brain/self-origin";
+import { signupsClosed } from "@/lib/brain/sunset";
 import { LocalePicker } from "@/components/brain/locale-picker";
 import { getServerT } from "@/lib/brain/i18n-server";
 import { I18N } from "@/lib/brain/i18n-dict";
@@ -192,8 +193,9 @@ export default async function SignIn({ searchParams }: Props) {
   // auth.ts). The voucher field is required unless the operator opened signup
   // via REGISTRATION_REQUIRES_VOUCHER=false.
   const voucherRequiredForSignup = registrationRequiresVoucher();
+  const closed = signupsClosed();
   const showRegisterForm =
-    credentialsAllowed && params.mode === "register" && !showSignupForm;
+    credentialsAllowed && params.mode === "register" && !showSignupForm && !closed;
 
   return (
     <main
@@ -746,7 +748,7 @@ export default async function SignIn({ searchParams }: Props) {
                 When credentials sign-in is configured, offer self-service
                 registration (voucher-gated unless the operator opened it).
                 Otherwise (OAuth-only) keep the invite-link explainer. */}
-            {credentialsAllowed && (
+            {credentialsAllowed && !closed && (
               <div
                 style={{
                   fontSize: 12,
@@ -759,9 +761,7 @@ export default async function SignIn({ searchParams }: Props) {
               >
                 <strong style={{ color: "var(--ink-3, #9a9cab)", fontWeight: 500 }}>{t("auth.noAccount")}</strong>{" "}
                 <a href="/signin?mode=register" style={{ color: "var(--accent-text, #7aa2f7)", textDecoration: "none" }}>{t("auth.createOne")}</a>
-                {voucherRequiredForSignup
-                  ? " — you'll need a voucher code from the operator."
-                  : "."}
+                {voucherRequiredForSignup ? ` ${t("auth.voucherNeeded")}` : "."}
               </div>
             )}
 

@@ -49,6 +49,7 @@ import {
 import { registrationRequiresVoucher, adminCredentialsConfigured } from "@/auth";
 import { clientIpFrom } from "@/lib/brain/client-ip";
 import { confirmationEnabled, issueEmailConfirmation } from "@/lib/brain/email-confirm";
+import { signupsClosed } from "@/lib/brain/sunset";
 
 const log = getLogger("register");
 
@@ -66,6 +67,9 @@ export async function POST(req: Request): Promise<Response> {
   // Without it, a created account would be unusable — refuse rather than strand.
   if (!adminCredentialsConfigured()) {
     return Response.json({ error: "registration_unavailable" }, { status: 403 });
+  }
+  if (signupsClosed()) {
+    return Response.json({ error: "service_closing" }, { status: 403 });
   }
 
   // --- Rate limit (per IP) ---

@@ -145,6 +145,13 @@ export function UserMenu({ open, onClose, onTweaks }: Props) {
             }}
           />
           <MenuItem
+            icon="file"
+            label={t("userMenu.your_data")}
+            onClick={() => {
+              window.location.href = "/settings/data";
+            }}
+          />
+          <MenuItem
             icon="x"
             label={t("userMenu.reset_knowledge")}
             onClick={() => {

@@ -5,18 +5,39 @@ agent. It records **current state and what is waiting on whom**; the reasoning
 lives in the documents it links. Update it at the end of a working session
 that changes either.
 
-_Last updated: 2026-10-13 · release **v2.24.0** · live on the reference instance._
+_Last updated: 2026-11-13 · release **v2.25.0** · the hosted trial is ending._
 
 ---
+
+## The hosted trial ends on Mon 14 Dec 2026, 12:00 UTC
+
+Operator decision, 2026-11-13 (`KNOWN_ISSUES §0bc`). The reference instance at
+`brain.autobahn.bot` closes; all accounts and data, backups included, are
+deleted on **13 Jan 2027**. Users are pointed at running their own Brain.
+Runbook: [`SUNSET.md`](./SUNSET.md).
+
+| When | What | Who |
+|---|---|---|
+| 2026-11-13 | v2.25.0 live with `SERVICE_SUNSET_AT=2026-12-14T12:00:00Z`, `SERVICE_SUNSET_KIND=trial`, `SERVICE_SUNSET_DELETE_AT=2027-01-13T12:00:00Z`: banner, no new accounts, `serviceNotice` on MCP, Settings → Your data | agent |
+| 2026-11-13 | Announcement email (`SERVICE_SUNSET_EMAILS` dry run read first, then `send`) | agent, after the live checks |
+| **now** | **MCP certificate expired 2026-11-03 — run `/root/fix-cert-renewal.sh`** (MCP users get neither service nor the notice until then) | **operator** |
+| 2026-12-07 12:05 UTC | 7-day reminder email | worker, automatic |
+| 2026-12-13 12:05 UTC | 1-day reminder email | worker, automatic |
+| 2026-12-14 12:00 UTC | `scripts/sunset.sh close` — final dump, stack stopped, closure page (410) on both hostnames | systemd timer `brain-sunset.timer` (`sunset.sh schedule`); check `sunset.sh status` afterwards |
+| 2026-12-14 → 2027-01-13 | Late data requests to the reply-to address: restore the final dump into a scratch database, export, email | operator |
+| from 2027-01-13 | `scripts/sunset.sh purge` at a terminal, then the after-purge checklist (`SUNSET.md §6`) — revoke the LLM, Resend and GitHub OAuth keys | operator only |
+
+`sunset.sh reopen` undoes `close` (before purge). `sunset.sh unschedule`
+cancels the timer.
 
 ## Current state
 
 | | |
 |---|---|
-| Released | **v2.24.0** (2026-10-13): a self-registered account confirms its email (with its password) before it signs in; CI runs lint, 15 more e2e specs and a DB-skip canary; Dependabot; visitor-facing errors, labels, titles and the first signed-in experience in en/th/de (`§0bb`). v2.23.x / v2.22.0 the day before. |
+| Released | **v2.25.0** (2026-11-13): service sunset — banner, closed signups, `serviceNotice` on every MCP response, notice emails, Settings → Your data (export + import), `scripts/sunset.sh` closure tooling (`§0bc`). v2.24.0 (2026-10-13): signup confirmation, CI coverage (`§0bb`). |
 | Runtime | Node 24 (`node:24-bookworm-slim`) in every image and in CI |
-| Deployed | `web`, `mcp-server`, `worker` all at v2.24.0. Rollback tags `deploy-*:rollback-v2.23.1`; dumps in the operator's backup directory (`pre-v2.24.0-*`) |
-| Schema | latest migration `20261013190000_email_confirm` (additive: `User.emailConfirmRequired`, `EmailConfirmToken`) |
+| Deployed | `web`, `mcp-server`, `worker` at v2.25.0 (see the live-check record in `§0bc`). Rollback tags `deploy-*:rollback-v2.24.0`; dump `pre-v2.25.0-*` in the operator's backup directory |
+| Schema | latest migration `20261013190000_email_confirm` — v2.25.0 adds none |
 | Dependencies | `pnpm audit --prod`: 0 critical, 0 high. Dependabot opens grouped weekly PRs from 2026-10-19 |
 | CI | 8 checks, all required ones green on `main`. CodeRabbit is advisory (`AGENTS.md`). |
 
@@ -31,6 +52,10 @@ teammate ones included, verified on the live instance by 2026-10-13) and
 
 These cannot be done from the repo:
 
+0. **Run `/root/fix-cert-renewal.sh` on the host.** The MCP certificate expired
+   on 2026-11-03 and nothing scheduled its renewal (`§0bc`). The script renews
+   it and points the systemd renewal job at `certbot -q renew`. Certificate
+   changes are outside what an agent may do here.
 1. **Set `SENTRY_DSN`.** Error reporting is wired and verified (a DSN makes
    `web.sentry_init {enabled:true}` appear; compose delivers it to all three
    services), but no Sentry project exists yet. Create one, put the DSN in
@@ -44,13 +69,16 @@ These cannot be done from the repo:
    box), put its rclone config in `deploy/rclone.conf` and `BACKUP_REMOTE` in
    `.env`, and the agent can enable the `backup-replicate` profile.
 Deferred by the operator (2026-10-13): items 1 and 3, and the native-speaker
-review below. The GitGuardian incident is dismissed.
+review below. The GitGuardian incident is dismissed. With the trial ending,
+items 1–3 matter only until 2026-12-14 — except that the closure page needs a
+valid certificate for as long as it is served (item 0).
 
 ## Open engineering work, in suggested order
 
 | Item | Why | Where tracked |
 |---|---|---|
-| Native-speaker pass over the new TH/DE strings | v2.24.0 translated onboarding, tokens, settings and errors with AI-written copy | `§1` (i18n row) |
+| Native-speaker pass over the new TH/DE strings | v2.24.0 translated onboarding, tokens, settings and errors with AI-written copy; v2.25.0 adds the sunset banner, notice email, Your data page and closure page | `§1` (i18n row), `§0bc` |
+| How MCP clients display the closure server's 410 JSON-RPC error | untested per client | `§0bc` |
 | Require `AUTH_URL` for every emailed link | forgot-password and invite links still fall back to the request host when it is unset (production sets it) | `§0bb` |
 | Remaining untested surfaces | worker has no test runner; oracle/streaming specs need an LLM key; `/settings/reset-knowledge` and `/admin/*` still English | `§0bb`, `§0ay` |
 | Per-device sign-out / admin "revoke sessions" | Revocation is per user only | `§0az` |
@@ -103,6 +131,7 @@ docker compose -f deploy/docker-compose.yml --env-file .env up -d --no-build --f
 ## Read next
 
 - [`AGENTS.md`](../AGENTS.md) — house rules and the Brain memory loop
-- [`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md) — every tracked risk, newest first at `§0az`
-- [`APPROACH.md`](./APPROACH.md) — why the methods are what they are (`§5cg`, `§5ch` are this week's)
+- [`SUNSET.md`](./SUNSET.md) — closing an instance: the runbook this trial follows
+- [`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md) — every tracked risk, newest at `§0bc`
+- [`APPROACH.md`](./APPROACH.md) — why the methods are what they are (`§5ck` is the latest: tell people where they are; check what you relied on)
 - [`GUIDELINES.md`](./GUIDELINES.md) — the rules those lessons became

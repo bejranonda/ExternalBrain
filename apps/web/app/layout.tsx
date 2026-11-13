@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { Geist, JetBrains_Mono, Fraunces, Noto_Sans_Thai } from "next/font/google";
 import { LangProvider } from "@/components/brain/lang-provider";
+import { SunsetBanner } from "@/components/brain/sunset-banner";
 import type { Lang } from "@/lib/brain/i18n";
 import { getServerT } from "@/lib/brain/i18n-server";
 import { resolvePublicWebUrl } from "@/lib/brain/public-urls";
@@ -127,6 +128,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: preHydrateTweaks }} />
       </head>
       <body className="antialiased">
+        <SunsetBanner />
         <LangProvider initial={lang}>{children}</LangProvider>
       </body>
     </html>

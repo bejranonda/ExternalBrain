@@ -811,6 +811,8 @@ An error log line you will see in prod:
 ```
 Everything the agent needs to continue — stable `code`, actionable `remediation`, exact throw site — is in that single line.
 
+8. **A scheduled mechanism is verified by its schedule and its last result, not by a dry run.** `certbot renew --dry-run` proved a renewal *could* succeed while no job would ever run one; the MCP certificate expired twice in 2026 (`KNOWN_ISSUES §0r`, `§0bc`). Check what invokes it (`systemctl list-timers`, `systemctl cat <unit>`, `crontab -l`), that unit's last exit status, and the artifact itself — the expiry read off the wire for *every* hostname. Before deleting a directory on a host, grep systemd units, timers and crontabs for its path.
+
 ---
 
 ## 8. Performance budgets
@@ -850,6 +852,9 @@ KEA extraction runs in the worker with 3-second budget, enforced.
 The webapp is a client-side SPA at `/` with six stateful surfaces. Design tokens, layout rules, and responsive breakpoints live in **`apps/web/app/globals.css`** and are sourced from the handoff bundle at `research/design/` (External Brain design via Claude Design).
 
 Rules when touching frontend:
+
+- **Anything added above the app shell must take its height from `.app`, and anything near the top must be checked against the fixed `.locale-picker`.** The desktop shell is `height: 100vh` with the document's overflow hidden, so a bar in normal flow pushes the shell's bottom off-screen with no way to scroll to it; the public pages float a theme/language pill top-right. The sunset banner needed both: a fixed-height bar that `.app` subtracts, and room for the pill — found only by driving the built image at 375px (`KNOWN_ISSUES §0bc`).
+- **`span[title]` is the jargon-tip affordance** (dotted underline + tap popover, `globals.css`). Don't use `title` on a span for a plain tooltip.
 
 - **Design tokens are not Tailwind utilities.** Use CSS variables (`--accent`, `--ink`, `--bg-elev-*`, `--k-*`, `--font-mono`) defined in `globals.css`. Tailwind 4 remains available for hypothetical new code but the Brain surfaces do not use it.
 - **`grep` the token before you type it.** `var(--bg-2)` shipped on `/start` (v2.15.0) — not a real property anywhere in `globals.css`. It didn't error: an undefined custom property with no fallback resolves to nothing, so the two elements using it silently rendered with no background fill at all. This bug class is invisible to typecheck, to a `git diff`, and to anyone who doesn't happen to be looking for a missing fill on that specific element. Before writing `var(--name)`, `grep -n "^\s*--name:" apps/web/app/globals.css` and confirm it exists — a color/size value typed from memory is a guess wearing the syntax of a fact. See `APPROACH.md §2.6d`.

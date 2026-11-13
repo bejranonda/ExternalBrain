@@ -62,18 +62,28 @@ const CORE_CONSUMERS: Record<string, Service[]> = {
   AUTOSKILL_LLM_CLASSIFIER: ["worker"],
   AUTOSKILL_CLASSIFY_MAX: ["worker"],
   AUTOSKILL_FEWSHOT_TOKEN_BUDGET: ["worker"],
-  // email.ts — only web sends mail.
-  EMAIL_PROVIDER: ["web"],
-  EMAIL_API_KEY: ["web"],
-  EMAIL_FROM: ["web"],
-  EMAIL_REPLY_TO: ["web"],
-  RESEND_API_KEY: ["web"],
-  RESEND_API: ["web"],
+  // email.ts — web (invites, resets, confirmation) and worker (sunset notices).
+  EMAIL_PROVIDER: ["web", "worker"],
+  EMAIL_API_KEY: ["web", "worker"],
+  EMAIL_FROM: ["web", "worker"],
+  EMAIL_REPLY_TO: ["web", "worker"],
+  RESEND_API_KEY: ["web", "worker"],
+  RESEND_API: ["web", "worker"],
   // logger.ts
   LOG_LEVEL: APPS,
   BRAIN_DEPLOY_ENV: APPS, // Sentry environment tag
   SENTRY_DSN: APPS,
   SENTRY_TRACES_SAMPLE_RATE: APPS,
+  // sunset.ts — banner + closed signups (web), serviceNotice (mcp-server),
+  // notice emails (worker). docs/SUNSET.md.
+  SERVICE_SUNSET_AT: APPS,
+  SERVICE_SUNSET_DELETE_AT: APPS,
+  SERVICE_SUNSET_KIND: APPS,
+  // sunset-notices.ts runs only in the worker: the switch, and the public URL
+  // its email links point at.
+  SERVICE_SUNSET_EMAILS: ["worker"],
+  BRAIN_PUBLIC_HOSTNAME: ["worker"],
+  AUTH_URL: ["worker"],
 };
 
 /**

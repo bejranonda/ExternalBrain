@@ -22,6 +22,7 @@
 import { db } from "@brain/db";
 import { hashSecret } from "@brain/core/secret-hash";
 import { z } from "zod";
+import { signupsClosed } from "@/lib/brain/sunset";
 import {
   createUserCredential,
   validatePasswordPolicy,
@@ -43,6 +44,9 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: Request): Promise<Response> {
+  if (signupsClosed()) {
+    return Response.json({ error: "service_closing" }, { status: 403 });
+  }
   let body: z.infer<typeof bodySchema>;
   try {
     body = bodySchema.parse(await req.json());

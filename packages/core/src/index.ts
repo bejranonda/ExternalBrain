@@ -18,6 +18,25 @@ export type { ActionItemRow } from "./action-items.js";
 export * as meetingExtract from "./meeting-extract.js";
 export type { ExtractedMeeting, ExtractedDecision, ExtractedActionItem, SupersessionCandidate } from "./meeting-extract.js";
 export * as exporter from "./exporter.js";
+export {
+  parseServiceSunset,
+  serviceSunset,
+  sunsetPhase,
+  sunsetEmailStage,
+  sunsetMcpNotice,
+  formatSunsetInstant,
+  formatSunsetDate,
+  SELF_HOST_REPO_URL,
+  SELF_HOST_GUIDE_URL,
+} from "./sunset.js";
+export type { ServiceSunset, SunsetKind, SunsetPhase, SunsetEmailStage, SunsetParse } from "./sunset.js";
+export {
+  runSunsetNotices,
+  sunsetEmailMode,
+  resolveMailHost,
+  SUNSET_NOTICE_ACTION,
+} from "./sunset-notices.js";
+export type { SunsetEmailMode, SunsetNoticeDeps, SunsetNoticeResult, MailHostCheck } from "./sunset-notices.js";
 export { fuzzyScore } from "./fuzzy.js";
 export {
   LearningSchema,
@@ -132,9 +151,10 @@ export type {
 } from "./knowledge-reset.js";
 export { sendEmail, isEmailConfigured } from "./email.js";
 export type { EmailProvider, SendEmailArgs, SendResult } from "./email.js";
-export { inviteEmail, passwordResetEmail, confirmEmailEmail } from "./email-templates.js";
+export { inviteEmail, passwordResetEmail, confirmEmailEmail, serviceSunsetEmail } from "./email-templates.js";
 export type {
   InviteEmailArgs,
   PasswordResetEmailArgs,
+  SunsetEmailArgs,
   TemplateResult,
 } from "./email-templates.js";

@@ -27,6 +27,8 @@ export function LocalePicker() {
       // longer a "Language" group — the language buttons keep their own.
       aria-label={t("tweaks.display_settings")}
       role="group"
+      // Hook for the sunset banner, which must not sit underneath it (globals.css).
+      className="locale-picker"
       style={{
         position: "fixed",
         top: 14,
