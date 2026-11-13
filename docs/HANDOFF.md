@@ -5,7 +5,7 @@ agent. It records **current state and what is waiting on whom**; the reasoning
 lives in the documents it links. Update it at the end of a working session
 that changes either.
 
-_Last updated: 2026-11-13 · release **v2.25.0** · the hosted trial is ending._
+_Last updated: 2026-11-13 · release **v2.25.1** · the hosted trial is ending._
 
 ---
 
@@ -24,7 +24,7 @@ Runbook: [`SUNSET.md`](./SUNSET.md).
 | **now** | **MCP certificate expired 2026-11-03 — run `/root/fix-cert-renewal.sh`** (MCP users get neither service nor the notice until then; the three accounts that used MCP since mid-October are exactly the ones the MCP notice is for) | **operator** |
 | **now** | `gh secret set BRAIN_MCP_URL` (the MCP URL, e.g. `https://<mcp host>/mcp`) so the daily endpoint check watches MCP too, not only the web certificate | operator |
 | **now** | **Install the close timer: `./scripts/sunset.sh schedule`** (renders the closure page as a check, then a one-shot systemd timer). Without it, run `sunset.sh close` by hand at 12:00 UTC on 14 Dec. The harness refused it to an agent as unattended persistence. | **operator** |
-| **now** | Publish the draft GitHub release v2.25.0 (the tag is pushed) | operator |
+| **now** | Publish the draft GitHub releases v2.25.0 and v2.25.1 (both tags are pushed) | operator |
 | after each email stage | `./scripts/sunset.sh responses` — delivery per notice, downloads, MCP use; replies are in the `EMAIL_REPLY_TO` mailbox, which the script cannot read | operator |
 | 2026-12-07 12:05 UTC | 7-day reminder email (the two bounced addresses show `suppressed`) | worker, automatic |
 | 2026-12-13 12:05 UTC | 1-day reminder email | worker, automatic |
@@ -39,9 +39,9 @@ cancels the timer.
 
 | | |
 |---|---|
-| Released | **v2.25.0** (2026-11-13): service sunset — banner, closed signups, `serviceNotice` on every MCP response, notice emails, Settings → Your data (export + import), `scripts/sunset.sh` closure tooling (`§0bc`). v2.24.0 (2026-10-13): signup confirmation, CI coverage (`§0bb`). |
+| Released | **v2.25.1** (2026-11-13): `sunset.sh responses` (follow the users' response), a certificates-and-MCP job in `prod-drift`, the import result reworded (`§0bc` follow-up). **v2.25.0** (2026-11-13): service sunset — banner, closed signups, `serviceNotice` on every MCP response, notice emails, Settings → Your data (export + import), `scripts/sunset.sh` closure tooling (`§0bc`). v2.24.0 (2026-10-13): signup confirmation, CI coverage (`§0bb`). |
 | Runtime | Node 24 (`node:24-bookworm-slim`) in every image and in CI |
-| Deployed | `web`, `mcp-server`, `worker` at v2.25.0 on 2026-11-13 (live-check record in `§0bc`). Rollback tags `deploy-*:rollback-v2.24.0`; dump `pre-v2.25.0-202611130708` in the operator's backup directory; `.env.bak.pre-v2.25.0` |
+| Deployed | `web` at **v2.25.1** (11:27 UTC); `mcp-server`, `worker` at v2.25.0 — v2.25.1 changes neither (live-check record in `§0bc`). Rollback: `deploy-web:rollback-v2.25.0`, `deploy-*:rollback-v2.24.0`; dumps `pre-v2.25.1-202611131108` and `pre-v2.25.0-202611130708` in the operator's backup directory; `.env.bak.pre-v2.25.0` |
 | Schema | latest migration `20261013190000_email_confirm` — v2.25.0 adds none |
 | Dependencies | `pnpm audit --prod`: 0 critical, 0 high. **Change freeze until the closure:** Dependabot #295 (dev group), #296 (mermaid 12), #298 (vitest 5) and #302 (production group: pg-boss 12.18→12.38, Prisma 7.10, React 19.3) wait until after 2026-12-14 — the instance's remaining work is two reminder emails and a close, and pg-boss runs the worker that sends them. Take #302 with #295 (Prisma client and CLI move together). #297 (TypeScript 7) fails typecheck and needs its own migration. #293 (Actions) is CI-only and merged. A security advisory overrides the freeze. |
 | CI | 8 checks, all required ones green on `main`. CodeRabbit is advisory (`AGENTS.md`). |
@@ -67,7 +67,7 @@ These cannot be done from the repo:
    `web.sentry_init {enabled:true}` appear; compose delivers it to all three
    services), but no Sentry project exists yet. Create one, put the DSN in
    `.env`, then `./scripts/reload.sh web mcp-server worker`.
-2. **An uptime monitor.** Partly covered once #304 is merged: the daily
+2. **An uptime monitor.** Partly covered since #304 (2026-11-13): the daily
    `prod-drift` workflow now also checks both certificates and MCP `/health`
    from outside and opens a `prod-health` issue (`CICD.md`) — once
    `BRAIN_MCP_URL` is set. Daily is slow for an outage; an external monitor
