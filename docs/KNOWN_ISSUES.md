@@ -2925,9 +2925,46 @@ throwaway account (removed after; 15 users before and after):
 - Email: the worker's dry run listed 14 due and 2 without a mail host (a
   `.not` test address and the throwaway); switched to `send` at 07:38 UTC —
   14 sent, 0 failed, 14 send records keyed to this sunset instant.
+  **Corrected the same day:** "sent" was the provider *accepting* each
+  message. Resend reported 12 delivered and 2 hard bounces (an
+  `@autobahn.bot` test address with no route, a `yahoo.de` mailbox that no
+  longer exists). See the follow-up below.
 - Not done by the agent, refused by the harness and left to the operator:
   renewing the MCP certificate, installing the close timer, publishing the
   GitHub release (the tag is pushed; the release is a draft).
+
+**Follow-up, 2026-11-13 (v2.25.1): following the response.** Asked whether
+the response could be followed, the agent found three places it is recorded
+and built `scripts/sunset.sh responses` (read-only) over the two it can
+reach. Its first live run, three hours after the announcement:
+
+| | |
+|---|---|
+| Email | 14 sent → **12 delivered, 2 bounced** (permanent: "address does not exist", "mailbox not found"). Resend suppresses both, so the reminders will show `suppressed` and not hurt the bounce rate — but those two people will not hear by email. |
+| Downloads since the notice | **0 of 14** |
+| MCP use since the notice | **0 of 14** — and the last MCP use by *anyone* was 2026-11-03, the day the certificate expired. Three accounts had used MCP since mid-October; they are the ones the MCP notice exists for, and none can reach it. |
+| Replies | Not readable from the host: they go to `hello@autobahn.bot`, a Cloudflare Email Routing address. The operator's Gmail held neither replies nor the announcement, so that address forwards somewhere else. |
+
+The script's first run reported every lookup as `HTTP 403`: Resend's edge
+refuses Python's default `urllib` User-Agent although the same request from
+`curl` succeeds. Fixed with a named User-Agent and pinned by a test against
+a local stand-in that refuses the default (`sunset-responses-script.test.ts`;
+removing the header turns it red).
+
+In the same pass: **`prod-drift` grew a second job** — both certificates'
+expiry and MCP `/health`, from outside, one `prod-health` issue while any
+fails — because the existing job stayed green throughout the outage; both
+jobs now treat 410 as closed on purpose, so the closure does not turn the
+watchdog red every day. `deploy/sunset/` joined the drift exemptions (no
+image contains it). The import result line ("1 were already here") became
+label-and-count in all three languages.
+
+| Item | Where | Status |
+|---|---|---|
+| MCP certificate still expired | host | **open — operator** runs `/root/fix-cert-renewal.sh`; refused to the agent again with the operator's go-ahead in the conversation |
+| The endpoint watchdog cannot see MCP until `BRAIN_MCP_URL` exists | repo secrets | **open — operator**: `gh secret set BRAIN_MCP_URL` (secret writes are refused to the agent) |
+| Two notice addresses bounce permanently | Resend | accepted; reach them another way if they matter |
+| Dependency PRs held until after the closure | #295, #296, #298, #302 | **held** — change freeze on an instance whose remaining work is two emails and a close; #297 (TypeScript 7) fails typecheck and needs a migration of its own |
 
 ## 1. Scaffolding-level issues (v0.1+)
 

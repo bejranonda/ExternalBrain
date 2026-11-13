@@ -90,6 +90,7 @@ sent retroactively; the next stage covers it.
 
 ```
 ./scripts/sunset.sh status                      # settings, phase, what is running, latest final dump, timer
+./scripts/sunset.sh responses [--emails]        # how users responded: delivery, downloads, MCP use (read-only)
 ./scripts/sunset.sh render                      # render the closure page + nginx config (also done by close)
 ./scripts/sunset.sh close [--dry-run] [--early] # the shutdown itself
 ./scripts/sunset.sh reopen                      # undo close (before purge only)
@@ -133,6 +134,31 @@ with the same HTTP-verified restart.
 > bring the site back it recreates those services with
 > `docker compose up -d --no-build --force-recreate <services>`.
 
+**`responses`** — read-only. One line per account: the latest notice and
+what Resend says became of it (`delivered`, `bounced`, `suppressed`, …),
+when the account first downloaded its data after its first notice (the
+`user.data_export` audit row), and when any of its MCP tokens was last used —
+marked ✓ when that was after the notice, i.e. its AI tool has carried the
+`serviceNotice`. It ends with what needs attention: addresses that bounced,
+and accounts that were sent the email but have done neither. Addresses are
+masked unless `--emails`. Run it after each notice stage. What it cannot
+see, by design or by reach:
+
+- **Replies.** They go to `EMAIL_REPLY_TO`; read that mailbox. Check where
+  it actually forwards before relying on it — on the reference instance it
+  is a Cloudflare Email Routing address, not the operator's inbox.
+- **Opens and clicks.** Not tracked (`PRIVACY.md`): a tracking pixel would
+  be the first one in the product, Apple Mail and others pre-fetch images so
+  the number is noise anyway, and a download is the response that counts.
+- **Who saw the banner.** Page views are not recorded.
+
+"Sent" in the worker's log means *the provider accepted it*. The first
+announcement logged 14 sent, 0 failed; `responses` showed two of them had
+hard-bounced. Resend puts a hard-bounced address on its suppression list,
+so the reminders to it are marked `suppressed` rather than bouncing again
+and do not count against the sender's bounce rate — but nobody at that
+address will hear about the closure by email.
+
 **`schedule`** — renders the closure page first (so a setting it cannot use
 fails now, not unattended at the sunset instant), then writes
 `brain-sunset.service` + `brain-sunset.timer` to
@@ -164,7 +190,8 @@ For a scratch rehearsal, every path is overridable: `ENV_FILE`,
 | T-30d | operator | Set `SERVICE_SUNSET_AT` / `_KIND` / `_DELETE_AT`, `SERVICE_SUNSET_EMAILS=dry_run`; redeploy web, mcp-server, worker. Check the banner, an MCP response, registration refused, export + import. |
 | T-30d | operator | Read the worker's dry-run log (recipients, skipped domains). Set `SERVICE_SUNSET_EMAILS=send`, recreate the worker — the announcement goes out at boot. |
 | T-30d | operator | `./scripts/sunset.sh close --dry-run --early`, then `./scripts/sunset.sh schedule`. |
-| T-7d, T-1d | worker | Reminder emails, automatically. |
+| T-30d + 1h | operator | `./scripts/sunset.sh responses` — bounces, and whether anyone has downloaded yet. |
+| T-7d, T-1d | worker | Reminder emails, automatically. Run `responses` after each. |
 | T | timer (or operator) | `sunset.sh close`. Check `status`, open both hostnames, read `/var/log/brain-sunset.log`. |
 | T … T+30d | operator | Answer late data requests from the final dump (restore into a scratch database, export, email). |
 | T+30d | operator, at a terminal | `sunset.sh purge --print`, then `purge --confirm-delete-all-data`. |
@@ -178,6 +205,6 @@ For a scratch rehearsal, every path is overridable: `ENV_FILE`,
 - [ ] Revoke the email provider key (Resend) and remove the sending domain if nothing else uses it.
 - [ ] Delete the GitHub OAuth app (`AUTH_GITHUB_ID`).
 - [ ] Delete any off-host backup copies (if the `backup-replicate` profile was ever enabled) — `purge` only sees this host.
-- [ ] Keep TLS renewal working **for as long as the closure page is served** — an expired certificate turns the 410 page into a browser error.
-- [ ] When the page has served its purpose (a few months), stop the closure server (`docker compose -p brain-sunset -f deploy/sunset/docker-compose.sunset.yml down`), remove the nginx sites and certificates, and delete the DNS records.
+- [ ] Keep TLS renewal working **for as long as the closure page is served** — an expired certificate turns the 410 page into a browser error. The `prod-drift` workflow's endpoints job keeps checking both certificates daily and treats the closure server's 410 as closed-on-purpose (`CICD.md`).
+- [ ] When the page has served its purpose (a few months), stop the closure server (`docker compose -p brain-sunset -f deploy/sunset/docker-compose.sunset.yml down`), remove the nginx sites and certificates, and delete the DNS records. Then delete the `BRAIN_DEPLOY_URL` and `BRAIN_MCP_URL` repository secrets, or the daily check fails on hosts that are gone.
 - [ ] Then remove `.env` — it still holds the secrets above.
