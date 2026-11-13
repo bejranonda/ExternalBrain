@@ -26,7 +26,7 @@ guard("user data export → import", () => {
     await db.knowledge.createMany({
       data: [
         { ...base, type: "principle", scope: "project", triggerText: "when deploying", ruleText: "take a dump first", rationale: "rollback", confidence: 0.9, tags: ["decision"] },
-        { ...base, type: "anti_principle", triggerText: "when testing", ruleText: "do not hit prod", instead: "use the scratch DB" },
+        { ...base, type: "anti_principle", triggerText: "when testing", ruleText: "do not hit prod", instead: "use the scratch DB", failureCount: 2, successCount: 5 },
         { ...base, type: "reflex", triggerText: "retired rule", ruleText: "gone", deletedAt: new Date() },
         { ...base, type: "action_item", triggerText: "meeting to-do", ruleText: "call Bob" },
       ],
@@ -77,6 +77,8 @@ guard("user data export → import", () => {
       expect(r.tags).toContain("imported");
       expect(r.visibility).toBe("project");
     }
+    const anti = rows.find((r) => r.type === "anti_principle")!;
+    expect([anti.failureCount, anti.successCount, anti.instead]).toEqual([2, 5, "use the scratch DB"]);
     expect(await importUserData(to, file)).toMatchObject({ ok: true, imported: 0, duplicates: 2 });
   });
 

@@ -154,6 +154,8 @@ const importSchema = z.object({
         language: z.string().max(80).nullish(),
         tags: z.array(z.string().max(120)).max(50).default([]),
         confidence: z.number().finite().optional(),
+        successCount: z.number().int().nonnegative().optional(),
+        failureCount: z.number().int().nonnegative().optional(),
         deletedAt: z.union([z.string(), z.null()]).optional(),
       }).passthrough(),
     )
@@ -216,6 +218,10 @@ export async function importUserData(userId: string, input: unknown): Promise<Im
       language: k.language ?? null,
       tags: [...new Set([...k.tags, "imported"])],
       confidence: Math.min(1, Math.max(0, k.confidence ?? 0.7)),
+      // Outcome counts are the rule's evidence (KNOWLEDGE.md invariants 6
+      // and 12) and travel with it.
+      successCount: k.successCount ?? 0,
+      failureCount: k.failureCount ?? 0,
       // Embeddings are left NULL for the worker's backfill to fill in: the
       // source instance may have used a different model or dimension.
       extractedBy: "imported",
