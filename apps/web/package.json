@@ -33,15 +33,15 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.0",
-    "@playwright/test": "^1.59.1",
+    "@playwright/test": "^1.65.0",
     "@types/node": "^25.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "eslint": "^10.0.0",
+    "eslint": "^10.14.0",
     "globals": "^14.0.0",
-    "tailwindcss": "^4.2.4",
+    "tailwindcss": "^4.3.5",
     "typescript": "^6.0.0",
-    "typescript-eslint": "^8.0.0",
+    "typescript-eslint": "^8.72.2",
     "vitest": "^4.0.0"
   }
 }
