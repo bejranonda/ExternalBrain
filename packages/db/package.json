@@ -19,14 +19,14 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "^7.0.0",
-    "@prisma/client": "^7.0.0",
-    "@prisma/client-runtime-utils": "^7.0.0",
-    "pg": "^8.13.0"
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "@prisma/client-runtime-utils": "^7.10.1",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@types/node": "^25.0.0",
-    "@types/pg": "^8.11.0",
+    "@types/pg": "^8.23.1",
     "prisma": "^7.0.0",
     "tsx": "^4.19.0",
     "typescript": "^6.0.0"
